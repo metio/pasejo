@@ -1,0 +1,23 @@
+[package]
+name = "pasejo"
+description = "passage re-implementation in Rust for teams"
+authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
+version = "1.0.0"
+license = "0BSD"
+edition = "2021"
+homepage = "https://github.com/metio/pasejo"
+repository = "https://github.com/metio/pasejo"
+keywords = ["cli"]
+categories = ["command-line-utilities"]
+readme = "README.md"
+
+[features]
+default = []
+
+[dependencies]
+age = { version = "0.10.0" }
+anyhow = { version = "1.0.8" }
+clap = { version =  "4.5.7", features = ["derive"] }
+confy = { version =  "0.6.1" }
+directories = { version = "5.0.1" }
+serde = { version = "1.0.203", features = ["derive"] }
