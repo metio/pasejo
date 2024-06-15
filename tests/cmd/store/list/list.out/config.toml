@@ -1,0 +1,20 @@
+identities = []
+default_store = "another"
+
+[[stores]]
+path = "[CWD]/store"
+name = "something"
+synchronizer = "None"
+identities = []
+
+[[stores]]
+path = "[CWD]/path/to/another"
+name = "another"
+synchronizer = "None"
+identities = []
+
+[[stores]]
+path = "[CWD]/somewhere/else"
+name = "other"
+synchronizer = "None"
+identities = []

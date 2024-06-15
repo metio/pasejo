@@ -1,0 +1,4 @@
+stores = []
+
+[[identities]]
+file = "[CWD]/some-identity"

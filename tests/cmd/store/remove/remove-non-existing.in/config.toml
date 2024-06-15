@@ -1,0 +1,14 @@
+default_store = "something"
+identities = []
+
+[[stores]]
+path = "store"
+name = "something"
+synchronizer = "None"
+identities = []
+
+[[stores]]
+path = "other"
+name = "other"
+synchronizer = "None"
+identities = []

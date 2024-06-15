@@ -1,0 +1,202 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+name: Automated Release
+on:
+  schedule:
+    - cron: 32 4 * * SUN
+  workflow_dispatch:
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      commit_count: ${{ steps.commits.outputs.count }}
+      release_version: ${{ steps.release.outputs.version }}
+      previous_version: ${{ steps.last_release.outputs.tag }}
+    steps:
+      - id: checkout
+        name: Clone Git Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: last_release
+        name: Fetch last release info
+        run: echo "tag=$(gh release view --json tagName --jq '.tagName')" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - id: commits
+        name: Count Commits
+        run: echo "count=$(git rev-list --count ${{ steps.last_release.outputs.tag }}..HEAD -- src Cargo.lock)" >> $GITHUB_OUTPUT
+      - id: release
+        name: Create Release Version
+        if: steps.commits.outputs.count > 0 || steps.last_release.outputs.tag == ''
+        run: echo "version=$(date +'%Y.%-m.%-d')" >> $GITHUB_OUTPUT
+  build:
+    name: Build ${{ matrix.target }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macOS-latest
+            cross: true
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macOS-latest
+            cross: true
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: false
+    steps:
+      - id: checkout
+        name: Clone Git Repository
+        if: needs.prepare.outputs.release_version != ''
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        if: needs.prepare.outputs.release_version != ''
+        with:
+          targets: aarch64-apple-darwin,aarch64-unknown-linux-gnu,x86_64-apple-darwin,x86_64-unknown-linux-gnu
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+        if: needs.prepare.outputs.release_version != ''
+        with:
+          key: ${{ matrix.target }}
+      - id: versioning
+        name: Modify release version
+        if: needs.prepare.outputs.release_version != ''
+        run: sed -i -e '0,/authors/s/^version = .*/version = "${{ needs.prepare.outputs.release_version }}"/' Cargo.toml
+      - id: build
+        name: Build Project
+        if: needs.prepare.outputs.release_version != '' && !matrix.cross
+        run: cargo build --release --target ${{ matrix.target }}
+      - id: cross
+        name: Build Project
+        if: needs.prepare.outputs.release_version != '' && matrix.cross
+        run: cross build --release --target ${{ matrix.target }}
+      - id: move
+        name: Move Binary
+        if: needs.prepare.outputs.release_version
+        run: mv target/${{ matrix.target }}/release/${{ github.repository }} ./${{ github.repository }}
+      - id: tar
+        name: Create tar.gz Archive
+        if: needs.prepare.outputs.release_version != ''
+        run: >
+          tar --create --gzip
+          --file ${{ github.repository }}-${{ matrix.target }}.tar.gz
+          ${{ github.repository }}
+          LICENSE
+          README.md
+      - id: upload
+        name: Upload Artifact
+        if: needs.prepare.outputs.release_version != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.repository }}-${{ matrix.target }}
+          path: ${{ github.repository }}-${{ matrix.target }}.tar.gz
+  release:
+    name: Perform Release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - id: checkout
+        name: Clone Git Repository
+        uses: actions/checkout@v4
+        if: needs.prepare.outputs.release_version != ''
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        if: needs.prepare.outputs.release_version != ''
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+        if: needs.prepare.outputs.release_version != ''
+      - id: download
+        name: Download Artifacts
+        if: needs.prepare.outputs.release_version != ''
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: ${{ github.repository }}-*
+          merge-multiple: true
+      - id: checksums
+        name: Calculate Checksums
+        if: needs.prepare.outputs.release_version != ''
+        run: sha256sum *.tar.gz > SHA256SUMS
+        working-directory: dist
+      - id: import_gpg
+        name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        if: needs.prepare.outputs.release_version != ''
+        with:
+          gpg_private_key: ${{ secrets.GPG_SECRET_KEY_BASE64 }}
+          passphrase: ${{ secrets.GPG_SECRET_KEY_PASSWORD }}
+      - id: sign_checksums
+        name: Sign Checksums
+        if: needs.prepare.outputs.release_version != ''
+        run: >
+          gpg
+          --batch
+          --local-user ${{ steps.import_gpg.outputs.fingerprint }}
+          --output dist/SHA256SUMS.sig
+          --detach-sign
+          dist/SHA256SUMS
+      - id: create_release
+        name: Create Release
+        if: needs.prepare.outputs.release_version != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_version }}
+          name: ${{ needs.prepare.outputs.release_version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+            dist/SHA256SUMS.sig
+      - id: versioning
+        name: Modify release version
+        if: needs.prepare.outputs.release_version != ''
+        run: sed -i -e '0,/authors/s/^version = .*/version = "${{ needs.prepare.outputs.release_version }}"/' Cargo.toml
+      - name: Publish to crates.io
+        if: needs.prepare.outputs.release_version != ''
+        run: >
+          cargo publish
+          --allow-dirty
+          --token ${{ secrets.CRATES_IO_TOKEN }}
+          --jobs 1
+          --no-verify
+        env:
+          RUSTFLAGS: "-A warnings"
+      - id: mail
+        name: Send Mail
+        if: needs.prepare.outputs.release_version != ''
+        uses: dawidd6/action-send-mail@v5
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: ${{ github.event.repository.name }} version ${{ needs.prepare.outputs.release_version }} published
+          body: See https://github.com/metio/${{ github.event.repository.name }}/releases/tag/${{ needs.prepare.outputs.release_version }} for details.
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: ${{ secrets.MAIL_SENDER }}
+      - id: matrix
+        name: Send Matrix Message
+        if: needs.prepare.outputs.release_version != ''
+        uses: s3krit/matrix-message-action@v0.0.3
+        with:
+          room_id: ${{ secrets.MATRIX_ROOM_ID }}
+          access_token: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          message: ${{ github.event.repository.name }} version [${{ needs.prepare.outputs.release_version }}](https://github.com/metio/${{ github.event.repository.name }}/releases/tag/${{ needs.prepare.outputs.release_version }}) published
+          server: ${{ secrets.MATRIX_SERVER }}

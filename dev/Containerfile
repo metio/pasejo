@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+FROM docker.io/metio/devcontainers-rust:latest
+
+RUN apt-get update && apt-get install -y mercurial age

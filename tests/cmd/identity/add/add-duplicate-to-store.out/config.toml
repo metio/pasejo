@@ -1,0 +1,10 @@
+identities = []
+default_store = "something"
+
+[[stores]]
+path = "store"
+name = "something"
+synchronizer = "None"
+
+[[stores.identities]]
+file = "[CWD]/some-identity"
