@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 
@@ -7,7 +8,6 @@ use clap::{Parser, Subcommand};
 pub struct Cli {
     // /// Optional name of secret to search for
     // name: Option<String>,
-
     /// Optional name of store to use. Defaults to the first store defined in the local user configuration
     store: Option<String>,
 
@@ -51,20 +51,12 @@ pub enum RecipientsCommands {
 impl Cli {
     pub fn dispatch_command(&self) -> Result<()> {
         match &self.command {
-            Some(Commands::Recipients { command }) => {
-                match command {
-                    RecipientsCommands::Add { path } => {
-                        Ok(())
-                    }
-                    RecipientsCommands::Remove { path } => {
-                        Ok(())
-                    }
-                    RecipientsCommands::Inherit { path } => {
-                        Ok(())
-                    }
-                }
-            }
-            None => Err(anyhow!("Unknown command encountered"))
+            Some(Commands::Recipients { command }) => match command {
+                RecipientsCommands::Add { path } => Ok(()),
+                RecipientsCommands::Remove { path } => Ok(()),
+                RecipientsCommands::Inherit { path } => Ok(()),
+            },
+            None => Err(anyhow!("Unknown command encountered")),
         }
     }
 }

@@ -16,8 +16,12 @@ default = []
 
 [dependencies]
 age = { version = "0.10.0" }
-anyhow = { version = "1.0.8" }
-clap = { version =  "4.5.7", features = ["derive"] }
-confy = { version =  "0.6.1" }
+anyhow = { version = "1.0.86" }
+clap = { version = "4.5.7", features = ["derive"] }
+confy = { version = "0.6.1" }
 directories = { version = "5.0.1" }
+duct = { version = "0.13.7" }
+human-panic = { version = "2.0.0" }
+rpassword = { version = "7.3.1" }
 serde = { version = "1.0.203", features = ["derive"] }
+ssh-key = { version = "0.6.6", features = ["ed25519", "encryption"] }
