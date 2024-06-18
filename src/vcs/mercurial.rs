@@ -4,11 +4,11 @@ use anyhow::Context;
 use anyhow::Result;
 use duct::cmd;
 
-use crate::vcs::api::VCS;
+use crate::vcs::vcs::VersionControlSystem;
 
 pub(crate) struct Mercurial {}
 
-impl VCS for Mercurial {
+impl VersionControlSystem for Mercurial {
     fn init(&self, path: &Path) -> Result<()> {
         cmd!("hg", "init", path).run().with_context(|| {
             format!(

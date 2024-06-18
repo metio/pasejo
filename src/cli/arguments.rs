@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::vcs::api::VCSTypes;
+use crate::vcs::vcs::VersionControlSystems;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Parser)]
@@ -75,6 +75,6 @@ pub(crate) enum StoreCommands {
 
         /// The version control system to use
         #[arg(short, long, default_value_t, value_enum)]
-        vcs: VCSTypes,
+        vcs: VersionControlSystems,
     },
 }

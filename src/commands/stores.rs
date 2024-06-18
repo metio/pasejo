@@ -2,16 +2,16 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use crate::adapters::file_system::FileSystem;
-use crate::cli::configuration::Configuration;
-use crate::vcs::api::VCSTypes;
+use crate::adapters::file_system;
+use crate::cli::configuration;
+use crate::vcs::vcs;
 
-pub(crate) fn store_init(
+pub(crate) fn init(
+    file_system: Box<dyn file_system::FileSystem>,
+    mut configuration: configuration::Configuration,
     path: &PathBuf,
     alias: &String,
-    vcs: &VCSTypes,
-    file_system: Box<dyn FileSystem>,
-    mut configuration: Configuration,
+    vcs: &vcs::VersionControlSystems,
 ) -> Result<()> {
     file_system.mkdir_parents(path)?;
     vcs.select_implementation().init(path)?;

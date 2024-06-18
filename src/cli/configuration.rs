@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::vcs::api::VCSTypes;
+use crate::vcs::vcs::VersionControlSystems;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -12,7 +12,7 @@ pub struct Configuration {
 pub(crate) struct Store {
     pub(crate) path: String,
     pub(crate) alias: String,
-    pub(crate) vcs: VCSTypes,
+    pub(crate) vcs: VersionControlSystems,
 }
 
 impl Configuration {
@@ -20,7 +20,7 @@ impl Configuration {
         confy::load(env!("CARGO_PKG_NAME"), "config").expect("to load configuration")
     }
 
-    pub(crate) fn add_store(&mut self, path: String, alias: String, vcs: VCSTypes) -> Result<()> {
+    pub(crate) fn add_store(&mut self, path: String, alias: String, vcs: VersionControlSystems) -> Result<()> {
         self.stores.push(Store { path, alias, vcs });
         confy::store(env!("CARGO_PKG_NAME"), "config", self)?;
         Ok(())
