@@ -1,7 +1,0 @@
-use std::path::Path;
-
-use anyhow::Result;
-
-pub trait Store {
-    fn init(&self, path: &Path) -> Result<()>;
-}

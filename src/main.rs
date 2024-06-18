@@ -3,8 +3,9 @@ use clap::Parser;
 use human_panic::Metadata;
 use human_panic::setup_panic;
 
-use pasejo::cli::Cli;
-use pasejo::configuration::Configuration;
+use pasejo::cli::arguments::Cli;
+use pasejo::cli::configuration::Configuration;
+use pasejo::commands::dispatcher::dispatch_command;
 
 fn main() -> Result<()> {
     setup_panic!(
@@ -15,7 +16,7 @@ fn main() -> Result<()> {
     );
 
     let cli = Cli::parse();
-    let configuration: Configuration = confy::load(env!("CARGO_PKG_NAME"), "config")?;
+    let configuration = Configuration::load();
 
-    cli.dispatch_command(configuration)
+    dispatch_command(cli, configuration)
 }

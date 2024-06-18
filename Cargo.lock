@@ -1209,6 +1209,8 @@ dependencies = [
  "rpassword",
  "serde",
  "ssh-key",
+ "toml 0.8.14",
+ "walkdir",
 ]
 
 [[package]]
