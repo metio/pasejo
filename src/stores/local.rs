@@ -1,15 +1,16 @@
-use std::fs;
 use std::path::Path;
 
-use anyhow::Context;
 use anyhow::Result;
 
+use crate::adapters::file_system::FileSystem;
 use crate::stores::api::Store;
 
-struct Local {}
+pub struct LocalStore {
+    pub file_system_adapter: Box<dyn FileSystem>,
+}
 
-impl Store for Local {
-    fn init(path: &Path) -> Result<()> {
-        fs::create_dir_all(path).with_context(|| format!("Failed to initialize store at {}", path))
+impl Store for LocalStore {
+    fn init(&self, path: &Path) -> Result<()> {
+        self.file_system_adapter.mkdir_parents(path)
     }
 }

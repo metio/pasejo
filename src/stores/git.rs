@@ -1,21 +1,19 @@
-use std::fs;
 use std::path::Path;
 
-use anyhow::Context;
 use anyhow::Result;
-use duct::cmd;
 
+use crate::adapters::file_system::FileSystem;
+use crate::adapters::git::GitAdapter;
 use crate::stores::api::Store;
 
-pub struct Git {}
+pub struct GitStore {
+    pub(crate) file_system_adapter: Box<dyn FileSystem>,
+    pub(crate) git_adapter: Box<dyn GitAdapter>,
+}
 
-impl Store for Git {
-    fn init(path: &Path) -> Result<()> {
-        fs::create_dir_all(path)
-            .with_context(|| format!("Failed to initialize store at {}", path))?;
-        cmd!("git", "-C", path, "init")
-            .run()
-            .with_context(|| format!("Failed to initialize store at {}", path))?;
-        Ok(())
+impl Store for GitStore {
+    fn init(&self, path: &Path) -> Result<()> {
+        self.file_system_adapter.mkdir_parents(path)?;
+        self.git_adapter.init(path)
     }
 }

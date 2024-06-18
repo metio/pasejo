@@ -15,9 +15,7 @@ fn main() -> Result<()> {
     );
 
     let cli = Cli::parse();
+    let configuration: Configuration = confy::load(env!("CARGO_PKG_NAME"), "config")?;
 
-    let cfg: Configuration = confy::load(env!("CARGO_PKG_NAME"), "config")?;
-    dbg!(cfg);
-
-    cli.dispatch_command()
+    cli.dispatch_command(configuration)
 }
