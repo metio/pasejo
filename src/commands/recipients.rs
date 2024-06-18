@@ -29,7 +29,7 @@ pub(crate) fn add(
             }
         } else {
             let recipient = match name {
-                Some(name) => String::from("# ") + name + "\n" + public_key,
+                Some(name) => format!("# {}\n{}", name, public_key),
                 None => public_key.clone(),
             };
             file_system.append_file(root_recipients_file, recipient)?;
