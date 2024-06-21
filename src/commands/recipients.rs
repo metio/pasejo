@@ -46,59 +46,62 @@ pub fn add(
 }
 
 fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<String>) -> String {
-    if recipients.contains(public_key) {
-        // update existing recipient (name only - no re-encrypt required)
-        match name {
-            Some(name) => {
-                let comment = format!("# {}\n", name);
-                match recipients.find(public_key) {
-                    Some(public_key_index) => {
-                        match recipients
-                            .get(..public_key_index)
-                            .and_then(|substring| substring.rfind("#"))
-                        {
-                            Some(comment_index) => {
-                                // check whether line before public key contains correct comment
-                                if recipients
-                                    .get(comment_index..public_key_index)
-                                    .map(|s| s.matches("\n").collect())
-                                    .map(|m: Vec<&str>| m.len() == 1)
-                                    .unwrap_or(false)
-                                {
-                                    // comment is immediately above public key
-                                    recipients
-                                        .replace_range(comment_index..public_key_index, &comment);
-                                } else {
-                                    // comment belongs to another recipient
-                                    recipients.replace_range(
-                                        public_key_index..public_key_index + public_key.len(),
-                                        &format!("# {}\n{}", name, public_key),
-                                    );
-                                }
-                            }
-                            None => {
-                                // potentially in first line, just insert comment
-                                recipients.insert_str(public_key_index, &comment);
-                            }
-                        }
+    let recipient = format_recipient(public_key, name);
+    match recipients.find(public_key) {
+        Some(public_key_index) => {
+            // public key already exists as recipient
+            // update name only - no re-encrypt required
+            match recipients
+                .get(..public_key_index)
+                .and_then(|substring| substring.rfind("#"))
+            {
+                Some(comment_index) => {
+                    // public key might have comment already
+                    // check whether line before public key contains correct comment
+                    if recipients
+                        .get(comment_index..public_key_index)
+                        .map(|substring| substring.matches("\n").collect())
+                        .map(|matches: Vec<&str>| matches.len() == 1)
+                        .unwrap_or(false)
+                    {
+                        // comment is immediately above public key
+                        recipients.replace_range(
+                            comment_index..public_key_index + public_key.len(),
+                            &recipient,
+                        );
+                    } else {
+                        // comment belongs to another recipient
+                        recipients.replace_range(
+                            public_key_index..public_key_index + public_key.len(),
+                            &recipient,
+                        );
                     }
-                    None => unreachable!("Somehow we cannot find the public key anymore?"),
                 }
-                recipients
+                None => {
+                    // no comment exists - potentially in first line, just insert comment
+                    recipients.replace_range(
+                        public_key_index..public_key_index + public_key.len(),
+                        &recipient,
+                    );
+                }
             }
-            None => recipients,
         }
-    } else {
-        // add new recipient
-        let recipient = match name {
-            Some(name) => format!("# {}\n{}", name, public_key),
-            None => format!("{}", public_key),
-        };
-        if recipients.is_empty() {
-            recipient
-        } else {
-            recipients + "\n" + &recipient
+        None => {
+            // add new recipient
+            if recipients.is_empty() {
+                recipients.insert_str(0, &recipient);
+            } else {
+                recipients = recipients + "\n" + &recipient;
+            }
         }
+    }
+    recipients
+}
+
+fn format_recipient(public_key: &String, name: &Option<String>) -> String {
+    match name {
+        Some(name) if !name.is_empty() => format!("# {}\n{}", name, public_key),
+        _ => format!("{}", public_key),
     }
 }
 
@@ -221,6 +224,36 @@ mod tests {
             12345\n\
             # other\n\
             54321";
+        assert_eq!(
+            upsert_recipient(recipients, &public_key, &name),
+            expectation
+        );
+    }
+
+    #[test]
+    fn upsert_recipient_with_empty_name() {
+        let recipients = String::from(
+            "# old\n\
+            12345",
+        );
+        let public_key = String::from("12345");
+        let name = Some(String::from(""));
+        let expectation = "12345";
+        assert_eq!(
+            upsert_recipient(recipients, &public_key, &name),
+            expectation
+        );
+    }
+
+    #[test]
+    fn upsert_recipient_with_no_name() {
+        let recipients = String::from(
+            "# old\n\
+            12345",
+        );
+        let public_key = String::from("12345");
+        let name = None;
+        let expectation = "12345";
         assert_eq!(
             upsert_recipient(recipients, &public_key, &name),
             expectation
