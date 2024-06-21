@@ -2,21 +2,21 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::vcs::vcs::VersionControlSystems;
+use crate::adapters::vcs::VersionControlSystems;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Parser)]
 pub struct Cli {
     /// Optional name of store to use. Defaults to the first store defined in the local user configuration
     #[arg(short, long)]
-    pub(crate) store: Option<String>,
+    pub store: Option<String>,
 
     #[command(subcommand)]
-    pub(crate) command: Option<Commands>,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
+pub enum Commands {
     /// Manage recipients
     Recipients {
         #[command(subcommand)]
@@ -30,7 +30,7 @@ pub(crate) enum Commands {
 }
 
 #[derive(Subcommand)]
-pub(crate) enum RecipientsCommands {
+pub enum RecipientsCommands {
     /// Adds a recipient
     Add {
         /// The public key of the new recipient
@@ -48,6 +48,10 @@ pub(crate) enum RecipientsCommands {
 
     /// Remove a recipient
     Remove {
+        /// The public key of the recipient to remove
+        #[arg(short, long)]
+        public_key: String,
+
         /// The path to a folder or secret that should no longer be readable by the given recipient
         #[arg(short, long)]
         path: Option<PathBuf>,
@@ -62,7 +66,7 @@ pub(crate) enum RecipientsCommands {
 }
 
 #[derive(Subcommand)]
-pub(crate) enum StoreCommands {
+pub enum StoreCommands {
     /// Initialize a new store
     Init {
         /// The path on your local system for the new store

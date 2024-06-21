@@ -1,40 +1,42 @@
 use std::fs;
-use std::path;
 use std::io::Write;
+use std::path::Path;
 
 use anyhow::Context;
+use anyhow::Result;
+use walkdir::WalkDir;
 
 pub trait FileSystem {
-    fn mkdir_parents(&self, path: &path::Path) -> anyhow::Result<()>;
-    fn reverse_walk(&self, path: &path::Path) -> walkdir::IntoIter;
-    fn read_file(&self, path: &path::Path) -> anyhow::Result<String>;
-    fn write_file(&self, path: &path::Path, content: String) -> anyhow::Result<()>;
-    fn append_file(&self, path: &path::Path, content: String) -> anyhow::Result<()>;
+    fn mkdir_parents(&self, path: &Path) -> Result<()>;
+    fn reverse_walk(&self, path: &Path) -> walkdir::IntoIter;
+    fn read_file(&self, path: &Path) -> Result<String>;
+    fn write_file(&self, path: &Path, content: String) -> Result<()>;
+    fn append_file(&self, path: &Path, content: &String) -> Result<()>;
 }
 
 pub struct FileSystemDefault {}
 
 impl FileSystem for FileSystemDefault {
-    fn mkdir_parents(&self, path: &path::Path) -> anyhow::Result<()> {
+    fn mkdir_parents(&self, path: &Path) -> Result<()> {
         fs::create_dir_all(path)
             .with_context(|| format!("Failed to create directories for path '{}'", path.display()))
     }
 
-    fn reverse_walk(&self, path: &path::Path) -> walkdir::IntoIter {
-        walkdir::WalkDir::new(path).contents_first(true).into_iter()
+    fn reverse_walk(&self, path: &Path) -> walkdir::IntoIter {
+        WalkDir::new(path).contents_first(true).into_iter()
     }
 
-    fn read_file(&self, path: &path::Path) -> anyhow::Result<String> {
+    fn read_file(&self, path: &Path) -> Result<String> {
         let root_recipients_data = fs::read_to_string(path)?;
         Ok(root_recipients_data)
     }
 
-    fn write_file(&self, path: &path::Path, content: String) -> anyhow::Result<()> {
+    fn write_file(&self, path: &Path, content: String) -> Result<()> {
         fs::write(path, content)?;
         Ok(())
     }
 
-    fn append_file(&self, path: &path::Path, content: String) -> anyhow::Result<()> {
+    fn append_file(&self, path: &Path, content: &String) -> Result<()> {
         let mut file = fs::OpenOptions::new()
             .write(true)
             .append(true)

@@ -1,18 +1,18 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::vcs::vcs::VersionControlSystems;
+use crate::adapters::vcs::VersionControlSystems;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
-    pub(crate) stores: Vec<Store>,
+    pub stores: Vec<Store>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Store {
-    pub(crate) path: String,
-    pub(crate) alias: String,
-    pub(crate) vcs: VersionControlSystems,
+pub struct Store {
+    pub path: String,
+    pub alias: String,
+    pub vcs: VersionControlSystems,
 }
 
 impl Configuration {
@@ -20,13 +20,13 @@ impl Configuration {
         confy::load(env!("CARGO_PKG_NAME"), "config").expect("to load configuration")
     }
 
-    pub(crate) fn add_store(&mut self, path: String, alias: String, vcs: VersionControlSystems) -> Result<()> {
+    pub fn add_store(&mut self, path: String, alias: String, vcs: VersionControlSystems) -> Result<()> {
         self.stores.push(Store { path, alias, vcs });
         confy::store(env!("CARGO_PKG_NAME"), "config", self)?;
         Ok(())
     }
 
-    pub(crate) fn select_store(&self, alias: Option<String>) -> &Store {
+    pub fn select_store(&self, alias: Option<String>) -> &Store {
         match alias {
             Some(alias) => self
                 .stores

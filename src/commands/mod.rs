@@ -1,3 +1,3 @@
 pub mod dispatcher;
-mod recipients;
-mod stores;
+pub mod recipients;
+pub mod stores;
