@@ -64,7 +64,7 @@ fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<S
         None => {
             // add new recipient
             if recipients.is_empty() {
-                recipients.insert_str(0, &recipient);
+                recipients = recipient;
             } else {
                 recipients = recipients + "\n" + &recipient;
             }
