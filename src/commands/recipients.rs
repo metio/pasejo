@@ -25,11 +25,8 @@ pub fn add(
             file_system.write_file(root_recipients_file, updated_recipients)?;
         } else {
             // create new .recipients file
-            let recipient = match name {
-                Some(name) => &format!("# {}\n{}", name, public_key),
-                None => public_key,
-            };
-            file_system.append_file(root_recipients_file, recipient)?;
+            let recipient = format_recipient(public_key, name);
+            file_system.append_file(root_recipients_file, &recipient)?;
         }
 
         vcs.commit(
@@ -51,40 +48,18 @@ fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<S
         Some(public_key_index) => {
             // public key already exists as recipient
             // update name only - no re-encrypt required
-            match recipients
+            let start_index = recipients
                 .get(..public_key_index)
                 .and_then(|substring| substring.rfind("#"))
-            {
-                Some(comment_index) => {
-                    // public key might have comment already
-                    // check whether line before public key contains correct comment
-                    if recipients
+                .filter(|&comment_index| {
+                    recipients
                         .get(comment_index..public_key_index)
                         .map(|substring| substring.matches("\n").collect())
                         .map(|matches: Vec<&str>| matches.len() == 1)
                         .unwrap_or(false)
-                    {
-                        // comment is immediately above public key
-                        recipients.replace_range(
-                            comment_index..public_key_index + public_key.len(),
-                            &recipient,
-                        );
-                    } else {
-                        // comment belongs to another recipient
-                        recipients.replace_range(
-                            public_key_index..public_key_index + public_key.len(),
-                            &recipient,
-                        );
-                    }
-                }
-                None => {
-                    // no comment exists - potentially in first line, just insert comment
-                    recipients.replace_range(
-                        public_key_index..public_key_index + public_key.len(),
-                        &recipient,
-                    );
-                }
-            }
+                })
+                .unwrap_or(public_key_index);
+            recipients.replace_range(start_index..public_key_index + public_key.len(), &recipient);
         }
         None => {
             // add new recipient
