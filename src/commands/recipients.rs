@@ -21,7 +21,7 @@ pub fn add(
         if root_recipients_file.try_exists()? && root_recipients_file.is_file() {
             // update existing .recipients file
             let root_recipients = file_system.read_file(root_recipients_file)?;
-            let updated_recipients = upsert_recipient(root_recipients, public_key, name);
+            let (updated_recipients, _) = upsert_recipient(root_recipients, public_key, name);
             file_system.write_file(root_recipients_file, updated_recipients)?;
         } else {
             // create new .recipients file
@@ -42,8 +42,9 @@ pub fn add(
     Ok(())
 }
 
-fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<String>) -> String {
+fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<String>) -> (String, bool) {
     let recipient = format_recipient(public_key, name);
+    let mut re_encryption_required = false;
     match recipients.find(public_key) {
         Some(public_key_index) => {
             // public key already exists as recipient
@@ -62,7 +63,8 @@ fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<S
             recipients.replace_range(start_index..public_key_index + public_key.len(), &recipient);
         }
         None => {
-            // add new recipient
+            // add new recipient - requires re-encryption of entire store
+            re_encryption_required = true;
             if recipients.is_empty() {
                 recipients = recipient;
             } else {
@@ -70,7 +72,7 @@ fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<S
             }
         }
     }
-    recipients
+    (recipients, re_encryption_required)
 }
 
 fn format_recipient(public_key: &String, name: &Option<String>) -> String {
