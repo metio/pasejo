@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::adapters::file_system::FileSystem;
-use crate::cli::configuration::Store;
+use crate::models::configuration::Store;
 
 pub fn add(
     file_system: Box<dyn FileSystem>,

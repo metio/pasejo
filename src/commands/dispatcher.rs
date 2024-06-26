@@ -1,12 +1,16 @@
 use anyhow::{anyhow, Result};
 
 use crate::adapters::file_system::FileSystemDefault;
-use crate::cli::arguments::*;
-use crate::cli::configuration::Configuration;
+use crate::models::cli::*;
+use crate::models::configuration::Configuration;
 use crate::commands::{recipients, stores};
 
 pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
+        Some(Commands::Identities { command}) => match command {
+            IdentityCommands::Add { file: _file } => Ok(()),
+            IdentityCommands::Remove { file: _file } => Ok(()),
+        },
         Some(Commands::Recipients { command }) => match command {
             RecipientsCommands::Add {
                 public_key,

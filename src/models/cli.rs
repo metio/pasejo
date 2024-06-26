@@ -17,15 +17,39 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Manage identities
+    Identities {
+        #[command(subcommand)]
+        command: IdentityCommands,
+    },
+
     /// Manage recipients
     Recipients {
         #[command(subcommand)]
         command: RecipientsCommands,
     },
+
     /// Manage stores
     Stores {
         #[command(subcommand)]
         command: StoreCommands,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum IdentityCommands {
+    /// Adds an identity
+    Add {
+        /// The path to the identity file to add to the configuration
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
+
+    /// Remove an identity
+    Remove {
+        /// The path to the identity file to remove from the configuration
+        #[arg(short, long)]
+        file: Option<PathBuf>,
     },
 }
 

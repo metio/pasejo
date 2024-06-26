@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::adapters::file_system::FileSystem;
 use crate::adapters::vcs::VersionControlSystems;
-use crate::cli::configuration::Configuration;
+use crate::models::configuration::Configuration;
 
 pub fn init(
     file_system: Box<dyn FileSystem>,

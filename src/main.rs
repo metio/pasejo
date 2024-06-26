@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use human_panic::{Metadata, setup_panic};
 
-use pasejo::cli::arguments::Cli;
-use pasejo::cli::configuration::Configuration;
+use pasejo::models::cli::Cli;
+use pasejo::models::configuration::Configuration;
 use pasejo::commands::dispatcher::dispatch_command;
 
 fn main() -> Result<()> {
