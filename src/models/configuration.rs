@@ -35,12 +35,21 @@ pub struct Identity {
 }
 
 impl Configuration {
-    pub fn load() -> Self {
+    fn config_path() -> PathBuf {
         let app_name = env!("CARGO_PKG_NAME");
         match std::env::var_os(app_name.to_owned().add("_config").to_uppercase()) {
-            Some(path) => confy::load_path(path).expect("to load configuration"),
-            None => confy::load(app_name, "config").expect("to load configuration"),
+            Some(path) => PathBuf::from(path),
+            None => confy::get_configuration_file_path(app_name, "config").expect("to load configuration"),
         }
+    }
+
+    pub fn load() -> Self {
+        confy::load_path(Configuration::config_path()).expect("to load configuration")
+    }
+
+    fn store(&self) -> Result<()> {
+        confy::store_path(Configuration::config_path(), self)?;
+        Ok(())
     }
 
     pub fn add_store(
@@ -55,7 +64,7 @@ impl Configuration {
             vcs,
             identities: vec![],
         });
-        confy::store(env!("CARGO_PKG_NAME"), "config", self)?;
+        self.store()?;
         Ok(())
     }
 
@@ -82,7 +91,7 @@ impl Configuration {
             }
             None => self.identities.push(Identity { file }),
         }
-        confy::store(env!("CARGO_PKG_NAME"), "config", self)?;
+        self.store()?;
         Ok(())
     }
 }
