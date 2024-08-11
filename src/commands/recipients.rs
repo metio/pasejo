@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::adapters::file_system::FileSystem;
 use crate::models::configuration::Store;
@@ -10,39 +10,39 @@ pub fn add(
     name: &Option<String>,
     path: &Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let store_root_path: &Path = store.path.as_ref();
-    let vcs = store.vcs.select_implementation();
+    let (recipients_absolute, recipients_relative) = store.paths_for(path, ".recipients");
+    let (secret_absolute, _) = store.paths_for(path, ".age");
+    let (directory_absolute, _) = store.paths_for(path, "");
 
-    if path.is_none() {
-        // add new recipient to the entire store
-        let recipients_file = &PathBuf::from(".recipients");
-        let root_recipients_file = &store_root_path.join(recipients_file);
-
-        if root_recipients_file.try_exists()? && root_recipients_file.is_file() {
+    if file_system.file_exists(&secret_absolute)?
+        || file_system.directory_exists(&directory_absolute)?
+    {
+        if file_system.file_exists(&recipients_absolute)? {
             // update existing .recipients file
-            let root_recipients = file_system.read_file(root_recipients_file)?;
-            let (updated_recipients, _) = upsert_recipient(root_recipients, public_key, name);
-            file_system.write_file(root_recipients_file, updated_recipients)?;
+            let recipients = file_system.read_file(&recipients_absolute)?;
+            let (updated_recipients, _) = upsert_recipient(recipients, public_key, name);
+            file_system.write_file(&recipients_absolute, updated_recipients)?;
         } else {
             // create new .recipients file
             let recipient = format_recipient(public_key, name);
-            file_system.append_file(root_recipients_file, &recipient)?;
+            file_system.append_file(&recipients_absolute, &recipient)?;
         }
 
-        vcs.commit(
-            store_root_path,
-            recipients_file,
+        store.vcs.select_implementation().commit(
+            store.path.as_ref(),
+            &recipients_relative,
             &format!("Added recipient '{}'", public_key),
         )?;
-    } else {
-        // add recipient to specific path (folder or single secret)
-        file_system.reverse_walk(store_root_path);
     }
 
     Ok(())
 }
 
-fn upsert_recipient(mut recipients: String, public_key: &String, name: &Option<String>) -> (String, bool) {
+fn upsert_recipient(
+    mut recipients: String,
+    public_key: &String,
+    name: &Option<String>,
+) -> (String, bool) {
     let recipient = format_recipient(public_key, name);
     let mut re_encryption_required = false;
     match recipients.find(public_key) {
@@ -92,10 +92,8 @@ mod tests {
         let public_key = String::from("12345");
         let name = None;
         let expectation = "12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -105,10 +103,8 @@ mod tests {
         let name = Some(String::from("test"));
         let expectation = "# test\n\
             12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -118,10 +114,8 @@ mod tests {
         let name = None;
         let expectation = "abcde\n\
         12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -132,10 +126,8 @@ mod tests {
         let expectation = "abcde\n\
         # test\n\
         12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -145,10 +137,8 @@ mod tests {
         let name = Some(String::from("test"));
         let expectation = "# test\n\
             12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -161,10 +151,8 @@ mod tests {
         let name = Some(String::from("new"));
         let expectation = "# new\n\
             12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -180,10 +168,8 @@ mod tests {
             abcde\n\
             # new\n\
             12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -201,10 +187,8 @@ mod tests {
             12345\n\
             # other\n\
             54321";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -216,10 +200,8 @@ mod tests {
         let public_key = String::from("12345");
         let name = Some(String::from(""));
         let expectation = "12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 
     #[test]
@@ -231,9 +213,7 @@ mod tests {
         let public_key = String::from("12345");
         let name = None;
         let expectation = "12345";
-        assert_eq!(
-            upsert_recipient(recipients, &public_key, &name),
-            expectation
-        );
+        let (recipients, _) = upsert_recipient(recipients, &public_key, &name);
+        assert_eq!(recipients, expectation);
     }
 }

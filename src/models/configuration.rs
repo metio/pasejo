@@ -1,5 +1,7 @@
+use std::ops::Add;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::adapters::vcs::VersionControlSystems;
 
@@ -34,7 +36,11 @@ pub struct Identity {
 
 impl Configuration {
     pub fn load() -> Self {
-        confy::load(env!("CARGO_PKG_NAME"), "config").expect("to load configuration")
+        let app_name = env!("CARGO_PKG_NAME");
+        match std::env::var_os(app_name.to_owned().add("_config").to_uppercase()) {
+            Some(path) => confy::load_path(path).expect("to load configuration"),
+            None => confy::load(app_name, "config").expect("to load configuration"),
+        }
     }
 
     pub fn add_store(
@@ -78,5 +84,18 @@ impl Configuration {
         }
         confy::store(env!("CARGO_PKG_NAME"), "config", self)?;
         Ok(())
+    }
+}
+
+impl Store {
+    pub fn paths_for(&self, path: &Option<PathBuf>, suffix: &str) -> (PathBuf, PathBuf) {
+        let suffix = PathBuf::from(suffix);
+        let relative_path = path
+            .as_ref()
+            .map_or_else(|| suffix.clone(), |p| p.join(&suffix));
+        (
+            PathBuf::from(&self.path).join(&relative_path),
+            relative_path,
+        )
     }
 }

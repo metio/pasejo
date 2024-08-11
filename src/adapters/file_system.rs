@@ -12,6 +12,8 @@ pub trait FileSystem {
     fn read_file(&self, path: &Path) -> Result<String>;
     fn write_file(&self, path: &Path, content: String) -> Result<()>;
     fn append_file(&self, path: &Path, content: &String) -> Result<()>;
+    fn file_exists(&self, path: &Path) -> Result<bool>;
+    fn directory_exists(&self, path: &Path) -> Result<bool>;
 }
 
 pub struct FileSystemDefault {}
@@ -44,5 +46,15 @@ impl FileSystem for FileSystemDefault {
             .open(path)?;
         writeln!(file, "{}", content)?;
         Ok(())
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool> {
+        path.try_exists()?;
+        Ok(path.is_file())
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool> {
+        path.try_exists()?;
+        Ok(path.is_dir())
     }
 }
