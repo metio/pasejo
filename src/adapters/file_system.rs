@@ -1,12 +1,13 @@
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use anyhow::Result;
 use walkdir::WalkDir;
 
 pub trait FileSystem {
+    fn canonical_path(&self, path: &PathBuf) -> Result<PathBuf>;
     fn mkdir_parents(&self, path: &Path) -> Result<()>;
     fn reverse_walk(&self, path: &Path) -> walkdir::IntoIter;
     fn read_file(&self, path: &Path) -> Result<String>;
@@ -19,6 +20,11 @@ pub trait FileSystem {
 pub struct FileSystemDefault {}
 
 impl FileSystem for FileSystemDefault {
+    fn canonical_path(&self, path: &PathBuf) -> Result<PathBuf> {
+        let path = fs::canonicalize(path)?;
+        Ok(path)
+    }
+
     fn mkdir_parents(&self, path: &Path) -> Result<()> {
         fs::create_dir_all(path)
             .with_context(|| format!("Failed to create directories for path '{}'", path.display()))

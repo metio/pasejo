@@ -1,5 +1,5 @@
 use std::ops::Add;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -58,14 +58,24 @@ impl Configuration {
         alias: String,
         vcs: VersionControlSystems,
     ) -> Result<()> {
-        self.stores.push(Store {
-            path,
-            alias,
-            vcs,
-            identities: vec![],
-        });
-        self.store()?;
-        Ok(())
+        let store = self
+            .stores
+            .iter()
+            .find(|&store| store.alias.eq_ignore_ascii_case(&alias));
+
+        match store {
+            Some(store) => Err(anyhow!("Store with alias '{}' already exists", store.alias)),
+            None => {
+                self.stores.push(Store {
+                    path,
+                    alias,
+                    vcs,
+                    identities: vec![],
+                });
+                self.store()?;
+                Ok(())
+            }
+        }
     }
 
     pub fn select_store(&self, alias: Option<String>) -> &Store {
@@ -73,7 +83,7 @@ impl Configuration {
             Some(alias) => self
                 .stores
                 .iter()
-                .find(|&store| store.alias.eq(&alias))
+                .find(|&store| store.alias.eq_ignore_ascii_case(&alias))
                 .expect("Cannot find store for given alias"),
             None => self.stores.first().expect("No store is configured"),
         }
@@ -85,7 +95,7 @@ impl Configuration {
                 let store = self
                     .stores
                     .iter_mut()
-                    .find(|store| store.alias.eq(&alias))
+                    .find(|store| store.alias.eq_ignore_ascii_case(&alias))
                     .expect("Cannot find store for given alias");
                 store.identities.push(Identity { file });
             }

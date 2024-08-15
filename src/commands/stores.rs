@@ -13,9 +13,14 @@ pub fn init(
     alias: &String,
     vcs: &VersionControlSystems,
 ) -> Result<()> {
-    file_system.mkdir_parents(path)?;
-    vcs.select_implementation().init(path)?;
-    configuration.add_store(path.display().to_string(), alias.clone(), vcs.clone())
+    let canonical_path = file_system.canonical_path(path)?;
+    file_system.mkdir_parents(canonical_path.as_path())?;
+    vcs.select_implementation().init(canonical_path.as_path())?;
+    configuration.add_store(
+        canonical_path.display().to_string(),
+        alias.clone(),
+        vcs.clone(),
+    )
 }
 
 #[cfg(test)]
