@@ -1,13 +1,13 @@
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{absolute, Path, PathBuf};
 
 use anyhow::Context;
 use anyhow::Result;
 use walkdir::WalkDir;
 
 pub trait FileSystem {
-    fn canonical_path(&self, path: &PathBuf) -> Result<PathBuf>;
+    fn absolute_path(&self, path: &PathBuf) -> Result<PathBuf>;
     fn mkdir_parents(&self, path: &Path) -> Result<()>;
     fn reverse_walk(&self, path: &Path) -> walkdir::IntoIter;
     fn read_file(&self, path: &Path) -> Result<String>;
@@ -20,8 +20,8 @@ pub trait FileSystem {
 pub struct FileSystemDefault {}
 
 impl FileSystem for FileSystemDefault {
-    fn canonical_path(&self, path: &PathBuf) -> Result<PathBuf> {
-        let path = fs::canonicalize(path)?;
+    fn absolute_path(&self, path: &PathBuf) -> Result<PathBuf> {
+        let path = absolute(path)?;
         Ok(path)
     }
 

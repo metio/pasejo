@@ -1,7 +1,7 @@
 use std::ops::Add;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{absolute, PathBuf};
 
 use crate::adapters::vcs::VersionControlSystems;
 
@@ -38,7 +38,7 @@ impl Configuration {
     fn config_path() -> PathBuf {
         let app_name = env!("CARGO_PKG_NAME");
         match std::env::var_os(app_name.to_owned().add("_config").to_uppercase()) {
-            Some(path) => PathBuf::from(path),
+            Some(path) => absolute(PathBuf::from(path)).expect("to resolve absolute path"),
             None => confy::get_configuration_file_path(app_name, "config").expect("to load configuration"),
         }
     }
