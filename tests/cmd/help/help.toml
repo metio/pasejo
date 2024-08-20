@@ -1,7 +1,5 @@
+bin.name = "pasejo"
 args = ["help"]
 
-[bin]
-name = "pasejo"
-
 [env.add]
-PASEJO_CONFIG = "init.out/config"
+PASEJO_CONFIG = "config"

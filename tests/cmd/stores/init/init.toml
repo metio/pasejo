@@ -1,5 +1,0 @@
-bin.name = "pasejo"
-args = ["stores", "init", "--path", "path/to/store", "--alias", "default"]
-
-[env.add]
-PASEJO_CONFIG = "config.toml"

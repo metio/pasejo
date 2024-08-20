@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 
 use crate::adapters::vcs::VersionControlSystems;
 
-/// Search for a pattern in a file and display the lines that contain it.
+/// pasejo: age-backed password manager
 #[derive(Parser)]
 pub struct Cli {
     /// Optional name of store to use. Defaults to the first store defined in the local user configuration
@@ -18,19 +18,19 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Manage identities
-    Identities {
+    Identity {
         #[command(subcommand)]
         command: IdentityCommands,
     },
 
     /// Manage recipients
-    Recipients {
+    Recipient {
         #[command(subcommand)]
-        command: RecipientsCommands,
+        command: RecipientCommands,
     },
 
     /// Manage stores
-    Stores {
+    Store {
         #[command(subcommand)]
         command: StoreCommands,
     },
@@ -54,7 +54,7 @@ pub enum IdentityCommands {
 }
 
 #[derive(Subcommand)]
-pub enum RecipientsCommands {
+pub enum RecipientCommands {
     /// Adds a recipient
     Add {
         /// The public key of the new recipient

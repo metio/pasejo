@@ -7,12 +7,12 @@ use crate::commands::{recipients, stores};
 
 pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
-        Some(Commands::Identities { command}) => match command {
+        Some(Commands::Identity { command}) => match command {
             IdentityCommands::Add { file: _file } => Ok(()),
             IdentityCommands::Remove { file: _file } => Ok(()),
         },
-        Some(Commands::Recipients { command }) => match command {
-            RecipientsCommands::Add {
+        Some(Commands::Recipient { command }) => match command {
+            RecipientCommands::Add {
                 public_key,
                 name,
                 path,
@@ -23,10 +23,10 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
                 name,
                 path,
             ),
-            RecipientsCommands::Remove { public_key: _, path: _ } => Ok(()),
-            RecipientsCommands::Inherit { path: _ } => Ok(()),
+            RecipientCommands::Remove { public_key: _, path: _ } => Ok(()),
+            RecipientCommands::Inherit { path: _ } => Ok(()),
         },
-        Some(Commands::Stores { command }) => match command {
+        Some(Commands::Store { command }) => match command {
             StoreCommands::Init { path, alias, vcs } => stores::init(
                 Box::new(FileSystemDefault {}),
                 configuration,
