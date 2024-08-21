@@ -1,0 +1,5 @@
+bin.name = "pasejo"
+args = ["store", "init", "--path", "path/to/store", "--alias", "default", "--vcs", "git"]
+
+[env.add]
+PASEJO_CONFIG = "config.toml"

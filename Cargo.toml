@@ -34,3 +34,4 @@ ssh-key = { version = "0.6.6", features = ["ed25519", "encryption"] }
 toml = { version = "0.8.14" }
 trycmd = { version = "0.15.6" }
 walkdir = { version = "2.5.0" }
+which = { version = "6.0.3" }
