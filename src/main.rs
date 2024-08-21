@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
-use human_panic::{Metadata, setup_panic};
+use human_panic::{setup_panic, Metadata};
 
+use pasejo::commands::dispatcher::dispatch_command;
 use pasejo::models::cli::Cli;
 use pasejo::models::configuration::Configuration;
-use pasejo::commands::dispatcher::dispatch_command;
 
 fn main() -> Result<()> {
     setup_panic!(

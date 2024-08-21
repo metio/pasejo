@@ -40,9 +40,12 @@ pub struct Git {}
 
 impl VersionControlSystem for Git {
     fn init(&self, path: &Path) -> Result<()> {
-        cmd!("git", "-C", path, "init").stdout_capture().run().with_context(|| {
-            format!("Failed to initialize Git repository at {}", path.display())
-        })?;
+        cmd!("git", "-C", path, "init")
+            .stdout_capture()
+            .run()
+            .with_context(|| {
+                format!("Failed to initialize Git repository at {}", path.display())
+            })?;
         Ok(())
     }
 
@@ -73,12 +76,15 @@ pub struct Mercurial {}
 
 impl VersionControlSystem for Mercurial {
     fn init(&self, path: &Path) -> Result<()> {
-        cmd!("hg", "init", path).stdout_capture().run().with_context(|| {
-            format!(
-                "Failed to initialize Mercurial repository at {}",
-                path.display()
-            )
-        })?;
+        cmd!("hg", "init", path)
+            .stdout_capture()
+            .run()
+            .with_context(|| {
+                format!(
+                    "Failed to initialize Mercurial repository at {}",
+                    path.display()
+                )
+            })?;
         Ok(())
     }
 
