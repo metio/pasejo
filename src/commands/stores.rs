@@ -16,11 +16,13 @@ pub fn init(
     let canonical_path = file_system.absolute_path(path)?;
     file_system.mkdir_parents(canonical_path.as_path())?;
     vcs.select_implementation().init(canonical_path.as_path())?;
-    configuration.add_store(
+    let result = configuration.add_store(
         canonical_path.display().to_string(),
         alias.clone(),
         vcs.clone(),
-    )
+    );
+    println!("Store initialized at {}", canonical_path.display());
+    result
 }
 
 #[cfg(test)]
