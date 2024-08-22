@@ -35,3 +35,6 @@ toml = { version = "0.8.14" }
 trycmd = { version = "0.15.6" }
 walkdir = { version = "2.5.0" }
 which = { version = "6.0.3" }
+
+[dev-dependencies]
+mockall = { version = "0.13.0" }
