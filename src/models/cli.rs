@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 use crate::adapters::vcs::VersionControlSystems;
 
@@ -39,18 +39,27 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum IdentityCommands {
     /// Adds an identity
-    Add {
-        /// The path to the identity file to add to the configuration
-        #[arg(short, long)]
-        file: Option<PathBuf>,
-    },
+    Add(IdentityAddRemoveArgs),
 
     /// Remove an identity
-    Remove {
-        /// The path to the identity file to remove from the configuration
-        #[arg(short, long)]
-        file: Option<PathBuf>,
-    },
+    Remove(IdentityAddRemoveArgs),
+}
+
+#[derive(Args)]
+#[group(required = true, multiple = false)]
+pub struct IdentityAddRemoveArgs {
+    /// The path to the identity file to add to the configuration
+    #[arg(short, long)]
+    pub file: Option<PathBuf>,
+
+    /// The inline identity to be added to the configuration
+    #[arg(short, long)]
+    pub inline: Option<String>,
+}
+
+#[derive(Args)]
+pub struct IdentityRemoveArgs {
+    pub name: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -92,17 +101,20 @@ pub enum RecipientCommands {
 #[derive(Subcommand)]
 pub enum StoreCommands {
     /// Initialize a new store
-    Init {
-        /// The path on your local system for the new store
-        #[arg(short, long)]
-        path: PathBuf,
+    Init(StoreInitArgs),
+}
 
-        /// The alias for the new store
-        #[arg(short, long)]
-        alias: String,
+#[derive(Args)]
+pub struct StoreInitArgs {
+    /// The path on your local system for the new store
+    #[arg(short, long)]
+    pub path: PathBuf,
 
-        /// The version control system to use
-        #[arg(short, long, default_value_t, value_enum)]
-        vcs: VersionControlSystems,
-    },
+    /// The alias for the new store
+    #[arg(short, long)]
+    pub alias: String,
+
+    /// The version control system to use
+    #[arg(short, long, default_value_t, value_enum)]
+    pub vcs: VersionControlSystems,
 }

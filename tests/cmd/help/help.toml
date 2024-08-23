@@ -1,5 +1,0 @@
-bin.name = "pasejo"
-args = ["help"]
-
-[env.add]
-PASEJO_CONFIG = "config"

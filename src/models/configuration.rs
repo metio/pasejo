@@ -31,7 +31,8 @@ pub struct Store {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Identity {
-    pub file: String,
+    pub file: Option<String>,
+    pub inline: Option<String>,
 }
 
 impl Configuration {
@@ -90,7 +91,7 @@ impl Configuration {
         }
     }
 
-    pub fn add_identity(&mut self, file: String, alias: Option<String>) -> Result<()> {
+    pub fn add_identity(&mut self, identity: Identity, alias: Option<String>) -> Result<()> {
         match alias {
             Some(alias) => {
                 let store = self
@@ -98,9 +99,9 @@ impl Configuration {
                     .iter_mut()
                     .find(|store| store.alias.eq_ignore_ascii_case(&alias))
                     .expect("Cannot find store for given alias");
-                store.identities.push(Identity { file });
+                store.identities.push(identity);
             }
-            None => self.identities.push(Identity { file }),
+            None => self.identities.push(identity),
         }
         self.store()?;
         Ok(())

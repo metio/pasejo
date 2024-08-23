@@ -1,15 +1,17 @@
 use anyhow::{anyhow, Result};
 
 use crate::adapters::file_system::FileSystemDefault;
-use crate::commands::{recipients, stores};
+use crate::commands::{identities, recipients, stores};
 use crate::models::cli::*;
 use crate::models::configuration::Configuration;
 
 pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
         Some(Commands::Identity { command }) => match command {
-            IdentityCommands::Add { file: _file } => Ok(()),
-            IdentityCommands::Remove { file: _file } => Ok(()),
+            IdentityCommands::Add(args) => {
+                identities::add(configuration, &cli.store, &args.file, &args.inline)
+            }
+            IdentityCommands::Remove(_) => Ok(()),
         },
         Some(Commands::Recipient { command }) => match command {
             RecipientCommands::Add {
@@ -30,12 +32,12 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             RecipientCommands::Inherit { path: _ } => Ok(()),
         },
         Some(Commands::Store { command }) => match command {
-            StoreCommands::Init { path, alias, vcs } => stores::init(
+            StoreCommands::Init(args) => stores::init(
                 Box::new(FileSystemDefault {}),
                 configuration,
-                path,
-                alias,
-                vcs,
+                &args.path,
+                &args.alias,
+                &args.vcs,
             ),
         },
         None => Err(anyhow!("Unknown command encountered")),
