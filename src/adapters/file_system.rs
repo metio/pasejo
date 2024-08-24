@@ -19,6 +19,12 @@ pub trait FileSystem {
 
 pub struct FileSystemDefault {}
 
+impl FileSystemDefault {
+    pub(crate) fn new() -> Box<dyn FileSystem> {
+        Box::new(FileSystemDefault {})
+    }
+}
+
 impl FileSystem for FileSystemDefault {
     fn absolute_path(&self, path: &PathBuf) -> Result<PathBuf> {
         let path = absolute(path)?;

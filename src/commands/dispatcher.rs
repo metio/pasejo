@@ -8,9 +8,12 @@ use crate::models::configuration::Configuration;
 pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
         Some(Commands::Identity { command }) => match command {
-            IdentityCommands::Add(args) => {
-                identities::add(configuration, &cli.store, &args.file, &args.inline)
-            }
+            IdentityCommands::Add(args) => identities::add(
+                FileSystemDefault::new(),
+                configuration,
+                &cli.store,
+                &args.file,
+            ),
             IdentityCommands::Remove(_) => Ok(()),
         },
         Some(Commands::Recipient { command }) => match command {
@@ -19,7 +22,7 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
                 name,
                 path,
             } => recipients::add(
-                Box::new(FileSystemDefault {}),
+                FileSystemDefault::new(),
                 configuration.select_store(cli.store),
                 public_key,
                 name,
@@ -33,7 +36,7 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
         },
         Some(Commands::Store { command }) => match command {
             StoreCommands::Init(args) => stores::init(
-                Box::new(FileSystemDefault {}),
+                FileSystemDefault::new(),
                 configuration,
                 &args.path,
                 &args.alias,

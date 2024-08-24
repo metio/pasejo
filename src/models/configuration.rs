@@ -31,8 +31,7 @@ pub struct Store {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Identity {
-    pub file: Option<String>,
-    pub inline: Option<String>,
+    pub file: String,
 }
 
 impl Configuration {

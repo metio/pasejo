@@ -46,15 +46,10 @@ pub enum IdentityCommands {
 }
 
 #[derive(Args)]
-#[group(required = true, multiple = false)]
 pub struct IdentityAddRemoveArgs {
-    /// The path to the identity file to add to the configuration
+    /// The path to the identity file
     #[arg(short, long)]
-    pub file: Option<PathBuf>,
-
-    /// The inline identity to be added to the configuration
-    #[arg(short, long)]
-    pub inline: Option<String>,
+    pub file: PathBuf,
 }
 
 #[derive(Args)]
