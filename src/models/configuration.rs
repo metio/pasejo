@@ -105,6 +105,22 @@ impl Configuration {
         self.store()?;
         Ok(())
     }
+
+    pub fn remove_identity(&mut self, identity: Identity, alias: Option<String>) -> Result<()> {
+        match alias {
+            Some(alias) => {
+                let store = self
+                    .stores
+                    .iter_mut()
+                    .find(|store| store.alias.eq_ignore_ascii_case(&alias))
+                    .expect("Cannot find store for given alias");
+                store.identities.retain(|i| i.file != identity.file);
+            }
+            None => self.identities.retain(|i| i.file != identity.file),
+        }
+        self.store()?;
+        Ok(())
+    }
 }
 
 impl Store {

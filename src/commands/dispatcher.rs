@@ -14,7 +14,12 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
                 &cli.store,
                 &args.file,
             ),
-            IdentityCommands::Remove(_) => Ok(()),
+            IdentityCommands::Remove(args) => identities::remove(
+                FileSystemDefault::new(),
+                configuration,
+                &cli.store,
+                &args.file,
+            ),
         },
         Some(Commands::Recipient { command }) => match command {
             RecipientCommands::Add {

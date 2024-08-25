@@ -1,0 +1,11 @@
+[[stores]]
+path = "[CWD]/path/to/store"
+alias = "default"
+vcs = "None"
+identities = []
+
+[[identities]]
+file = "[CWD]/some/file/location"
+
+[[identities]]
+file = "/an/absolute/path"

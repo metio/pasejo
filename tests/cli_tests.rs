@@ -2,6 +2,7 @@
 fn cli_tests() {
     trycmd::TestCases::new()
         .case("tests/cmd/help/*.md")
+        .case("tests/cmd/identity/*/*.md")
         .case("tests/cmd/store/*-none/*.md");
 
     if which::which("git").is_ok() {

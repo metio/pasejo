@@ -1,0 +1,15 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/path/to/store"
+alias = "default"
+vcs = "None"
+
+[[stores.identities]]
+file = "[CWD]/some/file/location"
+
+[[stores]]
+path = "[CWD]/path/to/other"
+alias = "other"
+vcs = "None"
+identities = []

@@ -1,0 +1,13 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/path/to/store"
+alias = "default"
+vcs = "None"
+identities = []
+
+[[stores]]
+path = "[CWD]/path/to/other"
+alias = "other"
+vcs = "None"
+identities = []
