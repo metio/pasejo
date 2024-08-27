@@ -19,7 +19,7 @@ path = "src/main.rs"
 default = []
 
 [dependencies]
-age = { version = "0.10.0", features = ["ssh"] }
+age = { version = "0.10.0", features = ["armor", "cli-common", "plugin", "ssh"] }
 anyhow = { version = "1.0.86" }
 clap = { version = "4.5.7", features = ["derive"] }
 confy = { version = "0.6.1" }
