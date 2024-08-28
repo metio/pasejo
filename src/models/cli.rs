@@ -62,7 +62,7 @@ pub enum RecipientCommands {
     /// Adds a recipient
     Add {
         /// The public key of the new recipient
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         public_key: String,
 
         /// The name of the new recipient
@@ -77,7 +77,7 @@ pub enum RecipientCommands {
     /// Remove a recipient
     Remove {
         /// The public key of the recipient to remove
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         public_key: String,
 
         /// The path to a folder or secret that should no longer be readable by the given recipient

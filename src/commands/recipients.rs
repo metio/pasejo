@@ -34,7 +34,7 @@ pub fn add(
             &format!("Added recipient '{}'", public_key),
         )?;
     }
-
+    println!("Recipient added");
     Ok(())
 }
 
