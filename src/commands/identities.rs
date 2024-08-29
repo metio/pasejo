@@ -1,4 +1,5 @@
 use crate::adapters::file_system::FileSystem;
+use crate::cli::printer;
 use crate::models::configuration::{Configuration, Identity};
 use std::path::PathBuf;
 
@@ -13,7 +14,7 @@ pub fn add(
         file: absolute_path.display().to_string(),
     };
     let result = configuration.add_identity(identity, alias.clone());
-    println!("Identity added");
+    printer::identity_added();
     result
 }
 

@@ -19,3 +19,9 @@ fn main() -> Result<()> {
 
     dispatch_command(cli, configuration)
 }
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    Cli::command().debug_assert();
+}

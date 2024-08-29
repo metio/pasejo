@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::adapters::file_system::FileSystem;
+use crate::cli::printer;
 use crate::models::configuration::Store;
 
 pub fn add(
@@ -26,6 +27,7 @@ pub fn add(
             // create new .recipients file
             let recipient = format_recipient(public_key, name);
             file_system.append_file(&recipients_absolute, &recipient)?;
+            printer::recipient_added();
         }
 
         store.vcs.select_implementation().commit(
@@ -34,7 +36,6 @@ pub fn add(
             &format!("Added recipient '{}'", public_key),
         )?;
     }
-    println!("Recipient added");
     Ok(())
 }
 
@@ -61,6 +62,7 @@ fn upsert_recipient(
                 })
                 .unwrap_or(public_key_index);
             recipients.replace_range(start_index..public_key_index + public_key.len(), &recipient);
+            printer::recipient_updated();
         }
         None => {
             // add new recipient - requires re-encryption of entire store
@@ -70,6 +72,7 @@ fn upsert_recipient(
             } else {
                 recipients = recipients + "\n" + &recipient;
             }
+            printer::recipient_added();
         }
     }
     (recipients, re_encryption_required)

@@ -8,4 +8,7 @@ Recipient added
 $ PASEJO_CONFIG=config.toml pasejo recipient add --public-key "age12zyxwvutsrqponmlkjihgfedcba" --name 'Alice Asounder'
 Recipient added
 
+$ PASEJO_CONFIG=config.toml pasejo recipient add --public-key "age12abcdefghijklmnopqrstuvwxyz" --name 'Bob Builder'
+Recipient updated
+
 ```

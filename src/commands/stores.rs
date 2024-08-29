@@ -4,6 +4,7 @@ use anyhow::Result;
 
 use crate::adapters::file_system::FileSystem;
 use crate::adapters::vcs::VersionControlSystems;
+use crate::cli::printer;
 use crate::models::configuration::Configuration;
 
 pub fn init(
@@ -21,7 +22,7 @@ pub fn init(
         alias.clone(),
         vcs.clone(),
     );
-    println!("Store initialized at {}", canonical_path.display());
+    printer::store_initialized(canonical_path.display().to_string());
     result
 }
 
