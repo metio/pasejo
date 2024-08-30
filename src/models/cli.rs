@@ -60,37 +60,46 @@ pub struct IdentityRemoveArgs {
 #[derive(Subcommand)]
 pub enum RecipientCommands {
     /// Adds a recipient
-    Add {
-        /// The public key of the new recipient
-        #[arg(short = 'k', long)]
-        public_key: String,
-
-        /// The name of the new recipient
-        #[arg(short, long)]
-        name: Option<String>,
-
-        /// The path to a folder or secret that should be readable by the given recipient
-        #[arg(short, long)]
-        path: Option<PathBuf>,
-    },
+    Add(RecipientAddArgs),
 
     /// Remove a recipient
-    Remove {
-        /// The public key of the recipient to remove
-        #[arg(short = 'k', long)]
-        public_key: String,
-
-        /// The path to a folder or secret that should no longer be readable by the given recipient
-        #[arg(short, long)]
-        path: Option<PathBuf>,
-    },
+    Remove(RecipientRemoveArgs),
 
     /// Removes the recipients of a folder or secret so that it inherits its recipients from its parent
-    Inherit {
-        /// The path to a folder or secret that should inherit its recipients from its parent
-        #[arg(short, long)]
-        path: PathBuf,
-    },
+    Inherit(RecipientInheritArgs),
+}
+
+#[derive(Args)]
+pub struct RecipientAddArgs {
+    /// The public key of the new recipient
+    #[arg(short = 'k', long)]
+    pub public_key: String,
+
+    /// The name of the new recipient
+    #[arg(short, long)]
+    pub name: Option<String>,
+
+    /// The path to a folder or secret that should be readable by the given recipient
+    #[arg(short, long)]
+    pub path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct RecipientRemoveArgs {
+    /// The public key of the recipient to remove
+    #[arg(short = 'k', long)]
+    pub public_key: String,
+
+    /// The path to a folder or secret that should no longer be readable by the given recipient
+    #[arg(short, long)]
+    pub path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct RecipientInheritArgs {
+    /// The path to a folder or secret that should inherit its recipients from its parent
+    #[arg(short, long)]
+    pub path: PathBuf,
 }
 
 #[derive(Subcommand)]

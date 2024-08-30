@@ -22,22 +22,15 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             ),
         },
         Some(Commands::Recipient { command }) => match command {
-            RecipientCommands::Add {
-                public_key,
-                name,
-                path,
-            } => recipients::add(
+            RecipientCommands::Add(args) => recipients::add(
                 FileSystemDefault::new(),
                 configuration.select_store(cli.store),
-                public_key,
-                name,
-                path,
+                &args.public_key,
+                &args.name,
+                &args.path,
             ),
-            RecipientCommands::Remove {
-                public_key: _,
-                path: _,
-            } => Ok(()),
-            RecipientCommands::Inherit { path: _ } => Ok(()),
+            RecipientCommands::Remove(_) => Ok(()),
+            RecipientCommands::Inherit(_) => Ok(()),
         },
         Some(Commands::Store { command }) => match command {
             StoreCommands::Init(args) => stores::init(
