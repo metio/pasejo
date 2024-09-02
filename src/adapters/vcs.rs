@@ -1,9 +1,8 @@
-use std::path::Path;
-
 use anyhow::Context;
 use anyhow::Result;
 use duct::cmd;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 pub trait VersionControlSystem {
     fn init(&self, path: &Path) -> Result<()>;

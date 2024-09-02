@@ -1,11 +1,9 @@
-use std::path::PathBuf;
-
-use anyhow::Result;
-
 use crate::adapters::file_system::FileSystem;
 use crate::adapters::vcs::VersionControlSystems;
 use crate::cli::printer;
 use crate::models::configuration::Configuration;
+use anyhow::Result;
+use std::path::PathBuf;
 
 pub fn init(
     file_system: Box<dyn FileSystem>,

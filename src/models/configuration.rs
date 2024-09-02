@@ -1,9 +1,8 @@
+use crate::adapters::vcs::VersionControlSystems;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
 use std::path::{absolute, PathBuf};
-
-use crate::adapters::vcs::VersionControlSystems;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {

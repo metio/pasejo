@@ -1,9 +1,8 @@
+use anyhow::Context;
+use anyhow::Result;
 use std::fs;
 use std::io::Write;
 use std::path::{absolute, Path, PathBuf};
-
-use anyhow::Context;
-use anyhow::Result;
 
 pub trait FileSystem {
     fn absolute_path(&self, path: &PathBuf) -> Result<PathBuf>;

@@ -5,9 +5,8 @@ mod models;
 
 use anyhow::Result;
 use clap::Parser;
-use human_panic::{setup_panic, Metadata};
-
 use commands::dispatcher::dispatch_command;
+use human_panic::{setup_panic, Metadata};
 use models::cli::Cli;
 use models::configuration::Configuration;
 
@@ -23,10 +22,4 @@ fn main() -> Result<()> {
     let configuration = Configuration::load();
 
     dispatch_command(cli, configuration)
-}
-
-#[test]
-fn verify_cli() {
-    use clap::CommandFactory;
-    Cli::command().debug_assert();
 }

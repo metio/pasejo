@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-
 use crate::adapters::file_system::FileSystem;
 use crate::cli::printer;
 use crate::models::configuration::Store;
+use std::path::PathBuf;
 
 pub fn add(
     file_system: Box<dyn FileSystem>,

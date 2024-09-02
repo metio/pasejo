@@ -1,9 +1,8 @@
-use anyhow::{anyhow, Result};
-
 use crate::adapters::file_system::FileSystemDefault;
 use crate::commands::{completions, identities, recipients, stores};
 use crate::models::cli::*;
 use crate::models::configuration::Configuration;
+use anyhow::{anyhow, Result};
 
 pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {

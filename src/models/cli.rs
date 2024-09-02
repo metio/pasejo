@@ -1,9 +1,8 @@
+use crate::adapters::vcs::VersionControlSystems;
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
 use clap_complete::Shell;
 use std::path::PathBuf;
-
-use crate::adapters::vcs::VersionControlSystems;
 
 /// pasejo: age-backed password manager
 #[derive(Parser)]
@@ -125,4 +124,15 @@ pub struct StoreInitArgs {
     /// The version control system to use
     #[arg(short, long, default_value_t, value_enum)]
     pub vcs: VersionControlSystems,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_cli() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert();
+    }
 }
