@@ -1,6 +1,7 @@
 #[test]
 fn cli_tests() {
     trycmd::TestCases::new()
+        .case("tests/cmd/completion/*.md")
         .case("tests/cmd/help/*.md")
         .case("tests/cmd/identity/*/*.md")
         .case("tests/cmd/recipient/*/*.md")
