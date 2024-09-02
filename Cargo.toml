@@ -7,13 +7,9 @@ license = "0BSD"
 edition = "2021"
 homepage = "https://github.com/metio/pasejo"
 repository = "https://github.com/metio/pasejo"
-keywords = ["cli"]
+keywords = ["password", "manager", "age", "passage", "pass"]
 categories = ["command-line-utilities"]
 readme = "README.md"
-
-[[bin]]
-name = "pasejo"
-path = "src/main.rs"
 
 [features]
 default = []
@@ -21,7 +17,8 @@ default = []
 [dependencies]
 age = { version = "0.10.0", features = ["armor", "cli-common", "plugin", "ssh"] }
 anyhow = { version = "1.0.86" }
-clap = { version = "4.5.7", features = ["derive"] }
+clap = { version = "4.5.16", features = ["derive"] }
+clap_complete = { version = "4.5.24" }
 confy = { version = "0.6.1" }
 directories = { version = "5.0.1" }
 duct = { version = "0.13.7" }

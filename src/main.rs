@@ -1,10 +1,15 @@
+mod adapters;
+mod cli;
+mod commands;
+mod models;
+
 use anyhow::Result;
 use clap::Parser;
 use human_panic::{setup_panic, Metadata};
 
-use pasejo::commands::dispatcher::dispatch_command;
-use pasejo::models::cli::Cli;
-use pasejo::models::configuration::Configuration;
+use commands::dispatcher::dispatch_command;
+use models::cli::Cli;
+use models::configuration::Configuration;
 
 fn main() -> Result<()> {
     setup_panic!(

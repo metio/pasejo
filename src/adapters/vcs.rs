@@ -19,14 +19,6 @@ pub enum VersionControlSystems {
 }
 
 impl VersionControlSystems {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            VersionControlSystems::None => "none",
-            VersionControlSystems::Git => "git",
-            VersionControlSystems::Mercurial => "hg",
-        }
-    }
-
     pub fn select_implementation(&self) -> Box<dyn VersionControlSystem> {
         match self {
             VersionControlSystems::None => Box::new(None {}),

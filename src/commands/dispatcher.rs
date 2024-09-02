@@ -1,12 +1,13 @@
 use anyhow::{anyhow, Result};
 
 use crate::adapters::file_system::FileSystemDefault;
-use crate::commands::{identities, recipients, stores};
+use crate::commands::{completions, identities, recipients, stores};
 use crate::models::cli::*;
 use crate::models::configuration::Configuration;
 
 pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
+        Some(Commands::Completion { shell }) => completions::print(shell),
         Some(Commands::Identity { command }) => match command {
             IdentityCommands::Add(args) => identities::add(
                 FileSystemDefault::new(),

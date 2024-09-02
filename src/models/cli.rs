@@ -1,6 +1,7 @@
-use std::path::PathBuf;
-
+use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
+use clap_complete::Shell;
+use std::path::PathBuf;
 
 use crate::adapters::vcs::VersionControlSystems;
 
@@ -17,6 +18,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Generate shell completions
+    Completion { shell: Shell },
+
     /// Manage identities
     Identity {
         #[command(subcommand)]
@@ -48,7 +52,7 @@ pub enum IdentityCommands {
 #[derive(Args)]
 pub struct IdentityAddRemoveArgs {
     /// The path to the identity file
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = FilePath)]
     pub file: PathBuf,
 }
 
@@ -80,7 +84,7 @@ pub struct RecipientAddArgs {
     pub name: Option<String>,
 
     /// The path to a folder or secret that should be readable by the given recipient
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = AnyPath)]
     pub path: Option<PathBuf>,
 }
 
@@ -98,7 +102,7 @@ pub struct RecipientRemoveArgs {
 #[derive(Args)]
 pub struct RecipientInheritArgs {
     /// The path to a folder or secret that should inherit its recipients from its parent
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = AnyPath)]
     pub path: PathBuf,
 }
 
@@ -111,7 +115,7 @@ pub enum StoreCommands {
 #[derive(Args)]
 pub struct StoreInitArgs {
     /// The path on your local system for the new store
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = DirPath)]
     pub path: PathBuf,
 
     /// The alias for the new store
