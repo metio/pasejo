@@ -140,7 +140,7 @@ impl Configuration {
         Ok(())
     }
 
-    pub fn all_identities(&mut self, alias: Option<String>) -> Result<Vec<Identity>> {
+    pub fn all_identities(&self, alias: Option<String>) -> Result<Vec<Identity>> {
         let mut identities = self.identities.clone();
         if let Some(alias) = alias {
             identities.extend(
@@ -149,6 +149,14 @@ impl Configuration {
             );
         }
         Ok(identities)
+    }
+
+    pub fn all_store_aliases(&self) -> Vec<String> {
+        let mut aliases = vec![];
+        for store in &self.stores {
+            aliases.push(store.alias.clone());
+        }
+        aliases
     }
 
     fn find_store(&self, alias: String) -> Option<&Store> {

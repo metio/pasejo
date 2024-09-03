@@ -1,6 +1,8 @@
 use crate::adapters::vcs::VersionControlSystems;
+use crate::models::configuration::Configuration;
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
+use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
@@ -40,8 +42,25 @@ pub enum Commands {
 pub struct StoreSelectionArgs {
     /// Optional name of store to use. Defaults to the default store or the first one defined in the
     /// local user configuration
-    #[arg(short, long)]
+    #[arg(short, long, add = ArgValueCompleter::new(store_alias_completer))]
     pub store: Option<String>,
+}
+
+fn store_alias_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    let configuration = Configuration::load();
+    let aliases = configuration.all_store_aliases();
+
+    match current.to_str() {
+        Some(value) => aliases
+            .iter()
+            .filter(|&alias| alias.starts_with(value))
+            .map(|alias| CompletionCandidate::new(alias))
+            .collect(),
+        None => aliases
+            .iter()
+            .map(|alias| CompletionCandidate::new(alias))
+            .collect(),
+    }
 }
 
 #[derive(Subcommand)]
