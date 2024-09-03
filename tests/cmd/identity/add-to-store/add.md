@@ -8,4 +8,10 @@ Store initialized at [CWD]/path/to/other
 $ PASEJO_CONFIG=config.toml pasejo identity add --store default --file some/file/location
 Identity added
 
+$ PASEJO_CONFIG=config.toml pasejo identity add --store non-existing --file some/file/location
+? 2
+error: invalid value 'non-existing' for '--store <STORE>': alias non-existing does not exist in configuration
+
+For more information, try '--help'.
+
 ```

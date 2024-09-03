@@ -11,4 +11,10 @@ Identity added
 $ PASEJO_CONFIG=config.toml pasejo identity remove --store default --file some/file/location
 Identity removed
 
+$ PASEJO_CONFIG=config.toml pasejo identity remove --store non-existing --file some/file/location
+? 2
+error: invalid value 'non-existing' for '--store <STORE>': alias non-existing does not exist in configuration
+
+For more information, try '--help'.
+
 ```

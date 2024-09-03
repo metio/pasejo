@@ -37,25 +37,8 @@ pub enum Commands {
 pub struct StoreSelectionArgs {
     /// Optional name of store to use. Defaults to the default store or the first one defined in the
     /// local user configuration
-    #[arg(short, long, add = ArgValueCompleter::new(store_alias_completer))]
+    #[arg(short, long, add = ArgValueCompleter::new(store_alias_completer), value_parser = store_alias_is_known)]
     pub store: Option<String>,
-}
-
-fn store_alias_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
-    let configuration = Configuration::load();
-    let aliases = configuration.all_store_aliases();
-
-    match current.to_str() {
-        Some(value) => aliases
-            .iter()
-            .filter(|&alias| alias.starts_with(value))
-            .map(|alias| CompletionCandidate::new(alias))
-            .collect(),
-        None => aliases
-            .iter()
-            .map(|alias| CompletionCandidate::new(alias))
-            .collect(),
-    }
 }
 
 #[derive(Subcommand)]
@@ -165,7 +148,7 @@ pub struct StoreInitArgs {
 #[derive(Args)]
 pub struct StoreRemoveArgs {
     /// The alias of the existing store
-    #[arg(short, long)]
+    #[arg(short, long, value_parser = store_alias_is_known)]
     pub alias: String,
 
     /// Whether the store should be removed from the local file system
@@ -176,7 +159,36 @@ pub struct StoreRemoveArgs {
 #[derive(Args)]
 pub struct StoreDefaultArgs {
     /// The alias of the store to use as default
+    #[arg(value_parser = store_alias_is_known)]
     pub alias: String,
+}
+
+fn store_alias_is_known(input: &str) -> Result<String, String> {
+    let configuration = Configuration::load();
+    let aliases = configuration.all_store_aliases();
+
+    if aliases.contains(&input.to_owned()) {
+        Ok(input.to_owned())
+    } else {
+        Err(format!("alias {} does not exist in configuration", input))
+    }
+}
+
+fn store_alias_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    let configuration = Configuration::load();
+    let aliases = configuration.all_store_aliases();
+
+    match current.to_str() {
+        Some(value) => aliases
+            .iter()
+            .filter(|&alias| alias.starts_with(value))
+            .map(|alias| CompletionCandidate::new(alias))
+            .collect(),
+        None => aliases
+            .iter()
+            .map(|alias| CompletionCandidate::new(alias))
+            .collect(),
+    }
 }
 
 #[cfg(test)]

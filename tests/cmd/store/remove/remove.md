@@ -19,3 +19,18 @@ $ PASEJO_CONFIG=config.toml pasejo store remove --alias some-name
 Store some-name removed
 
 ```
+
+```console
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/someplace --alias some-place
+Store initialized at [CWD]/path/to/someplace
+
+$ PASEJO_CONFIG=config.toml pasejo store remove --alias some-place
+Store some-place removed
+
+$ PASEJO_CONFIG=config.toml pasejo store remove --alias some-place
+? 2
+error: invalid value 'some-place' for '--alias <ALIAS>': alias some-place does not exist in configuration
+
+For more information, try '--help'.
+
+```
