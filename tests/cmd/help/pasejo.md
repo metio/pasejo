@@ -5,11 +5,10 @@ age-backed password manager for teams
 Usage: pasejo [COMMAND]
 
 Commands:
-  completion  Generate shell completions
-  identity    Manage identities
-  recipient   Manage recipients
-  store       Manage stores
-  help        Print this message or the help of the given subcommand(s)
+  identity   Manage identities
+  recipient  Manage recipients
+  store      Manage stores
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -23,11 +22,10 @@ age-backed password manager for teams
 Usage: pasejo [COMMAND]
 
 Commands:
-  completion  Generate shell completions
-  identity    Manage identities
-  recipient   Manage recipients
-  store       Manage stores
-  help        Print this message or the help of the given subcommand(s)
+  identity   Manage identities
+  recipient  Manage recipients
+  store      Manage stores
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -40,11 +38,10 @@ age-backed password manager for teams
 Usage: pasejo [COMMAND]
 
 Commands:
-  completion  Generate shell completions
-  identity    Manage identities
-  recipient   Manage recipients
-  store       Manage stores
-  help        Print this message or the help of the given subcommand(s)
+  identity   Manage identities
+  recipient  Manage recipients
+  store      Manage stores
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help

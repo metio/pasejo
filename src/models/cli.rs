@@ -3,7 +3,6 @@ use crate::models::configuration::Configuration;
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
-use clap_complete::Shell;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -16,9 +15,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Generate shell completions
-    Completion { shell: Shell },
-
     /// Manage identities
     Identity {
         #[command(subcommand)]

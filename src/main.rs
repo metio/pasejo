@@ -4,7 +4,8 @@ mod commands;
 mod models;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::CompleteEnv;
 use commands::dispatcher::dispatch_command;
 use human_panic::{setup_panic, Metadata};
 use models::cli::Cli;
@@ -17,6 +18,8 @@ fn main() -> Result<()> {
             .homepage("https://github.com/metio/pasejo")
             .support("- Open a support request by creating a ticket on GitHub")
     );
+
+    CompleteEnv::with_factory(|| Cli::command()).complete();
 
     let cli = Cli::parse();
     let configuration = Configuration::load();

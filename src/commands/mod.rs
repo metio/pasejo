@@ -1,4 +1,3 @@
-pub mod completions;
 pub mod dispatcher;
 pub mod identities;
 pub mod recipients;
