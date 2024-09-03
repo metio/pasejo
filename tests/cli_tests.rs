@@ -6,6 +6,7 @@ fn cli_tests() {
         .case("tests/cmd/identity/*/*.md")
         .case("tests/cmd/recipient/*/*.md")
         .case("tests/cmd/store/*-none/*.md")
+        .case("tests/cmd/store/remove/*.md")
         .case("tests/cmd/store/set-default/*.md");
 
     if which::which("git").is_ok() {

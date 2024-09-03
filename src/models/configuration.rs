@@ -76,6 +76,19 @@ impl Configuration {
         }
     }
 
+    pub fn remove_store(&mut self, alias: &String) -> Result<String> {
+        let store = self
+            .find_store(alias.clone())
+            .expect("Cannot find store for given alias");
+        let path = store.path.clone();
+        self.default_store
+            .take_if(|value| value.eq_ignore_ascii_case(alias));
+        self.stores
+            .retain(|store| !store.alias.eq_ignore_ascii_case(alias));
+        self.store()?;
+        Ok(path)
+    }
+
     pub fn select_store(&self, alias: &Option<String>) -> &Store {
         match alias {
             Some(alias) => self

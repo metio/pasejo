@@ -5,12 +5,11 @@ use clap::{Args, Parser, Subcommand};
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
 use std::path::PathBuf;
 
+/// age-backed password manager for teams
 #[derive(Parser)]
-#[command(name = "pasejo")]
-#[command(about = "age-backed password manager for teams", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Option<Commands>,
+    pub command: Option<Commands>, // TODO: remove Option here because we always need a subcommand
 }
 
 #[derive(Subcommand)]
@@ -137,6 +136,9 @@ pub enum StoreCommands {
     /// Initialize a new store
     Init(StoreInitArgs),
 
+    /// Remove an existing store
+    Remove(StoreRemoveArgs),
+
     /// Mark a store as default
     SetDefault(StoreDefaultArgs),
 }
@@ -158,6 +160,17 @@ pub struct StoreInitArgs {
     /// Whether the new store should be the default store
     #[arg(short, long)]
     pub default: bool,
+}
+
+#[derive(Args)]
+pub struct StoreRemoveArgs {
+    /// The alias of the existing store
+    #[arg(short, long)]
+    pub alias: String,
+
+    /// Whether the store should be removed from the local file system
+    #[arg(short, long)]
+    pub remove_data: bool,
 }
 
 #[derive(Args)]

@@ -40,6 +40,12 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
                 &args.vcs,
                 &args.default,
             ),
+            StoreCommands::Remove(args) => stores::remove(
+                FileSystemDefault::new(),
+                configuration,
+                &args.alias,
+                &args.remove_data,
+            ),
             StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.alias),
         },
         None => Err(anyhow!("Unknown command encountered")),

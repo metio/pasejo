@@ -6,6 +6,7 @@ Usage: pasejo store <COMMAND>
 
 Commands:
   init         Initialize a new store
+  remove       Remove an existing store
   set-default  Mark a store as default
   help         Print this message or the help of the given subcommand(s)
 
@@ -22,6 +23,7 @@ Usage: pasejo store <COMMAND>
 
 Commands:
   init         Initialize a new store
+  remove       Remove an existing store
   set-default  Mark a store as default
   help         Print this message or the help of the given subcommand(s)
 
@@ -38,6 +40,7 @@ Usage: pasejo store <COMMAND>
 
 Commands:
   init         Initialize a new store
+  remove       Remove an existing store
   set-default  Mark a store as default
   help         Print this message or the help of the given subcommand(s)
 

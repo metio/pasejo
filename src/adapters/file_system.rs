@@ -12,6 +12,7 @@ pub trait FileSystem {
     fn append_file(&self, path: &Path, content: &String) -> Result<()>;
     fn file_exists(&self, path: &Path) -> Result<bool>;
     fn directory_exists(&self, path: &Path) -> Result<bool>;
+    fn remove_directory(&self, path: &Path) -> Result<()>;
 }
 
 pub struct FileSystemDefault {}
@@ -61,5 +62,10 @@ impl FileSystem for FileSystemDefault {
     fn directory_exists(&self, path: &Path) -> Result<bool> {
         path.try_exists()?;
         Ok(path.is_dir())
+    }
+
+    fn remove_directory(&self, path: &Path) -> Result<()> {
+        fs::remove_dir(path)?;
+        Ok(())
     }
 }

@@ -3,7 +3,7 @@ use crate::adapters::vcs::VersionControlSystems;
 use crate::cli::printer;
 use crate::models::configuration::Configuration;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn init(
     file_system: Box<dyn FileSystem>,
@@ -31,6 +31,20 @@ pub fn init(
 pub fn set_default(mut configuration: Configuration, alias: &String) -> Result<()> {
     configuration.set_default_store(alias.clone())?;
     printer::store_set_default(alias.clone());
+    Ok(())
+}
+
+pub fn remove(
+    file_system: Box<dyn FileSystem>,
+    mut configuration: Configuration,
+    alias: &String,
+    remove_data: &bool,
+) -> Result<()> {
+    let path = configuration.remove_store(alias)?;
+    if *remove_data {
+        file_system.remove_directory(Path::new(&path))?;
+    }
+    printer::store_removed(alias.clone());
     Ok(())
 }
 

@@ -17,3 +17,7 @@ pub fn store_initialized(store_path: String) {
 pub fn store_set_default(store_alias: String) {
     println!("Store {} is now the default", store_alias);
 }
+
+pub fn store_removed(store_alias: String) {
+    println!("Store {} removed", store_alias);
+}
