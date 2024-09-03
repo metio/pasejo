@@ -9,7 +9,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Option<Commands>, // TODO: remove Option here because we always need a subcommand
+    pub command: Commands,
 }
 
 #[derive(Subcommand)]

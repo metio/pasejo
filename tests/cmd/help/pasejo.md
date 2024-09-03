@@ -2,7 +2,7 @@
 $ pasejo help
 age-backed password manager for teams
 
-Usage: pasejo [COMMAND]
+Usage: pasejo <COMMAND>
 
 Commands:
   identity   Manage identities
@@ -19,7 +19,7 @@ Options:
 $ pasejo --help
 age-backed password manager for teams
 
-Usage: pasejo [COMMAND]
+Usage: pasejo <COMMAND>
 
 Commands:
   identity   Manage identities
@@ -35,7 +35,7 @@ Options:
 $ pasejo -h
 age-backed password manager for teams
 
-Usage: pasejo [COMMAND]
+Usage: pasejo <COMMAND>
 
 Commands:
   identity   Manage identities
