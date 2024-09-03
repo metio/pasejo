@@ -63,14 +63,18 @@ complete -c pasejo -n "__fish_pasejo_using_subcommand recipient; and __fish_seen
 complete -c pasejo -n "__fish_pasejo_using_subcommand recipient; and __fish_seen_subcommand_from help" -f -a "remove" -d 'Remove a recipient'
 complete -c pasejo -n "__fish_pasejo_using_subcommand recipient; and __fish_seen_subcommand_from help" -f -a "inherit" -d 'Removes the recipients of a folder or secret so that it inherits its recipients from its parent'
 complete -c pasejo -n "__fish_pasejo_using_subcommand recipient; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init help" -s h -l help -d 'Print help'
-complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init help" -f -a "init" -d 'Initialize a new store'
-complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init set-default help" -s h -l help -d 'Print help'
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init set-default help" -f -a "init" -d 'Initialize a new store'
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init set-default help" -f -a "set-default" -d 'Mark a store as default'
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and not __fish_seen_subcommand_from init set-default help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from init" -s p -l path -d 'The path on your local system for the new store' -r -f -a "(__fish_complete_directories)"
 complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from init" -s a -l alias -d 'The alias for the new store' -r
 complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from init" -s v -l vcs -d 'The version control system to use' -r -f -a "{none/t'',git/t'',mercurial/t''}"
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from init" -s d -l default -d 'Whether the new store should be the default store'
 complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from init" -s h -l help -d 'Print help'
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from set-default" -s h -l help -d 'Print help'
 complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from help" -f -a "init" -d 'Initialize a new store'
+complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from help" -f -a "set-default" -d 'Mark a store as default'
 complete -c pasejo -n "__fish_pasejo_using_subcommand store; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c pasejo -n "__fish_pasejo_using_subcommand help; and not __fish_seen_subcommand_from completion identity recipient store help" -f -a "completion" -d 'Generate shell completions'
 complete -c pasejo -n "__fish_pasejo_using_subcommand help; and not __fish_seen_subcommand_from completion identity recipient store help" -f -a "identity" -d 'Manage identities'
@@ -83,5 +87,6 @@ complete -c pasejo -n "__fish_pasejo_using_subcommand help; and __fish_seen_subc
 complete -c pasejo -n "__fish_pasejo_using_subcommand help; and __fish_seen_subcommand_from recipient" -f -a "remove" -d 'Remove a recipient'
 complete -c pasejo -n "__fish_pasejo_using_subcommand help; and __fish_seen_subcommand_from recipient" -f -a "inherit" -d 'Removes the recipients of a folder or secret so that it inherits its recipients from its parent'
 complete -c pasejo -n "__fish_pasejo_using_subcommand help; and __fish_seen_subcommand_from store" -f -a "init" -d 'Initialize a new store'
+complete -c pasejo -n "__fish_pasejo_using_subcommand help; and __fish_seen_subcommand_from store" -f -a "set-default" -d 'Mark a store as default'
 
 ```

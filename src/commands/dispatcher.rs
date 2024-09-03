@@ -39,7 +39,9 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
                 &args.path,
                 &args.alias,
                 &args.vcs,
+                &args.default,
             ),
+            StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.alias),
         },
         None => Err(anyhow!("Unknown command encountered")),
     }

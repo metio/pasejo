@@ -201,8 +201,17 @@ _arguments "${_arguments_options[@]}" : /
 '--alias=[The alias for the new store]:ALIAS: ' /
 '-v+[The version control system to use]:VCS:(none git mercurial)' /
 '--vcs=[The version control system to use]:VCS:(none git mercurial)' /
+'-d[Whether the new store should be the default store]' /
+'--default[Whether the new store should be the default store]' /
 '-h[Print help]' /
 '--help[Print help]' /
+&& ret=0
+;;
+(set-default)
+_arguments "${_arguments_options[@]}" : /
+'-h[Print help]' /
+'--help[Print help]' /
+':alias -- The alias of the store to use as default:' /
 && ret=0
 ;;
 (help)
@@ -218,6 +227,10 @@ _arguments "${_arguments_options[@]}" : /
         curcontext="${curcontext%:*:*}:pasejo-store-help-command-$line[1]:"
         case $line[1] in
             (init)
+_arguments "${_arguments_options[@]}" : /
+&& ret=0
+;;
+(set-default)
 _arguments "${_arguments_options[@]}" : /
 && ret=0
 ;;
@@ -314,6 +327,10 @@ _arguments "${_arguments_options[@]}" : /
         curcontext="${curcontext%:*:*}:pasejo-help-store-command-$line[1]:"
         case $line[1] in
             (init)
+_arguments "${_arguments_options[@]}" : /
+&& ret=0
+;;
+(set-default)
 _arguments "${_arguments_options[@]}" : /
 && ret=0
 ;;
@@ -417,6 +434,7 @@ _pasejo__help__recipient__remove_commands() {
 _pasejo__help__store_commands() {
     local commands; commands=(
 'init:Initialize a new store' /
+'set-default:Mark a store as default' /
     )
     _describe -t commands 'pasejo help store commands' commands "$@"
 }
@@ -424,6 +442,11 @@ _pasejo__help__store_commands() {
 _pasejo__help__store__init_commands() {
     local commands; commands=()
     _describe -t commands 'pasejo help store init commands' commands "$@"
+}
+(( $+functions[_pasejo__help__store__set-default_commands] )) ||
+_pasejo__help__store__set-default_commands() {
+    local commands; commands=()
+    _describe -t commands 'pasejo help store set-default commands' commands "$@"
 }
 (( $+functions[_pasejo__identity_commands] )) ||
 _pasejo__identity_commands() {
@@ -527,6 +550,7 @@ _pasejo__recipient__remove_commands() {
 _pasejo__store_commands() {
     local commands; commands=(
 'init:Initialize a new store' /
+'set-default:Mark a store as default' /
 'help:Print this message or the help of the given subcommand(s)' /
     )
     _describe -t commands 'pasejo store commands' commands "$@"
@@ -535,6 +559,7 @@ _pasejo__store_commands() {
 _pasejo__store__help_commands() {
     local commands; commands=(
 'init:Initialize a new store' /
+'set-default:Mark a store as default' /
 'help:Print this message or the help of the given subcommand(s)' /
     )
     _describe -t commands 'pasejo store help commands' commands "$@"
@@ -549,10 +574,20 @@ _pasejo__store__help__init_commands() {
     local commands; commands=()
     _describe -t commands 'pasejo store help init commands' commands "$@"
 }
+(( $+functions[_pasejo__store__help__set-default_commands] )) ||
+_pasejo__store__help__set-default_commands() {
+    local commands; commands=()
+    _describe -t commands 'pasejo store help set-default commands' commands "$@"
+}
 (( $+functions[_pasejo__store__init_commands] )) ||
 _pasejo__store__init_commands() {
     local commands; commands=()
     _describe -t commands 'pasejo store init commands' commands "$@"
+}
+(( $+functions[_pasejo__store__set-default_commands] )) ||
+_pasejo__store__set-default_commands() {
+    local commands; commands=()
+    _describe -t commands 'pasejo store set-default commands' commands "$@"
 }
 
 if [ "$funcstack[1]" = "_pasejo" ]; then

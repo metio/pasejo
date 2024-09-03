@@ -114,6 +114,7 @@ set edit:completion:arg-completer[pasejo] = {|@words|
             cand -h 'Print help'
             cand --help 'Print help'
             cand init 'Initialize a new store'
+            cand set-default 'Mark a store as default'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'pasejo;store;init'= {
@@ -123,14 +124,23 @@ set edit:completion:arg-completer[pasejo] = {|@words|
             cand --alias 'The alias for the new store'
             cand -v 'The version control system to use'
             cand --vcs 'The version control system to use'
+            cand -d 'Whether the new store should be the default store'
+            cand --default 'Whether the new store should be the default store'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'pasejo;store;set-default'= {
             cand -h 'Print help'
             cand --help 'Print help'
         }
         &'pasejo;store;help'= {
             cand init 'Initialize a new store'
+            cand set-default 'Mark a store as default'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'pasejo;store;help;init'= {
+        }
+        &'pasejo;store;help;set-default'= {
         }
         &'pasejo;store;help;help'= {
         }
@@ -164,8 +174,11 @@ set edit:completion:arg-completer[pasejo] = {|@words|
         }
         &'pasejo;help;store'= {
             cand init 'Initialize a new store'
+            cand set-default 'Mark a store as default'
         }
         &'pasejo;help;store;init'= {
+        }
+        &'pasejo;help;store;set-default'= {
         }
         &'pasejo;help;help'= {
         }

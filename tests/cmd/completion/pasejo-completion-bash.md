@@ -62,6 +62,9 @@ _pasejo() {
             pasejo__help__store,init)
                 cmd="pasejo__help__store__init"
                 ;;
+            pasejo__help__store,set-default)
+                cmd="pasejo__help__store__set__default"
+                ;;
             pasejo__identity,add)
                 cmd="pasejo__identity__add"
                 ;;
@@ -110,11 +113,17 @@ _pasejo() {
             pasejo__store,init)
                 cmd="pasejo__store__init"
                 ;;
+            pasejo__store,set-default)
+                cmd="pasejo__store__set__default"
+                ;;
             pasejo__store__help,help)
                 cmd="pasejo__store__help__help"
                 ;;
             pasejo__store__help,init)
                 cmd="pasejo__store__help__init"
+                ;;
+            pasejo__store__help,set-default)
+                cmd="pasejo__store__help__set__default"
                 ;;
             *)
                 ;;
@@ -299,7 +308,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__help__store)
-            opts="init"
+            opts="init set-default"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -313,6 +322,20 @@ _pasejo() {
             return 0
             ;;
         pasejo__help__store__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        pasejo__help__store__set__default)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -659,7 +682,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__store)
-            opts="-h --help init help"
+            opts="-h --help init set-default help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -673,7 +696,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__store__help)
-            opts="init help"
+            opts="init set-default help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -714,8 +737,22 @@ _pasejo() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        pasejo__store__help__set__default)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         pasejo__store__init)
-            opts="-p -a -v -h --path --alias --vcs --help"
+            opts="-p -a -v -d -h --path --alias --vcs --default --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -751,6 +788,20 @@ _pasejo() {
                     COMPREPLY=($(compgen -W "none git mercurial" -- "${cur}"))
                     return 0
                     ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        pasejo__store__set__default)
+            opts="-h --help <ALIAS>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;

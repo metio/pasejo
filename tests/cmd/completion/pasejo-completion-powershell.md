@@ -135,6 +135,7 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize a new store')
+            [CompletionResult]::new('set-default', 'set-default', [CompletionResultType]::ParameterValue, 'Mark a store as default')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
@@ -145,16 +146,27 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
             [CompletionResult]::new('--alias', '--alias', [CompletionResultType]::ParameterName, 'The alias for the new store')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'The version control system to use')
             [CompletionResult]::new('--vcs', '--vcs', [CompletionResultType]::ParameterName, 'The version control system to use')
+            [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Whether the new store should be the default store')
+            [CompletionResult]::new('--default', '--default', [CompletionResultType]::ParameterName, 'Whether the new store should be the default store')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'pasejo;store;set-default' {
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
         'pasejo;store;help' {
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize a new store')
+            [CompletionResult]::new('set-default', 'set-default', [CompletionResultType]::ParameterValue, 'Mark a store as default')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
         'pasejo;store;help;init' {
+            break
+        }
+        'pasejo;store;help;set-default' {
             break
         }
         'pasejo;store;help;help' {
@@ -199,9 +211,13 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
         }
         'pasejo;help;store' {
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize a new store')
+            [CompletionResult]::new('set-default', 'set-default', [CompletionResultType]::ParameterValue, 'Mark a store as default')
             break
         }
         'pasejo;help;store;init' {
+            break
+        }
+        'pasejo;help;store;set-default' {
             break
         }
         'pasejo;help;help' {

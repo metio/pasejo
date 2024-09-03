@@ -4,8 +4,9 @@ use clap::{Args, Parser, Subcommand};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
-/// pasejo: age-backed password manager
 #[derive(Parser)]
+#[command(name = "pasejo")]
+#[command(about = "age-backed password manager for teams", long_about = None)]
 pub struct Cli {
     /// Optional name of store to use. Defaults to the first store defined in the local user configuration
     #[arg(short, long)]
@@ -109,6 +110,9 @@ pub struct RecipientInheritArgs {
 pub enum StoreCommands {
     /// Initialize a new store
     Init(StoreInitArgs),
+
+    /// Mark a store as default
+    SetDefault(StoreDefaultArgs),
 }
 
 #[derive(Args)]
@@ -124,6 +128,16 @@ pub struct StoreInitArgs {
     /// The version control system to use
     #[arg(short, long, default_value_t, value_enum)]
     pub vcs: VersionControlSystems,
+
+    /// Whether the new store should be the default store
+    #[arg(short, long)]
+    pub default: bool,
+}
+
+#[derive(Args)]
+pub struct StoreDefaultArgs {
+    /// The alias of the store to use as default
+    pub alias: String,
 }
 
 #[cfg(test)]

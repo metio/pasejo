@@ -8,6 +8,7 @@ Options:
   -p, --path <PATH>    The path on your local system for the new store
   -a, --alias <ALIAS>  The alias for the new store
   -v, --vcs <VCS>      The version control system to use [default: none] [possible values: none, git, mercurial]
+  -d, --default        Whether the new store should be the default store
   -h, --help           Print help
 
 ```
@@ -22,6 +23,7 @@ Options:
   -p, --path <PATH>    The path on your local system for the new store
   -a, --alias <ALIAS>  The alias for the new store
   -v, --vcs <VCS>      The version control system to use [default: none] [possible values: none, git, mercurial]
+  -d, --default        Whether the new store should be the default store
   -h, --help           Print help
 
 ```
@@ -36,6 +38,7 @@ Options:
   -p, --path <PATH>    The path on your local system for the new store
   -a, --alias <ALIAS>  The alias for the new store
   -v, --vcs <VCS>      The version control system to use [default: none] [possible values: none, git, mercurial]
+  -d, --default        Whether the new store should be the default store
   -h, --help           Print help
 
 ```

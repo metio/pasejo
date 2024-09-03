@@ -13,3 +13,7 @@ pub fn identity_added() {
 pub fn store_initialized(store_path: String) {
     println!("Store initialized at {}", store_path);
 }
+
+pub fn store_set_default(store_alias: String) {
+    println!("Store {} is now the default", store_alias);
+}

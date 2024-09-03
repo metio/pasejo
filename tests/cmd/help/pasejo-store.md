@@ -5,8 +5,9 @@ Manage stores
 Usage: pasejo store <COMMAND>
 
 Commands:
-  init  Initialize a new store
-  help  Print this message or the help of the given subcommand(s)
+  init         Initialize a new store
+  set-default  Mark a store as default
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -20,8 +21,9 @@ Manage stores
 Usage: pasejo store <COMMAND>
 
 Commands:
-  init  Initialize a new store
-  help  Print this message or the help of the given subcommand(s)
+  init         Initialize a new store
+  set-default  Mark a store as default
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -35,8 +37,9 @@ Manage stores
 Usage: pasejo store <COMMAND>
 
 Commands:
-  init  Initialize a new store
-  help  Print this message or the help of the given subcommand(s)
+  init         Initialize a new store
+  set-default  Mark a store as default
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help

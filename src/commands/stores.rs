@@ -11,17 +11,27 @@ pub fn init(
     path: &PathBuf,
     alias: &String,
     vcs: &VersionControlSystems,
+    default: &bool,
 ) -> Result<()> {
     let canonical_path = file_system.absolute_path(path)?;
     file_system.mkdir_parents(canonical_path.as_path())?;
     vcs.select_implementation().init(canonical_path.as_path())?;
-    let result = configuration.add_store(
+    configuration.add_store(
         canonical_path.display().to_string(),
         alias.clone(),
         vcs.clone(),
-    );
+    )?;
     printer::store_initialized(canonical_path.display().to_string());
-    result
+    if *default {
+        set_default(configuration, alias)?;
+    }
+    Ok(())
+}
+
+pub fn set_default(mut configuration: Configuration, alias: &String) -> Result<()> {
+    configuration.set_default_store(alias.clone())?;
+    printer::store_set_default(alias.clone());
+    Ok(())
 }
 
 #[cfg(test)]

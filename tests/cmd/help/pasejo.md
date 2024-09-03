@@ -1,6 +1,6 @@
 ```console
 $ pasejo help
-pasejo: age-backed password manager
+age-backed password manager for teams
 
 Usage: pasejo [OPTIONS] [COMMAND]
 
@@ -19,7 +19,7 @@ Options:
 
 ```console
 $ pasejo --help
-pasejo: age-backed password manager
+age-backed password manager for teams
 
 Usage: pasejo [OPTIONS] [COMMAND]
 
@@ -37,7 +37,7 @@ Options:
 ```
 ```console
 $ pasejo -h
-pasejo: age-backed password manager
+age-backed password manager for teams
 
 Usage: pasejo [OPTIONS] [COMMAND]
 

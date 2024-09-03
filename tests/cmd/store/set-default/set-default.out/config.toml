@@ -1,0 +1,8 @@
+identities = []
+default_store = "default"
+
+[[stores]]
+path = "[CWD]/path/to/store"
+alias = "default"
+vcs = "None"
+identities = []
