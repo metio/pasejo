@@ -23,8 +23,6 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
 
     $completions = @(switch ($command) {
         'pasejo' {
-            [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the first store defined in the local user configuration')
-            [CompletionResult]::new('--store', '--store', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the first store defined in the local user configuration')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completions')
@@ -50,6 +48,8 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
         'pasejo;identity;add' {
             [CompletionResult]::new('-f', '-f', [CompletionResultType]::ParameterName, 'The path to the identity file')
             [CompletionResult]::new('--file', '--file', [CompletionResultType]::ParameterName, 'The path to the identity file')
+            [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
+            [CompletionResult]::new('--store', '--store', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
@@ -57,6 +57,8 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
         'pasejo;identity;remove' {
             [CompletionResult]::new('-f', '-f', [CompletionResultType]::ParameterName, 'The path to the identity file')
             [CompletionResult]::new('--file', '--file', [CompletionResultType]::ParameterName, 'The path to the identity file')
+            [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
+            [CompletionResult]::new('--store', '--store', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
@@ -92,6 +94,8 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
             [CompletionResult]::new('--name', '--name', [CompletionResultType]::ParameterName, 'The name of the new recipient')
             [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'The path to a folder or secret that should be readable by the given recipient')
             [CompletionResult]::new('--path', '--path', [CompletionResultType]::ParameterName, 'The path to a folder or secret that should be readable by the given recipient')
+            [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
+            [CompletionResult]::new('--store', '--store', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
@@ -101,6 +105,8 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
             [CompletionResult]::new('--public-key', '--public-key', [CompletionResultType]::ParameterName, 'The public key of the recipient to remove')
             [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'The path to a folder or secret that should no longer be readable by the given recipient')
             [CompletionResult]::new('--path', '--path', [CompletionResultType]::ParameterName, 'The path to a folder or secret that should no longer be readable by the given recipient')
+            [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
+            [CompletionResult]::new('--store', '--store', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
@@ -108,6 +114,8 @@ Register-ArgumentCompleter -Native -CommandName 'pasejo' -ScriptBlock {
         'pasejo;recipient;inherit' {
             [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'The path to a folder or secret that should inherit its recipients from its parent')
             [CompletionResult]::new('--path', '--path', [CompletionResultType]::ParameterName, 'The path to a folder or secret that should inherit its recipients from its parent')
+            [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
+            [CompletionResult]::new('--store', '--store', [CompletionResultType]::ParameterName, 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break

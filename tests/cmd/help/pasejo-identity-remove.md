@@ -2,11 +2,12 @@
 $ pasejo identity help remove
 Remove an identity
 
-Usage: pasejo identity remove --file <FILE>
+Usage: pasejo identity remove [OPTIONS] --file <FILE>
 
 Options:
-  -f, --file <FILE>  The path to the identity file
-  -h, --help         Print help
+  -f, --file <FILE>    The path to the identity file
+  -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -h, --help           Print help
 
 ```
 
@@ -14,11 +15,12 @@ Options:
 $ pasejo identity remove --help
 Remove an identity
 
-Usage: pasejo identity remove --file <FILE>
+Usage: pasejo identity remove [OPTIONS] --file <FILE>
 
 Options:
-  -f, --file <FILE>  The path to the identity file
-  -h, --help         Print help
+  -f, --file <FILE>    The path to the identity file
+  -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -h, --help           Print help
 
 ```
 
@@ -26,10 +28,11 @@ Options:
 $ pasejo identity remove -h
 Remove an identity
 
-Usage: pasejo identity remove --file <FILE>
+Usage: pasejo identity remove [OPTIONS] --file <FILE>
 
 Options:
-  -f, --file <FILE>  The path to the identity file
-  -h, --help         Print help
+  -f, --file <FILE>    The path to the identity file
+  -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -h, --help           Print help
 
 ```

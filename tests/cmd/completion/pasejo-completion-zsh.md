@@ -17,8 +17,6 @@ _pasejo() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : /
-'-s+[Optional name of store to use. Defaults to the first store defined in the local user configuration]:STORE: ' /
-'--store=[Optional name of store to use. Defaults to the first store defined in the local user configuration]:STORE: ' /
 '-h[Print help]' /
 '--help[Print help]' /
 ":: :_pasejo_commands" /
@@ -55,6 +53,8 @@ _arguments "${_arguments_options[@]}" : /
 _arguments "${_arguments_options[@]}" : /
 '-f+[The path to the identity file]:FILE:_files' /
 '--file=[The path to the identity file]:FILE:_files' /
+'-s+[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
+'--store=[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
 '-h[Print help]' /
 '--help[Print help]' /
 && ret=0
@@ -63,6 +63,8 @@ _arguments "${_arguments_options[@]}" : /
 _arguments "${_arguments_options[@]}" : /
 '-f+[The path to the identity file]:FILE:_files' /
 '--file=[The path to the identity file]:FILE:_files' /
+'-s+[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
+'--store=[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
 '-h[Print help]' /
 '--help[Print help]' /
 && ret=0
@@ -121,6 +123,8 @@ _arguments "${_arguments_options[@]}" : /
 '--name=[The name of the new recipient]:NAME: ' /
 '-p+[The path to a folder or secret that should be readable by the given recipient]:PATH:_files' /
 '--path=[The path to a folder or secret that should be readable by the given recipient]:PATH:_files' /
+'-s+[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
+'--store=[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
 '-h[Print help]' /
 '--help[Print help]' /
 && ret=0
@@ -131,6 +135,8 @@ _arguments "${_arguments_options[@]}" : /
 '--public-key=[The public key of the recipient to remove]:PUBLIC_KEY: ' /
 '-p+[The path to a folder or secret that should no longer be readable by the given recipient]:PATH:_files' /
 '--path=[The path to a folder or secret that should no longer be readable by the given recipient]:PATH:_files' /
+'-s+[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
+'--store=[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
 '-h[Print help]' /
 '--help[Print help]' /
 && ret=0
@@ -139,6 +145,8 @@ _arguments "${_arguments_options[@]}" : /
 _arguments "${_arguments_options[@]}" : /
 '-p+[The path to a folder or secret that should inherit its recipients from its parent]:PATH:_files' /
 '--path=[The path to a folder or secret that should inherit its recipients from its parent]:PATH:_files' /
+'-s+[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
+'--store=[Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration]:STORE: ' /
 '-h[Print help]' /
 '--help[Print help]' /
 && ret=0

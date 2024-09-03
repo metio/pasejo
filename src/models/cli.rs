@@ -8,10 +8,6 @@ use std::path::PathBuf;
 #[command(name = "pasejo")]
 #[command(about = "age-backed password manager for teams", long_about = None)]
 pub struct Cli {
-    /// Optional name of store to use. Defaults to the first store defined in the local user configuration
-    #[arg(short, long)]
-    pub store: Option<String>,
-
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -40,6 +36,14 @@ pub enum Commands {
     },
 }
 
+#[derive(Args)]
+pub struct StoreSelectionArgs {
+    /// Optional name of store to use. Defaults to the default store or the first one defined in the
+    /// local user configuration
+    #[arg(short, long)]
+    pub store: Option<String>,
+}
+
 #[derive(Subcommand)]
 pub enum IdentityCommands {
     /// Adds an identity
@@ -54,11 +58,9 @@ pub struct IdentityAddRemoveArgs {
     /// The path to the identity file
     #[arg(short, long, value_hint = FilePath)]
     pub file: PathBuf,
-}
 
-#[derive(Args)]
-pub struct IdentityRemoveArgs {
-    pub name: Option<String>,
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
 }
 
 #[derive(Subcommand)]
@@ -86,6 +88,9 @@ pub struct RecipientAddArgs {
     /// The path to a folder or secret that should be readable by the given recipient
     #[arg(short, long, value_hint = AnyPath)]
     pub path: Option<PathBuf>,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
 }
 
 #[derive(Args)]
@@ -97,6 +102,9 @@ pub struct RecipientRemoveArgs {
     /// The path to a folder or secret that should no longer be readable by the given recipient
     #[arg(short, long)]
     pub path: Option<PathBuf>,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
 }
 
 #[derive(Args)]
@@ -104,6 +112,9 @@ pub struct RecipientInheritArgs {
     /// The path to a folder or secret that should inherit its recipients from its parent
     #[arg(short, long, value_hint = AnyPath)]
     pub path: PathBuf,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
 }
 
 #[derive(Subcommand)]

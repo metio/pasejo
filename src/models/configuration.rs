@@ -76,10 +76,10 @@ impl Configuration {
         }
     }
 
-    pub fn select_store(&self, alias: Option<String>) -> &Store {
+    pub fn select_store(&self, alias: &Option<String>) -> &Store {
         match alias {
             Some(alias) => self
-                .find_store(alias)
+                .find_store(alias.clone())
                 .expect("Cannot find store for given alias"),
             None => match &self.default_store {
                 Some(default) => self

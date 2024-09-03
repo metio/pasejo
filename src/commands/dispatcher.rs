@@ -11,20 +11,20 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             IdentityCommands::Add(args) => identities::add(
                 FileSystemDefault::new(),
                 configuration,
-                &cli.store,
+                &args.store_selection.store,
                 &args.file,
             ),
             IdentityCommands::Remove(args) => identities::remove(
                 FileSystemDefault::new(),
                 configuration,
-                &cli.store,
+                &args.store_selection.store,
                 &args.file,
             ),
         },
         Some(Commands::Recipient { command }) => match command {
             RecipientCommands::Add(args) => recipients::add(
                 FileSystemDefault::new(),
-                configuration.select_store(cli.store),
+                configuration.select_store(&args.store_selection.store),
                 &args.public_key,
                 &args.name,
                 &args.path,

@@ -7,6 +7,7 @@ Usage: pasejo recipient remove [OPTIONS] --public-key <PUBLIC_KEY>
 Options:
   -k, --public-key <PUBLIC_KEY>  The public key of the recipient to remove
   -p, --path <PATH>              The path to a folder or secret that should no longer be readable by the given recipient
+  -s, --store <STORE>            Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -h, --help                     Print help
 
 ```
@@ -20,6 +21,7 @@ Usage: pasejo recipient remove [OPTIONS] --public-key <PUBLIC_KEY>
 Options:
   -k, --public-key <PUBLIC_KEY>  The public key of the recipient to remove
   -p, --path <PATH>              The path to a folder or secret that should no longer be readable by the given recipient
+  -s, --store <STORE>            Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -h, --help                     Print help
 
 ```
@@ -33,6 +35,7 @@ Usage: pasejo recipient remove [OPTIONS] --public-key <PUBLIC_KEY>
 Options:
   -k, --public-key <PUBLIC_KEY>  The public key of the recipient to remove
   -p, --path <PATH>              The path to a folder or secret that should no longer be readable by the given recipient
+  -s, --store <STORE>            Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -h, --help                     Print help
 
 ```

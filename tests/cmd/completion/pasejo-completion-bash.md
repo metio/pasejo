@@ -132,20 +132,12 @@ _pasejo() {
 
     case "${cmd}" in
         pasejo)
-            opts="-s -h --store --help completion identity recipient store help"
+            opts="-h --help completion identity recipient store help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --store)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -s)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -364,7 +356,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__identity__add)
-            opts="-f -h --file --help"
+            opts="-f -s -h --file --store --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -398,6 +390,14 @@ _pasejo() {
                     if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
                         compopt -o filenames
                     fi
+                    return 0
+                    ;;
+                --store)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)
@@ -464,7 +464,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__identity__remove)
-            opts="-f -h --file --help"
+            opts="-f -s -h --file --store --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -500,6 +500,14 @@ _pasejo() {
                     fi
                     return 0
                     ;;
+                --store)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -522,7 +530,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__recipient__add)
-            opts="-k -n -p -h --public-key --name --path --help"
+            opts="-k -n -p -s -h --public-key --name --path --store --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -549,6 +557,14 @@ _pasejo() {
                     return 0
                     ;;
                 -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --store)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -630,7 +646,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__recipient__inherit)
-            opts="-p -h --path --help"
+            opts="-p -s -h --path --store --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -644,6 +660,14 @@ _pasejo() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --store)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -652,7 +676,7 @@ _pasejo() {
             return 0
             ;;
         pasejo__recipient__remove)
-            opts="-k -p -h --public-key --path --help"
+            opts="-k -p -s -h --public-key --path --store --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -671,6 +695,14 @@ _pasejo() {
                     return 0
                     ;;
                 -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --store)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

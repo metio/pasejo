@@ -20,8 +20,6 @@ set edit:completion:arg-completer[pasejo] = {|@words|
     }
     var completions = [
         &'pasejo'= {
-            cand -s 'Optional name of store to use. Defaults to the first store defined in the local user configuration'
-            cand --store 'Optional name of store to use. Defaults to the first store defined in the local user configuration'
             cand -h 'Print help'
             cand --help 'Print help'
             cand completion 'Generate shell completions'
@@ -44,12 +42,16 @@ set edit:completion:arg-completer[pasejo] = {|@words|
         &'pasejo;identity;add'= {
             cand -f 'The path to the identity file'
             cand --file 'The path to the identity file'
+            cand -s 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
+            cand --store 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
             cand -h 'Print help'
             cand --help 'Print help'
         }
         &'pasejo;identity;remove'= {
             cand -f 'The path to the identity file'
             cand --file 'The path to the identity file'
+            cand -s 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
+            cand --store 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
             cand -h 'Print help'
             cand --help 'Print help'
         }
@@ -79,6 +81,8 @@ set edit:completion:arg-completer[pasejo] = {|@words|
             cand --name 'The name of the new recipient'
             cand -p 'The path to a folder or secret that should be readable by the given recipient'
             cand --path 'The path to a folder or secret that should be readable by the given recipient'
+            cand -s 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
+            cand --store 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
             cand -h 'Print help'
             cand --help 'Print help'
         }
@@ -87,12 +91,16 @@ set edit:completion:arg-completer[pasejo] = {|@words|
             cand --public-key 'The public key of the recipient to remove'
             cand -p 'The path to a folder or secret that should no longer be readable by the given recipient'
             cand --path 'The path to a folder or secret that should no longer be readable by the given recipient'
+            cand -s 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
+            cand --store 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
             cand -h 'Print help'
             cand --help 'Print help'
         }
         &'pasejo;recipient;inherit'= {
             cand -p 'The path to a folder or secret that should inherit its recipients from its parent'
             cand --path 'The path to a folder or secret that should inherit its recipients from its parent'
+            cand -s 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
+            cand --store 'Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration'
             cand -h 'Print help'
             cand --help 'Print help'
         }
