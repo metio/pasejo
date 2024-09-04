@@ -39,15 +39,3 @@ Options:
   -h, --help  Print help
 
 ```
-
-```console
-$ pasejo store set-default
-? 2
-error: the following required arguments were not provided:
-  <ALIAS>
-
-Usage: pasejo store set-default <ALIAS>
-
-For more information, try '--help'.
-
-```

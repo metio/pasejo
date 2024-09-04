@@ -7,6 +7,7 @@ Usage: pasejo <COMMAND>
 Commands:
   identity   Manage identities
   recipient  Manage recipients
+  secret     Manage secrets
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 
@@ -24,6 +25,7 @@ Usage: pasejo <COMMAND>
 Commands:
   identity   Manage identities
   recipient  Manage recipients
+  secret     Manage secrets
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 
@@ -40,6 +42,7 @@ Usage: pasejo <COMMAND>
 Commands:
   identity   Manage identities
   recipient  Manage recipients
+  secret     Manage secrets
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 

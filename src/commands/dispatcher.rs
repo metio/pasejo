@@ -1,5 +1,5 @@
 use crate::adapters::file_system::FileSystemDefault;
-use crate::commands::{identities, recipients, stores};
+use crate::commands::{identities, recipients, secrets, stores};
 use crate::models::cli::*;
 use crate::models::configuration::Configuration;
 use anyhow::Result;
@@ -30,6 +30,23 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             ),
             RecipientCommands::Remove(_) => Ok(()),
             RecipientCommands::Inherit(_) => Ok(()),
+        },
+        Commands::Secret { command } => match command {
+            SecretCommands::Copy(_) => Ok(()),
+            SecretCommands::Edit(_) => Ok(()),
+            SecretCommands::Generate(_) => Ok(()),
+            SecretCommands::Grep(_) => Ok(()),
+            SecretCommands::Insert(args) => secrets::insert(
+                configuration.select_store(&args.store_selection.store),
+                &args.multiline,
+                &args.force,
+                &args.inherit,
+                &args.secret_path,
+            ),
+            SecretCommands::List(_) => Ok(()),
+            SecretCommands::Move(_) => Ok(()),
+            SecretCommands::Remove(_) => Ok(()),
+            SecretCommands::Show(_) => Ok(()),
         },
         Commands::Store { command } => match command {
             StoreCommands::Init(args) => stores::init(

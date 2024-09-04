@@ -29,6 +29,7 @@ Options:
   -h, --help  Print help
 
 ```
+
 ```console
 $ pasejo identity -h
 Manage identities

@@ -1,8 +1,8 @@
 identities = []
-default_store = "default"
+default_store = "something"
 
 [[stores]]
 path = "[CWD]/path/to/store"
-alias = "default"
+alias = "something"
 vcs = "None"
 identities = []

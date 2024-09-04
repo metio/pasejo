@@ -26,6 +26,12 @@ pub enum Commands {
         command: RecipientCommands,
     },
 
+    /// Manage secrets
+    Secret {
+        #[command(subcommand)]
+        command: SecretCommands,
+    },
+
     /// Manage stores
     Store {
         #[command(subcommand)]
@@ -37,7 +43,8 @@ pub enum Commands {
 pub struct StoreSelectionArgs {
     /// Optional name of store to use. Defaults to the default store or the first one defined in the
     /// local user configuration
-    #[arg(short, long, add = ArgValueCompleter::new(store_alias_completer), value_parser = store_alias_is_known)]
+    #[arg(short, long, add = ArgValueCompleter::new(store_alias_completer), value_parser = store_alias_is_known
+    )]
     pub store: Option<String>,
 }
 
@@ -110,6 +117,109 @@ pub struct RecipientInheritArgs {
     #[arg(short, long, value_hint = AnyPath)]
     pub path: PathBuf,
 
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Subcommand)]
+pub enum SecretCommands {
+    /// Copy secret from old-path to new-path
+    Copy(SecretCopyArgs),
+
+    /// Edit an existing secret
+    Edit(SecretEditArgs),
+
+    /// Generate a secret and insert it into the store
+    Generate(SecretGenerateArgs),
+
+    /// Grep for a search-string in secrets when decrypted
+    Grep(SecretGrepArgs),
+
+    /// Insert a new secret or overwrite an existing one
+    Insert(SecretInsertArgs),
+
+    /// List all secrets, optionally limited to a subfolder of a store
+    List(SecretListArgs),
+
+    /// Move secret from old-path to new-path
+    Move(SecretMoveArgs),
+
+    /// Remove an existing secret
+    Remove(SecretRemoveArgs),
+
+    /// Show secret
+    Show(SecretShowArgs),
+}
+
+#[derive(Args)]
+pub struct SecretCopyArgs {
+    /// Toggle prompt for overwrites of existing secrets
+    #[arg(short, long)]
+    pub force: bool,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretEditArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretGenerateArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretGrepArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretInsertArgs {
+    /// Toggle multiline edit mode
+    #[arg(short, long)]
+    pub multiline: bool,
+
+    /// Toggle prompt for overwrites of existing secrets
+    #[arg(short, long)]
+    pub force: bool,
+
+    /// Ignore existing recipients of existing secrets and inherit recipients from nearest parent folder
+    #[arg(short, long)]
+    pub inherit: bool,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The path of the secret within the selected store
+    pub secret_path: String,
+}
+
+#[derive(Args)]
+pub struct SecretListArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretMoveArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretRemoveArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct SecretShowArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
 }

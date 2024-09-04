@@ -23,7 +23,7 @@ confy = { version = "0.6.1" }
 #directories = { version = "5.0.1" }
 duct = { version = "0.13.7" }
 human-panic = { version = "2.0.0" }
-#inquire = { version = "0.7.5", features = ["editor"] }
+inquire = { version = "0.7.5", features = ["editor"] }
 #passwords = { version = "3.1.16" }
 #rpassword = { version = "7.3.1" }
 serde = { version = "1.0.203", features = ["derive"] }

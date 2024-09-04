@@ -1,5 +1,6 @@
+use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
 use std::path::{absolute, PathBuf};
@@ -187,13 +188,37 @@ impl Configuration {
 
 impl Store {
     pub fn paths_for(&self, path: &Option<PathBuf>, suffix: &str) -> (PathBuf, PathBuf) {
-        let suffix = PathBuf::from(suffix);
-        let relative_path = path
-            .as_ref()
-            .map_or_else(|| suffix.clone(), |p| p.join(&suffix));
+        let relative_path = path.as_ref().map_or_else(
+            || PathBuf::from(suffix),
+            |p| file_system::append_to_path(p.clone(), suffix),
+        );
         (
             PathBuf::from(&self.path).join(&relative_path),
             relative_path,
         )
+    }
+
+    pub fn find_nearest_recipients(&self, secret_path: PathBuf, inherit: bool) -> Result<PathBuf> {
+        let mut recipients = vec![];
+        for path in secret_path.ancestors() {
+            let recipients_file = path.join(".recipients");
+            if file_system::file_exists(recipients_file.as_path())? {
+                recipients.push(recipients_file);
+            }
+        }
+        let root_recipients_file = PathBuf::from(&self.path).join(".recipients");
+        if file_system::file_exists(root_recipients_file.as_path())? {
+            recipients.push(root_recipients_file);
+        }
+
+        if inherit && !recipients.is_empty() {
+            // remove nearest match to select the first parent afterward
+            recipients.remove(0);
+        }
+
+        recipients
+            .first()
+            .map(|p| p.clone())
+            .context("No recipients file found for the given secret. Make sure to call 'pasejo recipients add ...' or specify recipients directly with '--recipient'")
     }
 }

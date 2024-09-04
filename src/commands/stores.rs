@@ -28,12 +28,6 @@ pub fn init(
     Ok(())
 }
 
-pub fn set_default(mut configuration: Configuration, alias: &String) -> Result<()> {
-    configuration.set_default_store(alias.clone())?;
-    printer::store_set_default(alias.clone());
-    Ok(())
-}
-
 pub fn remove(
     file_system: Box<dyn FileSystem>,
     mut configuration: Configuration,
@@ -45,6 +39,12 @@ pub fn remove(
         file_system.remove_directory(Path::new(&path))?;
     }
     printer::store_removed(alias.clone());
+    Ok(())
+}
+
+pub fn set_default(mut configuration: Configuration, alias: &String) -> Result<()> {
+    configuration.set_default_store(alias.clone())?;
+    printer::store_set_default(alias.clone());
     Ok(())
 }
 

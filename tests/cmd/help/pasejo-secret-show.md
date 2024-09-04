@@ -1,0 +1,35 @@
+```console
+$ pasejo secret help show
+Show secret
+
+Usage: pasejo secret show [OPTIONS]
+
+Options:
+  -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -h, --help           Print help
+
+```
+
+```console
+$ pasejo secret show --help
+Show secret
+
+Usage: pasejo secret show [OPTIONS]
+
+Options:
+  -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -h, --help           Print help
+
+```
+
+```console
+$ pasejo secret show -h
+Show secret
+
+Usage: pasejo secret show [OPTIONS]
+
+Options:
+  -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -h, --help           Print help
+
+```
