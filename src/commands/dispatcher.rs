@@ -39,7 +39,11 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             SecretCommands::List(_) => Ok(()),
             SecretCommands::Move(_) => Ok(()),
             SecretCommands::Remove(_) => Ok(()),
-            SecretCommands::Show(_) => Ok(()),
+            SecretCommands::Show(args) => secrets::show(
+                configuration.select_store(&args.store_selection.store),
+                configuration.all_identities(&args.store_selection.store)?,
+                &args.secret_path,
+            ),
         },
         Commands::Store { command } => match command {
             StoreCommands::Init(args) => stores::init(

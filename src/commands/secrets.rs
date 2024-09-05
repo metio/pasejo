@@ -1,12 +1,13 @@
 use crate::adapters::file_system;
 use crate::commands::recipients;
-use crate::models::configuration::Store;
-use age::cli_common::{read_recipients, StdinGuard};
-use age::{Encryptor, Recipient};
+use crate::models::configuration::{Identity, Store};
+use age::cli_common::{read_identities, read_recipients, StdinGuard};
+use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
 use inquire::{Confirm, Editor, Password};
 use std::fs::write;
-use std::io::Write;
+use std::io::{Read, Write};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 pub fn insert(
@@ -127,4 +128,26 @@ fn read_secret_from_user_input(secret_path: &String, multiline: bool) -> anyhow:
         Password::new(message).prompt().context(failure)?
     };
     Ok(secret)
+}
+
+pub fn show(store: &Store, identities: Vec<Identity>, secret_path: &String) -> anyhow::Result<()> {
+    let (_, absolute_secret_path) = calculate_paths(store, false, secret_path)?;
+    let encrypted = file_system::read_file(&absolute_secret_path)?;
+    let decryptor = match Decryptor::new_buffered(encrypted.as_bytes())? {
+        Decryptor::Recipients(d) => d,
+        _ => unreachable!(),
+    };
+    let mut decrypted = vec![];
+    let parsed_identities = read_all_identities(identities)?;
+    let mut reader = decryptor.decrypt(parsed_identities.iter().map(|i| i.deref()))?;
+    reader.read_to_end(&mut decrypted)?;
+    let decrypted_text = String::from_utf8(decrypted)?;
+    println!("{}", decrypted_text);
+    Ok(())
+}
+
+fn read_all_identities(identities: Vec<Identity>) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
+    let filenames: Vec<String> = identities.iter().map(|i| i.file.clone()).collect();
+    let parsed_identities = read_identities(filenames, None, &mut StdinGuard::new(true))?;
+    Ok(parsed_identities)
 }

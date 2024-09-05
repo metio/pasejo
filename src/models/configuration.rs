@@ -154,11 +154,11 @@ impl Configuration {
         Ok(())
     }
 
-    pub fn all_identities(&self, alias: Option<String>) -> Result<Vec<Identity>> {
+    pub fn all_identities(&self, alias: &Option<String>) -> Result<Vec<Identity>> {
         let mut identities = self.identities.clone();
         if let Some(alias) = alias {
             identities.extend(
-                self.find_store(alias)
+                self.find_store(alias.clone())
                     .map_or_else(|| vec![], |store| store.identities.clone()),
             );
         }

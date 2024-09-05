@@ -226,6 +226,9 @@ pub struct SecretRemoveArgs {
 pub struct SecretShowArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
+
+    /// The path of the secret within the selected store
+    pub secret_path: String,
 }
 
 #[derive(Subcommand)]
