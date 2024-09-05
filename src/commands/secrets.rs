@@ -19,7 +19,7 @@ pub fn insert(
 ) -> anyhow::Result<()> {
     let secret = read_secret_from_user_input(secret_path, *multiline)?;
     let (absolute_recipients_path, absolute_secret_path) =
-        calculate_paths(store, inherit, secret_path)?;
+        calculate_paths(store, *inherit && recipients.is_empty(), secret_path)?;
     if !recipients.is_empty() {
         replace_recipients(&absolute_recipients_path, recipients, *force)?;
     }
@@ -89,11 +89,11 @@ fn read_recipient_file(recipients_path: &Path) -> anyhow::Result<Vec<Box<dyn Rec
 
 fn calculate_paths(
     store: &Store,
-    inherit: &bool,
+    inherit: bool,
     secret_path: &String,
 ) -> anyhow::Result<(PathBuf, PathBuf)> {
     let relative_path = Path::new(secret_path);
-    let absolute_recipients_path = store.find_nearest_recipients(relative_path, *inherit)?;
+    let absolute_recipients_path = store.find_nearest_recipients(relative_path, inherit)?;
     let absolute_secret_path = store.resolve_path(file_system::append_to_path(
         relative_path.to_path_buf(),
         ".age",
