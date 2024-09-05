@@ -3,7 +3,7 @@ use crate::adapters::vcs::VersionControlSystems;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
-use std::path::{absolute, PathBuf};
+use std::path::{absolute, Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -187,6 +187,7 @@ impl Configuration {
 }
 
 impl Store {
+    #[deprecated(since = "1.0.0", note = "please use `resolve_path` instead")]
     pub fn paths_for(&self, path: &Option<PathBuf>, suffix: &str) -> (PathBuf, PathBuf) {
         let relative_path = path.as_ref().map_or_else(
             || PathBuf::from(suffix),
@@ -198,16 +199,22 @@ impl Store {
         )
     }
 
-    pub fn find_nearest_recipients(&self, secret_path: PathBuf, inherit: bool) -> Result<PathBuf> {
+    #[must_use]
+    pub fn resolve_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+        PathBuf::from(&self.path).join(&path)
+    }
+
+    pub fn find_nearest_recipients(&self, secret_path: &Path, inherit: bool) -> Result<PathBuf> {
         let mut recipients = vec![];
+        let recipients_extension = Path::new(".recipients");
         for path in secret_path.ancestors() {
-            let recipients_file = path.join(".recipients");
-            if file_system::file_exists(recipients_file.as_path())? {
+            let recipients_file = self.resolve_path(path.join(recipients_extension));
+            if file_system::file_exists(&recipients_file)? {
                 recipients.push(recipients_file);
             }
         }
-        let root_recipients_file = PathBuf::from(&self.path).join(".recipients");
-        if file_system::file_exists(root_recipients_file.as_path())? {
+        let root_recipients_file = self.resolve_path(recipients_extension);
+        if file_system::file_exists(&root_recipients_file)? {
             recipients.push(root_recipients_file);
         }
 

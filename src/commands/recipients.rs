@@ -1,10 +1,9 @@
-use crate::adapters::file_system::FileSystem;
+use crate::adapters::file_system;
 use crate::cli::printer;
 use crate::models::configuration::Store;
 use std::path::PathBuf;
 
 pub fn add(
-    file_system: Box<dyn FileSystem>,
     store: &Store,
     public_key: &String,
     name: &Option<String>,
@@ -14,18 +13,18 @@ pub fn add(
     let (secret_absolute, _) = store.paths_for(path, ".age");
     let (directory_absolute, _) = store.paths_for(path, "");
 
-    if file_system.file_exists(&secret_absolute)?
-        || file_system.directory_exists(&directory_absolute)?
+    if file_system::file_exists(&secret_absolute)?
+        || file_system::directory_exists(&directory_absolute)?
     {
-        if file_system.file_exists(&recipients_absolute)? {
+        if file_system::file_exists(&recipients_absolute)? {
             // update existing .recipients file
-            let recipients = file_system.read_file(&recipients_absolute)?;
+            let recipients = file_system::read_file(&recipients_absolute)?;
             let (updated_recipients, _) = upsert_recipient(recipients, public_key, name);
-            file_system.write_file(&recipients_absolute, updated_recipients)?;
+            file_system::write_file(&recipients_absolute, updated_recipients)?;
         } else {
             // create new .recipients file
             let recipient = format_recipient(public_key, name);
-            file_system.append_file(&recipients_absolute, &recipient)?;
+            file_system::append_file(&recipients_absolute, &recipient)?;
             printer::recipient_added();
         }
 
@@ -77,7 +76,7 @@ fn upsert_recipient(
     (recipients, re_encryption_required)
 }
 
-fn format_recipient(public_key: &String, name: &Option<String>) -> String {
+pub fn format_recipient(public_key: &String, name: &Option<String>) -> String {
     match name {
         Some(name) if !name.is_empty() => format!("# {}\n{}", name, public_key),
         _ => format!("{}", public_key),

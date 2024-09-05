@@ -185,13 +185,17 @@ pub struct SecretInsertArgs {
     #[arg(short, long)]
     pub multiline: bool,
 
-    /// Toggle prompt for overwrites of existing secrets
+    /// Toggle prompt for overwrites of existing secrets and recipients
     #[arg(short, long)]
     pub force: bool,
 
     /// Ignore existing recipients of existing secrets and inherit recipients from nearest parent folder
     #[arg(short, long)]
     pub inherit: bool,
+
+    /// Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .recipients file
+    #[arg(short, long)]
+    pub recipient: Vec<String>,
 
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
