@@ -15,13 +15,10 @@ pub fn add(
     name: &Option<String>,
     path: &Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    validate_given_path(store, path)?;
+    let path_is_directory = validate_given_path(store, path)?;
 
-    let recipients_file_in_store = path.clone().map_or_else(
-        || PathBuf::from(RECIPIENTS_FILE_SUFFIX),
-        |p| p.join(RECIPIENTS_FILE_SUFFIX),
-    );
-    let absolute_path_to_recipients_file = store.resolve_path(&recipients_file_in_store);
+    let (recipients_file_in_store, absolute_path_to_recipients_file) =
+        calculate_recipients_file_paths(store, path, path_is_directory);
 
     if file_system::file_exists(&absolute_path_to_recipients_file)? {
         // update existing .recipients file
@@ -43,22 +40,44 @@ pub fn add(
     Ok(())
 }
 
-fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<()> {
+fn calculate_recipients_file_paths(
+    store: &Store,
+    path: &Option<PathBuf>,
+    path_is_directory: bool,
+) -> (PathBuf, PathBuf) {
+    let recipients_file_in_store = path.clone().map_or_else(
+        || PathBuf::from(RECIPIENTS_FILE_SUFFIX),
+        |p| {
+            if path_is_directory {
+                p.join(RECIPIENTS_FILE_SUFFIX)
+            } else {
+                file_system::append_to_path(p, RECIPIENTS_FILE_SUFFIX)
+            }
+        },
+    );
+    let absolute_path_to_recipients_file = store.resolve_path(&recipients_file_in_store);
+    (recipients_file_in_store, absolute_path_to_recipients_file)
+}
+
+fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<bool> {
     if let Some(path) = path {
         let absolute_path_to_secret_file = store.resolve_path(path.join(SECRET_FILE_SUFFIX));
         let absolute_path_to_secret_directory = store.resolve_path(path);
-        if !file_system::file_exists(&absolute_path_to_secret_file)?
-            && !file_system::directory_exists(&absolute_path_to_secret_directory)?
-        {
+        let file_exists = file_system::file_exists(&absolute_path_to_secret_file)?;
+        let directory_exists = file_system::directory_exists(&absolute_path_to_secret_directory)?;
+        if !file_exists && !directory_exists {
             let mut cmd = Cli::command();
             cmd.error(
                 ErrorKind::InvalidValue,
                 "The given path does not match any secret or folder in the store",
             )
             .exit();
+        } else {
+            Ok(directory_exists)
         }
+    } else {
+        Ok(true)
     }
-    Ok(())
 }
 
 fn upsert_recipient(
@@ -110,6 +129,38 @@ pub fn format_recipient(public_key: &String, name: &Option<String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::vcs::VersionControlSystems;
+
+    #[test]
+    fn file_paths_for_file() {
+        let store = Store {
+            path: String::from("some/store"),
+            alias: String::from("test"),
+            vcs: VersionControlSystems::None,
+            identities: vec![],
+        };
+        let path = Some(PathBuf::from("secret-name"));
+        let (relative, absolute) = calculate_recipients_file_paths(&store, &path, false);
+        assert_eq!(relative, PathBuf::from("secret-name.recipients"));
+        assert_eq!(absolute, PathBuf::from("some/store/secret-name.recipients"));
+    }
+
+    #[test]
+    fn file_paths_for_directory() {
+        let store = Store {
+            path: String::from("some/store"),
+            alias: String::from("test"),
+            vcs: VersionControlSystems::None,
+            identities: vec![],
+        };
+        let path = Some(PathBuf::from("some/folder"));
+        let (relative, absolute) = calculate_recipients_file_paths(&store, &path, true);
+        assert_eq!(relative, PathBuf::from("some/folder/.recipients"));
+        assert_eq!(
+            absolute,
+            PathBuf::from("some/store/some/folder/.recipients")
+        );
+    }
 
     #[test]
     fn insert_new_recipient() {
