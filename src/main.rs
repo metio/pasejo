@@ -19,7 +19,7 @@ fn main() -> Result<()> {
             .support("- Open a support request by creating a ticket on GitHub")
     );
 
-    CompleteEnv::with_factory(|| Cli::command()).complete();
+    CompleteEnv::with_factory(Cli::command).complete();
 
     let cli = Cli::parse();
     let configuration = Configuration::load();

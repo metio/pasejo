@@ -59,15 +59,15 @@ impl Configuration {
     pub fn add_store(
         &mut self,
         path: String,
-        alias: String,
+        alias: &str,
         vcs: VersionControlSystems,
     ) -> Result<()> {
-        match self.find_store(alias.clone()) {
+        match self.find_store(alias) {
             Some(store) => Err(anyhow!("Store with alias '{}' already exists", store.alias)),
             None => {
                 self.stores.push(Store {
                     path,
-                    alias,
+                    alias: alias.to_owned(),
                     vcs,
                     identities: vec![],
                 });
@@ -77,9 +77,9 @@ impl Configuration {
         }
     }
 
-    pub fn remove_store(&mut self, alias: &String) -> Result<String> {
+    pub fn remove_store(&mut self, alias: &str) -> Result<String> {
         let store = self
-            .find_store(alias.clone())
+            .find_store(alias)
             .expect("Cannot find store for given alias");
         let path = store.path.clone();
         self.default_store
@@ -93,19 +93,19 @@ impl Configuration {
     pub fn select_store(&self, alias: &Option<String>) -> &Store {
         match alias {
             Some(alias) => self
-                .find_store(alias.clone())
+                .find_store(alias.as_str())
                 .expect("Cannot find store for given alias"),
             None => match &self.default_store {
                 Some(default) => self
-                    .find_store(default.clone())
+                    .find_store(default.as_str())
                     .expect("Cannot find store using default alias"),
                 None => self.stores.first().expect("No store is configured"),
             },
         }
     }
 
-    pub fn set_default_store(&mut self, alias: String) -> Result<()> {
-        self.default_store = Some(alias);
+    pub fn set_default_store(&mut self, alias: &str) -> Result<()> {
+        self.default_store = Some(alias.to_owned());
         self.store()?;
         Ok(())
     }
@@ -114,14 +114,14 @@ impl Configuration {
         match alias {
             Some(alias) => {
                 let store = self
-                    .find_store_mut(alias)
+                    .find_store_mut(alias.as_str())
                     .expect("Cannot find store for given alias");
                 store.identities.push(identity);
             }
             None => match &self.default_store {
                 Some(default) => {
                     let store = self
-                        .find_store_mut(default.clone())
+                        .find_store_mut(default.clone().as_str())
                         .expect("Cannot find store using default alias");
                     store.identities.push(identity);
                 }
@@ -136,14 +136,14 @@ impl Configuration {
         match alias {
             Some(alias) => {
                 let store = self
-                    .find_store_mut(alias)
+                    .find_store_mut(alias.as_str())
                     .expect("Cannot find store for given alias");
                 store.identities.retain(|i| i.file != identity.file);
             }
             None => match &self.default_store {
                 Some(default) => {
                     let store = self
-                        .find_store_mut(default.clone())
+                        .find_store_mut(default.clone().as_str())
                         .expect("Cannot find store using default alias");
                     store.identities.retain(|i| i.file != identity.file);
                 }
@@ -158,8 +158,8 @@ impl Configuration {
         let mut identities = self.identities.clone();
         if let Some(alias) = alias {
             identities.extend(
-                self.find_store(alias.clone())
-                    .map_or_else(|| vec![], |store| store.identities.clone()),
+                self.find_store(alias.as_str())
+                    .map_or_else(Vec::new, |store| store.identities.clone()),
             );
         }
         Ok(identities)
@@ -173,16 +173,16 @@ impl Configuration {
         aliases
     }
 
-    fn find_store(&self, alias: String) -> Option<&Store> {
+    fn find_store(&self, alias: &str) -> Option<&Store> {
         self.stores
             .iter()
-            .find(|&store| store.alias.eq_ignore_ascii_case(&alias))
+            .find(|&store| store.alias.eq_ignore_ascii_case(alias))
     }
 
-    fn find_store_mut(&mut self, alias: String) -> Option<&mut Store> {
+    fn find_store_mut(&mut self, alias: &str) -> Option<&mut Store> {
         self.stores
             .iter_mut()
-            .find(|store| store.alias.eq_ignore_ascii_case(&alias))
+            .find(|store| store.alias.eq_ignore_ascii_case(alias))
     }
 }
 
@@ -213,7 +213,7 @@ impl Store {
 
         recipients
             .first()
-            .map(|p| p.clone())
+            .cloned()
             .context("No recipients file found for the given secret. Make sure to call 'pasejo recipients add ...' or specify recipients directly with '--recipient'")
     }
 }

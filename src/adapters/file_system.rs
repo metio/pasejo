@@ -26,7 +26,6 @@ pub fn write_file(path: &Path, content: String) -> Result<()> {
 
 pub fn append_file(path: &Path, content: &String) -> Result<()> {
     let mut file = fs::OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(path)?;

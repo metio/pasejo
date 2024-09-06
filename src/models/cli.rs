@@ -299,12 +299,9 @@ fn store_alias_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> 
         Some(value) => aliases
             .iter()
             .filter(|&alias| alias.starts_with(value))
-            .map(|alias| CompletionCandidate::new(alias))
+            .map(CompletionCandidate::new)
             .collect(),
-        None => aliases
-            .iter()
-            .map(|alias| CompletionCandidate::new(alias))
-            .collect(),
+        None => aliases.iter().map(CompletionCandidate::new).collect(),
     }
 }
 

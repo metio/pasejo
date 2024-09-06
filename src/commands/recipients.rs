@@ -103,7 +103,7 @@ fn upsert_recipient(
 pub fn format_recipient(public_key: &String, name: &Option<String>) -> String {
     match name {
         Some(name) if !name.is_empty() => format!("# {}\n{}", name, public_key),
-        _ => format!("{}", public_key),
+        _ => public_key.clone(),
     }
 }
 
