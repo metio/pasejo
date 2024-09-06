@@ -187,18 +187,6 @@ impl Configuration {
 }
 
 impl Store {
-    #[deprecated(since = "1.0.0", note = "please use `resolve_path` instead")]
-    pub fn paths_for(&self, path: &Option<PathBuf>, suffix: &str) -> (PathBuf, PathBuf) {
-        let relative_path = path.as_ref().map_or_else(
-            || PathBuf::from(suffix),
-            |p| file_system::append_to_path(p.clone(), suffix),
-        );
-        (
-            PathBuf::from(&self.path).join(&relative_path),
-            relative_path,
-        )
-    }
-
     #[must_use]
     pub fn resolve_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         PathBuf::from(&self.path).join(&path)

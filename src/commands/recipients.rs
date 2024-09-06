@@ -1,7 +1,13 @@
 use crate::adapters::file_system;
 use crate::cli::printer;
+use crate::models::cli::Cli;
 use crate::models::configuration::Store;
+use clap::error::ErrorKind;
+use clap::CommandFactory;
 use std::path::PathBuf;
+
+static RECIPIENTS_FILE_SUFFIX: &str = ".recipients";
+static SECRET_FILE_SUFFIX: &str = ".age";
 
 pub fn add(
     store: &Store,
@@ -9,30 +15,48 @@ pub fn add(
     name: &Option<String>,
     path: &Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let (recipients_absolute, recipients_relative) = store.paths_for(path, ".recipients");
-    let (secret_absolute, _) = store.paths_for(path, ".age");
-    let (directory_absolute, _) = store.paths_for(path, "");
+    validate_given_path(store, path)?;
 
-    if file_system::file_exists(&secret_absolute)?
-        || file_system::directory_exists(&directory_absolute)?
-    {
-        if file_system::file_exists(&recipients_absolute)? {
-            // update existing .recipients file
-            let recipients = file_system::read_file(&recipients_absolute)?;
-            let (updated_recipients, _) = upsert_recipient(recipients, public_key, name);
-            file_system::write_file(&recipients_absolute, updated_recipients)?;
-        } else {
-            // create new .recipients file
-            let recipient = format_recipient(public_key, name);
-            file_system::append_file(&recipients_absolute, &recipient)?;
-            printer::recipient_added();
+    let recipients_file_in_store = path.clone().map_or_else(
+        || PathBuf::from(RECIPIENTS_FILE_SUFFIX),
+        |p| p.join(RECIPIENTS_FILE_SUFFIX),
+    );
+    let absolute_path_to_recipients_file = store.resolve_path(&recipients_file_in_store);
+
+    if file_system::file_exists(&absolute_path_to_recipients_file)? {
+        // update existing .recipients file
+        let recipients = file_system::read_file(&absolute_path_to_recipients_file)?;
+        let (updated_recipients, _) = upsert_recipient(recipients, public_key, name);
+        file_system::write_file(&absolute_path_to_recipients_file, updated_recipients)?;
+    } else {
+        // create new .recipients file
+        let recipient = format_recipient(public_key, name);
+        file_system::append_file(&absolute_path_to_recipients_file, &recipient)?;
+        printer::recipient_added();
+    }
+
+    store.vcs.select_implementation().commit(
+        store.path.as_ref(),
+        &recipients_file_in_store,
+        &format!("Added recipient '{}'", public_key),
+    )?;
+    Ok(())
+}
+
+fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<()> {
+    if let Some(path) = path {
+        let absolute_path_to_secret_file = store.resolve_path(path.join(SECRET_FILE_SUFFIX));
+        let absolute_path_to_secret_directory = store.resolve_path(path);
+        if !file_system::file_exists(&absolute_path_to_secret_file)?
+            && !file_system::directory_exists(&absolute_path_to_secret_directory)?
+        {
+            let mut cmd = Cli::command();
+            cmd.error(
+                ErrorKind::InvalidValue,
+                "The given path does not match any secret or folder in the store",
+            )
+            .exit();
         }
-
-        store.vcs.select_implementation().commit(
-            store.path.as_ref(),
-            &recipients_relative,
-            &format!("Added recipient '{}'", public_key),
-        )?;
     }
     Ok(())
 }
