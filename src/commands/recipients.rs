@@ -61,15 +61,18 @@ fn calculate_recipients_file_paths(
 
 fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<bool> {
     if let Some(path) = path {
-        let absolute_path_to_secret_file = store.resolve_path(path.join(SECRET_FILE_SUFFIX));
+        let absolute_path_to_secret_file = store.resolve_path(file_system::append_to_path(
+            path.clone(),
+            SECRET_FILE_SUFFIX,
+        ));
         let absolute_path_to_secret_directory = store.resolve_path(path);
         let file_exists = file_system::file_exists(&absolute_path_to_secret_file)?;
         let directory_exists = file_system::directory_exists(&absolute_path_to_secret_directory)?;
         if !file_exists && !directory_exists {
-            let mut cmd = Cli::command();
-            cmd.error(
+            let cmd = Cli::command();
+            cmd.override_usage("pasejo recipient add [OPTIONS] --public-key <PUBLIC_KEY>").error(
                 ErrorKind::InvalidValue,
-                "The given path does not match any secret or folder in the store",
+                format!("invalid value '{}' for '--path <PATH>': path does not match any secret or folder in the store", path.display()),
             )
             .exit();
         } else {
