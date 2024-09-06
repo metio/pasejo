@@ -10,22 +10,22 @@ pub fn init(
     path: &PathBuf,
     alias: &str,
     vcs: &VersionControlSystems,
-    default: &bool,
+    default: bool,
 ) -> Result<()> {
     let canonical_path = file_system::absolute_path(path)?;
     file_system::mkdir_parents(canonical_path.as_path())?;
     vcs.select_implementation().init(canonical_path.as_path())?;
     configuration.add_store(canonical_path.display().to_string(), alias, vcs.clone())?;
-    printer::store_initialized(canonical_path.display().to_string());
-    if *default {
+    printer::store_initialized(&canonical_path.display().to_string());
+    if default {
         set_default(configuration, alias)?;
     }
     Ok(())
 }
 
-pub fn remove(mut configuration: Configuration, alias: &str, remove_data: &bool) -> Result<()> {
+pub fn remove(mut configuration: Configuration, alias: &str, remove_data: bool) -> Result<()> {
     let path = configuration.remove_store(alias)?;
-    if *remove_data {
+    if remove_data {
         file_system::remove_directory(Path::new(&path))?;
     }
     printer::store_removed(alias);

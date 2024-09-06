@@ -26,7 +26,7 @@ pub fn remove(
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.remove_identity(identity, alias.clone());
+    let result = configuration.remove_identity(&identity, alias.clone());
     println!("Identity removed");
     result
 }

@@ -1,9 +1,11 @@
 use crate::commands::{identities, recipients, secrets, stores};
-use crate::models::cli::*;
-use crate::models::configuration::Configuration;
+use crate::models::cli::{
+    Cli, Commands, IdentityCommands, RecipientCommands, SecretCommands, StoreCommands,
+};
+use crate::models::configuration::{Configuration, Store};
 use anyhow::Result;
 
-pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
+pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
         Commands::Identity { command } => match command {
             IdentityCommands::Add(args) => {
@@ -14,11 +16,9 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             }
         },
         Commands::Recipient { command } => match command {
-            RecipientCommands::Add(args) => recipients::add(
+            RecipientCommands::Add(args) => do_with_store(
                 configuration.select_store(&args.store_selection.store),
-                &args.public_key,
-                &args.name,
-                &args.path,
+                |store| recipients::add(store, &args.public_key, &args.name, &args.path),
             ),
             RecipientCommands::Remove(_) => Ok(()),
             RecipientCommands::Inherit(_) => Ok(()),
@@ -28,21 +28,31 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
             SecretCommands::Edit(_) => Ok(()),
             SecretCommands::Generate(_) => Ok(()),
             SecretCommands::Grep(_) => Ok(()),
-            SecretCommands::Insert(args) => secrets::insert(
+            SecretCommands::Insert(args) => do_with_store(
                 configuration.select_store(&args.store_selection.store),
-                &args.multiline,
-                &args.force,
-                &args.inherit,
-                &args.secret_path,
-                &args.recipient,
+                |store| {
+                    secrets::insert(
+                        store,
+                        args.multiline,
+                        args.force,
+                        args.inherit,
+                        &args.secret_path,
+                        &args.recipient,
+                    )
+                },
             ),
             SecretCommands::List(_) => Ok(()),
             SecretCommands::Move(_) => Ok(()),
             SecretCommands::Remove(_) => Ok(()),
-            SecretCommands::Show(args) => secrets::show(
+            SecretCommands::Show(args) => do_with_store(
                 configuration.select_store(&args.store_selection.store),
-                configuration.all_identities(&args.store_selection.store)?,
-                &args.secret_path,
+                |store| {
+                    secrets::show(
+                        store,
+                        &configuration.all_identities(&args.store_selection.store),
+                        &args.secret_path,
+                    )
+                },
             ),
         },
         Commands::Store { command } => match command {
@@ -51,12 +61,23 @@ pub fn dispatch_command(cli: Cli, configuration: Configuration) -> Result<()> {
                 &args.path,
                 &args.alias,
                 &args.vcs,
-                &args.default,
+                args.default,
             ),
             StoreCommands::Remove(args) => {
-                stores::remove(configuration, &args.alias, &args.remove_data)
+                stores::remove(configuration, &args.alias, args.remove_data)
             }
             StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.alias),
         },
+    }
+}
+
+fn do_with_store<F: FnOnce(&Store) -> Result<()>>(
+    store: Option<&Store>,
+    function: F,
+) -> Result<()> {
+    if let Some(store) = store {
+        function(store)
+    } else {
+        anyhow::bail!("No store found in configuration")
     }
 }

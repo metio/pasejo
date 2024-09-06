@@ -38,21 +38,23 @@ pub struct Identity {
 }
 
 impl Configuration {
-    fn config_path() -> PathBuf {
+    fn config_path() -> Result<PathBuf> {
         let app_name = env!("CARGO_PKG_NAME");
-        match std::env::var_os(app_name.to_owned().add("_config").to_uppercase()) {
-            Some(path) => absolute(PathBuf::from(path)).expect("to resolve absolute path"),
-            None => confy::get_configuration_file_path(app_name, "config")
-                .expect("to load configuration"),
-        }
+        std::env::var_os(app_name.to_owned().add("_config").to_uppercase()).map_or_else(
+            || {
+                confy::get_configuration_file_path(app_name, "config")
+                    .context("to load configuration")
+            },
+            |path| absolute(PathBuf::from(path)).context("to resolve absolute path"),
+        )
     }
 
-    pub fn load() -> Self {
-        confy::load_path(Configuration::config_path()).expect("to load configuration")
+    pub fn load() -> Result<Self> {
+        confy::load_path(Self::config_path()?).context("to load configuration")
     }
 
     fn store(&self) -> Result<()> {
-        confy::store_path(Configuration::config_path(), self)?;
+        confy::store_path(Self::config_path()?, self)?;
         Ok(())
     }
 
@@ -62,25 +64,24 @@ impl Configuration {
         alias: &str,
         vcs: VersionControlSystems,
     ) -> Result<()> {
-        match self.find_store(alias) {
-            Some(store) => Err(anyhow!("Store with alias '{}' already exists", store.alias)),
-            None => {
-                self.stores.push(Store {
-                    path,
-                    alias: alias.to_owned(),
-                    vcs,
-                    identities: vec![],
-                });
-                self.store()?;
-                Ok(())
-            }
+        if let Some(store) = self.find_store(alias) {
+            Err(anyhow!("Store with alias '{}' already exists", store.alias))
+        } else {
+            self.stores.push(Store {
+                path,
+                alias: alias.to_owned(),
+                vcs,
+                identities: vec![],
+            });
+            self.store()?;
+            Ok(())
         }
     }
 
     pub fn remove_store(&mut self, alias: &str) -> Result<String> {
         let store = self
             .find_store(alias)
-            .expect("Cannot find store for given alias");
+            .context("Cannot find store for given alias")?;
         let path = store.path.clone();
         self.default_store
             .take_if(|value| value.eq_ignore_ascii_case(alias));
@@ -90,18 +91,16 @@ impl Configuration {
         Ok(path)
     }
 
-    pub fn select_store(&self, alias: &Option<String>) -> &Store {
-        match alias {
-            Some(alias) => self
-                .find_store(alias.as_str())
-                .expect("Cannot find store for given alias"),
-            None => match &self.default_store {
-                Some(default) => self
-                    .find_store(default.as_str())
-                    .expect("Cannot find store using default alias"),
-                None => self.stores.first().expect("No store is configured"),
+    pub fn select_store(&self, alias: &Option<String>) -> Option<&Store> {
+        alias.as_ref().map_or_else(
+            || {
+                self.default_store.as_ref().map_or_else(
+                    || self.stores.first(),
+                    |default| self.find_store(default.as_str()),
+                )
             },
-        }
+            |alias| self.find_store(alias.as_str()),
+        )
     }
 
     pub fn set_default_store(&mut self, alias: &str) -> Result<()> {
@@ -115,14 +114,14 @@ impl Configuration {
             Some(alias) => {
                 let store = self
                     .find_store_mut(alias.as_str())
-                    .expect("Cannot find store for given alias");
+                    .context("Cannot find store for given alias")?;
                 store.identities.push(identity);
             }
             None => match &self.default_store {
                 Some(default) => {
                     let store = self
                         .find_store_mut(default.clone().as_str())
-                        .expect("Cannot find store using default alias");
+                        .context("Cannot find store using default alias")?;
                     store.identities.push(identity);
                 }
                 None => self.identities.push(identity),
@@ -132,19 +131,19 @@ impl Configuration {
         Ok(())
     }
 
-    pub fn remove_identity(&mut self, identity: Identity, alias: Option<String>) -> Result<()> {
+    pub fn remove_identity(&mut self, identity: &Identity, alias: Option<String>) -> Result<()> {
         match alias {
             Some(alias) => {
                 let store = self
                     .find_store_mut(alias.as_str())
-                    .expect("Cannot find store for given alias");
+                    .context("Cannot find store for given alias")?;
                 store.identities.retain(|i| i.file != identity.file);
             }
             None => match &self.default_store {
                 Some(default) => {
                     let store = self
                         .find_store_mut(default.clone().as_str())
-                        .expect("Cannot find store using default alias");
+                        .context("Cannot find store using default alias")?;
                     store.identities.retain(|i| i.file != identity.file);
                 }
                 None => self.identities.retain(|i| i.file != identity.file),
@@ -154,7 +153,7 @@ impl Configuration {
         Ok(())
     }
 
-    pub fn all_identities(&self, alias: &Option<String>) -> Result<Vec<Identity>> {
+    pub fn all_identities(&self, alias: &Option<String>) -> Vec<Identity> {
         let mut identities = self.identities.clone();
         if let Some(alias) = alias {
             identities.extend(
@@ -162,7 +161,7 @@ impl Configuration {
                     .map_or_else(Vec::new, |store| store.identities.clone()),
             );
         }
-        Ok(identities)
+        identities
     }
 
     pub fn all_store_aliases(&self) -> Vec<String> {
@@ -176,7 +175,7 @@ impl Configuration {
     fn find_store(&self, alias: &str) -> Option<&Store> {
         self.stores
             .iter()
-            .find(|&store| store.alias.eq_ignore_ascii_case(alias))
+            .find(|store| store.alias.eq_ignore_ascii_case(alias))
     }
 
     fn find_store_mut(&mut self, alias: &str) -> Option<&mut Store> {

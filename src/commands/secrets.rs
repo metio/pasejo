@@ -7,25 +7,24 @@ use anyhow::Context;
 use inquire::{Confirm, Editor, Password};
 use std::fs::write;
 use std::io::{Read, Write};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 pub fn insert(
     store: &Store,
-    multiline: &bool,
-    force: &bool,
-    inherit: &bool,
+    multiline: bool,
+    force: bool,
+    inherit: bool,
     secret_path: &String,
     recipients: &Vec<String>,
 ) -> anyhow::Result<()> {
-    let secret = read_secret_from_user_input(secret_path, *multiline)?;
+    let secret = read_secret_from_user_input(secret_path, multiline)?;
     let (absolute_recipients_path, absolute_secret_path) =
-        calculate_paths(store, *inherit && recipients.is_empty(), secret_path)?;
+        calculate_paths(store, inherit && recipients.is_empty(), secret_path)?;
     if !recipients.is_empty() {
-        replace_recipients(&absolute_recipients_path, recipients, *force)?;
+        replace_recipients(&absolute_recipients_path, recipients, force)?;
     }
     let recipients_from_file = read_recipient_file(&absolute_recipients_path)?;
-    encrypt_secret(secret, &absolute_secret_path, recipients_from_file)?;
+    encrypt_secret(&secret, &absolute_secret_path, recipients_from_file)?;
 
     Ok(())
 }
@@ -66,7 +65,7 @@ fn write_recipients(
     recipients: &Vec<String>,
 ) -> anyhow::Result<()> {
     for recipient in recipients {
-        let formatted_recipient = match recipient.split_once(",") {
+        let formatted_recipient = match recipient.split_once(',') {
             None => recipients::format_recipient(recipient, &None),
             Some((name, key)) => {
                 recipients::format_recipient(&key.to_string(), &Some(name.to_string()))
@@ -106,11 +105,13 @@ fn calculate_paths(
 }
 
 fn encrypt_secret(
-    secret: String,
+    secret: &str,
     absolute_path: &Path,
     recipients: Vec<Box<dyn Recipient + Send>>,
 ) -> anyhow::Result<()> {
-    let encryptor = Encryptor::with_recipients(recipients).expect("No recipients found");
+    let Some(encryptor) = Encryptor::with_recipients(recipients) else {
+        unreachable!()
+    };
     let mut encrypted = vec![];
     let mut writer = encryptor.wrap_output(&mut encrypted)?;
     writer.write_all(secret.as_bytes())?;
@@ -120,8 +121,8 @@ fn encrypt_secret(
 }
 
 fn read_secret_from_user_input(secret_path: &String, multiline: bool) -> anyhow::Result<String> {
-    let message = &format!("Enter secret for {}:", secret_path);
-    let failure = format!("Could not read secret for {}:", secret_path);
+    let message = &format!("Enter secret for {secret_path}:");
+    let failure = format!("Could not read secret for {secret_path}:");
     let secret = if multiline {
         Editor::new(message).prompt().context(failure)?
     } else {
@@ -130,23 +131,22 @@ fn read_secret_from_user_input(secret_path: &String, multiline: bool) -> anyhow:
     Ok(secret)
 }
 
-pub fn show(store: &Store, identities: Vec<Identity>, secret_path: &String) -> anyhow::Result<()> {
+pub fn show(store: &Store, identities: &[Identity], secret_path: &String) -> anyhow::Result<()> {
     let (_, absolute_secret_path) = calculate_paths(store, false, secret_path)?;
     let encrypted = file_system::read_file(&absolute_secret_path)?;
-    let decryptor = match Decryptor::new_buffered(encrypted.as_bytes())? {
-        Decryptor::Recipients(d) => d,
-        _ => unreachable!(),
+    let Decryptor::Recipients(decryptor) = Decryptor::new_buffered(encrypted.as_bytes())? else {
+        unreachable!()
     };
     let mut decrypted = vec![];
     let parsed_identities = read_all_identities(identities)?;
-    let mut reader = decryptor.decrypt(parsed_identities.iter().map(|i| i.deref()))?;
+    let mut reader = decryptor.decrypt(parsed_identities.iter().map(std::ops::Deref::deref))?;
     reader.read_to_end(&mut decrypted)?;
     let decrypted_text = String::from_utf8(decrypted)?;
-    println!("{}", decrypted_text);
+    println!("{decrypted_text}");
     Ok(())
 }
 
-fn read_all_identities(identities: Vec<Identity>) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
+fn read_all_identities(identities: &[Identity]) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
     let filenames: Vec<String> = identities.iter().map(|i| i.file.clone()).collect();
     let parsed_identities = read_identities(filenames, None, &mut StdinGuard::new(true))?;
     Ok(parsed_identities)

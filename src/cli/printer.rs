@@ -10,14 +10,14 @@ pub fn identity_added() {
     println!("Identity added");
 }
 
-pub fn store_initialized(store_path: String) {
-    println!("Store initialized at {}", store_path);
+pub fn store_initialized(store_path: &str) {
+    println!("Store initialized at {store_path}");
 }
 
 pub fn store_set_default(store_alias: &str) {
-    println!("Store {} is now the default", store_alias);
+    println!("Store {store_alias} is now the default");
 }
 
 pub fn store_removed(store_alias: &str) {
-    println!("Store {} removed", store_alias);
+    println!("Store {store_alias} removed");
 }

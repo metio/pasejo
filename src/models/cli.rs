@@ -1,5 +1,6 @@
 use crate::adapters::vcs::VersionControlSystems;
 use crate::models::configuration::Configuration;
+use anyhow::Context;
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
@@ -280,29 +281,34 @@ pub struct StoreDefaultArgs {
     pub alias: String,
 }
 
-fn store_alias_is_known(input: &str) -> Result<String, String> {
-    let configuration = Configuration::load();
+fn store_alias_is_known(input: &str) -> anyhow::Result<String> {
+    let configuration = Configuration::load().context("load configuration")?;
     let aliases = configuration.all_store_aliases();
 
     if aliases.contains(&input.to_owned()) {
         Ok(input.to_owned())
     } else {
-        Err(format!("alias {} does not exist in configuration", input))
+        anyhow::bail!(format!("alias {input} does not exist in configuration"))
     }
 }
 
 fn store_alias_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
-    let configuration = Configuration::load();
-    let aliases = configuration.all_store_aliases();
-
-    match current.to_str() {
-        Some(value) => aliases
-            .iter()
-            .filter(|&alias| alias.starts_with(value))
-            .map(CompletionCandidate::new)
-            .collect(),
-        None => aliases.iter().map(CompletionCandidate::new).collect(),
-    }
+    Configuration::load().map_or_else(
+        |_| vec![],
+        |configuration| {
+            let aliases = configuration.all_store_aliases();
+            current.to_str().map_or_else(
+                || aliases.iter().map(CompletionCandidate::new).collect(),
+                |value| {
+                    aliases
+                        .iter()
+                        .filter(|&alias| alias.starts_with(value))
+                        .map(CompletionCandidate::new)
+                        .collect()
+                },
+            )
+        },
+    )
 }
 
 #[cfg(test)]

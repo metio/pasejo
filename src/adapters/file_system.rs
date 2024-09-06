@@ -29,7 +29,7 @@ pub fn append_file(path: &Path, content: &String) -> Result<()> {
         .append(true)
         .create(true)
         .open(path)?;
-    writeln!(file, "{}", content)?;
+    writeln!(file, "{content}")?;
     Ok(())
 }
 

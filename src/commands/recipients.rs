@@ -35,7 +35,7 @@ pub fn add(
     store.vcs.select_implementation().commit(
         store.path.as_ref(),
         &recipients_file_in_store,
-        &format!("Added recipient '{}'", public_key),
+        &format!("Added recipient '{public_key}'"),
     )?;
     Ok(())
 }
@@ -87,41 +87,38 @@ fn upsert_recipient(
 ) -> (String, bool) {
     let recipient = format_recipient(public_key, name);
     let mut re_encryption_required = false;
-    match recipients.find(public_key) {
-        Some(public_key_index) => {
-            // public key already exists as recipient
-            // update name only - no re-encrypt required
-            let start_index = recipients
-                .get(..public_key_index)
-                .and_then(|substring| substring.rfind("#"))
-                .filter(|&comment_index| {
-                    recipients
-                        .get(comment_index..public_key_index)
-                        .map(|substring| substring.matches("\n").collect())
-                        .map(|matches: Vec<&str>| matches.len() == 1)
-                        .unwrap_or(false)
-                })
-                .unwrap_or(public_key_index);
-            recipients.replace_range(start_index..public_key_index + public_key.len(), &recipient);
-            printer::recipient_updated();
+    if let Some(public_key_index) = recipients.find(public_key) {
+        // public key already exists as recipient
+        // update name only - no re-encrypt required
+        let start_index = recipients
+            .get(..public_key_index)
+            .and_then(|substring| substring.rfind('#'))
+            .filter(|&comment_index| {
+                recipients
+                    .get(comment_index..public_key_index)
+                    .map(|substring| substring.matches('\n').collect())
+                    .is_some_and(|matches: Vec<&str>| matches.len() == 1)
+            })
+            .unwrap_or(public_key_index);
+        recipients.replace_range(start_index..public_key_index + public_key.len(), &recipient);
+        printer::recipient_updated();
+    } else {
+        // add new recipient - requires re-encryption of entire store
+        re_encryption_required = true;
+        if recipients.is_empty() {
+            recipients = recipient;
+        } else {
+            recipients = recipients + "\n" + &recipient;
         }
-        None => {
-            // add new recipient - requires re-encryption of entire store
-            re_encryption_required = true;
-            if recipients.is_empty() {
-                recipients = recipient;
-            } else {
-                recipients = recipients + "\n" + &recipient;
-            }
-            printer::recipient_added();
-        }
+        printer::recipient_added();
     }
+
     (recipients, re_encryption_required)
 }
 
 pub fn format_recipient(public_key: &String, name: &Option<String>) -> String {
     match name {
-        Some(name) if !name.is_empty() => format!("# {}\n{}", name, public_key),
+        Some(name) if !name.is_empty() => format!("# {name}\n{public_key}"),
         _ => public_key.clone(),
     }
 }

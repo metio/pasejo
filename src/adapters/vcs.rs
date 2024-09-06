@@ -20,9 +20,9 @@ pub enum VersionControlSystems {
 impl VersionControlSystems {
     pub fn select_implementation(&self) -> Box<dyn VersionControlSystem> {
         match self {
-            VersionControlSystems::None => Box::new(None {}),
-            VersionControlSystems::Git => Box::new(Git {}),
-            VersionControlSystems::Mercurial => Box::new(Mercurial {}),
+            Self::None => Box::new(None {}),
+            Self::Git => Box::new(Git {}),
+            Self::Mercurial => Box::new(Mercurial {}),
         }
     }
 }

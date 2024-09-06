@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     CompleteEnv::with_factory(Cli::command).complete();
 
     let cli = Cli::parse();
-    let configuration = Configuration::load();
+    let configuration = Configuration::load()?;
 
-    dispatch_command(cli, configuration)
+    dispatch_command(&cli, configuration)
 }
