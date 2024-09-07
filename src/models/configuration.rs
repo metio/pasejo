@@ -2,6 +2,7 @@ use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
+use std::env::var_os;
 use std::ops::Add;
 use std::path::{absolute, Path, PathBuf};
 
@@ -40,7 +41,7 @@ pub struct Identity {
 impl Configuration {
     fn config_path() -> Result<PathBuf> {
         let app_name = env!("CARGO_PKG_NAME");
-        std::env::var_os(app_name.to_owned().add("_config").to_uppercase()).map_or_else(
+        var_os(app_name.to_owned().add("_config").to_uppercase()).map_or_else(
             || {
                 confy::get_configuration_file_path(app_name, "config")
                     .context("to load configuration")
@@ -94,12 +95,26 @@ impl Configuration {
     pub fn select_store(&self, alias: &Option<String>) -> Option<&Store> {
         alias.as_ref().map_or_else(
             || {
-                self.default_store.as_ref().map_or_else(
+                self.default_store_name().map_or_else(
                     || self.stores.first(),
                     |default| self.find_store(default.as_str()),
                 )
             },
             |alias| self.find_store(alias.as_str()),
+        )
+    }
+
+    fn default_store_name(&self) -> Option<String> {
+        let app_name = env!("CARGO_PKG_NAME");
+        var_os(
+            app_name
+                .to_owned()
+                .add("_default_store_name")
+                .to_uppercase(),
+        )
+        .map_or_else(
+            || self.default_store.clone(),
+            |value| value.into_string().ok(),
         )
     }
 
@@ -117,10 +132,10 @@ impl Configuration {
                     .context("Cannot find store for given alias")?;
                 store.identities.push(identity);
             }
-            None => match &self.default_store {
+            None => match self.default_store_name() {
                 Some(default) => {
                     let store = self
-                        .find_store_mut(default.clone().as_str())
+                        .find_store_mut(default.as_str())
                         .context("Cannot find store using default alias")?;
                     store.identities.push(identity);
                 }
@@ -139,10 +154,10 @@ impl Configuration {
                     .context("Cannot find store for given alias")?;
                 store.identities.retain(|i| i.file != identity.file);
             }
-            None => match &self.default_store {
+            None => match self.default_store_name() {
                 Some(default) => {
                     let store = self
-                        .find_store_mut(default.clone().as_str())
+                        .find_store_mut(default.as_str())
                         .context("Cannot find store using default alias")?;
                     store.identities.retain(|i| i.file != identity.file);
                 }
