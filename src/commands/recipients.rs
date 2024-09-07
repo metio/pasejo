@@ -2,6 +2,7 @@ use crate::adapters::file_system;
 use crate::cli::printer;
 use crate::models::cli::Cli;
 use crate::models::configuration::Store;
+use anyhow::Context;
 use clap::error::ErrorKind;
 use clap::CommandFactory;
 use std::path::PathBuf;
@@ -69,8 +70,15 @@ fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<
         let file_exists = file_system::file_exists(&absolute_path_to_secret_file)?;
         let directory_exists = file_system::directory_exists(&absolute_path_to_secret_directory)?;
         if !file_exists && !directory_exists {
-            let cmd = Cli::command();
-            cmd.override_usage("pasejo recipient add [OPTIONS] --public-key <PUBLIC_KEY>").error(
+            let mut cmd = Cli::command();
+            cmd.build();
+            let recipient_cmd = cmd
+                .find_subcommand_mut("recipient")
+                .context("no recipient subcommand found")?;
+            let add_cmd = recipient_cmd
+                .find_subcommand_mut("add")
+                .context("no add subcommand found")?;
+            add_cmd.error(
                 ErrorKind::InvalidValue,
                 format!("invalid value '{}' for '--path <PATH>': path does not match any secret or folder in the store", path.display()),
             )
