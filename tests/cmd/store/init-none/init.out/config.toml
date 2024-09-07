@@ -12,3 +12,9 @@ path = "[CWD]/path/to/another"
 alias = "another"
 vcs = "None"
 identities = []
+
+[[stores]]
+path = "[CWD]/existing-store"
+alias = "existing"
+vcs = "None"
+identities = []
