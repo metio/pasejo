@@ -2,7 +2,7 @@ identities = []
 
 [[stores]]
 path = "[CWD]/path/to/store"
-alias = "default"
+name = "default"
 vcs = "None"
 
 [[stores.identities]]
@@ -10,6 +10,6 @@ file = "[CWD]/some/file/location"
 
 [[stores]]
 path = "[CWD]/path/to/other"
-alias = "other"
+name = "other"
 vcs = "None"
 identities = []

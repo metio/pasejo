@@ -5,28 +5,28 @@ use std::path::PathBuf;
 
 pub fn add(
     mut configuration: Configuration,
-    alias: &Option<String>,
-    file: &PathBuf,
+    store_name: &Option<String>,
+    identity_file: &PathBuf,
 ) -> anyhow::Result<()> {
-    let absolute_path = file_system::absolute_path(file)?;
+    let absolute_path = file_system::absolute_path(identity_file)?;
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.add_identity(identity, alias.clone());
+    let result = configuration.add_identity(identity, store_name.clone());
     printer::identity_added();
     result
 }
 
 pub fn remove(
     mut configuration: Configuration,
-    alias: &Option<String>,
-    file: &PathBuf,
+    store_name: &Option<String>,
+    identity_file: &PathBuf,
 ) -> anyhow::Result<()> {
-    let absolute_path = file_system::absolute_path(file)?;
+    let absolute_path = file_system::absolute_path(identity_file)?;
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.remove_identity(&identity, alias.clone());
+    let result = configuration.remove_identity(&identity, store_name.clone());
     println!("Identity removed");
     result
 }

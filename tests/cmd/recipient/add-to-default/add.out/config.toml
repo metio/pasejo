@@ -3,12 +3,12 @@ default_store = "default"
 
 [[stores]]
 path = "[CWD]/default"
-alias = "default"
+name = "default"
 vcs = "None"
 identities = []
 
 [[stores]]
 path = "[CWD]/other"
-alias = "other"
+name = "other"
 vcs = "None"
 identities = []

@@ -3,18 +3,18 @@ default_store = "another"
 
 [[stores]]
 path = "[CWD]/path/to/store"
-alias = "default"
+name = "default"
 vcs = "None"
 identities = []
 
 [[stores]]
 path = "[CWD]/path/to/another"
-alias = "another"
+name = "another"
 vcs = "None"
 identities = []
 
 [[stores]]
 path = "[CWD]/existing-store"
-alias = "existing"
+name = "existing"
 vcs = "None"
 identities = []

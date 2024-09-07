@@ -1,5 +1,5 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --alias something
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name something
 Store initialized at [CWD]/path/to/store
 
 $ PASEJO_CONFIG=config.toml pasejo store set-default something

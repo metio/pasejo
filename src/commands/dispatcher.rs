@@ -59,14 +59,14 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
             StoreCommands::Init(args) => stores::init(
                 configuration,
                 &args.path,
-                &args.alias,
+                &args.name,
                 &args.vcs,
                 args.default,
             ),
             StoreCommands::Remove(args) => {
-                stores::remove(configuration, &args.alias, args.remove_data)
+                stores::remove(configuration, &args.name, args.remove_data)
             }
-            StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.alias),
+            StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.name),
         },
     }
 }

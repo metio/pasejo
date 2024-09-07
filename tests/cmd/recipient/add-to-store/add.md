@@ -1,5 +1,5 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path store --alias default
+$ PASEJO_CONFIG=config.toml pasejo store init --path store --name default
 Store initialized at [CWD]/store
 
 $ PASEJO_CONFIG=config.toml pasejo recipient add --store default --public-key "age12abcdefghijklmnopqrstuvwxyz"
@@ -16,7 +16,7 @@ Recipient updated
 ```console
 $ PASEJO_CONFIG=config.toml pasejo recipient add --store non-existing --public-key "age12abcdefghijklmnopqrstuvwxyz"
 ? 2
-error: invalid value 'non-existing' for '--store <STORE>': alias non-existing does not exist in configuration
+error: invalid value 'non-existing' for '--store <STORE>': Store with name 'non-existing' does not exist in configuration
 
 For more information, try '--help'.
 

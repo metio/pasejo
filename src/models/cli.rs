@@ -44,7 +44,7 @@ pub enum Commands {
 pub struct StoreSelectionArgs {
     /// Optional name of store to use. Defaults to the default store or the first one defined in the
     /// local user configuration
-    #[arg(short, long, add = ArgValueCompleter::new(store_alias_completer), value_parser = store_alias_is_known
+    #[arg(short, long, add = ArgValueCompleter::new(store_name_completer), value_parser = store_name_is_known
     )]
     pub store: Option<String>,
 }
@@ -250,9 +250,9 @@ pub struct StoreInitArgs {
     #[arg(short, long, value_hint = DirPath)]
     pub path: PathBuf,
 
-    /// The alias for the new store
+    /// The name for the new store
     #[arg(short, long)]
-    pub alias: String,
+    pub name: String,
 
     /// The version control system to use
     #[arg(short, long, default_value_t, value_enum)]
@@ -265,9 +265,9 @@ pub struct StoreInitArgs {
 
 #[derive(Args)]
 pub struct StoreRemoveArgs {
-    /// The alias of the existing store
-    #[arg(short, long, value_parser = store_alias_is_known)]
-    pub alias: String,
+    /// The name of the existing store
+    #[arg(short, long, value_parser = store_name_is_known)]
+    pub name: String,
 
     /// Whether the store should be removed from the local file system
     #[arg(short, long)]
@@ -276,33 +276,35 @@ pub struct StoreRemoveArgs {
 
 #[derive(Args)]
 pub struct StoreDefaultArgs {
-    /// The alias of the store to use as default
-    #[arg(value_parser = store_alias_is_known)]
-    pub alias: String,
+    /// The name of the store to use as default
+    #[arg(value_parser = store_name_is_known)]
+    pub name: String,
 }
 
-fn store_alias_is_known(input: &str) -> anyhow::Result<String> {
+fn store_name_is_known(input: &str) -> anyhow::Result<String> {
     let configuration = Configuration::load().context("load configuration")?;
-    let aliases = configuration.all_store_aliases();
+    let names = configuration.all_store_names();
 
-    if aliases.contains(&input.to_owned()) {
+    if names.contains(&input.to_owned()) {
         Ok(input.to_owned())
     } else {
-        anyhow::bail!(format!("alias {input} does not exist in configuration"))
+        anyhow::bail!(format!(
+            "Store with name '{input}' does not exist in configuration"
+        ))
     }
 }
 
-fn store_alias_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+fn store_name_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
     Configuration::load().map_or_else(
         |_| vec![],
         |configuration| {
-            let aliases = configuration.all_store_aliases();
+            let names = configuration.all_store_names();
             current.to_str().map_or_else(
-                || aliases.iter().map(CompletionCandidate::new).collect(),
+                || names.iter().map(CompletionCandidate::new).collect(),
                 |value| {
-                    aliases
+                    names
                         .iter()
-                        .filter(|&alias| alias.starts_with(value))
+                        .filter(|&name| name.starts_with(value))
                         .map(CompletionCandidate::new)
                         .collect()
                 },

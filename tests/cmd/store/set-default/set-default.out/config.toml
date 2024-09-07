@@ -3,6 +3,6 @@ default_store = "something"
 
 [[stores]]
 path = "[CWD]/path/to/store"
-alias = "something"
+name = "something"
 vcs = "None"
 identities = []

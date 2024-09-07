@@ -132,7 +132,7 @@ mod tests {
     fn file_paths_for_file() {
         let store = Store {
             path: String::from("some/store"),
-            alias: String::from("test"),
+            name: String::from("test"),
             vcs: VersionControlSystems::None,
             identities: vec![],
         };
@@ -146,7 +146,7 @@ mod tests {
     fn file_paths_for_directory() {
         let store = Store {
             path: String::from("some/store"),
-            alias: String::from("test"),
+            name: String::from("test"),
             vcs: VersionControlSystems::None,
             identities: vec![],
         };

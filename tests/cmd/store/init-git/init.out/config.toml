@@ -2,6 +2,6 @@ identities = []
 
 [[stores]]
 path = "[CWD]/path/to/store"
-alias = "default"
+name = "default"
 vcs = "Git"
 identities = []
