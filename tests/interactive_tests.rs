@@ -1,13 +1,16 @@
 use std::env;
+use std::ffi::OsStr;
 use std::io::Write;
 use std::process::Command;
 
 use age::cli_common::file_io;
 use age::secrecy::ExposeSecret;
+use anyhow::Context;
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use assert_fs::TempDir;
+use indoc::formatdoc;
 use predicates::prelude::*;
 use rexpect::session::PtySession;
 use rexpect::spawn;
@@ -73,6 +76,53 @@ fn insert_secret_with_key(public_key: &str, private_key: &str) -> anyhow::Result
                 .env("PASEJO_CONFIG", temp.path().join("config.toml"))
                 .assert()
                 .stdout(predicate::eq(format!("{secret_text}\n")))
+                .success()
+                .code(0);
+
+            Ok(())
+        },
+    )?;
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn list_secrets() -> anyhow::Result<()> {
+    let key = age::x25519::Identity::generate();
+    let secret_name = "some/secret";
+    let secret_text = "here is a very secret text";
+    run_command(
+        &format!("secret insert {secret_name}"),
+        &key.to_public().to_string(),
+        &key.to_string().expose_secret(),
+        |mut process, temp| {
+            process.exp_string(&format!("Enter secret for {secret_name}:"))?;
+            process.send_line(secret_text)?;
+            process.exp_string("Confirmation:")?;
+            process.send_line(secret_text)?;
+            process.exp_eof()?;
+
+            temp.child(format!("{secret_name}.age"))
+                .assert(predicate::path::is_file());
+
+            let store_root_path_name = temp
+                .path()
+                .file_name()
+                .and_then(OsStr::to_str)
+                .context("Cannot get store path name")?;
+            Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+                .arg("secret")
+                .arg("list")
+                .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+                .assert()
+                .stdout(predicate::eq(formatdoc!(
+                    "
+                    {}
+                    └── some
+                        └── secret\n
+                    ",
+                    store_root_path_name
+                )))
                 .success()
                 .code(0);
 

@@ -1,12 +1,14 @@
-use std::fs;
+use std::ffi::OsStr;
 use std::fs::write;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use age::cli_common::{read_identities, read_recipients, StdinGuard};
 use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
 use inquire::{Confirm, Editor, Password};
+use termtree::Tree;
 
 use crate::adapters::file_system;
 use crate::commands::recipients;
@@ -153,4 +155,42 @@ fn read_all_identities(identities: &[Identity]) -> anyhow::Result<Vec<Box<dyn ag
     let filenames: Vec<String> = identities.iter().map(|i| i.file.clone()).collect();
     let parsed_identities = read_identities(filenames, None, &mut StdinGuard::new(true))?;
     Ok(parsed_identities)
+}
+
+pub fn list(store: &Store) -> anyhow::Result<()> {
+    let output = tree(PathBuf::from(&store.path))?;
+    println!("{output}");
+    Ok(())
+}
+
+fn tree<P: AsRef<Path>>(path: P) -> io::Result<Tree<String>> {
+    let result = fs::read_dir(&path)?.filter_map(Result::ok).fold(
+        Tree::new(
+            path.as_ref()
+                .canonicalize()?
+                .file_name()
+                .and_then(OsStr::to_str)
+                .map_or_else(String::new, String::from),
+        ),
+        |mut root, entry| {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_dir() {
+                    if let Ok(subtree) = tree(entry.path()) {
+                        root.push(subtree);
+                    }
+                } else if let Some(filename) = entry.path().file_name().and_then(OsStr::to_str) {
+                    if Path::new(filename)
+                        .extension()
+                        .map_or(false, |ext| ext.eq_ignore_ascii_case("age"))
+                    {
+                        if let Some((secret_name, _)) = filename.rsplit_once('.') {
+                            root.push(Tree::new(String::from(secret_name)));
+                        }
+                    }
+                }
+            }
+            root
+        },
+    );
+    Ok(result)
 }
