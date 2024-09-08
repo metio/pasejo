@@ -119,7 +119,7 @@ fn list_secrets() -> anyhow::Result<()> {
                     "
                     {}
                     └── some
-                        └── secret\n
+                        └── secret
                     ",
                     store_root_path_name
                 )))

@@ -159,7 +159,7 @@ fn read_all_identities(identities: &[Identity]) -> anyhow::Result<Vec<Box<dyn ag
 
 pub fn list(store: &Store) -> anyhow::Result<()> {
     let output = tree(PathBuf::from(&store.path))?;
-    println!("{output}");
+    print!("{output}");
     Ok(())
 }
 
