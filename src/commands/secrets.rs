@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::fs::write;
+use std::fs::{write, DirEntry};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -158,24 +158,25 @@ fn read_all_identities(identities: &[Identity]) -> anyhow::Result<Vec<Box<dyn ag
 }
 
 pub fn list(store: &Store) -> anyhow::Result<()> {
-    let output = tree(PathBuf::from(&store.path))?;
+    let output = tree(Some(store.name.clone()), PathBuf::from(&store.path))?;
     print!("{output}");
     Ok(())
 }
 
-fn tree<P: AsRef<Path>>(path: P) -> io::Result<Tree<String>> {
-    let result = fs::read_dir(&path)?.filter_map(Result::ok).fold(
-        Tree::new(
+fn tree<P: AsRef<Path>>(store_name: Option<String>, path: P) -> io::Result<Tree<String>> {
+    let mut entries: Vec<DirEntry> = fs::read_dir(&path)?.filter_map(Result::ok).collect();
+    entries.sort_by_key(DirEntry::path);
+    let result = entries.iter().fold(
+        Tree::new(store_name.unwrap_or_else(|| {
             path.as_ref()
-                .canonicalize()?
                 .file_name()
                 .and_then(OsStr::to_str)
-                .map_or_else(String::new, String::from),
-        ),
+                .map_or_else(String::new, String::from)
+        })),
         |mut root, entry| {
             if let Ok(metadata) = entry.metadata() {
                 if metadata.is_dir() {
-                    if let Ok(subtree) = tree(entry.path()) {
+                    if let Ok(subtree) = tree(None, entry.path()) {
                         root.push(subtree);
                     }
                 } else if let Some(filename) = entry.path().file_name().and_then(OsStr::to_str) {
