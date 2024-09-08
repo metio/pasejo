@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
+use clap::error::ErrorKind;
+
 use crate::adapters::file_system;
 use crate::cli::{errors, printer};
 use crate::models::configuration::Store;
-use clap::error::ErrorKind;
-use std::path::PathBuf;
 
 static RECIPIENTS_FILE_SUFFIX: &str = ".recipients";
 static SECRET_FILE_SUFFIX: &str = ".age";

@@ -1,13 +1,15 @@
-use crate::adapters::file_system;
-use crate::commands::recipients;
-use crate::models::configuration::{Identity, Store};
+use std::fs::write;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+
 use age::cli_common::{read_identities, read_recipients, StdinGuard};
 use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
 use inquire::{Confirm, Editor, Password};
-use std::fs::write;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+
+use crate::adapters::file_system;
+use crate::commands::recipients;
+use crate::models::configuration::{Identity, Store};
 
 pub fn insert(
     store: &Store,

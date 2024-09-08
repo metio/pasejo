@@ -1,8 +1,9 @@
-use anyhow::Context;
-use anyhow::Result;
 use std::fs;
 use std::io::Write;
 use std::path::{absolute, Path, PathBuf};
+
+use anyhow::Context;
+use anyhow::Result;
 
 pub fn absolute_path(path: &PathBuf) -> Result<PathBuf> {
     let path = absolute(path)?;

@@ -1,10 +1,12 @@
-use crate::adapters::vcs::VersionControlSystems;
-use crate::models::configuration::Configuration;
+use std::path::PathBuf;
+
 use anyhow::Context;
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
-use std::path::PathBuf;
+
+use crate::adapters::vcs::VersionControlSystems;
+use crate::models::configuration::Configuration;
 
 /// age-backed password manager for teams
 #[derive(Parser)]
@@ -42,8 +44,8 @@ pub enum Commands {
 
 #[derive(Args)]
 pub struct StoreSelectionArgs {
-    /// Optional name of store to use. Defaults to the default store or the first one defined in the
-    /// local user configuration
+    /// Optional name of store to use. Defaults to the default store or the
+    /// first one defined in the local user configuration
     #[arg(short, long, add = ArgValueCompleter::new(store_name_completer), value_parser = store_name_is_known
     )]
     pub store: Option<String>,
@@ -76,7 +78,8 @@ pub enum RecipientCommands {
     /// Remove a recipient
     Remove(RecipientRemoveArgs),
 
-    /// Removes the recipients of a folder or secret so that it inherits its recipients from its parent
+    /// Removes the recipients of a folder or secret so that it inherits its
+    /// recipients from its parent
     Inherit(RecipientInheritArgs),
 }
 
@@ -90,7 +93,8 @@ pub struct RecipientAddArgs {
     #[arg(short, long)]
     pub name: Option<String>,
 
-    /// The path to a folder or secret that should be readable by the given recipient
+    /// The path to a folder or secret that should be readable by the given
+    /// recipient
     #[arg(short, long, value_hint = AnyPath)]
     pub path: Option<PathBuf>,
 
@@ -104,7 +108,8 @@ pub struct RecipientRemoveArgs {
     #[arg(short = 'k', long)]
     pub public_key: String,
 
-    /// The path to a folder or secret that should no longer be readable by the given recipient
+    /// The path to a folder or secret that should no longer be readable by the
+    /// given recipient
     #[arg(short, long)]
     pub path: Option<PathBuf>,
 
@@ -114,7 +119,8 @@ pub struct RecipientRemoveArgs {
 
 #[derive(Args)]
 pub struct RecipientInheritArgs {
-    /// The path to a folder or secret that should inherit its recipients from its parent
+    /// The path to a folder or secret that should inherit its recipients from
+    /// its parent
     #[arg(short, long, value_hint = AnyPath)]
     pub path: PathBuf,
 
@@ -190,11 +196,13 @@ pub struct SecretInsertArgs {
     #[arg(short, long)]
     pub force: bool,
 
-    /// Ignore existing recipients of existing secrets and inherit recipients from nearest parent folder. Disabled when --recipient is used as well
+    /// Ignore existing recipients of existing secrets and inherit recipients
+    /// from nearest parent folder. Disabled when --recipient is used as well
     #[arg(short, long)]
     pub inherit: bool,
 
-    /// Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .recipients file
+    /// Specify recipients for the new secret. Can be specified multiple times.
+    /// If none are specified, will read from nearest .recipients file
     #[arg(short, long)]
     pub recipient: Vec<String>,
 

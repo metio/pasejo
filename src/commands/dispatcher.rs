@@ -1,9 +1,10 @@
+use anyhow::Result;
+
 use crate::commands::{identities, recipients, secrets, stores};
 use crate::models::cli::{
     Cli, Commands, IdentityCommands, RecipientCommands, SecretCommands, StoreCommands,
 };
 use crate::models::configuration::{Configuration, Store};
-use anyhow::Result;
 
 pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {

@@ -1,6 +1,7 @@
-use crate::models::cli::Cli;
 use clap::error::ErrorKind;
 use clap::CommandFactory;
+
+use crate::models::cli::Cli;
 
 pub fn error_exit(command: &str, subcommand: &str, kind: ErrorKind, message: &str) -> ! {
     let mut cli = Cli::command();
@@ -15,8 +16,9 @@ pub fn error_exit(command: &str, subcommand: &str, kind: ErrorKind, message: &st
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use clap::error::ErrorKind;
+
+    use super::*;
 
     #[test]
     #[should_panic(expected = "No matching command/subcommand found")]

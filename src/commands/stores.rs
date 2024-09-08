@@ -1,9 +1,11 @@
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+
 use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
 use crate::cli::printer;
 use crate::models::configuration::Configuration;
-use anyhow::Result;
-use std::path::{Path, PathBuf};
 
 pub fn init(
     mut configuration: Configuration,

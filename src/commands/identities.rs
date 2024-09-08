@@ -1,7 +1,8 @@
+use std::path::PathBuf;
+
 use crate::adapters::file_system;
 use crate::cli::printer;
 use crate::models::configuration::{Configuration, Identity};
-use std::path::PathBuf;
 
 pub fn add(
     mut configuration: Configuration,

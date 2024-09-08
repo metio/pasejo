@@ -1,3 +1,6 @@
+use std::env;
+use std::process::Command;
+
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
@@ -8,8 +11,6 @@ use rexpect::spawn;
 use serial_test::serial;
 use ssh_key::rand_core::OsRng;
 use ssh_key::{Algorithm, PrivateKey};
-use std::env;
-use std::process::Command;
 
 #[test]
 #[serial]

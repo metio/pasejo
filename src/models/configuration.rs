@@ -1,10 +1,12 @@
-use crate::adapters::file_system;
-use crate::adapters::vcs::VersionControlSystems;
-use anyhow::{anyhow, Context, Result};
-use serde::{Deserialize, Serialize};
 use std::env::var_os;
 use std::ops::Add;
 use std::path::{absolute, Path, PathBuf};
+
+use anyhow::{anyhow, Context, Result};
+use serde::{Deserialize, Serialize};
+
+use crate::adapters::file_system;
+use crate::adapters::vcs::VersionControlSystems;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
