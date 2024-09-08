@@ -1,3 +1,4 @@
+use std::fs;
 use std::fs::write;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -135,8 +136,8 @@ fn read_secret_from_user_input(secret_path: &String, multiline: bool) -> anyhow:
 
 pub fn show(store: &Store, identities: &[Identity], secret_path: &String) -> anyhow::Result<()> {
     let (_, absolute_secret_path) = calculate_paths(store, false, secret_path)?;
-    let encrypted = file_system::read_file(&absolute_secret_path)?;
-    let Decryptor::Recipients(decryptor) = Decryptor::new_buffered(encrypted.as_bytes())? else {
+    let encrypted = fs::read(&absolute_secret_path)?;
+    let Decryptor::Recipients(decryptor) = Decryptor::new_buffered(&encrypted[..])? else {
         unreachable!()
     };
     let mut decrypted = vec![];
