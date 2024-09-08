@@ -37,5 +37,6 @@ assert_cmd = { version = "2.0.16" }
 assert_fs = { version = "1.1.2" }
 mockall = { version = "0.13.0" }
 rexpect = { version = "0.5.0" }
+ssh-key = { version = "0.6.6", features = ["ed25519"] }
 trycmd = { version = "0.15.6" }
 which = { version = "6.0.3" }
