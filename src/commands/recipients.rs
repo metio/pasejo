@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::PathBuf;
 
 use clap::error::ErrorKind;
@@ -15,16 +16,16 @@ pub fn add(
     name: &Option<String>,
     path: &Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let path_is_directory = validate_given_path(store, path)?;
+    let path_is_directory = validate_given_path(store, path);
 
     let (recipients_file_in_store, absolute_path_to_recipients_file) =
         calculate_recipients_file_paths(store, path, path_is_directory);
 
-    if file_system::file_exists(&absolute_path_to_recipients_file)? {
+    if absolute_path_to_recipients_file.is_file() {
         // update existing .recipients file
-        let recipients = file_system::read_file(&absolute_path_to_recipients_file)?;
+        let recipients = fs::read_to_string(&absolute_path_to_recipients_file)?;
         let (updated_recipients, _) = upsert_recipient(recipients, public_key, name);
-        file_system::write_file(&absolute_path_to_recipients_file, updated_recipients)?;
+        fs::write(&absolute_path_to_recipients_file, updated_recipients)?;
     } else {
         // create new .recipients file
         let recipient = format_recipient(public_key, name);
@@ -59,15 +60,15 @@ fn calculate_recipients_file_paths(
     (recipients_file_in_store, absolute_path_to_recipients_file)
 }
 
-fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<bool> {
-    if let Some(path) = path {
+fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> bool {
+    path.as_ref().map_or(true, |path| {
         let absolute_path_to_secret_file = store.resolve_path(file_system::append_to_path(
             path.clone(),
             SECRET_FILE_SUFFIX,
         ));
         let absolute_path_to_secret_directory = store.resolve_path(path);
-        let file_exists = file_system::file_exists(&absolute_path_to_secret_file)?;
-        let directory_exists = file_system::directory_exists(&absolute_path_to_secret_directory)?;
+        let file_exists = absolute_path_to_secret_file.is_file();
+        let directory_exists = absolute_path_to_secret_directory.is_dir();
         if !file_exists && !directory_exists {
             errors::error_exit(
                 "recipient",
@@ -75,11 +76,9 @@ fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> anyhow::Result<
                 ErrorKind::InvalidValue,
                 &format!("invalid value '{}' for '--path <PATH>': path does not match any secret or folder in the store", path.display()));
         } else {
-            Ok(directory_exists)
+            directory_exists
         }
-    } else {
-        Ok(true)
-    }
+    })
 }
 
 fn upsert_recipient(

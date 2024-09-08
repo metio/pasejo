@@ -37,9 +37,9 @@ fn replace_recipients(
     recipients: &Vec<String>,
     force: bool,
 ) -> anyhow::Result<()> {
-    if file_system::file_exists(absolute_recipients_path)? {
+    if absolute_recipients_path.is_file() {
         if force {
-            file_system::remove_file(absolute_recipients_path)?;
+            fs::remove_file(absolute_recipients_path)?;
             write_recipients(absolute_recipients_path, recipients)?;
             println!("Replaced .recipients file");
         } else {
@@ -49,7 +49,7 @@ fn replace_recipients(
                 .prompt()
                 .context("Could not get user answer")?;
             if replace_recipients {
-                file_system::remove_file(absolute_recipients_path)?;
+                fs::remove_file(absolute_recipients_path)?;
                 write_recipients(absolute_recipients_path, recipients)?;
                 println!("Replaced .recipients file");
             } else {
@@ -102,7 +102,7 @@ fn calculate_paths(
         ".age",
     ));
     if let Some(parent) = absolute_secret_path.parent() {
-        file_system::mkdir_parents(parent)?;
+        fs::create_dir_all(parent)?;
     }
     Ok((absolute_recipients_path, absolute_secret_path))
 }

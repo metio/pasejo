@@ -1,6 +1,5 @@
-use std::path::PathBuf;
+use std::path::{absolute, PathBuf};
 
-use crate::adapters::file_system;
 use crate::cli::printer;
 use crate::models::configuration::{Configuration, Identity};
 
@@ -9,7 +8,7 @@ pub fn add(
     store_name: &Option<String>,
     identity_file: &PathBuf,
 ) -> anyhow::Result<()> {
-    let absolute_path = file_system::absolute_path(identity_file)?;
+    let absolute_path = absolute(identity_file)?;
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
@@ -23,7 +22,7 @@ pub fn remove(
     store_name: &Option<String>,
     identity_file: &PathBuf,
 ) -> anyhow::Result<()> {
-    let absolute_path = file_system::absolute_path(identity_file)?;
+    let absolute_path = absolute(identity_file)?;
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };

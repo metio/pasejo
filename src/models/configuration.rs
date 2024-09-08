@@ -5,7 +5,6 @@ use std::path::{absolute, Path, PathBuf};
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -217,12 +216,12 @@ impl Store {
         let recipients_extension = Path::new(".recipients");
         for path in secret_path.ancestors() {
             let recipients_file = self.resolve_path(path.join(recipients_extension));
-            if file_system::file_exists(&recipients_file)? {
+            if recipients_file.is_file() {
                 recipients.push(recipients_file);
             }
         }
         let root_recipients_file = self.resolve_path(recipients_extension);
-        if file_system::file_exists(&root_recipients_file)? {
+        if root_recipients_file.is_file() {
             recipients.push(root_recipients_file);
         }
 

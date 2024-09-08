@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::path::{absolute, Path, PathBuf};
 
 use anyhow::Result;
 
-use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
 use crate::cli::printer;
 use crate::models::configuration::Configuration;
@@ -14,8 +14,8 @@ pub fn init(
     vcs: &VersionControlSystems,
     default: bool,
 ) -> Result<()> {
-    let canonical_path = file_system::absolute_path(store_root_path)?;
-    file_system::mkdir_parents(canonical_path.as_path())?;
+    let canonical_path = absolute(store_root_path)?;
+    fs::create_dir_all(canonical_path.as_path())?;
     vcs.select_implementation().init(canonical_path.as_path())?;
     configuration.add_store(
         canonical_path.display().to_string(),
@@ -32,7 +32,7 @@ pub fn init(
 pub fn remove(mut configuration: Configuration, store_name: &str, remove_data: bool) -> Result<()> {
     let path = configuration.remove_store(store_name)?;
     if remove_data {
-        file_system::remove_directory(Path::new(&path))?;
+        fs::remove_dir(Path::new(&path))?;
     }
     printer::store_removed(store_name);
     Ok(())
