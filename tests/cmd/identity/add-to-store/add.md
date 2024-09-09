@@ -14,4 +14,12 @@ error: invalid value 'non-existing' for '--store <STORE>': Store with name 'non-
 
 For more information, try '--help'.
 
+$ PASEJO_CONFIG=config.toml pasejo identity add --store default --global --file some/other/location
+? 2
+error: the argument '--store <STORE>' cannot be used with '--global'
+
+Usage: pasejo identity add --file <FILE> --store <STORE>
+
+For more information, try '--help'.
+
 ```

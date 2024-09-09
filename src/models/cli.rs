@@ -71,7 +71,7 @@ pub struct IdentityAddRemoveArgs {
     pub store_selection: StoreSelectionArgs,
 
     /// Add/remove from global configuration file instead of store
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with = "store")]
     pub global: bool,
 }
 
