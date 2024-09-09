@@ -2,7 +2,7 @@
 $ pasejo recipient help add
 Adds a recipient
 
-Usage: pasejo recipient add [OPTIONS] --public-key <PUBLIC_KEY>
+Usage: pasejo recipient add [OPTIONS] <--public-key <PUBLIC_KEY>>
 
 Options:
   -k, --public-key <PUBLIC_KEY>  The public key of the new recipient
@@ -17,7 +17,7 @@ Options:
 $ pasejo recipient add --help
 Adds a recipient
 
-Usage: pasejo recipient add [OPTIONS] --public-key <PUBLIC_KEY>
+Usage: pasejo recipient add [OPTIONS] <--public-key <PUBLIC_KEY>>
 
 Options:
   -k, --public-key <PUBLIC_KEY>  The public key of the new recipient
@@ -32,7 +32,7 @@ Options:
 $ pasejo recipient add -h
 Adds a recipient
 
-Usage: pasejo recipient add [OPTIONS] --public-key <PUBLIC_KEY>
+Usage: pasejo recipient add [OPTIONS] <--public-key <PUBLIC_KEY>>
 
 Options:
   -k, --public-key <PUBLIC_KEY>  The public key of the new recipient

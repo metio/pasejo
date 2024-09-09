@@ -9,17 +9,23 @@ use crate::models::configuration::{Configuration, Store};
 pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
         Commands::Identity { command } => match command {
-            IdentityCommands::Add(args) => {
-                identities::add(configuration, &args.store_selection.store, &args.file)
-            }
-            IdentityCommands::Remove(args) => {
-                identities::remove(configuration, &args.store_selection.store, &args.file)
-            }
+            IdentityCommands::Add(args) => identities::add(
+                configuration,
+                &args.store_selection.store,
+                &args.file,
+                args.global,
+            ),
+            IdentityCommands::Remove(args) => identities::remove(
+                configuration,
+                &args.store_selection.store,
+                &args.file,
+                args.global,
+            ),
         },
         Commands::Recipient { command } => match command {
             RecipientCommands::Add(args) => do_with_store(
                 configuration.select_store(&args.store_selection.store),
-                |store| recipients::add(store, &args.public_key, &args.name, &args.path),
+                |store| recipients::add(store, &args.keys.public_key, &args.name, &args.path),
             ),
             RecipientCommands::Remove(_) => Ok(()),
             RecipientCommands::Inherit(_) => Ok(()),

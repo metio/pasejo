@@ -1,8 +1,7 @@
+identities = []
+
 [[stores]]
 path = "[CWD]/path/to/store"
 name = "default"
 vcs = "None"
 identities = []
-
-[[identities]]
-file = "/annother/path"

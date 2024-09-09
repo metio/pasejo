@@ -10,6 +10,7 @@ use crate::models::configuration::Configuration;
 
 /// age-backed password manager for teams
 #[derive(Parser)]
+#[command(version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -46,14 +47,14 @@ pub enum Commands {
 pub struct StoreSelectionArgs {
     /// Optional name of store to use. Defaults to the default store or the
     /// first one defined in the local user configuration
-    #[arg(short, long, add = ArgValueCompleter::new(store_name_completer), value_parser = store_name_is_known
-    )]
+    #[arg(short, long, add = ArgValueCompleter::new(store_name_completer), value_parser = store_name_is_known)]
     pub store: Option<String>,
 }
 
 #[derive(Subcommand)]
 pub enum IdentityCommands {
-    /// Adds an identity
+    /// Adds an identity either to a single store or to your global
+    /// configuration file.
     Add(IdentityAddRemoveArgs),
 
     /// Remove an identity
@@ -68,6 +69,10 @@ pub struct IdentityAddRemoveArgs {
 
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
+
+    /// Add/remove from global configuration file instead of store
+    #[arg(short, long)]
+    pub global: bool,
 }
 
 #[derive(Subcommand)]
@@ -85,9 +90,8 @@ pub enum RecipientCommands {
 
 #[derive(Args)]
 pub struct RecipientAddArgs {
-    /// The public key of the new recipient
-    #[arg(short = 'k', long)]
-    pub public_key: String,
+    #[command(flatten)]
+    pub keys: RecipientKeysArgs,
 
     /// The name of the new recipient
     #[arg(short, long)]
@@ -100,6 +104,21 @@ pub struct RecipientAddArgs {
 
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+#[group(required = true, multiple = false)]
+pub struct RecipientKeysArgs {
+    /// The public key of the new recipient
+    #[arg(short = 'k', long)]
+    pub public_key: String,
+    // /// The GitHub username to add as recipient
+    // #[arg(long)]
+    // pub github: String,
+    //
+    // /// The GitLab username to add as recipient
+    // #[arg(long)]
+    // pub gitlab: String,
 }
 
 #[derive(Args)]

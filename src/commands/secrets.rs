@@ -23,7 +23,7 @@ pub fn insert(
 ) -> anyhow::Result<()> {
     let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
     let absolute_recipients_path =
-        store.find_nearest_recipients(secret_path, inherit && recipients.is_empty())?;
+        store.find_nearest_existing_recipients(secret_path, inherit && recipients.is_empty())?;
     let absolute_secret_path = store.resolve_secret_path(secret_path);
     if let Some(parent) = absolute_secret_path.parent() {
         fs::create_dir_all(parent)?;

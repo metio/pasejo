@@ -5,7 +5,7 @@ Manage identities
 Usage: pasejo identity <COMMAND>
 
 Commands:
-  add     Adds an identity
+  add     Adds an identity either to a single store or to your global configuration file
   remove  Remove an identity
   help    Print this message or the help of the given subcommand(s)
 
@@ -21,7 +21,7 @@ Manage identities
 Usage: pasejo identity <COMMAND>
 
 Commands:
-  add     Adds an identity
+  add     Adds an identity either to a single store or to your global configuration file
   remove  Remove an identity
   help    Print this message or the help of the given subcommand(s)
 
@@ -37,7 +37,7 @@ Manage identities
 Usage: pasejo identity <COMMAND>
 
 Commands:
-  add     Adds an identity
+  add     Adds an identity either to a single store or to your global configuration file
   remove  Remove an identity
   help    Print this message or the help of the given subcommand(s)
 

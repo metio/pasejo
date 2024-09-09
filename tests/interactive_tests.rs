@@ -120,6 +120,7 @@ where
         .arg("add")
         .arg("--file")
         .arg(&identity_file)
+        .arg("--global")
         .env("PASEJO_CONFIG", temp.path().join("config.toml"))
         .assert()
         .success()

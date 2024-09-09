@@ -127,25 +127,22 @@ impl Configuration {
         Ok(())
     }
 
-    pub fn add_identity(&mut self, identity: Identity, store_name: Option<String>) -> Result<()> {
-        match store_name {
-            Some(name) => {
-                let store = self
-                    .find_store_mut(name.as_str())
-                    .context("Cannot find store for given name")?;
-                store.identities.push(identity);
-            }
-            None => match self.default_store_name() {
-                Some(default) => {
-                    let store = self
-                        .find_store_mut(default.as_str())
-                        .context("Cannot find store using default name")?;
-                    store.identities.push(identity);
-                }
-                None => self.identities.push(identity),
-            },
+    pub fn add_identity(
+        &mut self,
+        identity: Identity,
+        store_name: Option<String>,
+        global: bool,
+    ) -> Result<()> {
+        if global {
+            self.identities.push(identity);
+            self.store()?;
+        } else if let Some(name) = store_name.or_else(|| self.default_store_name()) {
+            let store = self
+                .find_store_mut(name.as_str())
+                .context(format!("Cannot find store with name '{name}'"))?;
+            store.identities.push(identity);
+            self.store()?;
         }
-        self.store()?;
         Ok(())
     }
 
@@ -153,23 +150,16 @@ impl Configuration {
         &mut self,
         identity: &Identity,
         store_name: Option<String>,
+        global: bool,
     ) -> Result<()> {
-        match store_name {
-            Some(name) => {
-                let store = self
-                    .find_store_mut(name.as_str())
-                    .context("Cannot find store for given name")?;
-                store.identities.retain(|i| i.file != identity.file);
-            }
-            None => match self.default_store_name() {
-                Some(default) => {
-                    let store = self
-                        .find_store_mut(default.as_str())
-                        .context("Cannot find store using the default name")?;
-                    store.identities.retain(|i| i.file != identity.file);
-                }
-                None => self.identities.retain(|i| i.file != identity.file),
-            },
+        if global {
+            self.identities.retain(|i| i.file != identity.file);
+        } else if let Some(name) = store_name.or_else(|| self.default_store_name()) {
+            let store = self
+                .find_store_mut(name.as_str())
+                .context(format!("Cannot find store with name '{name}'"))?;
+            store.identities.retain(|i| i.file != identity.file);
+            self.store()?;
         }
         self.store()?;
         Ok(())
@@ -220,7 +210,11 @@ impl Store {
         ))
     }
 
-    pub fn find_nearest_recipients(&self, secret_path: &String, inherit: bool) -> Result<PathBuf> {
+    pub fn find_nearest_existing_recipients(
+        &self,
+        secret_path: &String,
+        inherit: bool,
+    ) -> Result<PathBuf> {
         let mut recipients = vec![];
 
         // the secret itself might have a .recipients file
@@ -396,7 +390,7 @@ mod tests {
         };
 
         let (secret_path, secret_recipients) = testcase()?;
-        let recipient_path = store.find_nearest_recipients(&secret_path, inherit)?;
+        let recipient_path = store.find_nearest_existing_recipients(&secret_path, inherit)?;
         assert_eq!(secret_recipients.path(), recipient_path);
         Ok(())
     }

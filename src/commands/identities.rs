@@ -7,12 +7,13 @@ pub fn add(
     mut configuration: Configuration,
     store_name: &Option<String>,
     identity_file: &PathBuf,
+    global: bool,
 ) -> anyhow::Result<()> {
     let absolute_path = absolute(identity_file)?;
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.add_identity(identity, store_name.clone());
+    let result = configuration.add_identity(identity, store_name.clone(), global);
     printer::identity_added();
     result
 }
@@ -21,12 +22,13 @@ pub fn remove(
     mut configuration: Configuration,
     store_name: &Option<String>,
     identity_file: &PathBuf,
+    global: bool,
 ) -> anyhow::Result<()> {
     let absolute_path = absolute(identity_file)?;
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.remove_identity(&identity, store_name.clone());
+    let result = configuration.remove_identity(&identity, store_name.clone(), global);
     println!("Identity removed");
     result
 }

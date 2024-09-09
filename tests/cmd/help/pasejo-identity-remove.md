@@ -7,6 +7,7 @@ Usage: pasejo identity remove [OPTIONS] --file <FILE>
 Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -g, --global         Add/remove from global configuration file instead of store
   -h, --help           Print help
 
 ```
@@ -20,6 +21,7 @@ Usage: pasejo identity remove [OPTIONS] --file <FILE>
 Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -g, --global         Add/remove from global configuration file instead of store
   -h, --help           Print help
 
 ```
@@ -33,6 +35,7 @@ Usage: pasejo identity remove [OPTIONS] --file <FILE>
 Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -g, --global         Add/remove from global configuration file instead of store
   -h, --help           Print help
 
 ```
