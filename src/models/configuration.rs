@@ -234,7 +234,7 @@ impl Store {
 
         // ... or any of its parent folders within its associated store
         for path in self.resolve_path(secret_path).ancestors() {
-            if path.starts_with(&self.path) {
+            if path.starts_with(&self.path) && recipients.len() < 2 {
                 let recipients_file =
                     self.resolve_path(path.join(constants::RECIPIENTS_DOT_EXTENSION));
                 if recipients_file.is_file() {
@@ -254,5 +254,150 @@ impl Store {
             .first()
             .cloned()
             .context("No recipients file found for the given secret. Make sure to call 'pasejo recipients add ...' or specify recipients directly with '--recipient'")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_fs::fixture::ChildPath;
+    use assert_fs::prelude::*;
+    use assert_fs::TempDir;
+
+    use crate::adapters::vcs::VersionControlSystems;
+    use crate::models::configuration::Store;
+
+    #[test]
+    fn nearest_recipient_for_secret() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, false, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    #[test]
+    fn nearest_recipient_for_parent() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, false, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child("some/nested/folder/structure/.recipients");
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    #[test]
+    fn nearest_recipient_for_parent_of_parent() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, false, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child("some/nested/folder/.recipients");
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    #[test]
+    fn nearest_recipient_in_root() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, false, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child(".recipients");
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    #[test]
+    fn inherit_recipient_for_secret() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        let error: &str = test_find_nearest_recipients(&temp, true, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+        .unwrap_err()
+        .downcast()?;
+        assert_eq!(error, "No recipients file found for the given secret. Make sure to call 'pasejo recipients add ...' or specify recipients directly with '--recipient'");
+        Ok(())
+    }
+
+    #[test]
+    fn inherit_recipient_for_parent() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, true, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            secret_recipients.touch()?;
+            let secret_recipients = temp.child("some/nested/folder/structure/.recipients");
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    #[test]
+    fn inherit_recipient_for_parent_of_parent() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, true, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            secret_recipients.touch()?;
+            let secret_recipients = temp.child("some/nested/folder/.recipients");
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    #[test]
+    fn inherit_recipient_in_root() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        test_find_nearest_recipients(&temp, true, || {
+            let secret_path = String::from("some/nested/folder/structure/secret");
+            temp.child(&secret_path).create_dir_all()?;
+            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            secret_recipients.touch()?;
+            let secret_recipients = temp.child(".recipients");
+            secret_recipients.touch()?;
+
+            Ok((secret_path, secret_recipients))
+        })
+    }
+
+    fn test_find_nearest_recipients<T>(
+        temp: &TempDir,
+        inherit: bool,
+        testcase: T,
+    ) -> anyhow::Result<()>
+    where
+        T: FnOnce() -> anyhow::Result<(String, ChildPath)>,
+    {
+        let store = Store {
+            path: temp.path().display().to_string(),
+            name: String::from("test"),
+            identities: vec![],
+            vcs: VersionControlSystems::None,
+        };
+
+        let (secret_path, secret_recipients) = testcase()?;
+        let recipient_path = store.find_nearest_recipients(&secret_path, inherit)?;
+        assert_eq!(secret_recipients.path(), recipient_path);
+        Ok(())
     }
 }
