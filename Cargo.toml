@@ -30,7 +30,6 @@ serde = { version = "1.0.203", features = ["derive"] }
 ssh-key = { version = "0.6.6", features = ["ed25519", "encryption"] }
 #toml = { version = "0.8.14" }
 termtree = { version = "0.5.1" }
-walkdir = { version = "2.5.0" }
 predicates = "3.1.2"
 
 [dev-dependencies]

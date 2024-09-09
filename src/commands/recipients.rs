@@ -4,22 +4,19 @@ use std::path::PathBuf;
 use clap::error::ErrorKind;
 
 use crate::adapters::file_system;
-use crate::cli::{errors, printer};
+use crate::cli::{constants, errors, printer};
 use crate::models::configuration::Store;
-
-static RECIPIENTS_FILE_SUFFIX: &str = ".recipients";
-static SECRET_FILE_SUFFIX: &str = ".age";
 
 pub fn add(
     store: &Store,
     public_key: &String,
     name: &Option<String>,
-    path: &Option<PathBuf>,
+    secret_path: &Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let path_is_directory = validate_given_path(store, path);
+    let path_is_directory = validate_given_path(store, secret_path);
 
     let (recipients_file_in_store, absolute_path_to_recipients_file) =
-        calculate_recipients_file_paths(store, path, path_is_directory);
+        calculate_recipients_file_paths(store, secret_path, path_is_directory);
 
     if absolute_path_to_recipients_file.is_file() {
         // update existing .recipients file
@@ -43,16 +40,16 @@ pub fn add(
 
 fn calculate_recipients_file_paths(
     store: &Store,
-    path: &Option<PathBuf>,
+    secret_path: &Option<PathBuf>,
     path_is_directory: bool,
 ) -> (PathBuf, PathBuf) {
-    let recipients_file_in_store = path.clone().map_or_else(
-        || PathBuf::from(RECIPIENTS_FILE_SUFFIX),
+    let recipients_file_in_store = secret_path.clone().map_or_else(
+        || PathBuf::from(constants::RECIPIENTS_DOT_EXTENSION),
         |p| {
             if path_is_directory {
-                p.join(RECIPIENTS_FILE_SUFFIX)
+                p.join(constants::RECIPIENTS_DOT_EXTENSION)
             } else {
-                file_system::append_to_path(p, RECIPIENTS_FILE_SUFFIX)
+                file_system::append_file_extension(p, constants::RECIPIENTS_FILE_EXTENSION)
             }
         },
     );
@@ -62,9 +59,9 @@ fn calculate_recipients_file_paths(
 
 fn validate_given_path(store: &Store, path: &Option<PathBuf>) -> bool {
     path.as_ref().map_or(true, |path| {
-        let absolute_path_to_secret_file = store.resolve_path(file_system::append_to_path(
+        let absolute_path_to_secret_file = store.resolve_path(file_system::append_file_extension(
             path.clone(),
-            SECRET_FILE_SUFFIX,
+            constants::SECRET_FILE_EXTENSION,
         ));
         let absolute_path_to_secret_directory = store.resolve_path(path);
         let file_exists = absolute_path_to_secret_file.is_file();

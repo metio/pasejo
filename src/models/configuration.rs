@@ -5,7 +5,9 @@ use std::path::{absolute, Path, PathBuf};
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
+use crate::cli::constants;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -211,18 +213,36 @@ impl Store {
         PathBuf::from(&self.path).join(&path)
     }
 
-    pub fn find_nearest_recipients(&self, secret_path: &Path, inherit: bool) -> Result<PathBuf> {
+    pub fn resolve_secret_path(&self, secret_path: &String) -> PathBuf {
+        self.resolve_path(file_system::append_file_extension(
+            PathBuf::from(secret_path),
+            constants::SECRET_FILE_EXTENSION,
+        ))
+    }
+
+    pub fn find_nearest_recipients(&self, secret_path: &String, inherit: bool) -> Result<PathBuf> {
         let mut recipients = vec![];
-        let recipients_extension = Path::new(".recipients");
-        for path in secret_path.ancestors() {
-            let recipients_file = self.resolve_path(path.join(recipients_extension));
-            if recipients_file.is_file() {
-                recipients.push(recipients_file);
-            }
+
+        // the secret itself might have a .recipients file
+        let secret_recipients_file = self.resolve_path(file_system::append_file_extension(
+            PathBuf::from(secret_path),
+            constants::RECIPIENTS_FILE_EXTENSION,
+        ));
+        if secret_recipients_file.is_file() {
+            recipients.push(secret_recipients_file);
         }
-        let root_recipients_file = self.resolve_path(recipients_extension);
-        if root_recipients_file.is_file() {
-            recipients.push(root_recipients_file);
+
+        // ... or any of its parent folders within its associated store
+        for path in self.resolve_path(secret_path).ancestors() {
+            if path.starts_with(&self.path) {
+                let recipients_file =
+                    self.resolve_path(path.join(constants::RECIPIENTS_DOT_EXTENSION));
+                if recipients_file.is_file() {
+                    recipients.push(recipients_file);
+                }
+            } else {
+                break;
+            }
         }
 
         if inherit && !recipients.is_empty() {

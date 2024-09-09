@@ -1691,7 +1691,6 @@ dependencies = [
  "ssh-key",
  "termtree 0.5.1",
  "trycmd",
- "walkdir",
  "which 6.0.3",
 ]
 

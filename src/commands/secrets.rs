@@ -1,16 +1,15 @@
-use std::ffi::OsStr;
-use std::fs::{write, DirEntry};
+use std::fs;
+use std::fs::write;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::{fs, io};
 
 use age::cli_common::{read_identities, read_recipients, StdinGuard};
 use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
-use inquire::{Confirm, Editor, Password};
-use termtree::Tree;
+use inquire::Confirm;
 
 use crate::adapters::file_system;
+use crate::cli::prompts;
 use crate::commands::recipients;
 use crate::models::configuration::{Identity, Store};
 
@@ -22,9 +21,13 @@ pub fn insert(
     secret_path: &String,
     recipients: &Vec<String>,
 ) -> anyhow::Result<()> {
-    let secret = read_secret_from_user_input(secret_path, multiline)?;
-    let (absolute_recipients_path, absolute_secret_path) =
-        calculate_paths(store, inherit && recipients.is_empty(), secret_path)?;
+    let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
+    let absolute_recipients_path =
+        store.find_nearest_recipients(secret_path, inherit && recipients.is_empty())?;
+    let absolute_secret_path = store.resolve_secret_path(secret_path);
+    if let Some(parent) = absolute_secret_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
     if !recipients.is_empty() {
         replace_recipients(&absolute_recipients_path, recipients, force)?;
     }
@@ -92,23 +95,6 @@ fn read_recipient_file(recipients_path: &Path) -> anyhow::Result<Vec<Box<dyn Rec
     Ok(recipients)
 }
 
-fn calculate_paths(
-    store: &Store,
-    inherit: bool,
-    secret_path: &String,
-) -> anyhow::Result<(PathBuf, PathBuf)> {
-    let relative_path = Path::new(secret_path);
-    let absolute_recipients_path = store.find_nearest_recipients(relative_path, inherit)?;
-    let absolute_secret_path = store.resolve_path(file_system::append_to_path(
-        relative_path.to_path_buf(),
-        ".age",
-    ));
-    if let Some(parent) = absolute_secret_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    Ok((absolute_recipients_path, absolute_secret_path))
-}
-
 fn encrypt_secret(
     secret: &str,
     absolute_path: &Path,
@@ -125,19 +111,8 @@ fn encrypt_secret(
     Ok(())
 }
 
-fn read_secret_from_user_input(secret_path: &String, multiline: bool) -> anyhow::Result<String> {
-    let message = &format!("Enter secret for {secret_path}:");
-    let failure = format!("Could not read secret for {secret_path}:");
-    let secret = if multiline {
-        Editor::new(message).prompt().context(failure)?
-    } else {
-        Password::new(message).prompt().context(failure)?
-    };
-    Ok(secret)
-}
-
 pub fn show(store: &Store, identities: &[Identity], secret_path: &String) -> anyhow::Result<()> {
-    let (_, absolute_secret_path) = calculate_paths(store, false, secret_path)?;
+    let absolute_secret_path = store.resolve_secret_path(secret_path);
     let encrypted = fs::read(&absolute_secret_path)?;
     let Decryptor::Recipients(decryptor) = Decryptor::new_buffered(&encrypted[..])? else {
         unreachable!()
@@ -152,46 +127,16 @@ pub fn show(store: &Store, identities: &[Identity], secret_path: &String) -> any
 }
 
 fn read_all_identities(identities: &[Identity]) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
-    let filenames: Vec<String> = identities.iter().map(|i| i.file.clone()).collect();
+    let filenames: Vec<String> = identities
+        .iter()
+        .map(|identity| identity.file.clone())
+        .collect();
     let parsed_identities = read_identities(filenames, None, &mut StdinGuard::new(true))?;
     Ok(parsed_identities)
 }
 
 pub fn list(store: &Store) -> anyhow::Result<()> {
-    let output = tree(Some(store.name.clone()), PathBuf::from(&store.path))?;
+    let output = file_system::file_tree(store.name.clone(), PathBuf::from(&store.path), "age")?;
     print!("{output}");
     Ok(())
-}
-
-fn tree<P: AsRef<Path>>(store_name: Option<String>, path: P) -> io::Result<Tree<String>> {
-    let mut entries: Vec<DirEntry> = fs::read_dir(&path)?.filter_map(Result::ok).collect();
-    entries.sort_by_key(DirEntry::path);
-    let result = entries.iter().fold(
-        Tree::new(store_name.unwrap_or_else(|| {
-            path.as_ref()
-                .file_name()
-                .and_then(OsStr::to_str)
-                .map_or_else(String::new, String::from)
-        })),
-        |mut root, entry| {
-            if let Ok(metadata) = entry.metadata() {
-                if metadata.is_dir() {
-                    if let Ok(subtree) = tree(None, entry.path()) {
-                        root.push(subtree);
-                    }
-                } else if let Some(filename) = entry.path().file_name().and_then(OsStr::to_str) {
-                    if Path::new(filename)
-                        .extension()
-                        .map_or(false, |ext| ext.eq_ignore_ascii_case("age"))
-                    {
-                        if let Some((secret_name, _)) = filename.rsplit_once('.') {
-                            root.push(Tree::new(String::from(secret_name)));
-                        }
-                    }
-                }
-            }
-            root
-        },
-    );
-    Ok(result)
 }
