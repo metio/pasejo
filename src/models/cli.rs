@@ -88,6 +88,10 @@ pub struct IdentityRemoveArgs {
     /// from store
     #[arg(short, long, conflicts_with = "store")]
     pub global: bool,
+
+    /// Don't fail on missing identities
+    #[arg(short, long)]
+    pub ignore_missing: bool,
 }
 
 #[derive(Subcommand)]

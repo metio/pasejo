@@ -20,6 +20,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 &args.store_selection.store,
                 &args.file,
                 args.global,
+                args.ignore_missing,
             ),
         },
         Commands::Recipient { command } => match command {

@@ -38,6 +38,7 @@ pub fn remove(
     store_name: &Option<String>,
     identity_file: &PathBuf,
     global: bool,
+    ignore_missing: bool,
 ) -> anyhow::Result<()> {
     let absolute_path = absolute(identity_file)?;
     let identity = Identity {
@@ -47,6 +48,8 @@ pub fn remove(
         let result = configuration.remove_identity(&identity, store_name, global);
         printer::identity_removed();
         result
+    } else if ignore_missing {
+        Ok(())
     } else {
         error_exit(
             "identity",

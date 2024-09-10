@@ -35,6 +35,8 @@ Usage: pasejo identity remove [OPTIONS] --file <FILE>
 
 For more information, try '--help'.
 
+$ PASEJO_CONFIG=config.toml pasejo identity remove --file non-existing --ignore-missing
+
 ```
 
 ```
