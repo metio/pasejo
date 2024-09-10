@@ -5,7 +5,4 @@ vcs = "None"
 identities = []
 
 [[identities]]
-file = "[CWD]/some/file/location"
-
-[[identities]]
-file = "/an/absolute/path"
+file = "[CWD]/some-identity"

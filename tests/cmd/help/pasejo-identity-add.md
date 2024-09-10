@@ -7,7 +7,7 @@ Usage: pasejo identity add [OPTIONS] --file <FILE>
 Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -g, --global         Add/remove from global configuration file instead of store
+  -g, --global         Add to the global configuration file when enabled, otherwise add to store
   -h, --help           Print help
 
 ```
@@ -21,7 +21,7 @@ Usage: pasejo identity add [OPTIONS] --file <FILE>
 Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -g, --global         Add/remove from global configuration file instead of store
+  -g, --global         Add to the global configuration file when enabled, otherwise add to store
   -h, --help           Print help
 
 ```
@@ -35,7 +35,7 @@ Usage: pasejo identity add [OPTIONS] --file <FILE>
 Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -g, --global         Add/remove from global configuration file instead of store
+  -g, --global         Add to the global configuration file when enabled, otherwise add to store
   -h, --help           Print help
 
 ```

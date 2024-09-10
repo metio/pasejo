@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 
-use anyhow::Context;
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
-use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
 
 use crate::adapters::vcs::VersionControlSystems;
-use crate::models::configuration::Configuration;
+use crate::cli::completer;
+use crate::cli::parser;
 
 /// age-backed password manager for teams
 #[derive(Parser)]
@@ -47,7 +46,7 @@ pub enum Commands {
 pub struct StoreSelectionArgs {
     /// Optional name of store to use. Defaults to the default store or the
     /// first one defined in the local user configuration
-    #[arg(short, long, add = ArgValueCompleter::new(store_name_completer), value_parser = store_name_is_known)]
+    #[arg(short, long, add = completer::store_name(), value_parser = parser::store_name)]
     pub store: Option<String>,
 }
 
@@ -55,14 +54,29 @@ pub struct StoreSelectionArgs {
 pub enum IdentityCommands {
     /// Adds an identity either to a single store or to your global
     /// configuration file.
-    Add(IdentityAddRemoveArgs),
+    Add(IdentityAddArgs),
 
     /// Remove an identity
-    Remove(IdentityAddRemoveArgs),
+    Remove(IdentityRemoveArgs),
 }
 
 #[derive(Args)]
-pub struct IdentityAddRemoveArgs {
+pub struct IdentityAddArgs {
+    /// The path to the identity file
+    #[arg(short, long, value_hint = FilePath, value_parser = parser::existing_file)]
+    pub file: PathBuf,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Add to the global configuration file when enabled, otherwise add to
+    /// store
+    #[arg(short, long, conflicts_with = "store")]
+    pub global: bool,
+}
+
+#[derive(Args)]
+pub struct IdentityRemoveArgs {
     /// The path to the identity file
     #[arg(short, long, value_hint = FilePath)]
     pub file: PathBuf,
@@ -70,7 +84,8 @@ pub struct IdentityAddRemoveArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
 
-    /// Add/remove from global configuration file instead of store
+    /// Remove from the global configuration file when enabled, otherwise remove
+    /// from store
     #[arg(short, long, conflicts_with = "store")]
     pub global: bool,
 }
@@ -293,7 +308,7 @@ pub struct StoreInitArgs {
 #[derive(Args)]
 pub struct StoreRemoveArgs {
     /// The name of the existing store
-    #[arg(short, long, value_parser = store_name_is_known)]
+    #[arg(short, long, value_parser = parser::store_name)]
     pub name: String,
 
     /// Whether the store should be removed from the local file system
@@ -304,40 +319,8 @@ pub struct StoreRemoveArgs {
 #[derive(Args)]
 pub struct StoreDefaultArgs {
     /// The name of the store to use as default
-    #[arg(value_parser = store_name_is_known)]
+    #[arg(value_parser = parser::store_name)]
     pub name: String,
-}
-
-fn store_name_is_known(input: &str) -> anyhow::Result<String> {
-    let configuration = Configuration::load().context("load configuration")?;
-    let names = configuration.all_store_names();
-
-    if names.contains(&input.to_owned()) {
-        Ok(input.to_owned())
-    } else {
-        anyhow::bail!(format!(
-            "Store with name '{input}' does not exist in configuration"
-        ))
-    }
-}
-
-fn store_name_completer(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
-    Configuration::load().map_or_else(
-        |_| vec![],
-        |configuration| {
-            let names = configuration.all_store_names();
-            current.to_str().map_or_else(
-                || names.iter().map(CompletionCandidate::new).collect(),
-                |value| {
-                    names
-                        .iter()
-                        .filter(|&name| name.starts_with(value))
-                        .map(CompletionCandidate::new)
-                        .collect()
-                },
-            )
-        },
-    )
 }
 
 #[cfg(test)]

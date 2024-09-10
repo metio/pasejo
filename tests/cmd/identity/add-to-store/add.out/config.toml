@@ -7,10 +7,10 @@ name = "default"
 vcs = "None"
 
 [[stores.identities]]
-file = "[CWD]/some/file/location"
+file = "[CWD]/some-identity"
 
 [[stores.identities]]
-file = "[CWD]/some/default/location"
+file = "[CWD]/other-identity"
 
 [[stores]]
 path = "[CWD]/path/to/other"
@@ -18,4 +18,4 @@ name = "other"
 vcs = "None"
 
 [[stores.identities]]
-file = "[CWD]/some/file/location"
+file = "[CWD]/some-identity"

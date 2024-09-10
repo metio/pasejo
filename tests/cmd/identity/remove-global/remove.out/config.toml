@@ -4,6 +4,4 @@ identities = []
 path = "[CWD]/path/to/store"
 name = "default"
 vcs = "None"
-
-[[stores.identities]]
-file = "/annother/path"
+identities = []

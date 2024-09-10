@@ -140,6 +140,20 @@ impl Configuration {
         Ok(())
     }
 
+    pub fn has_identity(
+        &mut self,
+        identity: &Identity,
+        store_name: &Option<String>,
+        global: bool,
+    ) -> bool {
+        if global {
+            return self.identities.iter().any(|i| i.file == identity.file);
+        } else if let Some(store) = self.select_store_mut(store_name) {
+            return store.identities.iter().any(|i| i.file == identity.file);
+        }
+        false
+    }
+
     pub fn all_identities(&self, store: &Store) -> Vec<Identity> {
         let mut identities = self.identities.clone();
         identities.extend(store.identities.clone());
