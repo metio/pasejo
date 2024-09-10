@@ -140,14 +140,9 @@ impl Configuration {
         Ok(())
     }
 
-    pub fn all_identities(&self, store_name: &Option<String>) -> Vec<Identity> {
+    pub fn all_identities(&self, store: &Store) -> Vec<Identity> {
         let mut identities = self.identities.clone();
-        if let Some(name) = store_name {
-            identities.extend(
-                self.find_store(name.as_str())
-                    .map_or_else(Vec::new, |store| store.identities.clone()),
-            );
-        }
+        identities.extend(store.identities.clone());
         identities
     }
 

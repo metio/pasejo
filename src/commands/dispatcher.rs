@@ -59,7 +59,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 |store| {
                     secrets::show(
                         store,
-                        &configuration.all_identities(&args.store_selection.store),
+                        &configuration.all_identities(store),
                         &args.secret_path,
                     )
                 },
