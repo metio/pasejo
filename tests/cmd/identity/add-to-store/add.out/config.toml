@@ -1,4 +1,5 @@
 identities = []
+default_store = "default"
 
 [[stores]]
 path = "[CWD]/path/to/store"
@@ -8,8 +9,13 @@ vcs = "None"
 [[stores.identities]]
 file = "[CWD]/some/file/location"
 
+[[stores.identities]]
+file = "[CWD]/some/default/location"
+
 [[stores]]
 path = "[CWD]/path/to/other"
 name = "other"
 vcs = "None"
-identities = []
+
+[[stores.identities]]
+file = "[CWD]/some/file/location"

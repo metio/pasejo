@@ -13,7 +13,7 @@ pub fn add(
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.add_identity(identity, store_name.clone(), global);
+    let result = configuration.add_identity(identity, store_name, global);
     printer::identity_added();
     result
 }
@@ -28,7 +28,7 @@ pub fn remove(
     let identity = Identity {
         file: absolute_path.display().to_string(),
     };
-    let result = configuration.remove_identity(&identity, store_name.clone(), global);
-    println!("Identity removed");
+    let result = configuration.remove_identity(&identity, store_name, global);
+    printer::identity_removed();
     result
 }

@@ -1,4 +1,5 @@
 identities = []
+default_store = "default"
 
 [[stores]]
 path = "[CWD]/path/to/store"

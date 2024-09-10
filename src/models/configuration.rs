@@ -1,5 +1,4 @@
 use std::env::var_os;
-use std::ops::Add;
 use std::path::{absolute, Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
@@ -7,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::adapters::file_system;
 use crate::adapters::vcs::VersionControlSystems;
-use crate::cli::constants;
+use crate::cli::{constants, environment_variables};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -42,24 +41,25 @@ pub struct Identity {
 }
 
 impl Configuration {
-    fn config_path() -> Result<PathBuf> {
-        let app_name = env!("CARGO_PKG_NAME");
-        var_os(app_name.to_owned().add("_config").to_uppercase()).map_or_else(
-            || {
-                confy::get_configuration_file_path(app_name, "config")
-                    .context("to load configuration")
-            },
-            |path| absolute(PathBuf::from(path)).context("to resolve absolute path"),
-        )
-    }
-
     pub fn load() -> Result<Self> {
-        confy::load_path(Self::config_path()?).context("to load configuration")
+        confy::load_path(Self::config_path()?).context("Could not load configuration")
     }
 
     fn store(&self) -> Result<()> {
-        confy::store_path(Self::config_path()?, self)?;
-        Ok(())
+        confy::store_path(Self::config_path()?, self).context("Could not store configuration")
+    }
+
+    fn config_path() -> Result<PathBuf> {
+        var_os(environment_variables::PASEJO_CONFIG).map_or_else(
+            || {
+                confy::get_configuration_file_path(constants::APPLICATION_NAME, "config")
+                    .context("Could not determine configuration path")
+            },
+            |path| {
+                absolute(PathBuf::from(path))
+                    .context("Could not resolve absolute path to configuration")
+            },
+        )
     }
 
     pub fn add_store(
@@ -95,27 +95,8 @@ impl Configuration {
         Ok(path)
     }
 
-    pub fn select_store(&self, store_name: &Option<String>) -> Option<&Store> {
-        store_name.as_ref().map_or_else(
-            || {
-                self.default_store_name().map_or_else(
-                    || self.stores.first(),
-                    |default| self.find_store(default.as_str()),
-                )
-            },
-            |name| self.find_store(name.as_str()),
-        )
-    }
-
     fn default_store_name(&self) -> Option<String> {
-        let app_name = env!("CARGO_PKG_NAME");
-        var_os(
-            app_name
-                .to_owned()
-                .add("_default_store_name")
-                .to_uppercase(),
-        )
-        .map_or_else(
+        var_os(environment_variables::PASEJO_DEFAULT_STORE_NAME).map_or_else(
             || self.default_store.clone(),
             |value| value.into_string().ok(),
         )
@@ -130,16 +111,13 @@ impl Configuration {
     pub fn add_identity(
         &mut self,
         identity: Identity,
-        store_name: Option<String>,
+        store_name: &Option<String>,
         global: bool,
     ) -> Result<()> {
         if global {
             self.identities.push(identity);
             self.store()?;
-        } else if let Some(name) = store_name.or_else(|| self.default_store_name()) {
-            let store = self
-                .find_store_mut(name.as_str())
-                .context(format!("Cannot find store with name '{name}'"))?;
+        } else if let Some(store) = self.select_store_mut(store_name) {
             store.identities.push(identity);
             self.store()?;
         }
@@ -149,19 +127,16 @@ impl Configuration {
     pub fn remove_identity(
         &mut self,
         identity: &Identity,
-        store_name: Option<String>,
+        store_name: &Option<String>,
         global: bool,
     ) -> Result<()> {
         if global {
             self.identities.retain(|i| i.file != identity.file);
-        } else if let Some(name) = store_name.or_else(|| self.default_store_name()) {
-            let store = self
-                .find_store_mut(name.as_str())
-                .context(format!("Cannot find store with name '{name}'"))?;
+            self.store()?;
+        } else if let Some(store) = self.select_store_mut(store_name) {
             store.identities.retain(|i| i.file != identity.file);
             self.store()?;
         }
-        self.store()?;
         Ok(())
     }
 
@@ -182,6 +157,24 @@ impl Configuration {
             names.push(store.name.clone());
         }
         names
+    }
+
+    pub fn select_store(&self, store_name: &Option<String>) -> Option<&Store> {
+        store_name
+            .clone()
+            .or_else(|| self.default_store_name())
+            .map_or_else(
+                || self.stores.first(),
+                |name| self.find_store(name.as_str()),
+            )
+    }
+
+    pub fn select_store_mut(&mut self, store_name: &Option<String>) -> Option<&mut Store> {
+        if let Some(name) = store_name.clone().or_else(|| self.default_store_name()) {
+            self.find_store_mut(name.as_str())
+        } else {
+            self.stores.first_mut()
+        }
     }
 
     fn find_store(&self, store_name: &str) -> Option<&Store> {

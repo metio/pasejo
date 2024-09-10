@@ -20,6 +20,7 @@ anyhow = { version = "1.0.86" }
 clap = { version = "4.5.16", features = ["derive"] }
 clap_complete = { version = "4.5.24", features = ["unstable-dynamic"] }
 confy = { version = "0.6.1" }
+const-str = { version = "0.5.7" }
 #directories = { version = "5.0.1" }
 duct = { version = "0.13.7" }
 human-panic = { version = "2.0.0" }

@@ -10,6 +10,10 @@ pub fn identity_added() {
     println!("Identity added");
 }
 
+pub fn identity_removed() {
+    println!("Identity removed");
+}
+
 pub fn store_initialized(store_path: &str) {
     println!("Store initialized at {store_path}");
 }
