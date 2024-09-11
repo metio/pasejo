@@ -3,7 +3,9 @@ use std::io::Write;
 mod adapters;
 mod cli;
 mod commands;
+mod downloader;
 mod models;
+mod recipients;
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};

@@ -5,6 +5,7 @@ use crate::models::cli::{
     Cli, Commands, IdentityCommands, RecipientCommands, SecretCommands, StoreCommands,
 };
 use crate::models::configuration::{Configuration, Store};
+use crate::recipients::public_key;
 
 pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
@@ -26,7 +27,9 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
         Commands::Recipient { command } => match command {
             RecipientCommands::Add(args) => do_with_store(
                 configuration.select_store(&args.store_selection.store),
-                |store| recipients::add(store, &args.keys.public_key, &args.name, &args.path),
+                |store| {
+                    recipients::add(store, &public_key::get(&args.keys)?, &args.name, &args.path)
+                },
             ),
             RecipientCommands::Remove(_) => Ok(()),
             RecipientCommands::Inherit(_) => Ok(()),

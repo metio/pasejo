@@ -134,14 +134,23 @@ pub struct RecipientAddArgs {
 pub struct RecipientKeysArgs {
     /// The public key of the new recipient
     #[arg(short = 'k', long)]
-    pub public_key: String,
-    // /// The GitHub username to add as recipient
-    // #[arg(long)]
-    // pub github: String,
-    //
-    // /// The GitLab username to add as recipient
-    // #[arg(long)]
-    // pub gitlab: String,
+    pub public_key: Option<String>,
+
+    /// Read public key of recipient from file
+    #[arg(short, long)]
+    pub file: Option<String>,
+
+    /// The Codeberg username to add as recipient
+    #[arg(long)]
+    pub codeberg: Option<String>,
+
+    /// The GitHub username to add as recipient
+    #[arg(long)]
+    pub github: Option<String>,
+
+    /// The GitLab username to add as recipient
+    #[arg(long)]
+    pub gitlab: Option<String>,
 }
 
 #[derive(Args)]

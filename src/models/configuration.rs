@@ -96,7 +96,7 @@ impl Configuration {
     }
 
     fn default_store_name(&self) -> Option<String> {
-        var_os(environment_variables::PASEJO_DEFAULT_STORE_NAME).map_or_else(
+        var_os(environment_variables::PASEJO_DEFAULT_STORE).map_or_else(
             || self.default_store.clone(),
             |value| value.into_string().ok(),
         )

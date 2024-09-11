@@ -6,7 +6,7 @@ $ PASEJO_CONFIG=config.toml pasejo recipient add --path some/secret/name --publi
 ? 2
 error: invalid value 'some/secret/name' for '--path <PATH>': path does not match any secret or folder in the store
 
-Usage: pasejo recipient add [OPTIONS] <--public-key <PUBLIC_KEY>>
+Usage: pasejo recipient add [OPTIONS] <--public-key <PUBLIC_KEY>|--file <FILE>|--codeberg <CODEBERG>|--github <GITHUB>|--gitlab <GITLAB>>
 
 For more information, try '--help'.
 
