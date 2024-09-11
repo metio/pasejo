@@ -8,6 +8,8 @@ Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -g, --global         Add to the global configuration file when enabled, otherwise add to store
+  -v, --verbose...     Increase logging verbosity
+  -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
 
 ```
@@ -22,6 +24,8 @@ Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -g, --global         Add to the global configuration file when enabled, otherwise add to store
+  -v, --verbose...     Increase logging verbosity
+  -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
 
 ```
@@ -36,6 +40,8 @@ Options:
   -f, --file <FILE>    The path to the identity file
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -g, --global         Add to the global configuration file when enabled, otherwise add to store
+  -v, --verbose...     Increase logging verbosity
+  -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
 
 ```

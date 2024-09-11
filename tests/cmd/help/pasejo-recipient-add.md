@@ -9,6 +9,8 @@ Options:
   -n, --name <NAME>              The name of the new recipient
   -p, --path <PATH>              The path to a folder or secret that should be readable by the given recipient
   -s, --store <STORE>            Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -v, --verbose...               Increase logging verbosity
+  -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
 ```
@@ -24,6 +26,8 @@ Options:
   -n, --name <NAME>              The name of the new recipient
   -p, --path <PATH>              The path to a folder or secret that should be readable by the given recipient
   -s, --store <STORE>            Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -v, --verbose...               Increase logging verbosity
+  -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
 ```
@@ -39,6 +43,8 @@ Options:
   -n, --name <NAME>              The name of the new recipient
   -p, --path <PATH>              The path to a folder or secret that should be readable by the given recipient
   -s, --store <STORE>            Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -v, --verbose...               Increase logging verbosity
+  -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
 ```

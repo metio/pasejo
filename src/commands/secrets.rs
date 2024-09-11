@@ -9,7 +9,7 @@ use anyhow::Context;
 use inquire::Confirm;
 
 use crate::adapters::file_system;
-use crate::cli::prompts;
+use crate::cli::{logs, prompts};
 use crate::commands::recipients;
 use crate::models::configuration::{Identity, Store};
 
@@ -46,24 +46,24 @@ fn replace_recipients(
         if force {
             fs::remove_file(absolute_recipients_path)?;
             write_recipients(absolute_recipients_path, recipients)?;
-            println!("Replaced .recipients file");
+            logs::recipients_file_replaced(absolute_recipients_path);
         } else {
             let replace_recipients = Confirm::new("Replace existing recipients?")
-                .with_default(true)
+                .with_default(false)
                 .with_help_message("Recipients will be taken from --recipient if confirmed")
                 .prompt()
                 .context("Could not get user answer")?;
             if replace_recipients {
                 fs::remove_file(absolute_recipients_path)?;
                 write_recipients(absolute_recipients_path, recipients)?;
-                println!("Replaced .recipients file");
+                logs::recipients_file_replaced(absolute_recipients_path);
             } else {
-                println!("Using existing .recipients file");
+                logs::recipients_file_use_existing(absolute_recipients_path);
             }
         }
     } else {
         write_recipients(absolute_recipients_path, recipients)?;
-        println!("Created .recipients file");
+        logs::recipients_file_created(absolute_recipients_path);
     }
     Ok(())
 }

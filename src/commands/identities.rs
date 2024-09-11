@@ -3,7 +3,7 @@ use std::path::{absolute, PathBuf};
 use clap::error::ErrorKind;
 
 use crate::cli::errors::error_exit;
-use crate::cli::printer;
+use crate::cli::logs;
 use crate::models::configuration::{Configuration, Identity};
 
 pub fn add(
@@ -28,7 +28,7 @@ pub fn add(
         )
     } else {
         let result = configuration.add_identity(identity, store_name, global);
-        printer::identity_added();
+        logs::identity_added(absolute_path.as_path());
         result
     }
 }
@@ -46,7 +46,7 @@ pub fn remove(
     };
     if configuration.has_identity(&identity, store_name, global) {
         let result = configuration.remove_identity(&identity, store_name, global);
-        printer::identity_removed();
+        logs::identity_removed(absolute_path.as_path());
         result
     } else if ignore_missing {
         Ok(())

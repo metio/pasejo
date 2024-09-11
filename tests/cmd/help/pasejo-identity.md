@@ -2,7 +2,7 @@
 $ pasejo help identity
 Manage identities
 
-Usage: pasejo identity <COMMAND>
+Usage: pasejo identity [OPTIONS] <COMMAND>
 
 Commands:
   add     Adds an identity either to a single store or to your global configuration file
@@ -10,7 +10,9 @@ Commands:
   help    Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```
 
@@ -18,7 +20,7 @@ Options:
 $ pasejo identity --help
 Manage identities
 
-Usage: pasejo identity <COMMAND>
+Usage: pasejo identity [OPTIONS] <COMMAND>
 
 Commands:
   add     Adds an identity either to a single store or to your global configuration file
@@ -26,7 +28,9 @@ Commands:
   help    Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```
 
@@ -34,7 +38,7 @@ Options:
 $ pasejo identity -h
 Manage identities
 
-Usage: pasejo identity <COMMAND>
+Usage: pasejo identity [OPTIONS] <COMMAND>
 
 Commands:
   add     Adds an identity either to a single store or to your global configuration file
@@ -42,6 +46,8 @@ Commands:
   help    Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```

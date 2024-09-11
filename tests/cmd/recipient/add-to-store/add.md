@@ -1,15 +1,15 @@
 ```console
 $ PASEJO_CONFIG=config.toml pasejo store init --path store --name default
-Store initialized at [CWD]/store
+info: Store initialized at '[CWD]/store'
 
 $ PASEJO_CONFIG=config.toml pasejo recipient add --store default --public-key "age12abcdefghijklmnopqrstuvwxyz"
-Recipient added
+info: Recipient for 'age12abcdefghijklmnopqrstuvwxyz' added
 
 $ PASEJO_CONFIG=config.toml pasejo recipient add --store default  --public-key "age12zyxwvutsrqponmlkjihgfedcba" --name 'Alice Asounder'
-Recipient added
+info: Recipient for 'age12zyxwvutsrqponmlkjihgfedcba' added
 
 $ PASEJO_CONFIG=config.toml pasejo recipient add --store default  --public-key "age12abcdefghijklmnopqrstuvwxyz" --name 'Bob Builder'
-Recipient updated
+info: Recipient for 'age12abcdefghijklmnopqrstuvwxyz' updated
 
 ```
 

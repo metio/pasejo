@@ -1,3 +1,5 @@
+use std::io::Write;
+
 mod adapters;
 mod cli;
 mod commands;
@@ -22,6 +24,17 @@ fn main() -> Result<()> {
     CompleteEnv::with_factory(Cli::command).complete();
 
     let cli = Cli::parse();
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.log_level_filter())
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}: {}",
+                record.level().to_string().to_ascii_lowercase(),
+                record.args()
+            )
+        })
+        .init();
     let configuration = Configuration::load()?;
 
     dispatch_command(&cli, configuration)

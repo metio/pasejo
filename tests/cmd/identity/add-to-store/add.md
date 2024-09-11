@@ -1,19 +1,19 @@
 ```console
 $ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name default --default
-Store initialized at [CWD]/path/to/store
-Store default is now the default
+info: Store initialized at '[CWD]/path/to/store'
+info: Store 'default' is now the default
 
 $ PASEJO_CONFIG=config.toml pasejo store init --path path/to/other --name other
-Store initialized at [CWD]/path/to/other
+info: Store initialized at '[CWD]/path/to/other'
 
 $ PASEJO_CONFIG=config.toml pasejo identity add --store default --file some-identity
-Identity added
+info: Identity using file '[CWD]/some-identity' added
 
 $ PASEJO_CONFIG=config.toml pasejo identity add --store other --file some-identity
-Identity added
+info: Identity using file '[CWD]/some-identity' added
 
 $ PASEJO_CONFIG=config.toml pasejo identity add --file other-identity
-Identity added
+info: Identity using file '[CWD]/other-identity' added
 
 ```
 

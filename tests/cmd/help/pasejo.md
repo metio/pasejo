@@ -2,7 +2,7 @@
 $ pasejo help
 age-backed password manager for teams
 
-Usage: pasejo <COMMAND>
+Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   identity   Manage identities
@@ -12,8 +12,10 @@ Commands:
   help       Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+  -V, --version     Print version
 
 ```
 
@@ -21,7 +23,7 @@ Options:
 $ pasejo --help
 age-backed password manager for teams
 
-Usage: pasejo <COMMAND>
+Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   identity   Manage identities
@@ -31,15 +33,17 @@ Commands:
   help       Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+  -V, --version     Print version
 
 ```
 ```console
 $ pasejo -h
 age-backed password manager for teams
 
-Usage: pasejo <COMMAND>
+Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   identity   Manage identities
@@ -49,7 +53,9 @@ Commands:
   help       Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+  -V, --version     Print version
 
 ```

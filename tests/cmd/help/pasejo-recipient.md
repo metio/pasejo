@@ -2,7 +2,7 @@
 $ pasejo help recipient
 Manage recipients
 
-Usage: pasejo recipient <COMMAND>
+Usage: pasejo recipient [OPTIONS] <COMMAND>
 
 Commands:
   add      Adds a recipient
@@ -11,7 +11,9 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```
 
@@ -19,7 +21,7 @@ Options:
 $ pasejo recipient --help
 Manage recipients
 
-Usage: pasejo recipient <COMMAND>
+Usage: pasejo recipient [OPTIONS] <COMMAND>
 
 Commands:
   add      Adds a recipient
@@ -28,7 +30,9 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```
 
@@ -36,7 +40,7 @@ Options:
 $ pasejo recipient -h
 Manage recipients
 
-Usage: pasejo recipient <COMMAND>
+Usage: pasejo recipient [OPTIONS] <COMMAND>
 
 Commands:
   add      Adds a recipient
@@ -45,6 +49,8 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```

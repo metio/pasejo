@@ -89,6 +89,8 @@ fn do_with_store<F: FnOnce(&Store) -> Result<()>>(
     if let Some(store) = store {
         function(store)
     } else {
-        anyhow::bail!("No store found in configuration")
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store init ...' first to create one"
+        )
     }
 }

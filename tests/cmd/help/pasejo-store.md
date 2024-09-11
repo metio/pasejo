@@ -2,7 +2,7 @@
 $ pasejo help store
 Manage stores
 
-Usage: pasejo store <COMMAND>
+Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
   init         Initialize a new store
@@ -11,7 +11,9 @@ Commands:
   help         Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```
 
@@ -19,7 +21,7 @@ Options:
 $ pasejo store --help
 Manage stores
 
-Usage: pasejo store <COMMAND>
+Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
   init         Initialize a new store
@@ -28,7 +30,9 @@ Commands:
   help         Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```
 
@@ -36,7 +40,7 @@ Options:
 $ pasejo store -h
 Manage stores
 
-Usage: pasejo store <COMMAND>
+Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
   init         Initialize a new store
@@ -45,6 +49,8 @@ Commands:
   help         Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
 
 ```

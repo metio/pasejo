@@ -4,7 +4,7 @@ use std::path::{absolute, Path, PathBuf};
 use anyhow::Result;
 
 use crate::adapters::vcs::VersionControlSystems;
-use crate::cli::printer;
+use crate::cli::logs;
 use crate::models::configuration::Configuration;
 
 pub fn init(
@@ -22,7 +22,7 @@ pub fn init(
         store_name,
         vcs.clone(),
     )?;
-    printer::store_initialized(&canonical_path.display().to_string());
+    logs::store_initialized(&canonical_path.display().to_string());
     if default {
         set_default(configuration, store_name)?;
     }
@@ -34,13 +34,13 @@ pub fn remove(mut configuration: Configuration, store_name: &str, remove_data: b
     if remove_data {
         fs::remove_dir(Path::new(&path))?;
     }
-    printer::store_removed(store_name);
+    logs::store_removed(store_name);
     Ok(())
 }
 
 pub fn set_default(mut configuration: Configuration, store_name: &str) -> Result<()> {
     configuration.set_default_store(store_name)?;
-    printer::store_set_default(store_name);
+    logs::store_set_default(store_name);
     Ok(())
 }
 

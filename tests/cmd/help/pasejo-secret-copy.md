@@ -7,6 +7,8 @@ Usage: pasejo secret copy [OPTIONS]
 Options:
   -f, --force          Toggle prompt for overwrites of existing secrets
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -v, --verbose...     Increase logging verbosity
+  -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
 
 ```
@@ -20,6 +22,8 @@ Usage: pasejo secret copy [OPTIONS]
 Options:
   -f, --force          Toggle prompt for overwrites of existing secrets
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -v, --verbose...     Increase logging verbosity
+  -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
 
 ```
@@ -33,6 +37,8 @@ Usage: pasejo secret copy [OPTIONS]
 Options:
   -f, --force          Toggle prompt for overwrites of existing secrets
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -v, --verbose...     Increase logging verbosity
+  -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
 
 ```

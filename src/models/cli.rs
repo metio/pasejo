@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::ValueHint::{AnyPath, DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
+use clap_verbosity_flag::InfoLevel;
 
 use crate::adapters::vcs::VersionControlSystems;
 use crate::cli::completer;
@@ -13,6 +14,9 @@ use crate::cli::parser;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+
+    #[command(flatten)]
+    pub verbose: clap_verbosity_flag::Verbosity<InfoLevel>,
 }
 
 #[derive(Subcommand)]
@@ -301,7 +305,7 @@ pub struct StoreInitArgs {
     pub name: String,
 
     /// The version control system to use
-    #[arg(short, long, default_value_t, value_enum)]
+    #[arg(long, default_value_t, value_enum)]
     pub vcs: VersionControlSystems,
 
     /// Whether the new store should be the default store
