@@ -248,8 +248,8 @@ pub struct SecretInsertArgs {
     pub force: bool,
 
     /// Ignore existing recipients of existing secrets and inherit recipients
-    /// from nearest parent folder. Disabled when --recipient is used as well
-    #[arg(short, long)]
+    /// from nearest parent folder.
+    #[arg(short, long, conflicts_with = "recipient")]
     pub inherit: bool,
 
     /// Specify recipients for the new secret. Can be specified multiple times.
