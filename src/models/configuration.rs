@@ -154,10 +154,13 @@ impl Configuration {
         false
     }
 
-    pub fn all_identities(&self, store: &Store) -> Vec<Identity> {
+    pub fn all_identity_files(&self, store: &Store) -> Vec<String> {
         let mut identities = self.identities.clone();
         identities.extend(store.identities.clone());
         identities
+            .iter()
+            .map(|identity| identity.file.clone())
+            .collect()
     }
 
     pub fn all_store_names(&self) -> Vec<String> {
@@ -210,6 +213,18 @@ impl Store {
             PathBuf::from(secret_path),
             constants::SECRET_FILE_EXTENSION,
         ))
+    }
+
+    pub fn secret_at_path_exists(&self, path: &Path) -> bool {
+        let absolute_path_to_secret_file = self.resolve_path(file_system::append_file_extension(
+            path.to_path_buf(),
+            constants::SECRET_FILE_EXTENSION,
+        ));
+        let absolute_path_to_secret_directory = self.resolve_path(path);
+        let file_exists = absolute_path_to_secret_file.is_file();
+        let directory_exists = absolute_path_to_secret_directory.is_dir();
+
+        file_exists || directory_exists
     }
 
     pub fn find_nearest_existing_recipients(

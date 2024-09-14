@@ -4,8 +4,10 @@ mod adapters;
 mod cli;
 mod commands;
 mod downloader;
+mod identities;
 mod models;
 mod recipients;
+mod secrets;
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};

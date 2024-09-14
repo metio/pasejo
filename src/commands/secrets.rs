@@ -1,17 +1,13 @@
 use std::fs;
-use std::fs::write;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use age::cli_common::{read_identities, read_recipients, StdinGuard};
-use age::{Decryptor, Encryptor, Recipient};
-use anyhow::Context;
-use inquire::Confirm;
+use age::Decryptor;
 
 use crate::adapters::file_system;
-use crate::cli::{logs, prompts};
-use crate::commands::recipients;
-use crate::models::configuration::{Identity, Store};
+use crate::cli::prompts;
+use crate::models::configuration::Store;
+use crate::{identities, recipients, secrets};
 
 pub fn insert(
     store: &Store,
@@ -27,111 +23,39 @@ pub fn insert(
     if let Some(parent) = absolute_secret_path.parent() {
         fs::create_dir_all(parent)?;
     }
+    let mut files_to_commit: Vec<&Path> = vec![&absolute_secret_path];
     if !recipients.is_empty() {
-        replace_recipients(&absolute_recipients_path, recipients, force)?;
+        recipients::replace(&absolute_recipients_path, recipients, force)?;
+        files_to_commit.push(&absolute_recipients_path);
     }
-    let recipients_from_file = read_recipient_file(&absolute_recipients_path)?;
-    encrypt_secret(&secret, &absolute_secret_path, recipients_from_file)?;
+    let recipients_from_file = recipients::files::read(&absolute_recipients_path)?;
+    secrets::encrypt(&secret, &absolute_secret_path, recipients_from_file)?;
+
+    store
+        .vcs
+        .select_implementation(PathBuf::from(&store.path))
+        .commit(files_to_commit, &format!("Added secret '{secret_path}'"))?;
 
     Ok(())
 }
 
-fn replace_recipients(
-    absolute_recipients_path: &Path,
-    recipients: &Vec<String>,
-    force: bool,
+pub fn show(
+    store: &Store,
+    identity_files: Vec<String>,
+    secret_path: &String,
 ) -> anyhow::Result<()> {
-    if absolute_recipients_path.is_file() {
-        if force {
-            fs::remove_file(absolute_recipients_path)?;
-            write_recipients(absolute_recipients_path, recipients)?;
-            logs::recipients_file_replaced(absolute_recipients_path);
-        } else {
-            let replace_recipients = Confirm::new("Replace existing recipients?")
-                .with_default(false)
-                .with_help_message("Recipients will be taken from --recipient if confirmed")
-                .prompt()
-                .context("Could not get user answer")?;
-            if replace_recipients {
-                fs::remove_file(absolute_recipients_path)?;
-                write_recipients(absolute_recipients_path, recipients)?;
-                logs::recipients_file_replaced(absolute_recipients_path);
-            } else {
-                logs::recipients_file_use_existing(absolute_recipients_path);
-            }
-        }
-    } else {
-        write_recipients(absolute_recipients_path, recipients)?;
-        logs::recipients_file_created(absolute_recipients_path);
-    }
-    Ok(())
-}
-
-fn write_recipients(
-    absolute_recipients_path: &Path,
-    recipients: &Vec<String>,
-) -> anyhow::Result<()> {
-    for recipient in recipients {
-        let formatted_recipient = match recipient.split_once(',') {
-            None => recipients::format_recipient(recipient, &None),
-            Some((name, key)) => {
-                recipients::format_recipient(&key.to_string(), &Some(name.to_string()))
-            }
-        };
-        file_system::append_file(absolute_recipients_path, &formatted_recipient)?;
-    }
-    Ok(())
-}
-
-fn read_recipient_file(recipients_path: &Path) -> anyhow::Result<Vec<Box<dyn Recipient + Send>>> {
-    let recipients = read_recipients(
-        vec![],
-        vec![recipients_path.display().to_string()],
-        vec![],
-        None,
-        &mut StdinGuard::new(true),
-    )?;
-    Ok(recipients)
-}
-
-fn encrypt_secret(
-    secret: &str,
-    absolute_path: &Path,
-    recipients: Vec<Box<dyn Recipient + Send>>,
-) -> anyhow::Result<()> {
-    let Some(encryptor) = Encryptor::with_recipients(recipients) else {
-        unreachable!()
-    };
-    let mut encrypted = vec![];
-    let mut writer = encryptor.wrap_output(&mut encrypted)?;
-    writer.write_all(secret.as_bytes())?;
-    writer.finish()?;
-    write(absolute_path, encrypted)?;
-    Ok(())
-}
-
-pub fn show(store: &Store, identities: &[Identity], secret_path: &String) -> anyhow::Result<()> {
     let absolute_secret_path = store.resolve_secret_path(secret_path);
     let encrypted = fs::read(&absolute_secret_path)?;
     let Decryptor::Recipients(decryptor) = Decryptor::new_buffered(&encrypted[..])? else {
         unreachable!()
     };
     let mut decrypted = vec![];
-    let parsed_identities = read_all_identities(identities)?;
+    let parsed_identities = identities::read(identity_files)?;
     let mut reader = decryptor.decrypt(parsed_identities.iter().map(std::ops::Deref::deref))?;
     reader.read_to_end(&mut decrypted)?;
     let decrypted_text = String::from_utf8(decrypted)?;
     println!("{decrypted_text}");
     Ok(())
-}
-
-fn read_all_identities(identities: &[Identity]) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
-    let filenames: Vec<String> = identities
-        .iter()
-        .map(|identity| identity.file.clone())
-        .collect();
-    let parsed_identities = read_identities(filenames, None, &mut StdinGuard::new(true))?;
-    Ok(parsed_identities)
 }
 
 pub fn list(store: &Store) -> anyhow::Result<()> {
