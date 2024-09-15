@@ -53,6 +53,47 @@ pub fn file_tree<P: AsRef<Path>>(
     Ok(result)
 }
 
+pub fn file_list<P: AsRef<Path>>(
+    parent_name: &str,
+    path: P,
+    file_extension: &str,
+) -> io::Result<Vec<String>> {
+    let mut entries: Vec<String> = vec![];
+
+    if path.as_ref().is_dir() {
+        for entry in fs::read_dir(&path)? {
+            let entry = entry?;
+            let entry_path = entry.path();
+            if entry_path.is_dir() {
+                entries.extend(file_list(
+                    &entry_path
+                        .file_name()
+                        .and_then(OsStr::to_str)
+                        .map(std::borrow::ToOwned::to_owned)
+                        .map_or_else(
+                            || parent_name.to_owned(),
+                            |path_to_dir| format!("{parent_name}/{path_to_dir}"),
+                        ),
+                    &entry_path,
+                    file_extension,
+                )?);
+            } else if has_file_extension(&entry_path, file_extension) {
+                if let Some(stem) = entry_path
+                    .file_stem()
+                    .and_then(OsStr::to_str)
+                    .map(std::borrow::ToOwned::to_owned)
+                    .map(|path_to_secret| format!("{parent_name}/{path_to_secret}"))
+                {
+                    entries.push(stem);
+                }
+            }
+        }
+    }
+
+    entries.sort();
+    Ok(entries)
+}
+
 /// Extracts the file name of a path. The file name is defined as the last
 /// segment of a path.
 ///

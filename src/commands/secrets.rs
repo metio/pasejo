@@ -58,8 +58,15 @@ pub fn show(
     Ok(())
 }
 
-pub fn list(store: &Store) -> anyhow::Result<()> {
-    let output = file_system::file_tree(store.name.clone(), PathBuf::from(&store.path), "age")?;
-    print!("{output}");
+pub fn list(store: &Store, tree: bool) -> anyhow::Result<()> {
+    if tree {
+        let output = file_system::file_tree(store.name.clone(), PathBuf::from(&store.path), "age")?;
+        print!("{output}");
+    } else {
+        let secrets = file_system::file_list(&store.name, PathBuf::from(&store.path), "age")?;
+        for secret in &secrets {
+            println!("{secret}");
+        }
+    }
     Ok(())
 }
