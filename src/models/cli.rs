@@ -268,6 +268,10 @@ pub struct SecretInsertArgs {
 pub struct SecretListArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
+
+    /// Toggle to display secrets as tree
+    #[arg(short, long)]
+    pub tree: bool,
 }
 
 #[derive(Args)]
