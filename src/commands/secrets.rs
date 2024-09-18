@@ -22,9 +22,6 @@ pub fn insert(
     } else {
         let mut str = String::new();
         BufReader::new(stdin().lock()).read_to_string(&mut str)?;
-        if str.is_empty() {
-            anyhow::bail!("We are not running in an interactive terminal and no data was piped into us, therefore not inserting anything")
-        }
         str
     };
     let absolute_recipients_path = store.find_nearest_existing_recipients(secret_path, inherit)?;
