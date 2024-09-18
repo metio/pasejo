@@ -38,19 +38,19 @@ mod tests {
     fn recipients_file_for_secret_file() {
         let path = Some(PathBuf::from("secret-name"));
         let file = for_secret_path(&path, false);
-        assert_eq!(file, PathBuf::from("secret-name.recipients"));
+        assert_eq!(file, PathBuf::from("secret-name.age-recipients"));
     }
 
     #[test]
     fn recipients_file_for_secret_directory() {
         let path = Some(PathBuf::from("some/folder"));
         let file = for_secret_path(&path, true);
-        assert_eq!(file, PathBuf::from("some/folder/.recipients"));
+        assert_eq!(file, PathBuf::from("some/folder/.age-recipients"));
     }
 
     #[test]
     fn recipients_file_for_empty_secret() {
         let file = for_secret_path(&None, true);
-        assert_eq!(file, PathBuf::from(".recipients"));
+        assert_eq!(file, PathBuf::from(".age-recipients"));
     }
 }

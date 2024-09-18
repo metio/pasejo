@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::Read;
+use std::io::{stdin, BufReader, IsTerminal, Read};
 use std::path::{Path, PathBuf};
 
 use age::Decryptor;
@@ -17,7 +17,16 @@ pub fn insert(
     secret_path: &String,
     recipients: &Vec<String>,
 ) -> anyhow::Result<()> {
-    let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
+    let secret = if stdin().is_terminal() {
+        prompts::read_secret_from_user_input(secret_path, multiline)?
+    } else {
+        let mut str = String::new();
+        BufReader::new(stdin().lock()).read_to_string(&mut str)?;
+        if str.is_empty() {
+            anyhow::bail!("We are not running in an interactive terminal and no data was piped into us, therefore not inserting anything")
+        }
+        str
+    };
     let absolute_recipients_path = store.find_nearest_existing_recipients(secret_path, inherit)?;
     let absolute_secret_path = store.resolve_secret_path(secret_path);
     if let Some(parent) = absolute_secret_path.parent() {

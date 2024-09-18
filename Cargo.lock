@@ -1913,6 +1913,7 @@ dependencies = [
  "log",
  "mockall",
  "predicates",
+ "regex",
  "reqwest",
  "rexpect",
  "serde",

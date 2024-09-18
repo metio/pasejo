@@ -275,6 +275,7 @@ mod tests {
     use assert_fs::TempDir;
 
     use crate::adapters::vcs::VersionControlSystems;
+    use crate::cli::constants;
     use crate::models::configuration::Store;
 
     #[test]
@@ -283,7 +284,10 @@ mod tests {
         test_find_nearest_recipients(&temp, false, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            let secret_recipients = temp.child(format!(
+                "{secret_path}{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -296,7 +300,10 @@ mod tests {
         test_find_nearest_recipients(&temp, false, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child("some/nested/folder/structure/.recipients");
+            let secret_recipients = temp.child(format!(
+                "some/nested/folder/structure/{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -309,7 +316,10 @@ mod tests {
         test_find_nearest_recipients(&temp, false, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child("some/nested/folder/.recipients");
+            let secret_recipients = temp.child(format!(
+                "some/nested/folder/{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -322,7 +332,7 @@ mod tests {
         test_find_nearest_recipients(&temp, false, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child(".recipients");
+            let secret_recipients = temp.child(constants::RECIPIENTS_DOT_EXTENSION);
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -335,7 +345,10 @@ mod tests {
         let error: &str = test_find_nearest_recipients(&temp, true, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            let secret_recipients = temp.child(format!(
+                "{secret_path}{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -352,9 +365,15 @@ mod tests {
         test_find_nearest_recipients(&temp, true, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            let secret_recipients = temp.child(format!(
+                "{secret_path}{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
-            let secret_recipients = temp.child("some/nested/folder/structure/.recipients");
+            let secret_recipients = temp.child(format!(
+                "some/nested/folder/structure/{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -367,9 +386,15 @@ mod tests {
         test_find_nearest_recipients(&temp, true, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            let secret_recipients = temp.child(format!(
+                "{secret_path}{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
-            let secret_recipients = temp.child("some/nested/folder/.recipients");
+            let secret_recipients = temp.child(format!(
+                "some/nested/folder/{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))
@@ -382,9 +407,12 @@ mod tests {
         test_find_nearest_recipients(&temp, true, || {
             let secret_path = String::from("some/nested/folder/structure/secret");
             temp.child(&secret_path).create_dir_all()?;
-            let secret_recipients = temp.child(format!("{secret_path}.recipients"));
+            let secret_recipients = temp.child(format!(
+                "{secret_path}{}",
+                constants::RECIPIENTS_DOT_EXTENSION
+            ));
             secret_recipients.touch()?;
-            let secret_recipients = temp.child(".recipients");
+            let secret_recipients = temp.child(constants::RECIPIENTS_DOT_EXTENSION);
             secret_recipients.touch()?;
 
             Ok((secret_path, secret_recipients))

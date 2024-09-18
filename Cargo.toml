@@ -41,6 +41,7 @@ assert_cmd = { version = "2.0.16" }
 assert_fs = { version = "1.1.2" }
 mockall = { version = "0.13.0" }
 predicates = "3.1.2"
+regex = { version = "1.10.6" }
 rexpect = { version = "0.5.0" }
 serial_test = { version = "3.1.1" }
 ssh-key = { version = "0.6.6", features = ["ed25519", "rsa"] }

@@ -19,3 +19,12 @@ Usage: pasejo secret insert --inherit <SECRET_PATH>
 For more information, try '--help'.
 
 ```
+
+```console
+$ PASEJO_CONFIG=config.toml pasejo recipient add --file recipient
+info: Recipient for '[RECIPIENT]' added
+
+$ echo 'secret:abc' | PASEJO_CONFIG=config.toml pasejo secret insert path/to/secret
+secret:abc | PASEJO_CONFIG=config.toml pasejo secret insert path/to/secret
+
+```
