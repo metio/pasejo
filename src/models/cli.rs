@@ -291,6 +291,10 @@ pub struct SecretShowArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
 
+    /// Toggle to display secrets as QR code
+    #[arg(short = 'c', long)]
+    pub qrcode: bool,
+
     /// The path of the secret within the selected store
     pub secret_path: String,
 }

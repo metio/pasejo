@@ -48,6 +48,7 @@ pub fn insert(
 pub fn show(
     store: &Store,
     identity_files: Vec<String>,
+    qrcode: bool,
     secret_path: &String,
 ) -> anyhow::Result<()> {
     let absolute_secret_path = store.resolve_secret_path(secret_path);
@@ -60,7 +61,11 @@ pub fn show(
     let mut reader = decryptor.decrypt(parsed_identities.iter().map(std::ops::Deref::deref))?;
     reader.read_to_end(&mut decrypted)?;
     let decrypted_text = String::from_utf8(decrypted)?;
-    println!("{decrypted_text}");
+    if qrcode {
+        qr2term::print_qr(decrypted_text)?;
+    } else {
+        println!("{decrypted_text}");
+    }
     Ok(())
 }
 

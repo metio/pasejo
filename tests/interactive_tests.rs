@@ -52,6 +52,7 @@ fn insert_secret_with_ssh_rsa_key() -> anyhow::Result<()> {
 fn insert_secret_with_key(public_key: &str, private_key: &str) -> anyhow::Result<()> {
     let secret_name = "some/secret";
     let secret_text = "here is a very secret text";
+    let qrcode = qr2term::generate_qr_string(secret_text)?;
     run_command(
         &format!("secret insert {secret_name}"),
         public_key,
@@ -73,6 +74,17 @@ fn insert_secret_with_key(public_key: &str, private_key: &str) -> anyhow::Result
                 .env("PASEJO_CONFIG", temp.path().join("config.toml"))
                 .assert()
                 .stdout(predicate::eq(format!("{secret_text}\n")))
+                .success()
+                .code(0);
+
+            Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+                .arg("secret")
+                .arg("show")
+                .arg("--qrcode")
+                .arg(secret_name)
+                .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+                .assert()
+                .stdout(predicate::eq(qrcode))
                 .success()
                 .code(0);
 

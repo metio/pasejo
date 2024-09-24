@@ -64,6 +64,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                     secrets::show(
                         store,
                         configuration.all_identity_files(store),
+                        args.qrcode,
                         &args.secret_path,
                     )
                 },
