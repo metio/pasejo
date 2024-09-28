@@ -56,7 +56,10 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 configuration.select_store(&args.store_selection.store),
                 |store| secrets::list(store, args.tree),
             ),
-            SecretCommands::Move(_) => Ok(()),
+            SecretCommands::Move(args) => do_with_store(
+                configuration.select_store(&args.store_selection.store),
+                |store| secrets::mv(store, &args.current_path, &args.new_path),
+            ),
             SecretCommands::Remove(_) => Ok(()),
             SecretCommands::Show(args) => do_with_store(
                 configuration.select_store(&args.store_selection.store),

@@ -40,6 +40,7 @@ fn cli_tests() {
     if let (Ok(touch), Ok(mkdir)) = (which::which("touch"), which::which("mkdir")) {
         trycmd::TestCases::new()
             .case("tests/cmd/secret/list/*.md")
+            .case("tests/cmd/secret/move/*.md")
             .register_bin("touch", touch)
             .register_bin("mkdir", mkdir);
     }

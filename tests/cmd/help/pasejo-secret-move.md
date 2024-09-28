@@ -2,7 +2,11 @@
 $ pasejo secret help move
 Move secret from old-path to new-path
 
-Usage: pasejo secret move [OPTIONS]
+Usage: pasejo secret move [OPTIONS] <CURRENT_PATH> <NEW_PATH>
+
+Arguments:
+  <CURRENT_PATH>  The current path of the secret
+  <NEW_PATH>      The new path of the secret
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
@@ -16,7 +20,11 @@ Options:
 $ pasejo secret move --help
 Move secret from old-path to new-path
 
-Usage: pasejo secret move [OPTIONS]
+Usage: pasejo secret move [OPTIONS] <CURRENT_PATH> <NEW_PATH>
+
+Arguments:
+  <CURRENT_PATH>  The current path of the secret
+  <NEW_PATH>      The new path of the secret
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
@@ -30,7 +38,11 @@ Options:
 $ pasejo secret move -h
 Move secret from old-path to new-path
 
-Usage: pasejo secret move [OPTIONS]
+Usage: pasejo secret move [OPTIONS] <CURRENT_PATH> <NEW_PATH>
+
+Arguments:
+  <CURRENT_PATH>  The current path of the secret
+  <NEW_PATH>      The new path of the secret
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration

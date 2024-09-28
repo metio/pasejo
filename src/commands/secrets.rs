@@ -38,8 +38,7 @@ pub fn insert(
     secrets::encrypt(&secret, &absolute_secret_path, recipients_from_file)?;
 
     store
-        .vcs
-        .select_implementation(PathBuf::from(&store.path))
+        .vcs()
         .commit(files_to_commit, &format!("Added secret '{secret_path}'"))?;
 
     Ok(())
@@ -80,4 +79,40 @@ pub fn list(store: &Store, tree: bool) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn mv(store: &Store, current_path: &String, new_path: &String) -> anyhow::Result<()> {
+    if store.secret_at_path_exists(Path::new(current_path)) {
+        let current_absolute_secret_path = store.resolve_secret_path(current_path);
+        let new_absolute_secret_path = store.resolve_secret_path(new_path);
+
+        if let Some(parent) = new_absolute_secret_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        fs::rename(&current_absolute_secret_path, &new_absolute_secret_path)?;
+
+        let mut files_to_commit: Vec<&Path> =
+            vec![&current_absolute_secret_path, &new_absolute_secret_path];
+
+        let current_absolute_recipients_path = store.resolve_recipients_path(current_path);
+        let new_absolute_recipients_path = store.resolve_recipients_path(new_path);
+
+        if current_absolute_recipients_path.is_file() {
+            files_to_commit.push(current_absolute_recipients_path.as_path());
+            files_to_commit.push(new_absolute_recipients_path.as_path());
+            fs::rename(
+                &current_absolute_recipients_path,
+                &new_absolute_recipients_path,
+            )?;
+        }
+
+        store.vcs().commit(
+            files_to_commit,
+            &format!("Moved secret from '{current_path}' to '{new_path}'"),
+        )?;
+        Ok(())
+    } else {
+        anyhow::bail!("No secret exists at '{current_path}'")
+    }
 }

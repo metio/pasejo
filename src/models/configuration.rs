@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::adapters::file_system;
-use crate::adapters::vcs::VersionControlSystems;
+use crate::adapters::vcs::{VersionControlSystem, VersionControlSystems};
 use crate::cli::{constants, environment_variables};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -203,6 +203,10 @@ impl Configuration {
 }
 
 impl Store {
+    pub fn vcs(&self) -> Box<dyn VersionControlSystem> {
+        self.vcs.select_implementation(PathBuf::from(&self.path))
+    }
+
     #[must_use]
     pub fn resolve_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         PathBuf::from(&self.path).join(&path)
@@ -212,6 +216,13 @@ impl Store {
         self.resolve_path(file_system::append_file_extension(
             PathBuf::from(secret_path),
             constants::SECRET_FILE_EXTENSION,
+        ))
+    }
+
+    pub fn resolve_recipients_path(&self, secret_path: &String) -> PathBuf {
+        self.resolve_path(file_system::append_file_extension(
+            PathBuf::from(secret_path),
+            constants::RECIPIENTS_FILE_EXTENSION,
         ))
     }
 

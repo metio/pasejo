@@ -11,9 +11,7 @@ pub fn store_name(input: &str) -> anyhow::Result<String> {
     if names.contains(&input.to_owned()) {
         Ok(input.to_owned())
     } else {
-        anyhow::bail!(format!(
-            "Store with name '{input}' does not exist in configuration"
-        ))
+        anyhow::bail!("Store with name '{input}' does not exist in configuration")
     }
 }
 
@@ -24,6 +22,6 @@ pub fn existing_file(input: &str) -> anyhow::Result<PathBuf> {
     if absolute_path.is_file() {
         Ok(path.to_path_buf())
     } else {
-        anyhow::bail!(format!("The file '{input}' does not exist"))
+        anyhow::bail!("The file '{input}' does not exist")
     }
 }

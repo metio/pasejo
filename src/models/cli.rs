@@ -278,6 +278,12 @@ pub struct SecretListArgs {
 pub struct SecretMoveArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
+
+    /// The current path of the secret
+    pub current_path: String,
+
+    /// The new path of the secret
+    pub new_path: String,
 }
 
 #[derive(Args)]
