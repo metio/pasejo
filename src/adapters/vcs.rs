@@ -13,6 +13,7 @@ pub trait VersionControlSystem {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, clap::ValueEnum)]
 pub enum VersionControlSystems {
     #[default]
+    Auto,
     None,
     Git,
     Mercurial,
@@ -20,10 +21,29 @@ pub enum VersionControlSystems {
 
 impl VersionControlSystems {
     pub fn select_implementation(&self, root: PathBuf) -> Box<dyn VersionControlSystem> {
-        match self {
+        match self.resolve_auto() {
             Self::None => Box::new(None {}),
             Self::Git => Box::new(Git { root }),
             Self::Mercurial => Box::new(Mercurial { root }),
+            Self::Auto => unreachable!(
+                "We resolve 'Auto' to something concrete - if this is reached we messed up"
+            ),
+        }
+    }
+    pub fn resolve_auto(&self) -> Self {
+        match self {
+            Self::Auto => {
+                if which::which("git").is_ok() {
+                    Self::Git
+                } else if which::which("hg").is_ok() {
+                    Self::Mercurial
+                } else {
+                    Self::None
+                }
+            }
+            Self::None => Self::None,
+            Self::Git => Self::Git,
+            Self::Mercurial => Self::Mercurial,
         }
     }
 }

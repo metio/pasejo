@@ -1,5 +1,5 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name something
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name something --vcs none
 info: Store initialized at '[CWD]/path/to/store'
 
 $ PASEJO_CONFIG=config.toml pasejo secret insert --recipient abc --inherit path/to/secret

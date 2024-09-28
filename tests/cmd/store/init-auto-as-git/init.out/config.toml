@@ -1,0 +1,7 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/path/to/store"
+name = "default"
+vcs = "Git"
+identities = []

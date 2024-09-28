@@ -20,7 +20,7 @@ pub fn init(
     configuration.add_store(
         canonical_path.display().to_string(),
         store_name,
-        vcs.clone(),
+        vcs.resolve_auto(),
     )?;
     logs::store_initialized(&canonical_path.display().to_string());
     if default {

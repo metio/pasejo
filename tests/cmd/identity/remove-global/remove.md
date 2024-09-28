@@ -1,5 +1,5 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name default
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name default --vcs none
 info: Store initialized at '[CWD]/path/to/store'
 
 $ PASEJO_CONFIG=config.toml pasejo identity add --file some-identity --global

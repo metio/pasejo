@@ -1,5 +1,5 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path store --name default
+$ PASEJO_CONFIG=config.toml pasejo store init --path store --name default --vcs none
 info: Store initialized at '[CWD]/store'
 
 $ PASEJO_CONFIG=config.toml pasejo recipient add --store default --public-key "age12abcdefghijklmnopqrstuvwxyz"

@@ -122,6 +122,8 @@ where
         .arg(temp.path())
         .arg("--name")
         .arg("test")
+        .arg("--vcs")
+        .arg("none")
         .env("PASEJO_CONFIG", temp.path().join("config.toml"))
         .assert()
         .success()

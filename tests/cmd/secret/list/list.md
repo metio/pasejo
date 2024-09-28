@@ -1,5 +1,5 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name something
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name something --vcs none
 info: Store initialized at '[CWD]/path/to/store'
 
 $ mkdir -p path/to/store/sub/folder/name

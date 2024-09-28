@@ -1,8 +1,8 @@
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name default
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/store --name default --vcs none
 info: Store initialized at '[CWD]/path/to/store'
 
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/other --name other
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/other --name other --vcs none
 info: Store initialized at '[CWD]/path/to/other'
 
 $ PASEJO_CONFIG=config.toml pasejo store remove --name default
@@ -11,7 +11,7 @@ info: Store 'default' removed
 ```
 
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/somewhere --name some-name --default
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/somewhere --name some-name --default --vcs none
 info: Store initialized at '[CWD]/path/to/somewhere'
 info: Store 'some-name' is now the default
 
@@ -21,7 +21,7 @@ info: Store 'some-name' removed
 ```
 
 ```console
-$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/someplace --name some-place
+$ PASEJO_CONFIG=config.toml pasejo store init --path path/to/someplace --name some-place --vcs none
 info: Store initialized at '[CWD]/path/to/someplace'
 
 $ PASEJO_CONFIG=config.toml pasejo store remove --name some-place

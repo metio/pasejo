@@ -7,7 +7,7 @@ passage re-implementation in Rust for teams.
 Initialize a new store first:
 
 ```console
-$ pasejo stores init --path path/to/store --alias some-name --vcs git
+$ pasejo stores init --path path/to/store --alias some-name
 ```
 
 ## TODO
