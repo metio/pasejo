@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use crate::cli::prompts;
 use crate::commands::{identities, recipients, secrets, stores};
 use crate::models::cli::{
     Cli, Commands, IdentityCommands, RecipientCommands, SecretCommands, StoreCommands,
@@ -47,8 +46,8 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                         store,
                         args.force,
                         args.inherit,
+                        args.multiline,
                         &args.secret_path,
-                        &prompts::read_secret_from_user_input(&args.secret_path, args.multiline)?,
                         &args.recipient,
                     )
                 },

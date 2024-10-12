@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use age::Decryptor;
 
 use crate::adapters::file_system;
+use crate::cli::prompts;
 use crate::models::configuration::Store;
 use crate::{identities, recipients, secrets};
 
@@ -12,17 +13,20 @@ pub fn insert(
     store: &Store,
     force: bool,
     inherit: bool,
+    multiline: bool,
     secret_path: &String,
-    secret: &str,
     recipients: &Vec<String>,
 ) -> anyhow::Result<()> {
-    let absolute_recipients_path = store.find_nearest_existing_recipients(secret_path, inherit)?;
+    let secret = &prompts::read_secret_from_user_input(secret_path, multiline, "secret")?;
+    let mut absolute_recipients_path =
+        store.find_nearest_existing_recipients(secret_path, inherit)?;
     let absolute_secret_path = store.resolve_secret_path(secret_path);
     if let Some(parent) = absolute_secret_path.parent() {
         fs::create_dir_all(parent)?;
     }
     let mut files_to_commit: Vec<&Path> = vec![&absolute_secret_path];
     if !recipients.is_empty() {
+        absolute_recipients_path = store.resolve_recipients_path(secret_path);
         recipients::replace(&absolute_recipients_path, recipients, force)?;
         files_to_commit.push(&absolute_recipients_path);
     }

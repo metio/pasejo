@@ -4,8 +4,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use inquire::Confirm;
 use termtree::Tree;
+
+use crate::cli::logs;
 
 pub fn append_file(path: &Path, content: &String) -> Result<()> {
     let mut file = fs::OpenOptions::new()
@@ -23,6 +26,39 @@ pub fn append_file_extension(path: PathBuf, file_extension: &str) -> PathBuf {
     }
     p.push(file_extension);
     p.into()
+}
+
+pub fn replace_file_content(
+    path: &Path,
+    content: &String,
+    force: bool,
+    confirm_message: &str,
+    help_message: &str,
+) -> Result<()> {
+    if path.is_file() {
+        if force {
+            fs::remove_file(path)?;
+            append_file(path, content)?;
+            logs::recipients_file_replaced(path);
+        } else {
+            let replace_recipients = Confirm::new(confirm_message)
+                .with_default(false)
+                .with_help_message(help_message)
+                .prompt()
+                .context("Could not get user answer")?;
+            if replace_recipients {
+                fs::remove_file(path)?;
+                append_file(path, content)?;
+                logs::recipients_file_replaced(path);
+            } else {
+                logs::recipients_file_use_existing(path);
+            }
+        }
+    } else {
+        append_file(path, content)?;
+        logs::recipients_file_created(path);
+    }
+    Ok(())
 }
 
 pub fn file_tree<P: AsRef<Path>>(
