@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::adapters::user_inputs;
 use crate::commands::{identities, recipients, secrets, stores};
 use crate::models::cli::{
     Cli, Commands, IdentityCommands, RecipientCommands, SecretCommands, StoreCommands,
@@ -44,10 +45,10 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 |store| {
                     secrets::insert(
                         store,
-                        args.multiline,
                         args.force,
                         args.inherit,
                         &args.secret_path,
+                        &user_inputs::secret(&args.secret_path, args.multiline)?,
                         &args.recipient,
                     )
                 },

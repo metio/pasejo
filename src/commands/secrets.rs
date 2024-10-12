@@ -1,29 +1,21 @@
 use std::fs;
-use std::io::{stdin, BufReader, IsTerminal, Read};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use age::Decryptor;
 
 use crate::adapters::file_system;
-use crate::cli::prompts;
 use crate::models::configuration::Store;
 use crate::{identities, recipients, secrets};
 
 pub fn insert(
     store: &Store,
-    multiline: bool,
     force: bool,
     inherit: bool,
     secret_path: &String,
+    secret: &str,
     recipients: &Vec<String>,
 ) -> anyhow::Result<()> {
-    let secret = if stdin().is_terminal() {
-        prompts::read_secret_from_user_input(secret_path, multiline)?
-    } else {
-        let mut str = String::new();
-        BufReader::new(stdin().lock()).read_to_string(&mut str)?;
-        str
-    };
     let absolute_recipients_path = store.find_nearest_existing_recipients(secret_path, inherit)?;
     let absolute_secret_path = store.resolve_secret_path(secret_path);
     if let Some(parent) = absolute_secret_path.parent() {
@@ -35,7 +27,7 @@ pub fn insert(
         files_to_commit.push(&absolute_recipients_path);
     }
     let recipients_from_file = recipients::files::read(&absolute_recipients_path)?;
-    secrets::encrypt(&secret, &absolute_secret_path, recipients_from_file)?;
+    secrets::encrypt(secret, &absolute_secret_path, recipients_from_file)?;
 
     store
         .vcs()
