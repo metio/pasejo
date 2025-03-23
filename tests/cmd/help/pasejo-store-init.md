@@ -7,7 +7,7 @@ Usage: pasejo store init [OPTIONS] --path <PATH> --name <NAME>
 Options:
   -p, --path <PATH>  The path on your local system for the new store
   -n, --name <NAME>  The name for the new store
-      --vcs <VCS>    The version control system to use [default: auto] [possible values: auto, none, git, mercurial]
+      --vcs <VCS>    The version control system to use [default: auto] [possible values: auto, none, git, mercurial, pijul]
   -d, --default      Whether the new store should be the default store
   -v, --verbose...   Increase logging verbosity
   -q, --quiet...     Decrease logging verbosity
@@ -24,7 +24,7 @@ Usage: pasejo store init [OPTIONS] --path <PATH> --name <NAME>
 Options:
   -p, --path <PATH>  The path on your local system for the new store
   -n, --name <NAME>  The name for the new store
-      --vcs <VCS>    The version control system to use [default: auto] [possible values: auto, none, git, mercurial]
+      --vcs <VCS>    The version control system to use [default: auto] [possible values: auto, none, git, mercurial, pijul]
   -d, --default      Whether the new store should be the default store
   -v, --verbose...   Increase logging verbosity
   -q, --quiet...     Decrease logging verbosity
@@ -41,7 +41,7 @@ Usage: pasejo store init [OPTIONS] --path <PATH> --name <NAME>
 Options:
   -p, --path <PATH>  The path on your local system for the new store
   -n, --name <NAME>  The name for the new store
-      --vcs <VCS>    The version control system to use [default: auto] [possible values: auto, none, git, mercurial]
+      --vcs <VCS>    The version control system to use [default: auto] [possible values: auto, none, git, mercurial, pijul]
   -d, --default      Whether the new store should be the default store
   -v, --verbose...   Increase logging verbosity
   -q, --quiet...     Decrease logging verbosity

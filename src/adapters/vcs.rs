@@ -17,6 +17,7 @@ pub enum VersionControlSystems {
     None,
     Git,
     Mercurial,
+    Pijul,
 }
 
 impl VersionControlSystems {
@@ -25,11 +26,13 @@ impl VersionControlSystems {
             Self::None => Box::new(None {}),
             Self::Git => Box::new(Git { root }),
             Self::Mercurial => Box::new(Mercurial { root }),
+            Self::Pijul => Box::new(Pijul { root }),
             Self::Auto => unreachable!(
                 "We resolve 'Auto' to something concrete - if this is reached we messed up"
             ),
         }
     }
+
     pub fn resolve_auto(&self) -> Self {
         match self {
             Self::Auto => {
@@ -37,6 +40,8 @@ impl VersionControlSystems {
                     Self::Git
                 } else if which::which("hg").is_ok() {
                     Self::Mercurial
+                } else if which::which("pijul").is_ok() {
+                    Self::Pijul
                 } else {
                     Self::None
                 }
@@ -44,6 +49,7 @@ impl VersionControlSystems {
             Self::None => Self::None,
             Self::Git => Self::Git,
             Self::Mercurial => Self::Mercurial,
+            Self::Pijul => Self::Pijul,
         }
     }
 }
@@ -126,6 +132,51 @@ impl VersionControlSystem for Mercurial {
             .with_context(|| {
                 format!(
                     "Failed to commit files '{:?}' to Mercurial repository at '{}'",
+                    &files_to_commit,
+                    &self.root.display()
+                )
+            })?;
+        Ok(())
+    }
+}
+
+pub struct Pijul {
+    pub root: PathBuf,
+}
+
+impl VersionControlSystem for Pijul {
+    fn init(&self) -> Result<()> {
+        cmd!("pijul", "init", &self.root)
+            .stdout_capture()
+            .run()
+            .with_context(|| {
+                format!(
+                    "Failed to initialize Pijul repository at {}",
+                    &self.root.display()
+                )
+            })?;
+        Ok(())
+    }
+
+    fn commit(&self, files_to_commit: Vec<&Path>, message: &str) -> Result<()> {
+        for file in &files_to_commit {
+            cmd!("pijul", "add", file)
+                .dir(&self.root)
+                .run()
+                .with_context(|| {
+                    format!(
+                        "Failed to add file '{}' to Pijul repository at '{}'",
+                        file.display(),
+                        &self.root.display()
+                    )
+                })?;
+        }
+        cmd!("pijul", "record", "--message", message)
+            .dir(&self.root)
+            .run()
+            .with_context(|| {
+                format!(
+                    "Failed to commit files '{:?}' to Pijul repository at '{}'",
                     &files_to_commit,
                     &self.root.display()
                 )
