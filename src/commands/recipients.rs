@@ -49,13 +49,21 @@ pub fn add(
                 let absolute_secret_path = store.resolve_path(path);
                 secrets::reencrypt(&absolute_secret_path, &identities, &parsed_recipients)?;
             }
-
             files_to_commit.extend(secrets_covered_by_recipients_file);
         }
     } else {
         // create new .age-recipients file
         let recipient = format::recipient(public_key, name);
         file_system::append_file(&absolute_path_to_recipients_file, &recipient)?;
+        let identities = identities::read(identity_files)?;
+        let parsed_recipients = files::read(&absolute_path_to_recipients_file)?;
+        let secrets_covered_by_recipients_file =
+            store.find_secrets_covered_by_recipients_file(&recipients_file)?;
+        for path in &secrets_covered_by_recipients_file {
+            let absolute_secret_path = store.resolve_path(path);
+            secrets::reencrypt(&absolute_secret_path, &identities, &parsed_recipients)?;
+        }
+        files_to_commit.extend(secrets_covered_by_recipients_file);
         logs::recipient_added(public_key);
     }
 
