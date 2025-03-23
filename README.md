@@ -1,6 +1,6 @@
 # pasejo
 
-passage re-implementation in Rust for teams.
+passage re-implementation in Rust for teams. **WORK IN PROGRESS** - This will eat your data and burn the seas.
 
 ## Usage
 
