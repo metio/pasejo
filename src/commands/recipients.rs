@@ -11,10 +11,10 @@ use crate::recipients::{files, format, upsert};
 pub fn add(
     store: &Store,
     public_key: &String,
-    name: &Option<String>,
-    path_to_secret: &Option<PathBuf>,
+    name: Option<&String>,
+    path_to_secret: Option<&PathBuf>,
 ) -> anyhow::Result<()> {
-    let path_is_directory = path_to_secret.as_ref().map_or(true, |path| if store.secret_at_path_exists(path) {
+    let path_is_directory = path_to_secret.as_ref().is_none_or(|path| if store.secret_at_path_exists(path) {
         let absolute_path_to_secret_directory = store.resolve_path(path);
         absolute_path_to_secret_directory.is_dir()
     } else {

@@ -1,7 +1,7 @@
 use std::env::var_os;
-use std::path::{absolute, Path, PathBuf};
+use std::path::{Path, PathBuf, absolute};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
 use crate::adapters::file_system;
@@ -111,7 +111,7 @@ impl Configuration {
     pub fn add_identity(
         &mut self,
         identity: Identity,
-        store_name: &Option<String>,
+        store_name: Option<&String>,
         global: bool,
     ) -> Result<()> {
         if global {
@@ -127,7 +127,7 @@ impl Configuration {
     pub fn remove_identity(
         &mut self,
         identity: &Identity,
-        store_name: &Option<String>,
+        store_name: Option<&String>,
         global: bool,
     ) -> Result<()> {
         if global {
@@ -143,7 +143,7 @@ impl Configuration {
     pub fn has_identity(
         &mut self,
         identity: &Identity,
-        store_name: &Option<String>,
+        store_name: Option<&String>,
         global: bool,
     ) -> bool {
         if global {
@@ -171,9 +171,9 @@ impl Configuration {
         names
     }
 
-    pub fn select_store(&self, store_name: &Option<String>) -> Option<&Store> {
+    pub fn select_store(&self, store_name: Option<&String>) -> Option<&Store> {
         store_name
-            .clone()
+            .cloned()
             .or_else(|| self.default_store_name())
             .map_or_else(
                 || self.stores.first(),
@@ -181,8 +181,8 @@ impl Configuration {
             )
     }
 
-    pub fn select_store_mut(&mut self, store_name: &Option<String>) -> Option<&mut Store> {
-        if let Some(name) = store_name.clone().or_else(|| self.default_store_name()) {
+    pub fn select_store_mut(&mut self, store_name: Option<&String>) -> Option<&mut Store> {
+        if let Some(name) = store_name.cloned().or_else(|| self.default_store_name()) {
             self.find_store_mut(name.as_str())
         } else {
             self.stores.first_mut()
@@ -281,9 +281,9 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
+    use assert_fs::TempDir;
     use assert_fs::fixture::ChildPath;
     use assert_fs::prelude::*;
-    use assert_fs::TempDir;
 
     use crate::adapters::vcs::VersionControlSystems;
     use crate::cli::constants;
@@ -366,7 +366,10 @@ mod tests {
         })
         .unwrap_err()
         .downcast()?;
-        assert_eq!(error, "No recipients file found for the given secret. Make sure to call 'pasejo recipients add ...' or specify recipients directly with '--recipient'");
+        assert_eq!(
+            error,
+            "No recipients file found for the given secret. Make sure to call 'pasejo recipients add ...' or specify recipients directly with '--recipient'"
+        );
         Ok(())
     }
 

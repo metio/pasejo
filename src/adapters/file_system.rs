@@ -161,5 +161,5 @@ pub fn file_name<P: AsRef<Path>>(path: P) -> String {
 pub fn has_file_extension<P: AsRef<Path>>(path: P, file_extension: &str) -> bool {
     path.as_ref()
         .extension()
-        .map_or(false, |ext| ext.eq_ignore_ascii_case(file_extension))
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(file_extension))
 }

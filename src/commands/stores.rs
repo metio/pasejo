@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{absolute, Path, PathBuf};
+use std::path::{Path, absolute};
 
 use anyhow::Result;
 
@@ -9,7 +9,7 @@ use crate::models::configuration::Configuration;
 
 pub fn init(
     mut configuration: Configuration,
-    store_root_path: &PathBuf,
+    store_root_path: &Path,
     store_name: &str,
     vcs: &VersionControlSystems,
     default: bool,

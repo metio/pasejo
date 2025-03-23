@@ -1,4 +1,4 @@
-use std::path::{absolute, PathBuf};
+use std::path::{Path, absolute};
 
 use clap::error::ErrorKind;
 
@@ -8,8 +8,8 @@ use crate::models::configuration::{Configuration, Identity};
 
 pub fn add(
     mut configuration: Configuration,
-    store_name: &Option<String>,
-    identity_file: &PathBuf,
+    store_name: Option<&String>,
+    identity_file: &Path,
     global: bool,
 ) -> anyhow::Result<()> {
     let absolute_path = absolute(identity_file)?;
@@ -35,8 +35,8 @@ pub fn add(
 
 pub fn remove(
     mut configuration: Configuration,
-    store_name: &Option<String>,
-    identity_file: &PathBuf,
+    store_name: Option<&String>,
+    identity_file: &Path,
     global: bool,
     ignore_missing: bool,
 ) -> anyhow::Result<()> {

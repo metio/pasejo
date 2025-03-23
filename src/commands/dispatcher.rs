@@ -12,35 +12,39 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
         Commands::Identity { command } => match command {
             IdentityCommands::Add(args) => identities::add(
                 configuration,
-                &args.store_selection.store,
-                &args.file,
+                args.store_selection.store.as_ref(),
+                args.file.as_path(),
                 args.global,
             ),
             IdentityCommands::Remove(args) => identities::remove(
                 configuration,
-                &args.store_selection.store,
-                &args.file,
+                args.store_selection.store.as_ref(),
+                args.file.as_path(),
                 args.global,
                 args.ignore_missing,
             ),
         },
         Commands::Recipient { command } => match command {
             RecipientCommands::Add(args) => do_with_store(
-                configuration.select_store(&args.store_selection.store),
+                configuration.select_store(args.store_selection.store.as_ref()),
                 |store| {
-                    recipients::add(store, &public_key::get(&args.keys)?, &args.name, &args.path)
+                    recipients::add(
+                        store,
+                        &public_key::get(&args.keys)?,
+                        args.name.as_ref(),
+                        args.path.as_ref(),
+                    )
                 },
             ),
-            RecipientCommands::Remove(_) => Ok(()),
-            RecipientCommands::Inherit(_) => Ok(()),
+            RecipientCommands::Remove(_) | RecipientCommands::Inherit(_) => Ok(()),
         },
         Commands::Secret { command } => match command {
-            SecretCommands::Copy(_) => Ok(()),
-            SecretCommands::Edit(_) => Ok(()),
-            SecretCommands::Generate(_) => Ok(()),
-            SecretCommands::Grep(_) => Ok(()),
+            SecretCommands::Generate(_) | SecretCommands::Edit(_) | SecretCommands::Copy(_) => {
+                Ok(())
+            }
+            SecretCommands::Grep(_) | SecretCommands::Remove(_) => Ok(()),
             SecretCommands::Insert(args) => do_with_store(
-                configuration.select_store(&args.store_selection.store),
+                configuration.select_store(args.store_selection.store.as_ref()),
                 |store| {
                     secrets::insert(
                         store,
@@ -53,16 +57,15 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 },
             ),
             SecretCommands::List(args) => do_with_store(
-                configuration.select_store(&args.store_selection.store),
+                configuration.select_store(args.store_selection.store.as_ref()),
                 |store| secrets::list(store, args.tree),
             ),
             SecretCommands::Move(args) => do_with_store(
-                configuration.select_store(&args.store_selection.store),
+                configuration.select_store(args.store_selection.store.as_ref()),
                 |store| secrets::mv(store, &args.current_path, &args.new_path),
             ),
-            SecretCommands::Remove(_) => Ok(()),
             SecretCommands::Show(args) => do_with_store(
-                configuration.select_store(&args.store_selection.store),
+                configuration.select_store(args.store_selection.store.as_ref()),
                 |store| {
                     secrets::show(
                         store,
@@ -76,7 +79,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
         Commands::Store { command } => match command {
             StoreCommands::Init(args) => stores::init(
                 configuration,
-                &args.path,
+                args.path.as_path(),
                 &args.name,
                 &args.vcs,
                 args.default,

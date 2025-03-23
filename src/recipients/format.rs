@@ -1,6 +1,6 @@
 use crate::recipients::format;
 
-pub fn recipient(public_key: &String, name: &Option<String>) -> String {
+pub fn recipient(public_key: &String, name: Option<&String>) -> String {
     match name {
         Some(name) if !name.is_empty() => format!("# {name}\n{public_key}"),
         _ => public_key.clone(),
@@ -11,8 +11,8 @@ pub fn recipients(recipients: &Vec<String>) -> String {
     let mut result = String::new();
     for recipient in recipients {
         let formatted_recipient = match recipient.split_once(',') {
-            None => format::recipient(recipient, &None),
-            Some((name, key)) => format::recipient(&key.to_string(), &Some(name.to_string())),
+            None => format::recipient(recipient, None),
+            Some((name, key)) => format::recipient(&key.to_string(), Some(&name.to_string())),
         };
         result.push_str(&formatted_recipient);
         result.push('\n');

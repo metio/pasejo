@@ -4,7 +4,7 @@ use crate::recipients::format;
 pub fn recipient(
     mut recipients: String,
     public_key: &String,
-    name: &Option<String>,
+    name: Option<&String>,
 ) -> (String, bool) {
     let recipient = format::recipient(public_key, name);
     let mut re_encryption_required = false;

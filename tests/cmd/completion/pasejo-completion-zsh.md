@@ -1,7 +1,7 @@
 ```console
 $ COMPLETE=zsh pasejo
 #compdef pasejo
-function _clap_dynamic_completer() {
+function _clap_dynamic_completer_pasejo() {
     local _CLAP_COMPLETE_INDEX=$(expr $CURRENT - 1)
     local _CLAP_IFS=$'/n'
 
@@ -9,14 +9,14 @@ function _clap_dynamic_completer() {
         _CLAP_IFS="$_CLAP_IFS" /
         _CLAP_COMPLETE_INDEX="$_CLAP_COMPLETE_INDEX" /
         COMPLETE="zsh" /
-        pasejo -- ${words} 2>/dev/null /
+        [CWD]/target/debug/pasejo -- ${words} 2>/dev/null /
     )}")
 
     if [[ -n $completions ]]; then
-        compadd -a completions
+        _describe 'values' completions
     fi
 }
 
-compdef _clap_dynamic_completer pasejo
+compdef _clap_dynamic_completer_pasejo pasejo
 
 ```

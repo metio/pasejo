@@ -31,7 +31,7 @@ pub fn insert(
         files_to_commit.push(&absolute_recipients_path);
     }
     let recipients_from_file = recipients::files::read(&absolute_recipients_path)?;
-    secrets::encrypt(secret, &absolute_secret_path, recipients_from_file)?;
+    secrets::encrypt(secret, &absolute_secret_path, &recipients_from_file)?;
 
     store
         .vcs()
@@ -48,9 +48,7 @@ pub fn show(
 ) -> anyhow::Result<()> {
     let absolute_secret_path = store.resolve_secret_path(secret_path);
     let encrypted = fs::read(&absolute_secret_path)?;
-    let Decryptor::Recipients(decryptor) = Decryptor::new_buffered(&encrypted[..])? else {
-        unreachable!()
-    };
+    let decryptor = Decryptor::new_buffered(&encrypted[..])?;
     let mut decrypted = vec![];
     let parsed_identities = identities::read(identity_files)?;
     let mut reader = decryptor.decrypt(parsed_identities.iter().map(std::ops::Deref::deref))?;

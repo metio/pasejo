@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    assignees:
+      - sebhoss

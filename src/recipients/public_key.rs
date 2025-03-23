@@ -21,6 +21,37 @@ pub fn get(args: &RecipientKeysArgs) -> anyhow::Result<String> {
         }
         anyhow::bail!("No public key found in '{filename}'")
     } else {
-        anyhow::bail!("You must specify at least source for a public key")
+        anyhow::bail!("You must specify at least one source for a public key")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_key_from_args() {
+        let args = RecipientKeysArgs {
+            public_key: Some(String::from("public key")),
+            file: None,
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+        let public_key = get(&args);
+        assert_eq!(String::from("public key"), public_key.unwrap());
+    }
+
+    #[test]
+    fn public_key_from_args_is_most_important() {
+        let args = RecipientKeysArgs {
+            public_key: Some(String::from("public key")),
+            file: Some(String::from("some-file")),
+            codeberg: Some(String::from("codeberg")),
+            github: Some(String::from("github")),
+            gitlab: Some(String::from("gitlab")),
+        };
+        let public_key = get(&args);
+        assert_eq!(String::from("public key"), public_key.unwrap());
     }
 }

@@ -1,19 +1,19 @@
 use std::path::{Path, PathBuf};
 
-use age::cli_common::{read_recipients, StdinGuard};
 use age::Recipient;
+use age::cli_common::{StdinGuard, read_recipients};
 
 use crate::adapters::file_system;
 use crate::cli::constants;
 
-pub fn for_secret_path(secret_path: &Option<PathBuf>, path_is_directory: bool) -> PathBuf {
-    secret_path.clone().map_or_else(
+pub fn for_secret_path(secret_path: Option<&PathBuf>, path_is_directory: bool) -> PathBuf {
+    secret_path.map_or_else(
         || PathBuf::from(constants::RECIPIENTS_DOT_EXTENSION),
         |p| {
             if path_is_directory {
                 p.join(constants::RECIPIENTS_DOT_EXTENSION)
             } else {
-                file_system::append_file_extension(p, constants::RECIPIENTS_FILE_EXTENSION)
+                file_system::append_file_extension(p.clone(), constants::RECIPIENTS_FILE_EXTENSION)
             }
         },
     )

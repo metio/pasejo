@@ -7,11 +7,10 @@ use age::{Encryptor, Recipient};
 pub fn encrypt(
     secret: &str,
     absolute_path: &Path,
-    recipients: Vec<Box<dyn Recipient + Send>>,
+    recipients: &[Box<dyn Recipient + Send>],
 ) -> anyhow::Result<()> {
-    let Some(encryptor) = Encryptor::with_recipients(recipients) else {
-        unreachable!()
-    };
+    let encryptor =
+        Encryptor::with_recipients(recipients.iter().map(|r| r.as_ref() as &dyn Recipient))?;
     let mut encrypted = vec![];
     let mut writer = encryptor.wrap_output(&mut encrypted)?;
     writer.write_all(secret.as_bytes())?;

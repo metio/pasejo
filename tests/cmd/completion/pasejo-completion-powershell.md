@@ -4,7 +4,16 @@ $ COMPLETE=powershell pasejo
 Register-ArgumentCompleter -Native -CommandName pasejo -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    $results = Invoke-Expression "COMPLETE=powershell &pasejo -- $($commandAst.ToString())";
+    $prev = $env:COMPLETE;
+    $env:COMPLETE = "powershell";
+    $results = Invoke-Expression @"
+& [CWD]/target/debug/pasejo -- $commandAst
+"@;
+    if ($null -eq $prev) {
+        Remove-Item Env:/COMPLETE;
+    } else {
+        $env:COMPLETE = $prev;
+    }
     $results | ForEach-Object {
         $split = $_.Split("`t");
         $cmd = $split[0];

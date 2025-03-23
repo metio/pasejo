@@ -1,5 +1,5 @@
 ```console
 $ COMPLETE=fish pasejo
-complete -x -c pasejo -a "(COMPLETE=fish "'pasejo'" -- (commandline --current-process --tokenize --cut-at-cursor) (commandline --current-token))"
+complete --keep-order --exclusive --command pasejo --arguments "(COMPLETE=fish "'[CWD]/target/debug/pasejo'" -- (commandline --current-process --tokenize --cut-at-cursor) (commandline --current-token))"
 
 ```
