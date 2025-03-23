@@ -15,21 +15,21 @@ pub fn recipient_updated(public_key: &str) {
 
 pub fn recipients_file_created(recipients_file_path: &Path) {
     info!(
-        "Created .recipients file at '{}'",
+        "Created .age-recipients file at '{}'",
         recipients_file_path.display()
     );
 }
 
 pub fn recipients_file_replaced(recipients_file_path: &Path) {
     info!(
-        "Replaced .recipients file at '{}'",
+        "Replaced .age-recipients file at '{}'",
         recipients_file_path.display()
     );
 }
 
 pub fn recipients_file_use_existing(recipients_file_path: &Path) {
     info!(
-        "Using existing .recipients file at '{}'",
+        "Using existing .age-recipients file at '{}'",
         recipients_file_path.display()
     );
 }

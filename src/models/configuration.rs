@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::adapters::file_system;
 use crate::adapters::vcs::{VersionControlSystem, VersionControlSystems};
 use crate::cli::{constants, environment_variables};
+use crate::{recipients, secrets};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -241,6 +242,24 @@ impl Store {
         file_exists || directory_exists
     }
 
+    pub fn find_secrets_covered_by_recipients_file(
+        &self,
+        recipients_file: &Path,
+    ) -> Result<Vec<PathBuf>> {
+        let mut secrets_covered_by_recipients = vec![];
+
+        let secret = self.resolve_path(recipients::secret_of_recipient_file(recipients_file));
+        if secret.is_file() {
+            secrets_covered_by_recipients.push(secret);
+        }
+        if let Some(directory) = recipients_file.parent() {
+            secrets_covered_by_recipients
+                .extend(secrets::secrets_without_recipients_overwrite(directory)?);
+        }
+
+        Ok(secrets_covered_by_recipients)
+    }
+
     pub fn find_nearest_existing_recipients(
         &self,
         secret_path: &String,
@@ -248,10 +267,9 @@ impl Store {
     ) -> Result<PathBuf> {
         let mut recipients = vec![];
 
-        // the secret itself might have a .recipients file
-        let secret_recipients_file = self.resolve_path(file_system::append_file_extension(
-            PathBuf::from(secret_path),
-            constants::RECIPIENTS_FILE_EXTENSION,
+        // the secret itself might have a .age-recipients file
+        let secret_recipients_file = self.resolve_path(recipients::recipient_file_for_secret(
+            Path::new(secret_path),
         ));
         if secret_recipients_file.is_file() {
             recipients.push(secret_recipients_file);

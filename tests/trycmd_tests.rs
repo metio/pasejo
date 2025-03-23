@@ -54,4 +54,7 @@ fn cli_tests() {
     if which::which("hg").is_ok() {
         trycmd::TestCases::new().case("tests/cmd/store/*-hg/*.md");
     }
+    if which::which("pijul").is_ok() {
+        trycmd::TestCases::new().case("tests/cmd/store/*-pijul/*.md");
+    }
 }

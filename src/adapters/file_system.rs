@@ -157,7 +157,7 @@ pub fn file_name<P: AsRef<Path>>(path: P) -> String {
 /// ```
 /// use crate::adapters::file_system;
 ///
-/// assert_eq!(true, file_system::has_file_extension(Path::new("name.recipients"), "recipients"));
+/// assert_eq!(true, file_system::has_file_extension(Path::new("name.age-recipients"), "age-recipients"));
 /// assert_eq!(true, file_system::has_file_extension(Path::new("some.age"), "age"));
 /// assert_eq!(false, file_system::has_file_extension(PathBuf::from("some.other"), "age"));
 /// ```
@@ -165,4 +165,16 @@ pub fn has_file_extension<P: AsRef<Path>>(path: P, file_extension: &str) -> bool
     path.as_ref()
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case(file_extension))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn append_file_extensions() {
+        let path = PathBuf::from("some-name");
+        let file = append_file_extension(path, ".ext");
+        assert_eq!(file, PathBuf::from("some-name.ext"));
+    }
 }

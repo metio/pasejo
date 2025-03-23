@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub trait VersionControlSystem {
     fn init(&self) -> Result<()>;
-    fn commit(&self, files_to_commit: Vec<&Path>, message: &str) -> Result<()>;
+    fn commit(&self, files_to_commit: Vec<PathBuf>, message: &str) -> Result<()>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, clap::ValueEnum)]
@@ -75,7 +75,7 @@ impl VersionControlSystem for Git {
         Ok(())
     }
 
-    fn commit(&self, files_to_commit: Vec<&Path>, message: &str) -> Result<()> {
+    fn commit(&self, files_to_commit: Vec<PathBuf>, message: &str) -> Result<()> {
         for file in &files_to_commit {
             cmd!("git", "-C", &self.root, "add", file)
                 .run()
@@ -118,7 +118,7 @@ impl VersionControlSystem for Mercurial {
         Ok(())
     }
 
-    fn commit(&self, files_to_commit: Vec<&Path>, message: &str) -> Result<()> {
+    fn commit(&self, files_to_commit: Vec<PathBuf>, message: &str) -> Result<()> {
         for file in &files_to_commit {
             cmd!("hg", "--cwd", &self.root, "add", file)
                 .run()
@@ -161,7 +161,7 @@ impl VersionControlSystem for Pijul {
         Ok(())
     }
 
-    fn commit(&self, files_to_commit: Vec<&Path>, message: &str) -> Result<()> {
+    fn commit(&self, files_to_commit: Vec<PathBuf>, message: &str) -> Result<()> {
         for file in &files_to_commit {
             cmd!("pijul", "add", file)
                 .dir(&self.root)
@@ -195,7 +195,7 @@ impl VersionControlSystem for None {
         Ok(())
     }
 
-    fn commit(&self, _: Vec<&Path>, _: &str) -> Result<()> {
+    fn commit(&self, _: Vec<PathBuf>, _: &str) -> Result<()> {
         Ok(())
     }
 }

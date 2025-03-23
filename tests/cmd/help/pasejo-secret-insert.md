@@ -11,7 +11,7 @@ Options:
   -m, --multiline              Toggle multiline edit mode
   -f, --force                  Toggle prompt for overwrites of existing secrets and recipients
   -i, --inherit                Ignore existing recipients of existing secrets and inherit recipients from nearest parent folder
-  -r, --recipient <RECIPIENT>  Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .recipients file
+  -r, --recipient <RECIPIENT>  Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .age-recipients file
   -s, --store <STORE>          Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity
@@ -32,7 +32,7 @@ Options:
   -m, --multiline              Toggle multiline edit mode
   -f, --force                  Toggle prompt for overwrites of existing secrets and recipients
   -i, --inherit                Ignore existing recipients of existing secrets and inherit recipients from nearest parent folder
-  -r, --recipient <RECIPIENT>  Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .recipients file
+  -r, --recipient <RECIPIENT>  Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .age-recipients file
   -s, --store <STORE>          Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity
@@ -53,7 +53,7 @@ Options:
   -m, --multiline              Toggle multiline edit mode
   -f, --force                  Toggle prompt for overwrites of existing secrets and recipients
   -i, --inherit                Ignore existing recipients of existing secrets and inherit recipients from nearest parent folder
-  -r, --recipient <RECIPIENT>  Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .recipients file
+  -r, --recipient <RECIPIENT>  Specify recipients for the new secret. Can be specified multiple times. If none are specified, will read from nearest .age-recipients file
   -s, --store <STORE>          Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity

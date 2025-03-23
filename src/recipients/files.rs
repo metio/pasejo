@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use age::Recipient;
 use age::cli_common::{StdinGuard, read_recipients};
 
-use crate::adapters::file_system;
 use crate::cli::constants;
 
 pub fn for_secret_path(secret_path: Option<&PathBuf>, path_is_directory: bool) -> PathBuf {
@@ -16,10 +15,18 @@ pub fn for_secret_path(secret_path: Option<&PathBuf>, path_is_directory: bool) -
             if path_is_directory {
                 p.join(constants::RECIPIENTS_DOT_EXTENSION)
             } else {
-                file_system::append_file_extension(p.clone(), constants::RECIPIENTS_FILE_EXTENSION)
+                for_secret(p)
             }
         },
     )
+}
+
+pub fn for_secret(secret_path: &Path) -> PathBuf {
+    secret_path.with_extension(constants::RECIPIENTS_FILE_EXTENSION)
+}
+
+pub fn secret_of(recipients_file: &Path) -> PathBuf {
+    recipients_file.with_extension(constants::SECRET_FILE_EXTENSION)
 }
 
 pub fn read(recipients_file: &Path) -> anyhow::Result<Vec<Box<dyn Recipient + Send>>> {
@@ -39,7 +46,7 @@ mod tests {
 
     #[test]
     fn recipients_file_for_secret_file() {
-        let path = Some(PathBuf::from("secret-name"));
+        let path = Some(PathBuf::from("secret-name.age"));
         let file = for_secret_path(path.as_ref(), false);
         assert_eq!(file, PathBuf::from("secret-name.age-recipients"));
     }
@@ -55,5 +62,12 @@ mod tests {
     fn recipients_file_for_empty_secret() {
         let file = for_secret_path(None, true);
         assert_eq!(file, PathBuf::from(".age-recipients"));
+    }
+
+    #[test]
+    fn recipients_file_for_secret() {
+        let path = PathBuf::from("some/name.age");
+        let file = for_secret(path.as_path());
+        assert_eq!(file, PathBuf::from("some/name.age-recipients"));
     }
 }

@@ -256,7 +256,7 @@ pub struct SecretInsertArgs {
     pub inherit: bool,
 
     /// Specify recipients for the new secret. Can be specified multiple times.
-    /// If none are specified, will read from nearest .recipients file
+    /// If none are specified, will read from nearest .age-recipients file
     #[arg(short, long)]
     pub recipient: Vec<String>,
 

@@ -33,6 +33,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 |store| {
                     recipients::add(
                         store,
+                        configuration.all_identity_files(store),
                         &public_key::get(&args.keys)?,
                         args.name.as_ref(),
                         args.path.as_ref(),
