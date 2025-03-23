@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
 [package]
 name = "pasejo"
 description = "passage re-implementation in Rust for teams"

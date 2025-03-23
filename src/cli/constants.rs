@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 pub const SECRET_FILE_EXTENSION: &str = "age";
 pub const RECIPIENTS_FILE_EXTENSION: &str = "age-recipients";
 pub const RECIPIENTS_DOT_EXTENSION: &str = ".age-recipients";

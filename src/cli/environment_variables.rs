@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use crate::cli::constants;
 
 pub const PASEJO_CONFIG: &str = const_str::convert_ascii_case!(

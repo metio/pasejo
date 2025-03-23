@@ -1,5 +1,8 @@
-use clap::error::ErrorKind;
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use clap::CommandFactory;
+use clap::error::ErrorKind;
 
 use crate::models::cli::Cli;
 

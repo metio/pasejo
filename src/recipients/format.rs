@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use crate::recipients::format;
 
 pub fn recipient(public_key: &String, name: Option<&String>) -> String {
@@ -30,7 +33,7 @@ mod tests {
         let name = Some(String::from("test"));
         let expectation = "# test\n\
             12345";
-        assert_eq!(recipient(&public_key, &name), expectation);
+        assert_eq!(recipient(&public_key, name.as_ref()), expectation);
     }
 
     #[test]
@@ -38,7 +41,7 @@ mod tests {
         let public_key = String::from("12345");
         let name = None;
         let expectation = "12345";
-        assert_eq!(recipient(&public_key, &name), expectation);
+        assert_eq!(recipient(&public_key, name.as_ref()), expectation);
     }
 
     #[test]

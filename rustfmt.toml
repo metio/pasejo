@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
 unstable_features = true
 wrap_comments = true
 group_imports = "StdExternalCrate"

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use std::env;
 use std::io::Write;
 use std::process::Command;
@@ -6,8 +9,8 @@ use age::cli_common::file_io;
 use age::secrecy::ExposeSecret;
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
-use assert_fs::prelude::*;
 use assert_fs::TempDir;
+use assert_fs::prelude::*;
 use predicates::prelude::*;
 use rexpect::session::PtySession;
 use rexpect::spawn;
@@ -150,7 +153,9 @@ where
         .code(0);
 
     let cmd_path = cargo_bin(cargo_package_name).into_os_string();
-    env::set_var("PASEJO_CONFIG", temp.path().join("config.toml"));
+    unsafe {
+        env::set_var("PASEJO_CONFIG", temp.path().join("config.toml"));
+    }
 
     let process = spawn(&format!("{cmd_path:?} {command}"), Some(30_000))?;
     test_case(process, temp)?;

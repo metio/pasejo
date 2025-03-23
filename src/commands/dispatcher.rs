@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use anyhow::Result;
 
 use crate::commands::{identities, recipients, secrets, stores};

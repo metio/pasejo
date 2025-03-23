@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use crate::cli::logs;
 use crate::recipients::format;
 
@@ -47,7 +50,7 @@ mod tests {
         let public_key = String::from("12345");
         let name = None;
         let expectation = "12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name);
         assert_eq!(recipients, expectation);
     }
 
@@ -58,7 +61,7 @@ mod tests {
         let name = Some(String::from("test"));
         let expectation = "# test\n\
             12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -69,7 +72,7 @@ mod tests {
         let name = None;
         let expectation = "abcde\n\
         12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name);
         assert_eq!(recipients, expectation);
     }
 
@@ -81,7 +84,7 @@ mod tests {
         let expectation = "abcde\n\
         # test\n\
         12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -92,7 +95,7 @@ mod tests {
         let name = Some(String::from("test"));
         let expectation = "# test\n\
             12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -106,7 +109,7 @@ mod tests {
         let name = Some(String::from("new"));
         let expectation = "# new\n\
             12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -123,7 +126,7 @@ mod tests {
             abcde\n\
             # new\n\
             12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -142,7 +145,7 @@ mod tests {
             12345\n\
             # other\n\
             54321";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -155,7 +158,7 @@ mod tests {
         let public_key = String::from("12345");
         let name = Some(String::from(""));
         let expectation = "12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 
@@ -168,7 +171,7 @@ mod tests {
         let public_key = String::from("12345");
         let name = None;
         let expectation = "12345";
-        let (recipients, _) = recipient(recipients, &public_key, &name);
+        let (recipients, _) = recipient(recipients, &public_key, name.as_ref());
         assert_eq!(recipients, expectation);
     }
 }

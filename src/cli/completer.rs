@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use clap_complete::{ArgValueCompleter, CompletionCandidate};
 
 use crate::models::configuration::Configuration;

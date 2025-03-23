@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use std::path::{Path, PathBuf};
 
 use age::Recipient;
@@ -37,20 +40,20 @@ mod tests {
     #[test]
     fn recipients_file_for_secret_file() {
         let path = Some(PathBuf::from("secret-name"));
-        let file = for_secret_path(&path, false);
+        let file = for_secret_path(path.as_ref(), false);
         assert_eq!(file, PathBuf::from("secret-name.age-recipients"));
     }
 
     #[test]
     fn recipients_file_for_secret_directory() {
         let path = Some(PathBuf::from("some/folder"));
-        let file = for_secret_path(&path, true);
+        let file = for_secret_path(path.as_ref(), true);
         assert_eq!(file, PathBuf::from("some/folder/.age-recipients"));
     }
 
     #[test]
     fn recipients_file_for_empty_secret() {
-        let file = for_secret_path(&None, true);
+        let file = for_secret_path(None, true);
         assert_eq!(file, PathBuf::from(".age-recipients"));
     }
 }
