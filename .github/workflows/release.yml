@@ -85,14 +85,14 @@ jobs:
       - id: move
         name: Move Binary
         if: needs.prepare.outputs.release_version
-        run: mv target/${{ matrix.target }}/release/${{ github.repository }} ./${{ github.repository }}
+        run: mv target/${{ matrix.target }}/release/${{ github.event.repository.name }} ./${{ github.event.repository.name }}
       - id: tar
         name: Create tar.gz Archive
         if: needs.prepare.outputs.release_version != ''
         run: >
           tar --create --gzip
-          --file ${{ github.repository }}-${{ matrix.target }}.tar.gz
-          ${{ github.repository }}
+          --file ${{ github.event.repository.name }}-${{ matrix.target }}.tar.gz
+          ${{ github.event.repository.name }}
           LICENSE
           README.md
       - id: upload
@@ -100,8 +100,8 @@ jobs:
         if: needs.prepare.outputs.release_version != ''
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.repository }}-${{ matrix.target }}
-          path: ${{ github.repository }}-${{ matrix.target }}.tar.gz
+          name: ${{ github.event.repository.name }}-${{ matrix.target }}
+          path: ${{ github.event.repository.name }}-${{ matrix.target }}.tar.gz
   release:
     name: Perform Release
     needs: [prepare, build]
@@ -125,7 +125,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: ${{ github.repository }}-*
+          pattern: ${{ github.event.repository.name }}-*
           merge-multiple: true
       - id: checksums
         name: Calculate Checksums
