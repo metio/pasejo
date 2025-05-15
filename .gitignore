@@ -5,3 +5,4 @@ target/
 TODO.md
 .bash_history
 .idea/
+dist/
