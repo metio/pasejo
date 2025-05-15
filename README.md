@@ -5,7 +5,9 @@ SPDX-License-Identifier: 0BSD
 
 # pasejo
 
-`pasejo` (esperanto for `passage`) is a re-implementation of [passage](https://github.com/FiloSottile/passage) with a focus on supporting shared password stores for teams. It uses [age](https://age-encryption.org/) keys for encryption and decryption, stores all your passwords locally, and offers a simple command line interface.
+`pasejo` (esperanto for `passage`) is a re-implementation of [passage](https://github.com/FiloSottile/passage). It uses [age](https://age-encryption.org/) keys for encryption and decryption, stores all your passwords locally, and offers a simple command line interface.
+
+It saves all your secrets in one single encrypted file, and has built-in support to synchronize with a remote repository using [Git](https://git-scm.com/), [Mercurial](https://mercurial-scm.org/), or [Pijul](https://pijul.org/).
 
 **NOTE**: `pasejo` relies on the [age crate](https://crates.io/crates/age) which itself is in beta and not intended for production use. Therefore, this project is not intended for production use either. Use at your own risk.
 
@@ -81,3 +83,16 @@ To add an SSH key as a recipient file, run:
 ```console
 $ pasejo recipient add --file ~/.ssh/id_rsa.pub --store some-name
 ```
+
+## Alternatives
+
+In case you are looking for something different, try these:
+
+- [passage](https://github.com/FiloSottile/passage)
+- [pass](https://www.passwordstore.org/)
+- [pago](https://github.com/dbohdan/pago)
+- [pa](https://github.com/biox/pa)
+- [kbs2](https://github.com/woodruffw/kbs2)
+- [seniorpw](https://gitlab.com/retirement-home/seniorpw)
+- [trespas](https://gitlab.com/pizkaz/trespass)
+- [gopass](https://www.gopass.pw/)
