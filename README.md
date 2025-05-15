@@ -5,9 +5,19 @@ SPDX-License-Identifier: 0BSD
 
 # pasejo
 
-A simple, secure, and easy-to-use password manager for teams. It is designed to be a self-hosted solution that allows you to store and share passwords securely. It uses [age](https://age-encryption.org/) keys for encryption and decryption, and it is designed to be used with a command-line interface (CLI).
+`pasejo` (esperanto for `passage`) is a re-implementation of [passage](https://github.com/FiloSottile/passage) with a focus on supporting shared password stores for teams. It uses [age](https://age-encryption.org/) keys for encryption and decryption, stores all your passwords locally, and offers a simple command line interface.
 
-**NOTE**: This relies on the [age crate](https://crates.io/crates/age) which itself is in beta and not intended for production use. Therefore, this password manager is not intended for production use either. Use at your own risk.
+**NOTE**: `pasejo` relies on the [age crate](https://crates.io/crates/age) which itself is in beta and not intended for production use. Therefore, this project is not intended for production use either. Use at your own risk.
+
+## Installation
+
+You can install `pasejo` using `cargo`:
+
+```console
+$ cargo install pasejo
+```
+
+Alternatively, you can download the latest version from the [release page](https://github.com/metio/pasejo/releases/latest) and extract the archive. The binary is named `pasejo` and can be run directly from the extracted folder.
 
 ## Usage
 
