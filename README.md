@@ -120,3 +120,6 @@ In case you are looking for something different, try these:
 - [seniorpw](https://gitlab.com/retirement-home/seniorpw)
 - [trespas](https://gitlab.com/pizkaz/trespass)
 - [gopass](https://www.gopass.pw/)
+- [psswd](https://github.com/Gogopex/psswd)
+- [passpie](https://github.com/marcwebbie/passpie)
+- [privage](https://github.com/revelaction/privage)
