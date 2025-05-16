@@ -22,7 +22,6 @@ default = []
 age = { version = "0.11.1", features = ["armor", "cli-common", "plugin", "ssh"] }
 anyhow = { version = "1.0.98" }
 arboard = { version = "3.5.0", default-features = false, features = ["wayland-data-control"] }
-cc = { version = "1.2.22" }
 clap = { version = "4.5.38", features = ["derive"] }
 clap_complete = { version = "4.5.50", features = ["unstable-dynamic"] }
 clap-verbosity-flag = { version = "3.0.2" }
@@ -53,3 +52,6 @@ rexpect = { version = "0.6.1" }
 serial_test = { version = "3.2.0" }
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
 trycmd = { version = "0.15.9" }
+
+[build-dependencies]
+cc = "1.2.22"
