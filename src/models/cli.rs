@@ -373,9 +373,9 @@ pub struct SecretShowArgs {
     #[arg(short, long)]
     pub clip: bool,
 
-    /// Show only the specified line
+    /// Show only the specified line, or skip lines when given a negative number
     #[arg(short, long)]
-    pub line: Option<usize>,
+    pub line: Option<isize>,
 
     /// The path of the secret within the selected store
     pub secret_path: String,

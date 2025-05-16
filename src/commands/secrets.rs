@@ -229,7 +229,7 @@ pub fn show(
     store_name: Option<&String>,
     qrcode: bool,
     secret_path: &str,
-    line: Option<usize>,
+    line: Option<isize>,
     clip: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
@@ -244,21 +244,28 @@ pub fn show(
         let store = configuration.decrypt_store(registration)?;
 
         if let Some(decrypted_text) = store.secrets.get(secret_path) {
-            let text_to_show = if let Some(line) = line {
-                if let Some(text) = decrypted_text.lines().nth(line) {
-                    text
-                } else if line == 0 && decrypted_text.is_empty() {
-                    decrypted_text
-                } else {
-                    anyhow::bail!("Line {line} does not exist in secret '{secret_path}'")
-                }
-            } else {
-                decrypted_text
-            };
+            let text_to_show = line.map_or_else(
+                || decrypted_text.to_owned(),
+                |line| {
+                    if line >= 0 {
+                        decrypted_text
+                            .lines()
+                            .nth(line.unsigned_abs())
+                            .unwrap_or(decrypted_text)
+                            .to_owned()
+                    } else {
+                        decrypted_text
+                            .lines()
+                            .skip(line.unsigned_abs())
+                            .collect::<Vec<&str>>()
+                            .join("\n")
+                    }
+                },
+            );
 
             if qrcode {
                 logs::secret_show_as_qrcode(secret_path);
-                qr2term::print_qr(text_to_show)?;
+                qr2term::print_qr(&text_to_show)?;
             } else {
                 logs::secret_show_as_text(secret_path);
                 println!("{text_to_show}");
@@ -266,7 +273,7 @@ pub fn show(
             if clip {
                 // logs::secret_show_as_clipboard(secret_path);
                 let mut clipboard = arboard::Clipboard::new()?;
-                clipboard.set_text(text_to_show.to_string())?;
+                clipboard.set_text(text_to_show)?;
                 thread::sleep(Duration::from_secs(45));
                 clipboard.clear()?;
                 Notification::new()
