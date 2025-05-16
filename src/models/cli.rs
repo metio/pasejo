@@ -203,7 +203,7 @@ pub enum SecretCommands {
     /// Grep for a search-string in secrets when decrypted
     Grep(SecretGrepArgs),
 
-    /// List all secrets, optionally limited to a subfolder of a store
+    /// List all secrets
     List(SecretListArgs),
 
     /// Move secret from old-path to new-path
