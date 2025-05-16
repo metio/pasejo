@@ -99,13 +99,13 @@ This will create a new recipient file at the specified path. You can then use th
 The age crate supports SSH keys as well. You can re-use existing SSH keys as identity and recipient files. For example, to add an SSH key as an identity file, run:
 
 ```console
-$ pasejo identity add --file ~/.ssh/id_rsa --store some-name
+$ pasejo identity add --file ~/.ssh/id_rsa
 ```
 
 To add an SSH key as a recipient file, run:
 
 ```console
-$ pasejo recipient add --file ~/.ssh/id_rsa.pub --store some-name
+$ pasejo recipient add --file ~/.ssh/id_rsa.pub
 ```
 
 ## Alternatives
