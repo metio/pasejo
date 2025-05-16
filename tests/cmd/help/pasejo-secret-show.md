@@ -11,7 +11,7 @@ Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -o, --qrcode         Toggle to display secrets as QR code
   -c, --clip           Copy secret to clipboard
-  -l, --line <LINE>    Show only the specified line
+  -l, --line <LINE>    Show only the specified line, or skip lines when given a negative number
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
@@ -31,7 +31,7 @@ Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -o, --qrcode         Toggle to display secrets as QR code
   -c, --clip           Copy secret to clipboard
-  -l, --line <LINE>    Show only the specified line
+  -l, --line <LINE>    Show only the specified line, or skip lines when given a negative number
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
@@ -51,7 +51,7 @@ Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -o, --qrcode         Toggle to display secrets as QR code
   -c, --clip           Copy secret to clipboard
-  -l, --line <LINE>    Show only the specified line
+  -l, --line <LINE>    Show only the specified line, or skip lines when given a negative number
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
