@@ -4,8 +4,8 @@
 [package]
 name = "pasejo"
 description = "passage re-implementation in Rust for teams"
-authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 version = "1.0.0"
+authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license = "0BSD"
 edition = "2024"
 rust-version = "1.85.0"
