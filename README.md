@@ -21,6 +21,24 @@ $ cargo install pasejo
 
 Alternatively, you can download the latest version from the [release page](https://github.com/metio/pasejo/releases/latest) and extract the archive. The binary is named `pasejo` and can be run directly from the extracted folder.
 
+## Concepts
+
+### Store
+
+A store is an encrypted file that contains the secrets and recipients. You can create multiple stores to organize your secrets. Each store is encrypted with the keys of the registered recipients. You can decrypt stores with a matching identity file.
+
+### Identity
+
+An identity is a private key used to decrypt stores. You can add multiple identities for different stores. Identities can be used for multiple stores as well as registered globally for all stores.
+
+### Recipient
+
+A recipient is a public key used to encrypt stores. You can add multiple recipients for different stores.
+
+### Secret
+
+A secret is an arbitrary text stored in a store. You can add, remove, and list secrets in a store. Secrets are encrypted with the keys of the registered recipients. You can decrypt secrets with a matching identity file.
+
 ## Usage
 
 Add a new store to your configuration first:
@@ -32,19 +50,25 @@ $ pasejo stores add --path path/to/store --name some-name
 Add an age identity file to your store:
 
 ```console
-$ pasejo identity add --file path/to/age/private/key --store some-name
+$ pasejo identity add --file path/to/age/private/key
 ```
 
 Add an age recipient file to your store:
 
 ```console
-$ pasejo recipient add --file path/to/age/public/key --store some-name
+$ pasejo recipient add --file path/to/age/public/key
 ```
 
 Add a new secret to your store:
 
 ```console
-$ pasejo secret add some-secret --store another
+$ pasejo secret add some-secret
+```
+
+Show a secret in your store:
+
+```console
+$ pasejo secret show some-secret
 ```
 
 See `pasejo help` for more details.
@@ -59,7 +83,7 @@ You can create age identity files using the `age-keygen` command line tool. For 
 $ age-keygen --output path/to/age/private/key
 ```
 
-This will create a new identity file at the specified path. You can then use this file to decrypt secrets.
+This will create a new identity file at the specified path. You can then use this file to decrypt stores.
 
 ### Create age recipient files
 
@@ -68,11 +92,11 @@ You can create age recipient files using the `age-keygen` command line tool. For
 ```console
 $ age-keygen -y > path/to/age/public/key < path/to/age/private/key 
 ```
-This will create a new recipient file at the specified path. You can then use this file to encrypt secrets.
+This will create a new recipient file at the specified path. You can then use this file to encrypt stores.
 
 ### Use SSH keys
 
-The age crate supports SSH keys as well. You can re-use existing SSH keys to create age identity and recipient files. For example, to add an SSH key as an identity file, run:
+The age crate supports SSH keys as well. You can re-use existing SSH keys as identity and recipient files. For example, to add an SSH key as an identity file, run:
 
 ```console
 $ pasejo identity add --file ~/.ssh/id_rsa --store some-name
