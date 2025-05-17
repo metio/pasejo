@@ -7,7 +7,7 @@ $ PASEJO_CONFIG=config.toml pasejo store decrypt
 Error: Cannot decrypt store
 
 Caused by:
-    0: Cannot read file at "[CWD]/store"
+    0: Cannot read file at '[CWD]/store'
     1: No such file or directory (os error 2)
 
 ```
