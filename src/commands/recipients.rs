@@ -5,8 +5,8 @@ use crate::cli::logs;
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
-use std::path::Path;
 use anyhow::Context;
+use std::path::Path;
 
 pub fn add(
     configuration: &Configuration,
@@ -24,7 +24,9 @@ pub fn add(
                 logs::store_sync_start(&registration.name);
                 synchronizer.pull()?;
             }
-            configuration.decrypt_store(registration).context("Cannot decrypt store")?
+            configuration
+                .decrypt_store(registration)
+                .context("Cannot decrypt store")?
         } else {
             PasswordStore::default()
         };
@@ -80,7 +82,9 @@ pub fn remove(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if store.recipients.len() == 1 && store.recipients[0].public_key == public_key {
             anyhow::bail!(
@@ -89,9 +93,9 @@ pub fn remove(
         }
 
         if !store
-                .recipients
-                .iter()
-                .any(|recipient| recipient.public_key == public_key)
+            .recipients
+            .iter()
+            .any(|recipient| recipient.public_key == public_key)
         {
             if ignore_unknown {
                 logs::recipient_does_not_exist_ignored(public_key);
@@ -132,7 +136,9 @@ pub fn list(
             synchronizer.pull()?;
         }
 
-        let store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         for recipient in &store.recipients {
             println!(

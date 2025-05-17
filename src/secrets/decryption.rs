@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use age::Decryptor;
+use anyhow::Context;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -10,7 +11,8 @@ pub fn decrypt(
     absolute_secret_path: &Path,
     identities: &[Box<dyn age::Identity>],
 ) -> anyhow::Result<String> {
-    let encrypted = fs::read(absolute_secret_path)?;
+    let encrypted = fs::read(absolute_secret_path)
+        .with_context(|| format!("Cannot read file at {}", absolute_secret_path.display()))?;
     let decryptor = Decryptor::new_buffered(&encrypted[..])?;
     let mut reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
     let mut decrypted = vec![];
