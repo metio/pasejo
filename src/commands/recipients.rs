@@ -20,6 +20,7 @@ pub fn add(
 
         let mut store = if store_path.exists() {
             if !offline {
+                logs::store_sync_start(&registration.name);
                 synchronizer.pull()?;
             }
             configuration.decrypt_store(registration)?
@@ -49,6 +50,11 @@ pub fn add(
         }
 
         logs::recipient_added(&public_key.0);
+
+        if configuration.identities.is_empty() && registration.identities.is_empty() {
+            logs::no_identities_exist_yet(&registration.name);
+        }
+
         Ok(())
     } else {
         anyhow::bail!(
@@ -68,14 +74,12 @@ pub fn remove(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        let mut store = if store_path.exists() {
-            if !offline {
-                synchronizer.pull()?;
-            }
-            configuration.decrypt_store(registration)?
-        } else {
-            PasswordStore::default()
-        };
+        if !offline {
+            logs::store_sync_start(&registration.name);
+            synchronizer.pull()?;
+        }
+
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.recipients.len() == 1 && store.recipients[0].public_key == public_key {
             anyhow::bail!(
@@ -83,12 +87,15 @@ pub fn remove(
             )
         }
 
-        if !ignore_unknown
-            && !store
+        if !store
                 .recipients
                 .iter()
                 .any(|recipient| recipient.public_key == public_key)
         {
+            if ignore_unknown {
+                logs::recipient_does_not_exist_ignored(public_key);
+                return Ok(());
+            }
             anyhow::bail!("Recipient not found in the store");
         }
 
@@ -102,7 +109,7 @@ pub fn remove(
             synchronizer.push()?;
         }
 
-        // logs::recipient_removed(public_key);
+        logs::recipient_removed(public_key);
         Ok(())
     } else {
         anyhow::bail!(
@@ -120,6 +127,7 @@ pub fn list(
         if !offline {
             let store_path = Path::new(&registration.path);
             let synchronizer = registration.synchronizer.select_implementation(store_path);
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 

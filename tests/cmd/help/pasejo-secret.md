@@ -10,7 +10,7 @@ Commands:
   edit      Edit an existing secret
   generate  Generate a secret and insert it into the store
   grep      Grep for a search-string in secrets when decrypted
-  list      List all secrets, optionally limited to a subfolder of a store
+  list      List all secrets
   move      Move secret from old-path to new-path
   remove    Remove an existing secret
   show      Show secret
@@ -35,7 +35,7 @@ Commands:
   edit      Edit an existing secret
   generate  Generate a secret and insert it into the store
   grep      Grep for a search-string in secrets when decrypted
-  list      List all secrets, optionally limited to a subfolder of a store
+  list      List all secrets
   move      Move secret from old-path to new-path
   remove    Remove an existing secret
   show      Show secret
@@ -59,7 +59,7 @@ Commands:
   edit      Edit an existing secret
   generate  Generate a secret and insert it into the store
   grep      Grep for a search-string in secrets when decrypted
-  list      List all secrets, optionally limited to a subfolder of a store
+  list      List all secrets
   move      Move secret from old-path to new-path
   remove    Remove an existing secret
   show      Show secret

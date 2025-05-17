@@ -1,6 +1,6 @@
 ```
 $ pasejo secret help list
-List all secrets, optionally limited to a subfolder of a store
+List all secrets
 
 Usage: pasejo secret list [OPTIONS]
 
@@ -15,7 +15,7 @@ Options:
 
 ```
 $ pasejo secret list --help
-List all secrets, optionally limited to a subfolder of a store
+List all secrets
 
 Usage: pasejo secret list [OPTIONS]
 
@@ -30,7 +30,7 @@ Options:
 
 ```
 $ pasejo secret list -h
-List all secrets, optionally limited to a subfolder of a store
+List all secrets
 
 Usage: pasejo secret list [OPTIONS]
 
