@@ -4,11 +4,11 @@
 use crate::cli::{logs, prompts};
 use crate::models::configuration::Configuration;
 use crate::secrets;
+use anyhow::Context;
 use notify_rust::{Notification, Timeout};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
-use anyhow::Context;
 
 pub fn copy(
     configuration: &Configuration,
@@ -27,7 +27,9 @@ pub fn copy(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if store.secrets.contains_key(target_path)
             && !force
@@ -75,7 +77,9 @@ pub fn add(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if store.secrets.contains_key(secret_path)
             && !force
@@ -120,7 +124,9 @@ pub fn mv(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if store.secrets.contains_key(new_path)
             && !force
@@ -164,7 +170,9 @@ pub fn list(
             synchronizer.pull()?;
         }
 
-        let store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if tree {
             print!(
@@ -200,7 +208,9 @@ pub fn remove(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if store.secrets.contains_key(secret_path)
             && !force
@@ -248,7 +258,9 @@ pub fn show(
             synchronizer.pull()?;
         }
 
-        let store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if let Some(decrypted_text) = store.secrets.get(secret_path) {
             let text_to_show = line.map_or_else(
@@ -327,7 +339,9 @@ pub fn generate(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if store.secrets.contains_key(secret_path)
             && !force
@@ -396,7 +410,9 @@ pub fn edit(
             synchronizer.pull()?;
         }
 
-        let mut store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if let Some(current_value) = store.secrets.get(secret_path) {
             let secret = &prompts::edit_secret(secret_path, current_value)?;
@@ -439,7 +455,9 @@ pub fn grep(
             synchronizer.pull()?;
         }
 
-        let store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         if regex {
             let re = regex::Regex::new(search_string)?;

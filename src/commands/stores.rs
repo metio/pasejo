@@ -91,7 +91,9 @@ pub fn decrypt(
             synchronizer.pull()?;
         }
 
-        let store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
+        let store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
 
         let content = toml::to_string(&store)?;
         println!("{content}");
