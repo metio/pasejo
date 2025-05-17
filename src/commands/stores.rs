@@ -7,7 +7,7 @@ use std::{fs, path};
 use crate::cli::logs;
 use crate::models::configuration::Configuration;
 use crate::synchronizers::synchronizer::Synchronizers;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 pub fn add(
     mut configuration: Configuration,
@@ -91,7 +91,7 @@ pub fn decrypt(
             synchronizer.pull()?;
         }
 
-        let store = configuration.decrypt_store(registration)?;
+        let store = configuration.decrypt_store(registration).context("Cannot decrypt store")?;
 
         let content = toml::to_string(&store)?;
         println!("{content}");
