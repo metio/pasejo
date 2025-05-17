@@ -8,10 +8,10 @@ info: Identity using file '[CWD]/some-identity' added
 $ PASEJO_CONFIG=config.toml pasejo recipient add --public-key age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd
 info: Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
 
-$ PASEJO_CONFIG=config.toml pasejo recipient add --gitlab sebastian.hoss
-info: Recipient for 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA/FenZ/57gW+roJr8DaWAE94QJapctVF4eBugQDOAFr' added
+$ PASEJO_CONFIG=config.toml pasejo recipient add --public-key age1acvmq9pv8lwr60xa7va36vnz2wr78zutk3mpy3jzyw8pfpdeg45qjhfqp8 --quiet
 
-$ PASEJO_CONFIG=config.toml pasejo recipient remove 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA/FenZ/57gW+roJr8DaWAE94QJapctVF4eBugQDOAFr'
-info: Recipient for 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA/FenZ/57gW+roJr8DaWAE94QJapctVF4eBugQDOAFr' removed
+$ PASEJO_CONFIG=config.toml pasejo recipient add --public-key age142fqusnk9ye2nap204yryenxejkwuztt0xqnt8626gx7c5a96djs7smpyg --verbose
+debug: Pulling changes from remote for store 'something'
+info: Recipient for 'age142fqusnk9ye2nap204yryenxejkwuztt0xqnt8626gx7c5a96djs7smpyg' added
 
 ```

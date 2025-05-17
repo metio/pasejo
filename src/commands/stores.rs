@@ -87,6 +87,7 @@ pub fn decrypt(
         if !offline {
             let store_path = Path::new(&registration.path);
             let synchronizer = registration.synchronizer.select_implementation(store_path);
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 

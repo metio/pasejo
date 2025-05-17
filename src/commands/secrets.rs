@@ -22,6 +22,7 @@ pub fn copy(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -69,6 +70,7 @@ pub fn add(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -113,6 +115,7 @@ pub fn mv(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -156,6 +159,7 @@ pub fn list(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -191,6 +195,7 @@ pub fn remove(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -238,6 +243,7 @@ pub fn show(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -316,6 +322,7 @@ pub fn generate(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -384,6 +391,7 @@ pub fn edit(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -426,6 +434,7 @@ pub fn grep(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
+            logs::store_sync_start(&registration.name);
             synchronizer.pull()?;
         }
 

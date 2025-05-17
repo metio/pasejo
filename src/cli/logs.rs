@@ -3,10 +3,14 @@
 
 use std::path::Path;
 
-use log::info;
+use log::{debug, info, warn};
 
 pub fn recipient_added(public_key: &str) {
     info!("Recipient for '{public_key}' added");
+}
+
+pub fn recipient_removed(public_key: &str) {
+    info!("Recipient for '{public_key}' removed");
 }
 
 pub fn secret_inserted(secret_path: &str) {
@@ -39,4 +43,16 @@ pub fn store_set_default(store_name: &str) {
 
 pub fn store_remove_success(store_name: &str) {
     info!("Store '{store_name}' removed");
+}
+
+pub fn store_sync_start(store_name: &str) {
+    debug!("Pulling changes from remote for store '{store_name}'");
+}
+
+pub fn recipient_does_not_exist_ignored(public_key: &str) {
+    info!("Recipient for '{public_key}' does not exist in store - ignoring");
+}
+
+pub fn no_identities_exist_yet(store_name: &String) {
+    warn!("There are no identities in the store '{store_name}' yet. Please add one using 'pasejo identity add ...'");
 }
