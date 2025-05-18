@@ -5,12 +5,13 @@ Manage stores
 Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
-  add          Adds a new store
-  remove       Remove an existing store
-  set-default  Mark a store as default
-  decrypt      Decrypt a store and print its content
-  list         List all available stores
-  help         Print this message or the help of the given subcommand(s)
+  add               Adds a new store
+  remove            Remove an existing store
+  set-default       Mark a store as default
+  decrypt           Decrypt a store and print its content
+  list              List all available stores
+  set-synchronizer  Sets the synchronizer for a store
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -26,12 +27,13 @@ Manage stores
 Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
-  add          Adds a new store
-  remove       Remove an existing store
-  set-default  Mark a store as default
-  decrypt      Decrypt a store and print its content
-  list         List all available stores
-  help         Print this message or the help of the given subcommand(s)
+  add               Adds a new store
+  remove            Remove an existing store
+  set-default       Mark a store as default
+  decrypt           Decrypt a store and print its content
+  list              List all available stores
+  set-synchronizer  Sets the synchronizer for a store
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -47,12 +49,13 @@ Manage stores
 Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
-  add          Adds a new store
-  remove       Remove an existing store
-  set-default  Mark a store as default
-  decrypt      Decrypt a store and print its content
-  list         List all available stores
-  help         Print this message or the help of the given subcommand(s)
+  add               Adds a new store
+  remove            Remove an existing store
+  set-default       Mark a store as default
+  decrypt           Decrypt a store and print its content
+  list              List all available stores
+  set-synchronizer  Sets the synchronizer for a store
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity

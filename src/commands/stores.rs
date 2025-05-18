@@ -120,3 +120,22 @@ pub fn list(configuration: &Configuration) {
         println!("{text}");
     }
 }
+
+pub fn set_synchronizer(
+    mut configuration: Configuration,
+    store_name: Option<&String>,
+    synchronizer: &Synchronizers,
+) -> Result<()> {
+    if let Some(registration) = configuration.select_store_mut(store_name) {
+        let name = registration.name.clone();
+        registration.synchronizer = synchronizer.clone();
+        configuration.save_configuration()?;
+        logs::store_set_synchronizer(&name, synchronizer);
+
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
+    }
+}

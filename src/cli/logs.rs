@@ -3,6 +3,7 @@
 
 use std::path::Path;
 
+use crate::synchronizers::synchronizer::Synchronizers;
 use log::{debug, info, warn};
 
 pub fn recipient_added(public_key: &str) {
@@ -39,6 +40,10 @@ pub fn store_add_success(store_name: &str, store_path: &str) {
 
 pub fn store_set_default(store_name: &str) {
     info!("Store '{store_name}' is now the default");
+}
+
+pub fn store_set_synchronizer(store_name: &str, synchronizer: &Synchronizers) {
+    info!("Store '{store_name}' now synchronizes with {synchronizer:?}");
 }
 
 pub fn store_remove_success(store_name: &str) {
