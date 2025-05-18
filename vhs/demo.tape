@@ -1,7 +1,7 @@
 # Where should we write the GIF?
 Output demo.gif
 
-Set FontSize 16
+Set FontSize 14
 Set Width 1200
 Set Height 800
 
@@ -17,7 +17,7 @@ Type "pasejo recipient add --file /public/recipient"
 Enter
 Sleep 2s
 
-Type "pasejo secret generate some-secret"
+Type "pasejo recipient add --github sebhoss"
 Enter
 Sleep 2s
 
@@ -34,6 +34,10 @@ Enter
 Sleep 1s
 
 Type "pasejo secret show very-secret"
+Enter
+Sleep 2s
+
+Type "pasejo secret generate some-secret"
 Enter
 Sleep 2s
 
