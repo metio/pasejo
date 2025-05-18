@@ -5,9 +5,7 @@ SPDX-License-Identifier: 0BSD
 
 # pasejo
 
-`pasejo` (esperanto for `passage`) is a re-implementation of [passage](https://github.com/FiloSottile/passage). It uses [age](https://age-encryption.org/) keys for encryption and decryption, stores all your passwords locally, and offers a simple command line interface.
-
-It saves all your secrets in one single encrypted file, and has built-in support to synchronize with a remote repository using [Git](https://git-scm.com/), [Mercurial](https://mercurial-scm.org/), or [Pijul](https://pijul.org/).
+`pasejo` (esperanto for `passage`) is a re-implementation of [passage](https://github.com/FiloSottile/passage) in Rust for teams. It uses [age](https://age-encryption.org/) keys for encryption and decryption, stores all your passwords locally, and offers a simple command line interface.
 
 **NOTE**: `pasejo` relies on the [age crate](https://crates.io/crates/age) which itself is in beta and not intended for production use. Therefore, this project is not intended for production use either. Use at your own risk.
 
