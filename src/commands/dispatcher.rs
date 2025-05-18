@@ -148,6 +148,11 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 Ok(())
             }
             StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.name),
+            StoreCommands::SetSynchronizer(args) => stores::set_synchronizer(
+                configuration,
+                args.store_selection.store.as_ref(),
+                &args.synchronizer,
+            ),
             StoreCommands::Decrypt(args) => stores::decrypt(
                 &configuration,
                 args.store_selection.store.as_ref(),

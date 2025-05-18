@@ -390,13 +390,16 @@ pub enum StoreCommands {
     Remove(StoreRemoveArgs),
 
     /// Mark a store as default
-    SetDefault(StoreDefaultArgs),
+    SetDefault(StoreSetDefaultArgs),
 
     /// Decrypt a store and print its content
     Decrypt(StoreDecryptArgs),
 
     /// List all available stores
     List(StoreListArgs),
+
+    /// Sets the synchronizer for a store
+    SetSynchronizer(StoreSetSynchronizerArgs),
 }
 
 #[derive(Args)]
@@ -431,10 +434,20 @@ pub struct StoreRemoveArgs {
 }
 
 #[derive(Args)]
-pub struct StoreDefaultArgs {
+pub struct StoreSetDefaultArgs {
     /// The name of the store to use as default
     #[arg(value_parser = parser::store_name)]
     pub name: String,
+}
+
+#[derive(Args)]
+pub struct StoreSetSynchronizerArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The synchronizer to use
+    #[arg(value_enum)]
+    pub synchronizer: Synchronizers,
 }
 
 #[derive(Args)]
