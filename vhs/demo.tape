@@ -1,10 +1,9 @@
 # Where should we write the GIF?
 Output demo.gif
 
-# Set up a 1200x600 terminal with 46px font.
 Set FontSize 16
 Set Width 1200
-Set Height 1000
+Set Height 800
 
 Type "pasejo store add --path /storage/path/to/store --name some-name"
 Enter
