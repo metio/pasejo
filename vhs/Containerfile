@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+FROM ghcr.io/charmbracelet/vhs:latest
+
+RUN mkdir /storage
+RUN chmod 777 /storage
+
+RUN mkdir /config
+RUN chmod 777 /config
+
+COPY target/release/pasejo /usr/local/bin/pasejo
+COPY vhs/identity /secret/identity
+COPY vhs/recipient /public/recipient
+
+ENV PASEJO_CONFIG=/config/pasejo.toml

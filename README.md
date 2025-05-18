@@ -11,6 +11,8 @@ It saves all your secrets in one single encrypted file, and has built-in support
 
 **NOTE**: `pasejo` relies on the [age crate](https://crates.io/crates/age) which itself is in beta and not intended for production use. Therefore, this project is not intended for production use either. Use at your own risk.
 
+![usage](./vhs/demo.gif)
+
 ## Installation
 
 You can install `pasejo` using `cargo`:
@@ -44,7 +46,7 @@ A secret is an arbitrary text stored in a store. You can add, remove, and list s
 Add a new store to your configuration first:
 
 ```console
-$ pasejo stores add --path path/to/store --name some-name
+$ pasejo store add --path path/to/store --name some-name
 ```
 
 Add an age identity file to your store:

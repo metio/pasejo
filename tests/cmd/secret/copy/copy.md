@@ -9,6 +9,7 @@ $ PASEJO_CONFIG=config.toml pasejo recipient add --public-key age1fdalwkzzv0vztx
 info: Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
 
 $ PASEJO_CONFIG=config.toml pasejo secret generate some-secret
+info: Generated secret at 'some-secret'
 
 $ PASEJO_CONFIG=config.toml pasejo secret copy some-secret somewhere-else
 
