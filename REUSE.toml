@@ -8,3 +8,9 @@ path = "tests/cmd/**"
 precedence = "override"
 SPDX-FileCopyrightText = "The pasejo Authors"
 SPDX-License-Identifier = "0BSD"
+
+[[annotations]]
+path = "vhs/**"
+precedence = "override"
+SPDX-FileCopyrightText = "The pasejo Authors"
+SPDX-License-Identifier = "0BSD"
