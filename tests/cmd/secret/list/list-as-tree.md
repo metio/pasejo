@@ -18,6 +18,7 @@ $ PASEJO_CONFIG=config.toml pasejo secret add nested/secret
 info: Inserted secret at 'nested/secret'
 
 $ PASEJO_CONFIG=config.toml pasejo secret generate sub/sub/sub/secret
+info: Generated secret at 'sub/sub/sub/secret'
 
 $ PASEJO_CONFIG=config.toml pasejo secret list --tree
 

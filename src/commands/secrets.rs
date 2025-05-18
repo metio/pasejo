@@ -386,7 +386,7 @@ pub fn generate(
             synchronizer.push()?;
         }
 
-        // logs::secret_generated(secret_path);
+        logs::secret_generated(secret_path);
         Ok(())
     } else {
         anyhow::bail!(

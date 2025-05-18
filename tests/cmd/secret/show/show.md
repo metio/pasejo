@@ -12,11 +12,9 @@ $ PASEJO_CONFIG=config.toml pasejo secret add some-secret
 info: Inserted secret at 'some-secret'
 
 $ PASEJO_CONFIG=config.toml pasejo secret show some-secret
-info: Showing secret at 'some-secret' as text
 
 
 $ PASEJO_CONFIG=config.toml pasejo secret show some-secret --line 0
-info: Showing secret at 'some-secret' as text
 
 
 ```

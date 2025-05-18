@@ -12,5 +12,6 @@ $ PASEJO_CONFIG=config.toml pasejo secret add some-secret
 info: Inserted secret at 'some-secret'
 
 $ PASEJO_CONFIG=config.toml pasejo secret generate some-secret --inplace
+info: Generated secret at 'some-secret'
 
 ```
