@@ -123,3 +123,4 @@ In case you are looking for something different, try these:
 - [psswd](https://github.com/Gogopex/psswd)
 - [passpie](https://github.com/marcwebbie/passpie)
 - [privage](https://github.com/revelaction/privage)
+- [pwd.sh](https://github.com/drduh/pwd.sh)
