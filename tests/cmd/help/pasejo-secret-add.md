@@ -9,7 +9,7 @@ Arguments:
 
 Options:
   -m, --multiline      Toggle multiline edit mode
-  -f, --force          Overwrite existing secrets without prompting
+  -f, --force          Overwrite an existing secrets without prompting
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
@@ -28,7 +28,7 @@ Arguments:
 
 Options:
   -m, --multiline      Toggle multiline edit mode
-  -f, --force          Overwrite existing secrets without prompting
+  -f, --force          Overwrite an existing secrets without prompting
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
@@ -47,7 +47,7 @@ Arguments:
 
 Options:
   -m, --multiline      Toggle multiline edit mode
-  -f, --force          Overwrite existing secrets without prompting
+  -f, --force          Overwrite an existing secrets without prompting
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity

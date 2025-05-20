@@ -1,0 +1,9 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/store"
+name = "something"
+synchronizer = "None"
+
+[[stores.identities]]
+file = "[CWD]/some-identity"

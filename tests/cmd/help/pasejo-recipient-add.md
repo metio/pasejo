@@ -10,10 +10,10 @@ Options:
   -f, --file <FILE>              Read public key of recipient from a file
       --codeberg <CODEBERG>      The Codeberg username to add as recipient
       --github <GITHUB>          The GitHub username to add as recipient
-  -v, --verbose...               Increase logging verbosity
       --gitlab <GITLAB>          The GitLab username to add as recipient
-  -q, --quiet...                 Decrease logging verbosity
+  -v, --verbose...               Increase logging verbosity
   -n, --name <NAME>              The name of the new recipient
+  -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
 ```
@@ -30,10 +30,10 @@ Options:
   -f, --file <FILE>              Read public key of recipient from a file
       --codeberg <CODEBERG>      The Codeberg username to add as recipient
       --github <GITHUB>          The GitHub username to add as recipient
-  -v, --verbose...               Increase logging verbosity
       --gitlab <GITLAB>          The GitLab username to add as recipient
-  -q, --quiet...                 Decrease logging verbosity
+  -v, --verbose...               Increase logging verbosity
   -n, --name <NAME>              The name of the new recipient
+  -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
 ```
@@ -50,10 +50,10 @@ Options:
   -f, --file <FILE>              Read public key of recipient from a file
       --codeberg <CODEBERG>      The Codeberg username to add as recipient
       --github <GITHUB>          The GitHub username to add as recipient
-  -v, --verbose...               Increase logging verbosity
       --gitlab <GITLAB>          The GitLab username to add as recipient
-  -q, --quiet...                 Decrease logging verbosity
+  -v, --verbose...               Increase logging verbosity
   -n, --name <NAME>              The name of the new recipient
+  -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
 ```

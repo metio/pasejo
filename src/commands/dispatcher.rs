@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use anyhow::Result;
-
-use crate::commands::{identities, recipients, secrets, stores};
+use crate::commands::{identities, one_time_passwords, recipients, secrets, stores};
 use crate::models::cli::{
-    Cli, Commands, IdentityCommands, RecipientCommands, SecretCommands, StoreCommands,
+    Cli, Commands, IdentityCommands, OtpCommands, RecipientCommands, SecretCommands, StoreCommands,
 };
 use crate::models::configuration::Configuration;
+use crate::one_time_passwords::parser::parse_otp_args;
 use crate::recipients::public_key;
+use anyhow::Result;
 
 #[allow(clippy::too_many_lines)]
 pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
@@ -31,6 +31,62 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 &configuration,
                 args.store_selection.store.as_ref(),
                 args.global,
+            ),
+        },
+        Commands::Otp { command } => match command {
+            OtpCommands::Add(args) => one_time_passwords::add(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                &args.password_path,
+                &parse_otp_args(
+                    args.otp_type.as_ref(),
+                    args.algorithm.as_ref(),
+                    args.secret.as_ref(),
+                    args.digits,
+                    args.period,
+                    args.counter,
+                    args.skew,
+                    args.url.as_ref(),
+                    args.qrcode.as_ref(),
+                )?,
+                args.force,
+                cli.offline,
+            ),
+            OtpCommands::Copy(args) => one_time_passwords::copy(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                args.force,
+                &args.source_path,
+                &args.target_path,
+                cli.offline,
+            ),
+            OtpCommands::List(args) => one_time_passwords::list(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                args.tree,
+                cli.offline,
+            ),
+            OtpCommands::Move(args) => one_time_passwords::mv(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                args.force,
+                &args.current_path,
+                &args.new_path,
+                cli.offline,
+            ),
+            OtpCommands::Remove(args) => one_time_passwords::remove(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                args.force,
+                &args.password_path,
+                cli.offline,
+            ),
+            OtpCommands::Show(args) => one_time_passwords::show(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                &args.password_path,
+                args.clip,
+                cli.offline,
             ),
         },
         Commands::Recipient { command } => match command {

@@ -10,6 +10,53 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
+pub fn add(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    secret_path: &str,
+    force: bool,
+    multiline: bool,
+    offline: bool,
+) -> anyhow::Result<()> {
+    if let Some(registration) = configuration.select_store(store_name) {
+        let store_path = Path::new(&registration.path);
+        let synchronizer = registration.synchronizer.select_implementation(store_path);
+
+        if !offline {
+            logs::store_sync_start(&registration.name);
+            synchronizer.pull()?;
+        }
+
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
+
+        if store.secrets.contains_key(secret_path)
+            && !force
+            && prompts::get_confirmation_from_user("Overwrite existing secret?")?
+        {
+            anyhow::bail!("Secret already exists at {secret_path}. Use --force to overwrite.");
+        }
+
+        let secret = &prompts::read_secret_from_user_input(secret_path, multiline)?;
+
+        store.secrets.insert(secret_path.to_owned(), secret.clone());
+
+        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
+
+        if !offline {
+            synchronizer.push()?;
+        }
+
+        logs::secret_inserted(secret_path);
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
+    }
+}
+
 pub fn copy(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -53,53 +100,6 @@ pub fn copy(
         } else {
             anyhow::bail!("No secret found at '{source_path}'")
         }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
-}
-
-pub fn add(
-    configuration: &Configuration,
-    store_name: Option<&String>,
-    secret_path: &str,
-    force: bool,
-    multiline: bool,
-    offline: bool,
-) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
-
-        if !offline {
-            logs::store_sync_start(&registration.name);
-            synchronizer.pull()?;
-        }
-
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
-
-        if store.secrets.contains_key(secret_path)
-            && !force
-            && prompts::get_confirmation_from_user("Overwrite existing secret?")?
-        {
-            anyhow::bail!("Secret already exists at {secret_path}. Use --force to overwrite.");
-        }
-
-        let secret = &prompts::read_secret_from_user_input(secret_path, multiline)?;
-
-        store.secrets.insert(secret_path.to_owned(), secret.clone());
-
-        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-        if !offline {
-            synchronizer.push()?;
-        }
-
-        logs::secret_inserted(secret_path);
-        Ok(())
     } else {
         anyhow::bail!(
             "No store found in configuration. Run 'pasejo store add ...' first to add one"
