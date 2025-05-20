@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use crate::cli::{logs, prompts};
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
