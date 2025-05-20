@@ -8,6 +8,7 @@ mod commands;
 mod downloader;
 mod identities;
 mod models;
+mod one_time_passwords;
 mod recipients;
 mod secrets;
 mod synchronizers;
@@ -16,7 +17,7 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
 use commands::dispatcher::dispatch_command;
-use human_panic::{Metadata, setup_panic};
+use human_panic::{setup_panic, Metadata};
 use models::cli::Cli;
 use models::configuration::Configuration;
 

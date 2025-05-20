@@ -8,6 +8,7 @@ Commands:
   identity   Manage identities
   recipient  Manage recipients
   secret     Manage secrets
+  otp        Manage one-time passwords
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 
@@ -30,6 +31,7 @@ Commands:
   identity   Manage identities
   recipient  Manage recipients
   secret     Manage secrets
+  otp        Manage one-time passwords
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 
@@ -41,6 +43,7 @@ Options:
   -V, --version     Print version
 
 ```
+
 ```
 $ pasejo -h
 age-backed password manager for teams
@@ -51,6 +54,7 @@ Commands:
   identity   Manage identities
   recipient  Manage recipients
   secret     Manage secrets
+  otp        Manage one-time passwords
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 

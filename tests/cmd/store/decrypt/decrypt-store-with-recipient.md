@@ -15,5 +15,7 @@ public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"
 
 [secrets]
 
+[otp]
+
 
 ```

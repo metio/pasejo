@@ -18,6 +18,10 @@ pub fn secret_inserted(secret_path: &str) {
     info!("Inserted secret at '{secret_path}'");
 }
 
+pub fn one_time_password_inserted(password_path: &str) {
+    info!("Inserted one-time password at '{password_path}'");
+}
+
 pub fn secret_generated(secret_path: &str) {
     info!("Generated secret at '{secret_path}'");
 }
@@ -28,6 +32,10 @@ pub fn secret_show_as_qrcode(secret_path: &str) {
 
 pub fn secret_show_as_text(secret_path: &str) {
     debug!("Showing secret at '{secret_path}' as text");
+}
+
+pub fn one_time_password_show(password_path: &str) {
+    debug!("Showing one-time password at '{password_path}'");
 }
 
 pub fn identity_added(identity_file: &Path) {
