@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use crate::models::configuration::{Configuration, ConfigurationOption};
 
 pub fn get(configuration: &Configuration, option: &ConfigurationOption) {
