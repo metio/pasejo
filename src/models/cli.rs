@@ -434,7 +434,7 @@ pub struct SecretGenerateArgs {
     pub secret_path: String,
 
     /// The length of the generated passwords.
-    #[arg(short, long, default_value_t = 12)]
+    #[arg(short, long, default_value_t = 25)]
     pub length: usize,
 
     /// Passwords are allowed to, or must if the strict is true, contain a number.

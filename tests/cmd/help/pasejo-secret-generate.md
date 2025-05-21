@@ -11,12 +11,12 @@ Options:
   -s, --store <STORE>               Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -f, --force                       Overwrite an existing secrets without prompting
   -i, --inplace                     Overwrite just the password of an existing secret without prompting
-  -l, --length <LENGTH>             The length of the generated passwords [default: 12]
+  -l, --length <LENGTH>             The length of the generated passwords [default: 25]
   -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
+  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -v, --verbose...                  Increase logging verbosity
   -q, --quiet...                    Decrease logging verbosity
-  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
@@ -38,12 +38,12 @@ Options:
   -s, --store <STORE>               Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -f, --force                       Overwrite an existing secrets without prompting
   -i, --inplace                     Overwrite just the password of an existing secret without prompting
-  -l, --length <LENGTH>             The length of the generated passwords [default: 12]
+  -l, --length <LENGTH>             The length of the generated passwords [default: 25]
   -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
+  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -v, --verbose...                  Increase logging verbosity
   -q, --quiet...                    Decrease logging verbosity
-  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
@@ -65,12 +65,12 @@ Options:
   -s, --store <STORE>               Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
   -f, --force                       Overwrite an existing secrets without prompting
   -i, --inplace                     Overwrite just the password of an existing secret without prompting
-  -l, --length <LENGTH>             The length of the generated passwords [default: 12]
+  -l, --length <LENGTH>             The length of the generated passwords [default: 25]
   -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
+  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -v, --verbose...                  Increase logging verbosity
   -q, --quiet...                    Decrease logging verbosity
-  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
