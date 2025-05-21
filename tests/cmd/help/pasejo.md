@@ -5,10 +5,11 @@ age-backed password manager for teams
 Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
+  config     Manage pasejo configuration
   identity   Manage identities
+  otp        Manage one-time passwords
   recipient  Manage recipients
   secret     Manage secrets
-  otp        Manage one-time passwords
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 
@@ -28,10 +29,11 @@ age-backed password manager for teams
 Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
+  config     Manage pasejo configuration
   identity   Manage identities
+  otp        Manage one-time passwords
   recipient  Manage recipients
   secret     Manage secrets
-  otp        Manage one-time passwords
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 
@@ -51,10 +53,11 @@ age-backed password manager for teams
 Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
+  config     Manage pasejo configuration
   identity   Manage identities
+  otp        Manage one-time passwords
   recipient  Manage recipients
   secret     Manage secrets
-  otp        Manage one-time passwords
   store      Manage stores
   help       Print this message or the help of the given subcommand(s)
 

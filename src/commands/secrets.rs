@@ -293,7 +293,9 @@ pub fn show(
                 // logs::secret_show_as_clipboard(secret_path);
                 let mut clipboard = arboard::Clipboard::new()?;
                 clipboard.set_text(text_to_show)?;
-                thread::sleep(Duration::from_secs(45));
+                thread::sleep(Duration::from_secs(
+                    configuration.clipboard_timeout.unwrap_or(45),
+                ));
                 clipboard.clear()?;
                 Notification::new()
                     .summary("pasejo")

@@ -174,7 +174,9 @@ pub fn show(
             if clip {
                 let mut clipboard = arboard::Clipboard::new()?;
                 clipboard.set_text(format!("{code}"))?;
-                thread::sleep(Duration::from_secs(45));
+                thread::sleep(Duration::from_secs(
+                    configuration.clipboard_timeout.unwrap_or(45),
+                ));
                 clipboard.clear()?;
                 Notification::new()
                     .summary("pasejo")

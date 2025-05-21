@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use crate::cli::completer;
 use crate::cli::parser;
+use crate::models::configuration::ConfigurationOption;
 use crate::models::password_store::{OneTimePasswordAlgorithm, OneTimePasswordType};
 use crate::synchronizers::synchronizer::Synchronizers;
 use clap::ValueHint::{DirPath, FilePath};
@@ -28,10 +29,22 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Manage pasejo configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
+
     /// Manage identities
     Identity {
         #[command(subcommand)]
         command: IdentityCommands,
+    },
+
+    /// Manage one-time passwords
+    Otp {
+        #[command(subcommand)]
+        command: OtpCommands,
     },
 
     /// Manage recipients
@@ -46,17 +59,35 @@ pub enum Commands {
         command: SecretCommands,
     },
 
-    /// Manage one-time passwords
-    Otp {
-        #[command(subcommand)]
-        command: OtpCommands,
-    },
-
     /// Manage stores
     Store {
         #[command(subcommand)]
         command: StoreCommands,
     },
+}
+
+#[derive(Subcommand)]
+pub enum ConfigCommands {
+    /// Get a configuration value
+    Get(ConfigGetArgs),
+
+    /// Set a configuration value
+    Set(ConfigSetArgs),
+}
+
+#[derive(Args)]
+pub struct ConfigGetArgs {
+    /// Name of the configuration option to get
+    pub option: ConfigurationOption,
+}
+
+#[derive(Args)]
+pub struct ConfigSetArgs {
+    /// Name of the configuration option to set
+    pub option: ConfigurationOption,
+
+    /// Value to set the configuration option to
+    pub value: String,
 }
 
 #[derive(Args)]

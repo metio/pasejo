@@ -11,8 +11,8 @@ Options:
       --codeberg <CODEBERG>      The Codeberg username to add as recipient
       --github <GITHUB>          The GitHub username to add as recipient
       --gitlab <GITLAB>          The GitLab username to add as recipient
-  -v, --verbose...               Increase logging verbosity
   -n, --name <NAME>              The name of the new recipient
+  -v, --verbose...               Increase logging verbosity
   -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
@@ -31,8 +31,8 @@ Options:
       --codeberg <CODEBERG>      The Codeberg username to add as recipient
       --github <GITHUB>          The GitHub username to add as recipient
       --gitlab <GITLAB>          The GitLab username to add as recipient
-  -v, --verbose...               Increase logging verbosity
   -n, --name <NAME>              The name of the new recipient
+  -v, --verbose...               Increase logging verbosity
   -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
@@ -51,8 +51,8 @@ Options:
       --codeberg <CODEBERG>      The Codeberg username to add as recipient
       --github <GITHUB>          The GitHub username to add as recipient
       --gitlab <GITLAB>          The GitLab username to add as recipient
-  -v, --verbose...               Increase logging verbosity
   -n, --name <NAME>              The name of the new recipient
+  -v, --verbose...               Increase logging verbosity
   -q, --quiet...                 Decrease logging verbosity
   -h, --help                     Print help
 
