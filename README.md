@@ -117,6 +117,46 @@ To add an SSH key as a recipient file, run:
 $ pasejo recipient add --file ~/.ssh/id_rsa.pub
 ```
 
+### Using Yubikeys
+
+You can store age identities on your Yubikeys using [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey). Follow its [instructions](https://github.com/str4d/age-plugin-yubikey?tab=readme-ov-file#configuration) to create a new identity, export it to a file, and add it to your store using:
+
+```console
+# generate a new identity
+$ age-plugin-yubikey --generate --slot SLOT
+
+# export the identity to a file
+$ age-plugin-yubikey --identity --slot SLOT > yubikey-identity.txt
+
+# add the identity to your store
+$ pasejo identity add --file yubikey-identity.txt
+
+# list all recipients on your Yubikey
+$ age-plugin-yubikey --list
+
+# add recipient to your store
+$ pasejo recipient add --public-key RECIPIENT-FROM-YUBIKEY
+```
+
+We highly recommend using at least two Yubikeys for redundancy. You can add the identities and recipients from both Yubikeys to your store. If you lose one, you can still access your secrets with the other one. `pasejo` will automatically use the first available identity when decrypting a store.
+
+### Create shell completions
+
+You can create shell completions for your shell of choice using the `COMPLETE` environment variable. For example, to create a bash completion file, run:
+
+```console
+$ COMPLETE=bash pasejo > ${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion/completions/pasejo
+```
+
+The supported shells are:
+- `bash`
+- `elvish`
+- `fish`
+- `powershell`
+- `zsh`
+
+Check their respective documentation on where to install completion files.
+
 ## Alternatives
 
 In case you are looking for something different, try these:
