@@ -82,7 +82,12 @@ pub fn list(
     store_name: Option<&String>,
     global: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
+    if global {
+        for identity in &configuration.identities {
+            println!("{} (global)", identity.file.clone());
+        }
+        Ok(())
+    } else if let Some(registration) = configuration.select_store(store_name) {
         for identity in &registration.identities {
             println!("{} (store)", identity.file.clone());
         }
@@ -90,11 +95,6 @@ pub fn list(
             println!("{} (global)", identity.file.clone());
         }
 
-        Ok(())
-    } else if global {
-        for identity in &configuration.identities {
-            println!("{} (global)", identity.file.clone());
-        }
         Ok(())
     } else {
         anyhow::bail!(

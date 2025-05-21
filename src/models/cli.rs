@@ -257,8 +257,7 @@ pub struct IdentityListArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
 
-    /// Add to the global configuration file when enabled, otherwise add to
-    /// store
+    /// Show only the global identities
     #[arg(short, long)]
     pub global: bool,
 }
