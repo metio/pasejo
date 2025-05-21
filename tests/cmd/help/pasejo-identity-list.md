@@ -6,7 +6,7 @@ Usage: pasejo identity list [OPTIONS]
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -g, --global         Add to the global configuration file when enabled, otherwise add to store
+  -g, --global         Show only the global identities
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
@@ -21,7 +21,7 @@ Usage: pasejo identity list [OPTIONS]
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -g, --global         Add to the global configuration file when enabled, otherwise add to store
+  -g, --global         Show only the global identities
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
@@ -36,7 +36,7 @@ Usage: pasejo identity list [OPTIONS]
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -g, --global         Add to the global configuration file when enabled, otherwise add to store
+  -g, --global         Show only the global identities
   -v, --verbose...     Increase logging verbosity
   -q, --quiet...       Decrease logging verbosity
   -h, --help           Print help
