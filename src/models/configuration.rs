@@ -22,6 +22,9 @@ pub struct Configuration {
 
     /// The default store to use when no store name was specified
     pub default_store: Option<String>,
+
+    /// Toggle whether missing identity files will be ignored
+    pub ignore_missing_identities: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -154,7 +157,10 @@ impl Configuration {
 
     pub fn decrypt_store(&self, registration: &StoreRegistration) -> Result<PasswordStore> {
         let identity_files = self.all_identity_files(registration);
-        let identities = identities::read(identity_files)?;
+        let identities = identities::read(
+            identity_files,
+            self.ignore_missing_identities.unwrap_or(true),
+        )?;
         let decrypted_store = secrets::decrypt(Path::new(&registration.path), &identities)?;
         let store: PasswordStore = toml::from_str(&decrypted_store)?;
         Ok(store)
