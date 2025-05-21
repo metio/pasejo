@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+mod config;
 pub mod dispatcher;
 pub mod identities;
 pub mod one_time_passwords;

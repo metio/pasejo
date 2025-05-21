@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::commands::{identities, one_time_passwords, recipients, secrets, stores};
+use crate::commands::{config, identities, one_time_passwords, recipients, secrets, stores};
 use crate::models::cli::{
-    Cli, Commands, IdentityCommands, OtpCommands, RecipientCommands, SecretCommands, StoreCommands,
+    Cli, Commands, ConfigCommands, IdentityCommands, OtpCommands, RecipientCommands,
+    SecretCommands, StoreCommands,
 };
 use crate::models::configuration::Configuration;
 use crate::one_time_passwords::parser::parse_otp_args;
@@ -13,6 +14,13 @@ use anyhow::Result;
 #[allow(clippy::too_many_lines)]
 pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
     match &cli.command {
+        Commands::Config { command } => match command {
+            ConfigCommands::Get(args) => {
+                config::get(&configuration, &args.option);
+                Ok(())
+            }
+            ConfigCommands::Set(args) => config::set(configuration, &args.option, &args.value),
+        },
         Commands::Identity { command } => match command {
             IdentityCommands::Add(args) => identities::add(
                 configuration,

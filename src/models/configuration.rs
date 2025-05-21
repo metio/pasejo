@@ -25,6 +25,15 @@ pub struct Configuration {
 
     /// Toggle whether missing identity files will be ignored
     pub ignore_missing_identities: Option<bool>,
+
+    /// How long should secrets/OTPs be kept in the clipboard in seconds?
+    pub clipboard_timeout: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, clap::ValueEnum)]
+pub enum ConfigurationOption {
+    IgnoreMissingIdentities,
+    ClipboardTimeout,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
