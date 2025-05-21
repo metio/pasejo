@@ -119,7 +119,7 @@ $ pasejo recipient add --file ~/.ssh/id_rsa.pub
 
 ### Using Yubikeys
 
-You can store age identities on your Yubikeys using [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey). Follow its [instructions](https://github.com/str4d/age-plugin-yubikey?tab=readme-ov-file#configuration) to create a new identity, export it to a file, and add it to your store using:
+You can store age identities on your Yubikeys using [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey). Follow its [instructions](https://github.com/str4d/age-plugin-yubikey?tab=readme-ov-file#configuration) to create a new identity, export it to a file, and add it to your store like this:
 
 ```console
 # generate a new identity
