@@ -11,6 +11,7 @@ Commands:
   decrypt           Decrypt a store and print its content
   list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
+  sync              Synchronizes the store with its remote counterpart
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -33,6 +34,7 @@ Commands:
   decrypt           Decrypt a store and print its content
   list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
+  sync              Synchronizes the store with its remote counterpart
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -55,6 +57,7 @@ Commands:
   decrypt           Decrypt a store and print its content
   list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
+  sync              Synchronizes the store with its remote counterpart
   help              Print this message or the help of the given subcommand(s)
 
 Options:

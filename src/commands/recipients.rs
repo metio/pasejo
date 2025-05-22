@@ -21,7 +21,7 @@ pub fn add(
 
         let mut store = if store_path.exists() {
             if !offline {
-                logs::store_sync_start(&registration.name);
+                logs::store_sync_pull(&registration.name);
                 synchronizer.pull()?;
             }
             configuration
@@ -49,6 +49,7 @@ pub fn add(
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
         if !offline {
+            logs::store_sync_push(&registration.name);
             synchronizer.push()?;
         }
 
@@ -78,7 +79,7 @@ pub fn remove(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -111,6 +112,7 @@ pub fn remove(
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
         if !offline {
+            logs::store_sync_push(&registration.name);
             synchronizer.push()?;
         }
 
@@ -132,7 +134,7 @@ pub fn list(
         if !offline {
             let store_path = Path::new(&registration.path);
             let synchronizer = registration.synchronizer.select_implementation(store_path);
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 

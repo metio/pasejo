@@ -575,6 +575,9 @@ pub enum StoreCommands {
 
     /// Sets the synchronizer for a store
     SetSynchronizer(StoreSetSynchronizerArgs),
+
+    /// Synchronizes the store with its remote counterpart
+    Sync(StoreSyncArgs),
 }
 
 #[derive(Args)]
@@ -623,6 +626,20 @@ pub struct StoreSetSynchronizerArgs {
     /// The synchronizer to use
     #[arg(value_enum)]
     pub synchronizer: Synchronizers,
+}
+
+#[derive(Args)]
+pub struct StoreSyncArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Toggle whether changes from the remote store should be pulled
+    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
+    pub pull: Option<bool>,
+
+    /// Toggle whether local changes should be pushed to the remote store
+    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
+    pub push: Option<bool>,
 }
 
 #[derive(Args)]

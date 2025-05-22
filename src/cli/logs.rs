@@ -62,8 +62,12 @@ pub fn store_remove_success(store_name: &str) {
     info!("Store '{store_name}' removed");
 }
 
-pub fn store_sync_start(store_name: &str) {
+pub fn store_sync_pull(store_name: &str) {
     debug!("Pulling changes from remote for store '{store_name}'");
+}
+
+pub fn store_sync_push(store_name: &str) {
+    debug!("Pushing changes to remote for store '{store_name}'");
 }
 
 pub fn recipient_does_not_exist_ignored(public_key: &str) {

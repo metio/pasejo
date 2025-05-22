@@ -23,7 +23,7 @@ pub fn add(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -45,6 +45,7 @@ pub fn add(
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
         if !offline {
+            logs::store_sync_push(&registration.name);
             synchronizer.push()?;
         }
 
@@ -70,7 +71,7 @@ pub fn copy(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -92,6 +93,7 @@ pub fn copy(
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
             if !offline {
+                logs::store_sync_push(&registration.name);
                 synchronizer.push()?;
             }
 
@@ -120,7 +122,7 @@ pub fn mv(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -140,6 +142,7 @@ pub fn mv(
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
             if !offline {
+                logs::store_sync_push(&registration.name);
                 synchronizer.push()?;
             }
 
@@ -166,7 +169,7 @@ pub fn list(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -204,7 +207,7 @@ pub fn remove(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -254,7 +257,7 @@ pub fn show(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -337,7 +340,7 @@ pub fn generate(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -385,6 +388,7 @@ pub fn generate(
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
         if !offline {
+            logs::store_sync_push(&registration.name);
             synchronizer.push()?;
         }
 
@@ -408,7 +412,7 @@ pub fn edit(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -424,6 +428,7 @@ pub fn edit(
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
             if !offline {
+                logs::store_sync_push(&registration.name);
                 synchronizer.push()?;
             }
 
@@ -453,7 +458,7 @@ pub fn grep(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         if !offline {
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 

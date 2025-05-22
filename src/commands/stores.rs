@@ -36,6 +36,7 @@ pub fn add(
         )?;
         if !offline {
             let synchronizer = synchronizer.select_implementation(&absolute_path);
+            logs::store_sync_push(store_name);
             synchronizer.push()?;
         }
         logs::store_add_success(store_name, &absolute_path.display().to_string());
@@ -87,7 +88,7 @@ pub fn decrypt(
         if !offline {
             let store_path = Path::new(&registration.path);
             let synchronizer = registration.synchronizer.select_implementation(store_path);
-            logs::store_sync_start(&registration.name);
+            logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
@@ -132,6 +133,31 @@ pub fn set_synchronizer(
         configuration.save_configuration()?;
         logs::store_set_synchronizer(&name, synchronizer);
 
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
+    }
+}
+
+pub fn sync(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    pull: Option<bool>,
+    push: Option<bool>,
+) -> Result<()> {
+    if let Some(registration) = configuration.select_store(store_name) {
+        let store_path = Path::new(&registration.path);
+        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        if pull.unwrap_or(false) {
+            logs::store_sync_pull(&registration.name);
+            synchronizer.pull()?;
+        }
+        if push.unwrap_or(false) {
+            logs::store_sync_push(&registration.name);
+            synchronizer.push()?;
+        }
         Ok(())
     } else {
         anyhow::bail!(

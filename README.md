@@ -157,6 +157,21 @@ The supported shells are:
 
 Check their respective documentation on where to install completion files.
 
+### Migrate from passage
+
+You can migrate from `passage` to `pasejo` using the following snippet. It iterates over all secrets in passage and adds them to a pasejo store. It also adds the recipients and identities from passage to the pasejo store.
+
+```console
+$ pasejo store sync --pull
+$ find "${PASSAGE_DIR}"  -name '*.age' -type f -print | \
+    sed s,"${PASSAGE_DIR}/",, | \
+    sed s,.age,, | \
+    head -n 1 | \
+    xargs -I {} sh -c 'passage show {} | pasejo secret add {} --offline'
+$ pasejo store sync --push
+```
+
+
 ## Alternatives
 
 In case you are looking for something different, try these:

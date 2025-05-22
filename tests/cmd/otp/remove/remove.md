@@ -21,6 +21,7 @@ $ PASEJO_CONFIG=config.toml pasejo otp remove unique-name --force --quiet
 
 $ PASEJO_CONFIG=config.toml pasejo otp remove sub/name --force --verbose
 debug: Pulling changes from remote for store 'something'
+debug: Pushing changes to remote for store 'something'
 
 $ PASEJO_CONFIG=config.toml pasejo otp remove some-name --force
 
