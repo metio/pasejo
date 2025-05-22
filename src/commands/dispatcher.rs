@@ -217,6 +217,11 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 stores::remove(configuration, args.store.as_ref(), args.remove_data)
             }
             StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.name),
+            StoreCommands::Exec(args) => stores::exec(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                &args.command,
+            ),
             StoreCommands::SetSynchronizer(args) => stores::set_synchronizer(
                 configuration,
                 args.store_selection.store.as_ref(),

@@ -165,3 +165,34 @@ pub fn sync(
         )
     }
 }
+
+pub fn exec(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    command: &[String],
+) -> Result<()> {
+    if let Some(registration) = configuration.select_store(store_name) {
+        let store_path = Path::new(&registration.path);
+        if let Some(parent) = store_path.parent() {
+            if let Some(split) = command.split_first() {
+                duct::cmd(split.0, split.1)
+                    .env("PASEJO_EXEC_STORE_PATH", store_path)
+                    .env("PASEJO_EXEC_STORE_PARENT", parent)
+                    .env("PASEJO_EXEC_COMMAND", split.0)
+                    .dir(parent)
+                    .run()
+                    .with_context(|| format!("Failed to run command {}", split.0))?;
+            }
+        } else {
+            anyhow::bail!(
+                "Cannot get parent directory of store path. Please check the path and try again."
+            )
+        }
+
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
+    }
+}
