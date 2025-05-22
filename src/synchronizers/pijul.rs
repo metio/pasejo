@@ -14,6 +14,8 @@ impl Synchronizer for Pijul {
     fn push(&self) -> anyhow::Result<()> {
         if let Some(parent) = self.store_path.parent() {
             cmd!("pijul", "add", &self.store_path)
+                .stdout_null()
+                .stderr_null()
                 .dir(parent)
                 .run()
                 .context("Failed to stage store")?;
@@ -26,6 +28,8 @@ impl Synchronizer for Pijul {
                 .context("Failed to commit store")?;
 
             cmd!("pijul", "push")
+                .stdout_null()
+                .stderr_null()
                 .dir(parent)
                 .run()
                 .context("Failed to push store")?;
@@ -39,6 +43,8 @@ impl Synchronizer for Pijul {
     fn pull(&self) -> anyhow::Result<()> {
         if let Some(parent) = self.store_path.parent() {
             cmd!("pijul", "pull")
+                .stdout_null()
+                .stderr_null()
                 .dir(parent)
                 .run()
                 .context("Failed to pull store")?;

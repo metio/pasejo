@@ -14,6 +14,8 @@ impl Synchronizer for Git {
     fn push(&self) -> anyhow::Result<()> {
         if let Some(parent) = self.store_path.parent() {
             cmd!("git", "add", &self.store_path)
+                .stdout_null()
+                .stderr_null()
                 .dir(parent)
                 .run()
                 .context("Failed to stage store")?;
@@ -26,6 +28,8 @@ impl Synchronizer for Git {
                 .context("Failed to commit store")?;
 
             cmd!("git", "push")
+                .stdout_null()
+                .stderr_null()
                 .dir(parent)
                 .run()
                 .context("Failed to push store")?;
@@ -39,6 +43,8 @@ impl Synchronizer for Git {
     fn pull(&self) -> anyhow::Result<()> {
         if let Some(parent) = self.store_path.parent() {
             cmd!("git", "pull")
+                .stdout_null()
+                .stderr_null()
                 .dir(parent)
                 .run()
                 .context("Failed to pull store")?;
