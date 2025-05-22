@@ -578,6 +578,9 @@ pub enum StoreCommands {
 
     /// Synchronizes the store with its remote counterpart
     Sync(StoreSyncArgs),
+
+    /// Executes a command inside the directory of a store
+    Exec(StoreExecArgs),
 }
 
 #[derive(Args)]
@@ -640,6 +643,16 @@ pub struct StoreSyncArgs {
     /// Toggle whether local changes should be pushed to the remote store
     #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
     pub push: Option<bool>,
+}
+
+#[derive(Args)]
+pub struct StoreExecArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The command to execute inside the store
+    #[arg(num_args=0..)]
+    pub command: Vec<String>,
 }
 
 #[derive(Args)]

@@ -12,6 +12,7 @@ Commands:
   list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
   sync              Synchronizes the store with its remote counterpart
+  exec              Executes a command inside the directory of a store
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -35,6 +36,7 @@ Commands:
   list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
   sync              Synchronizes the store with its remote counterpart
+  exec              Executes a command inside the directory of a store
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -58,6 +60,7 @@ Commands:
   list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
   sync              Synchronizes the store with its remote counterpart
+  exec              Executes a command inside the directory of a store
   help              Print this message or the help of the given subcommand(s)
 
 Options:
