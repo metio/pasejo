@@ -23,6 +23,7 @@ $ PASEJO_CONFIG=config.toml pasejo otp move sub/name deeply/nested/name/for/pass
 
 $ PASEJO_CONFIG=config.toml pasejo otp move deeply/nested/name/for/password here-it-is --verbose
 debug: Pulling changes from remote for store 'something'
+debug: Pushing changes to remote for store 'something'
 
 $ PASEJO_CONFIG=config.toml pasejo otp show here-it-is
 558961

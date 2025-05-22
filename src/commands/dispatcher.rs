@@ -204,12 +204,17 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 args.default,
                 cli.offline,
             ),
-            StoreCommands::Remove(args) => {
-                stores::remove(configuration, args.store.as_ref(), args.remove_data)
-            }
+            StoreCommands::Decrypt(args) => stores::decrypt(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                cli.offline,
+            ),
             StoreCommands::List(_) => {
                 stores::list(&configuration);
                 Ok(())
+            }
+            StoreCommands::Remove(args) => {
+                stores::remove(configuration, args.store.as_ref(), args.remove_data)
             }
             StoreCommands::SetDefault(args) => stores::set_default(configuration, &args.name),
             StoreCommands::SetSynchronizer(args) => stores::set_synchronizer(
@@ -217,10 +222,11 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 args.store_selection.store.as_ref(),
                 &args.synchronizer,
             ),
-            StoreCommands::Decrypt(args) => stores::decrypt(
+            StoreCommands::Sync(args) => stores::sync(
                 &configuration,
                 args.store_selection.store.as_ref(),
-                cli.offline,
+                args.pull,
+                args.push,
             ),
         },
     }

@@ -24,6 +24,7 @@ info: Recipient for 'age1h0fd3l7c99kruc5n2h488vpgm4vxa4s7tca5u5ltv9lcjfxr6cfqw9l
 
 $ PASEJO_CONFIG=config.toml pasejo recipient remove age1h0fd3l7c99kruc5n2h488vpgm4vxa4s7tca5u5ltv9lcjfxr6cfqw9lf04 --verbose
 debug: Pulling changes from remote for store 'something'
+debug: Pushing changes to remote for store 'something'
 info: Recipient for 'age1h0fd3l7c99kruc5n2h488vpgm4vxa4s7tca5u5ltv9lcjfxr6cfqw9lf04' removed
 
 ```
