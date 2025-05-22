@@ -166,7 +166,6 @@ $ pasejo store sync --pull
 $ find "${PASSAGE_DIR}"  -name '*.age' -type f -print | \
     sed s,"${PASSAGE_DIR}/",, | \
     sed s,.age,, | \
-    head -n 1 | \
     xargs -I {} sh -c 'passage show {} | pasejo secret add {} --offline'
 $ pasejo store sync --push
 ```
