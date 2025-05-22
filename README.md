@@ -159,7 +159,7 @@ Check their respective documentation on where to install completion files.
 
 ### Migrate from passage
 
-You can migrate from `passage` to `pasejo` using the following snippet. It iterates over all secrets in passage and adds them to a pasejo store. It also adds the recipients and identities from passage to the pasejo store.
+You can migrate from `passage` to `pasejo` using the following snippet. It iterates over all secrets in passage and adds them to a pasejo store.
 
 ```console
 $ pasejo store sync --pull
