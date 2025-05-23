@@ -167,9 +167,9 @@ $ find "${PASSAGE_DIR}"  -name '*.age' -type f -print | \
     sed s,"${PASSAGE_DIR}/",, | \
     sed s,.age,, | \
     xargs -I {} sh -c 'passage show {} | pasejo secret add {} --offline'
+$ pasejo recipient add --file "${PASSAGE_DIR}/.age-recipients"
 $ pasejo store sync --push
 ```
-
 
 ## Alternatives
 

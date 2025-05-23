@@ -12,7 +12,7 @@ $ PASEJO_CONFIG=config.toml pasejo recipient add --public-key age1acvmq9pv8lwr60
 
 $ PASEJO_CONFIG=config.toml pasejo recipient add --public-key age142fqusnk9ye2nap204yryenxejkwuztt0xqnt8626gx7c5a96djs7smpyg --verbose
 debug: Pulling changes from remote for store 'something'
-debug: Pushing changes to remote for store 'something'
 info: Recipient for 'age142fqusnk9ye2nap204yryenxejkwuztt0xqnt8626gx7c5a96djs7smpyg' added
+debug: Pushing changes to remote for store 'something'
 
 ```

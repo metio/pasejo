@@ -11,7 +11,7 @@ use std::path::Path;
 pub fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
-    public_key: &(String, String),
+    public_keys: &[(String, String)],
     name: Option<&String>,
     offline: bool,
 ) -> anyhow::Result<()> {
@@ -31,29 +31,33 @@ pub fn add(
             PasswordStore::default()
         };
 
-        if let Some(recipient) = store
-            .recipients
-            .iter_mut()
-            .find(|recipient| recipient.public_key == public_key.0)
-        {
-            if let Some(name) = name {
-                name.clone_into(&mut recipient.name);
+        for public_key in public_keys {
+            if let Some(recipient) = store
+                .recipients
+                .iter_mut()
+                .find(|recipient| recipient.public_key == public_key.0)
+            {
+                if let Some(name) = name {
+                    name.clone_into(&mut recipient.name);
+                }
+            } else {
+                store.recipients.push(Recipient {
+                    public_key: public_key.0.clone(),
+                    name: name.map_or(&public_key.1, |value| value).to_string(),
+                });
             }
-        } else {
-            store.recipients.push(Recipient {
-                public_key: public_key.0.clone(),
-                name: name.map_or(&public_key.1, |value| value).to_string(),
-            });
         }
 
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
+
+        for public_key in public_keys {
+            logs::recipient_added(&public_key.0);
+        }
 
         if !offline {
             logs::store_sync_push(&registration.name);
             synchronizer.push()?;
         }
-
-        logs::recipient_added(&public_key.0);
 
         if configuration.identities.is_empty() && registration.identities.is_empty() {
             logs::no_identities_exist_yet(&registration.name);
