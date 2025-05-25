@@ -1,5 +1,5 @@
 ```
-$ PASEJO_CONFIG=config.toml pasejo store add --name something
+$ pasejo store add --name something
 ? 2
 error: the following required arguments were not provided:
   --path <PATH>

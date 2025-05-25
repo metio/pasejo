@@ -1,4 +1,4 @@
 ```
-$ PASEJO_CONFIG=config.toml pasejo identity remove --file non-existing --global --ignore-unknown
+$ pasejo identity remove --file non-existing --global --ignore-unknown
 
 ```

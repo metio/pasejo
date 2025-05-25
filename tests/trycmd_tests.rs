@@ -11,5 +11,7 @@ fn cli_tests() {
         .case("tests/cmd/otp/*/*.md")
         .case("tests/cmd/recipient/*/*.md")
         .case("tests/cmd/secret/*/*.md")
-        .case("tests/cmd/store/*/*.md");
+        .case("tests/cmd/store/*/*.md")
+        .case("docs/pasejo-cmd-*.md")
+        .env("PASEJO_CONFIG", "config.toml");
 }

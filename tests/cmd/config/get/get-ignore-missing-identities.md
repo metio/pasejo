@@ -1,5 +1,5 @@
 ```
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
 ```

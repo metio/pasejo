@@ -1,52 +1,52 @@
 ```
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities true
+$ pasejo config set ignore-missing-identities true
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities false
+$ pasejo config set ignore-missing-identities false
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 false
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities yes
+$ pasejo config set ignore-missing-identities yes
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities false
+$ pasejo config set ignore-missing-identities false
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 false
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities 1
+$ pasejo config set ignore-missing-identities 1
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities YES
+$ pasejo config set ignore-missing-identities YES
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities false
+$ pasejo config set ignore-missing-identities false
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 false
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities tRuE
+$ pasejo config set ignore-missing-identities tRuE
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities false
+$ pasejo config set ignore-missing-identities false
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 false
 
-$ PASEJO_CONFIG=config.toml pasejo config set ignore-missing-identities yEs
+$ pasejo config set ignore-missing-identities yEs
 
-$ PASEJO_CONFIG=config.toml pasejo config get ignore-missing-identities
+$ pasejo config get ignore-missing-identities
 true
 
 ```

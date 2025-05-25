@@ -1,5 +1,5 @@
 ```
-$ PASEJO_CONFIG=config.toml pasejo config get clipboard-timeout
+$ pasejo config get clipboard-timeout
 45
 
 ```
