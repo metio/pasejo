@@ -9,3 +9,9 @@ updates:
       interval: weekly
     assignees:
       - sebhoss
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: daily
+    assignees:
+      - sebhoss
