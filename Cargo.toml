@@ -44,7 +44,7 @@ ssh-key = { version = "0.6.7", features = ["ed25519", "encryption"] }
 termtree = { version = "0.5.1" }
 toml = { version = "0.8.23" }
 ureq = { version = "3.0.11" }
-which = { version = "4.4.2" }
+which = { version = "8.0.0" }
 
 [dev-dependencies]
 assert_cmd = { version = "2.0.17" }
