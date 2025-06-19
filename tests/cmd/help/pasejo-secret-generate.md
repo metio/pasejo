@@ -1,6 +1,6 @@
 ```
 $ pasejo secret help generate
-Generate a secret and insert it into the store
+Generate a secret and add it into the store
 
 Usage: pasejo secret generate [OPTIONS] <SECRET_PATH>
 
@@ -27,7 +27,7 @@ Options:
 
 ```
 $ pasejo secret generate --help
-Generate a secret and insert it into the store
+Generate a secret and add it into the store
 
 Usage: pasejo secret generate [OPTIONS] <SECRET_PATH>
 
@@ -54,7 +54,7 @@ Options:
 
 ```
 $ pasejo secret generate -h
-Generate a secret and insert it into the store
+Generate a secret and add it into the store
 
 Usage: pasejo secret generate [OPTIONS] <SECRET_PATH>
 

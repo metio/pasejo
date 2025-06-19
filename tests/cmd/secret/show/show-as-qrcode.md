@@ -9,7 +9,7 @@ $ pasejo recipient add --public-key age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdt
 info: Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
 
 $ pasejo secret add some-secret
-info: Inserted secret at 'some-secret'
+info: Added secret at 'some-secret'
 
 $ pasejo secret show some-secret --qrcode
 [48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m[48;5;15m[38;5;0m [49m[39m

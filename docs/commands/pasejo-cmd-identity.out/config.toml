@@ -1,0 +1,4 @@
+stores = []
+identities = []
+ignore_missing_identities = false
+clipboard_timeout = 60

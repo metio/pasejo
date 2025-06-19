@@ -4,6 +4,12 @@
 version = 1
 
 [[annotations]]
+path = "docs/**"
+precedence = "override"
+SPDX-FileCopyrightText = "The pasejo Authors"
+SPDX-License-Identifier = "0BSD"
+
+[[annotations]]
 path = "tests/cmd/**"
 precedence = "override"
 SPDX-FileCopyrightText = "The pasejo Authors"

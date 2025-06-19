@@ -49,7 +49,7 @@ pub fn add(
             synchronizer.push()?;
         }
 
-        logs::secret_inserted(secret_path);
+        logs::secret_added(secret_path);
         Ok(())
     } else {
         anyhow::bail!(
@@ -432,11 +432,11 @@ pub fn edit(
                 synchronizer.push()?;
             }
 
-            logs::secret_inserted(secret_path);
+            logs::secret_added(secret_path);
             Ok(())
         } else {
             anyhow::bail!(
-                "Secret does not exist at {secret_path}. Use 'pasejo secret insert' to create it."
+                "Secret does not exist at {secret_path}. Use 'pasejo secret add' to create it."
             );
         }
     } else {

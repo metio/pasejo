@@ -9,7 +9,7 @@ $ pasejo recipient add --public-key age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdt
 info: Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
 
 $ pasejo otp add --url otpauth://totp/Example:alice@google.com?secret=JEQDYMZAN5YGK3RAONXXK4TDMU&issuer=Example some-name
-info: Inserted one-time password at 'some-name'
+info: Added one-time password at 'some-name'
 
 $ pasejo otp show some-name
 558961

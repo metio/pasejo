@@ -14,12 +14,12 @@ pub fn recipient_removed(public_key: &str) {
     info!("Recipient for '{public_key}' removed");
 }
 
-pub fn secret_inserted(secret_path: &str) {
-    info!("Inserted secret at '{secret_path}'");
+pub fn secret_added(secret_path: &str) {
+    info!("Added secret at '{secret_path}'");
 }
 
-pub fn one_time_password_inserted(password_path: &str) {
-    info!("Inserted one-time password at '{password_path}'");
+pub fn one_time_password_added(password_path: &str) {
+    info!("Added one-time password at '{password_path}'");
 }
 
 pub fn secret_generated(secret_path: &str) {

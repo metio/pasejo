@@ -136,7 +136,7 @@ pub fn add(
             synchronizer.push()?;
         }
 
-        logs::one_time_password_inserted(password_path);
+        logs::one_time_password_added(password_path);
         Ok(())
     } else {
         anyhow::bail!(

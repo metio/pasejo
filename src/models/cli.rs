@@ -372,7 +372,7 @@ pub enum SecretCommands {
     /// Edit an existing secret
     Edit(SecretEditArgs),
 
-    /// Generate a secret and insert it into the store
+    /// Generate a secret and add it into the store
     Generate(SecretGenerateArgs),
 
     /// Grep for a search-string in secrets when decrypted
