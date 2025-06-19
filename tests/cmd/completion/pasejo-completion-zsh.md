@@ -9,7 +9,7 @@ function _clap_dynamic_completer_pasejo() {
         _CLAP_IFS="$_CLAP_IFS" /
         _CLAP_COMPLETE_INDEX="$_CLAP_COMPLETE_INDEX" /
         COMPLETE="zsh" /
-        [CWD]/target/debug/pasejo -- ${words} 2>/dev/null /
+        [CWD]/target/debug/pasejo -- "${words[@]}" 2>/dev/null /
     )}")
 
     if [[ -n $completions ]]; then
