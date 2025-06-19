@@ -1,0 +1,7 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/store"
+name = "something with whitespace"
+synchronizer = "None"
+identities = []

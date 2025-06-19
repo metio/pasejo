@@ -1,0 +1,12 @@
+# Migrate from pass to pasejo
+
+You can migrate from `pass` to `pasejo` using the following snippet. It iterates over all secrets in `pass` and adds them to a `pasejo` store.
+
+```shell
+$ find "${PASSWORD_STORE_DIR}" -name '*.gpg' -type f -print | \
+    sed s,"${PASSWORD_STORE_DIR}/",, | \
+    sed s,.gpg,, | \
+    xargs -I {} sh -c 'pass {} | pasejo secret add {} --offline'
+```
+
+This snippet assumes that you have already set up a `pasejo` store and that you have the `PASSWORD_STORE_DIR` environment variable set to the path of your `pass` store. Additionally, you need to add identities and recipients to your `pasejo` store before running this command to allow for encryption/decryption to work properly.

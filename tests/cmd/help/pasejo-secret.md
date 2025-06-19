@@ -8,7 +8,7 @@ Commands:
   add       Add a new secret or overwrite an existing one
   copy      Copy secret from old-path to new-path
   edit      Edit an existing secret
-  generate  Generate a secret and insert it into the store
+  generate  Generate a secret and add it into the store
   grep      Grep for a search-string in secrets when decrypted
   list      List all secrets
   move      Move secret from old-path to new-path
@@ -33,7 +33,7 @@ Commands:
   add       Add a new secret or overwrite an existing one
   copy      Copy secret from old-path to new-path
   edit      Edit an existing secret
-  generate  Generate a secret and insert it into the store
+  generate  Generate a secret and add it into the store
   grep      Grep for a search-string in secrets when decrypted
   list      List all secrets
   move      Move secret from old-path to new-path
@@ -57,7 +57,7 @@ Commands:
   add       Add a new secret or overwrite an existing one
   copy      Copy secret from old-path to new-path
   edit      Edit an existing secret
-  generate  Generate a secret and insert it into the store
+  generate  Generate a secret and add it into the store
   grep      Grep for a search-string in secrets when decrypted
   list      List all secrets
   move      Move secret from old-path to new-path
