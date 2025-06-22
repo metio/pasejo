@@ -1,9 +1,9 @@
 ```
 $ pasejo store add --path store --name something
-info: Store 'something' added at '[CWD]/store'
+Store 'something' added at '[CWD]/store'
 
 $ pasejo store set-synchronizer mercurial
-info: Store 'something' now synchronizes with Mercurial
+Store 'something' now synchronizes with Mercurial
 
 $ pasejo store set-synchronizer hg
 ? 2

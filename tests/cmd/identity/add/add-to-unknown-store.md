@@ -1,6 +1,6 @@
 ```
 $ pasejo store add --path store --name something
-info: Store 'something' added at '[CWD]/store'
+Store 'something' added at '[CWD]/store'
 
 $ pasejo identity add --file some-identity --store another
 ? 2
