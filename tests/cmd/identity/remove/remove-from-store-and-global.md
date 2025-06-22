@@ -1,6 +1,6 @@
 ```
 $ pasejo identity add --file some-identity
-info: Identity using file '[CWD]/some-identity' added
+Identity using file '[CWD]/some-identity' added
 
 $ pasejo identity remove --store something --global --file some-identity
 ? 2

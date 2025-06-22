@@ -1,6 +1,6 @@
 ```
 $ pasejo store add --path store --name same
-info: Store 'same' added at '[CWD]/store'
+Store 'same' added at '[CWD]/store'
 
 $ pasejo store add --path different --name same
 ? 1

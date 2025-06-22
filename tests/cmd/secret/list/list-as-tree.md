@@ -1,24 +1,24 @@
 ```
 $ pasejo store add --path store --name something
-info: Store 'something' added at '[CWD]/store'
+Store 'something' added at '[CWD]/store'
 
 $ pasejo identity add --file some-identity --store something
-info: Identity using file '[CWD]/some-identity' added
+Identity using file '[CWD]/some-identity' added
 
 $ pasejo recipient add --public-key age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd
-info: Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
+Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
 
 $ pasejo secret add some-secret
-info: Added secret at 'some-secret'
+Added secret at 'some-secret'
 
 $ pasejo secret add other-secret
-info: Added secret at 'other-secret'
+Added secret at 'other-secret'
 
 $ pasejo secret add nested/secret
-info: Added secret at 'nested/secret'
+Added secret at 'nested/secret'
 
 $ pasejo secret generate sub/sub/sub/secret
-info: Generated secret at 'sub/sub/sub/secret'
+Generated secret at 'sub/sub/sub/secret'
 
 $ pasejo secret list --tree
 

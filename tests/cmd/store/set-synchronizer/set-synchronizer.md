@@ -1,9 +1,9 @@
 ```
 $ pasejo store add --path store --name something
-info: Store 'something' added at '[CWD]/store'
+Store 'something' added at '[CWD]/store'
 
 $ pasejo store set-synchronizer git
-info: Store 'something' now synchronizes with Git
+Store 'something' now synchronizes with Git
 
 $ pasejo store set-synchronizer Git
 ? 2

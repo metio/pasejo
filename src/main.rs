@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::io::Write;
-
 mod cli;
 mod commands;
 mod downloader;
@@ -17,7 +15,7 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
 use commands::dispatcher::dispatch_command;
-use human_panic::{Metadata, setup_panic};
+use human_panic::{setup_panic, Metadata};
 use models::cli::Cli;
 use models::configuration::Configuration;
 
@@ -32,16 +30,13 @@ fn main() -> Result<()> {
     CompleteEnv::with_factory(Cli::command).complete();
 
     let cli = Cli::parse();
-    env_logger::Builder::new()
+    env_logger::builder()
         .filter_level(cli.verbose.log_level_filter())
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{}: {}",
-                record.level().to_string().to_ascii_lowercase(),
-                record.args()
-            )
-        })
+        .format_timestamp(None)
+        .format_level(false)
+        .format_module_path(false)
+        .format_source_path(false)
+        .format_target(false)
         .init();
     let configuration = Configuration::load_configuration()?;
 
