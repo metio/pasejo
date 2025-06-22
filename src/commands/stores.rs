@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{fs, path};
 
 use crate::cli::logs;
@@ -83,18 +83,25 @@ pub fn decrypt(
     configuration: &Configuration,
     store_name: Option<&String>,
     offline: bool,
+    store_path: Option<&PathBuf>,
 ) -> Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        if !offline {
+        if !offline && store_path.is_none() {
             let store_path = Path::new(&registration.path);
             let synchronizer = registration.synchronizer.select_implementation(store_path);
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = if let Some(path) = store_path {
+            configuration
+                .decrypt_store_from_path(registration, path)
+                .context("Cannot decrypt store")?
+        } else {
+            configuration
+                .decrypt_store(registration)
+                .context("Cannot decrypt store")?
+        };
 
         let content = toml::to_string(&store)?;
         println!("{content}");

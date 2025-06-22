@@ -659,6 +659,10 @@ pub struct StoreExecArgs {
 pub struct StoreDecryptArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
+
+    /// Overwrite the path to the store
+    #[arg(long, value_hint = FilePath)]
+    pub store_path: Option<PathBuf>,
 }
 
 #[derive(Args)]

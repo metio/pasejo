@@ -16,7 +16,7 @@ This command initializes a new Git repository at the specified path. Make sure t
 $ pasejo store add --path /path/to/your/repo/pasejo.store --name my-git-store --synchronizer git
 ```
 
-This command will create a new store named `my-git-store` at the specified path. Make sure that the path points inside a valid Git repository.
+This command will register a new store named `my-git-store` at the specified path. Make sure that the path points inside a valid Git repository. The filename `pasejo.store` can be any name you choose, and it's safe to pick any path within your Git repository.
 
 ## Using the Git Store
 
@@ -27,4 +27,23 @@ $ pasejo secret add some-secret
 $ pasejo secret show some-secret
 ```
 
-When you make changes to your secrets, `pasejo` will automatically track these changes in the Git repository and push changes to the remote repository if configured.
+When you make changes to your secrets, `pasejo` will automatically track these changes in the Git repository and push changes to the remote repository if configured. Likewise, it will pull changes from the remote repository before running any command that would interact with a store, like `pasejo secret show ...`.
+
+## Handling Conflicts
+
+If you have multiple devices using the same Git store, conflicts may arise when two devices try to modify the same secret simultaneously. Since a store is a single `age` encrypted file, `pasejo` will not be able to merge changes automatically. Therefore, you will need to resolve the conflicts manually.
+
+To configure `git diff` to show the differences between two versions of a store, you can use the following commands:
+
+```shell
+# use the same file extension as the store file you registered previously
+# beware that this command overwrites the .gitattributes file in the repository
+# use '>>' to append instead of overwriting
+$ echo '*.store diff=pasejo' > /path/to/your/repo/.gitattributes
+
+# declare that pasejo files are binary files
+$ git -C /path/to/your/repo config --local diff.pasejo.binary true
+
+# configure the text conversion command for pasejo files
+$ git -C /path/to/your/repo config --local diff.pasejo.textconv "pasejo store decrypt --store my-git-store --store-path"
+```
