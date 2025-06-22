@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::env::var_os;
-use std::path::{Path, PathBuf, absolute};
+use std::path::{absolute, Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -165,12 +165,20 @@ impl Configuration {
     }
 
     pub fn decrypt_store(&self, registration: &StoreRegistration) -> Result<PasswordStore> {
+        self.decrypt_store_from_path(registration, Path::new(&registration.path))
+    }
+
+    pub fn decrypt_store_from_path(
+        &self,
+        registration: &StoreRegistration,
+        store_path: &Path,
+    ) -> Result<PasswordStore> {
         let identity_files = self.all_identity_files(registration);
         let identities = identities::read(
             identity_files,
             self.ignore_missing_identities.unwrap_or(true),
         )?;
-        let decrypted_store = secrets::decrypt(Path::new(&registration.path), &identities)?;
+        let decrypted_store = secrets::decrypt(store_path, &identities)?;
         let store: PasswordStore = toml::from_str(&decrypted_store)?;
         Ok(store)
     }

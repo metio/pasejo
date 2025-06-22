@@ -208,6 +208,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 &configuration,
                 args.store_selection.store.as_ref(),
                 cli.offline,
+                args.store_path.as_ref(),
             ),
             StoreCommands::List(_) => {
                 stores::list(&configuration);
