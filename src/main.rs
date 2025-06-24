@@ -15,7 +15,7 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
 use commands::dispatcher::dispatch_command;
-use human_panic::{setup_panic, Metadata};
+use human_panic::{Metadata, setup_panic};
 use models::cli::Cli;
 use models::configuration::Configuration;
 

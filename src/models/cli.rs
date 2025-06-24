@@ -541,11 +541,11 @@ pub struct SecretShowArgs {
     pub store_selection: StoreSelectionArgs,
 
     /// Toggle to display secrets as QR code
-    #[arg(short = 'o', long)]
+    #[arg(short = 'o', long, conflicts_with = "clip")]
     pub qrcode: bool,
 
     /// Copy secret to clipboard
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with = "qrcode")]
     pub clip: bool,
 
     /// Show only the specified line, or skip lines when given a negative number
