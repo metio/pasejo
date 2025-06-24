@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::env::var_os;
-use std::path::{absolute, Path, PathBuf};
+use std::path::{Path, PathBuf, absolute};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

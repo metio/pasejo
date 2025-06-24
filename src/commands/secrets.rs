@@ -288,23 +288,21 @@ pub fn show(
             if qrcode {
                 logs::secret_show_as_qrcode(secret_path);
                 qr2term::print_qr(&text_to_show)?;
-            } else {
-                logs::secret_show_as_text(secret_path);
-                println!("{text_to_show}");
-            }
-            if clip {
-                // logs::secret_show_as_clipboard(secret_path);
+            } else if clip {
+                let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
+                logs::secret_copy_into_clipboard(secret_path, &duration);
                 let mut clipboard = arboard::Clipboard::new()?;
                 clipboard.set_text(text_to_show)?;
-                thread::sleep(Duration::from_secs(
-                    configuration.clipboard_timeout.unwrap_or(45),
-                ));
+                thread::sleep(duration);
                 clipboard.clear()?;
                 Notification::new()
                     .summary("pasejo")
                     .body("Clipboard cleared")
                     .timeout(Timeout::Default)
                     .show()?;
+            } else {
+                logs::secret_show_as_text(secret_path);
+                println!("{text_to_show}");
             }
             Ok(())
         } else {

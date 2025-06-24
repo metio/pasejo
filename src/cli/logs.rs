@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::path::Path;
-
 use crate::synchronizers::synchronizer::Synchronizers;
 use log::{debug, info, warn};
+use std::path::Path;
+use std::time::Duration;
 
 pub fn recipient_added(public_key: &str) {
     info!("Recipient for '{public_key}' added");
@@ -32,6 +32,12 @@ pub fn secret_show_as_qrcode(secret_path: &str) {
 
 pub fn secret_show_as_text(secret_path: &str) {
     debug!("Showing secret at '{secret_path}' as text");
+}
+
+pub fn secret_copy_into_clipboard(secret_path: &str, duration: &Duration) {
+    info!(
+        "Copying secret at '{secret_path}' into clipboard. Will be removed after {duration:?} or once you terminate this process."
+    );
 }
 
 pub fn one_time_password_show(password_path: &str) {
