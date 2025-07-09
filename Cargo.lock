@@ -1889,9 +1889,9 @@ checksum = "0fcc0b4a115bf80b728eb8ea024ad5bd707b615bfed49e0665b6e0f86fd082d9"
 
 [[package]]
 name = "human-panic"
-version = "2.0.2"
+version = "2.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80b84a66a325082740043a6c28bbea400c129eac0d3a27673a1de971e44bf1f7"
+checksum = "ac63a746b187e95d51fe16850eb04d1cfef203f6af98e6c405a6f262ad3df00a"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1899,7 +1899,7 @@ dependencies = [
  "os_info",
  "serde",
  "serde_derive",
- "toml 0.8.23",
+ "toml 0.9.0",
  "uuid",
 ]
 

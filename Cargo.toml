@@ -29,7 +29,7 @@ confy = { version = "1.0.0" }
 const-str = { version = "0.6.2" }
 duct = { version = "1.0.0" }
 env_logger = { version = "0.11.8" }
-human-panic = { version = "2.0.2" }
+human-panic = { version = "2.0.3" }
 log = { version = "0.4.27" }
 image = { version = "0.25.6" }
 inquire = { version = "0.7.5", features = ["editor"] }
