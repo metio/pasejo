@@ -10,6 +10,7 @@ Usage: pasejo secret [OPTIONS] <COMMAND>
 
 Commands:
   add       Add a new secret or overwrite an existing one
+  audit     Audit password strength of secrets
   copy      Copy secret from old-path to new-path
   edit      Edit an existing secret
   generate  Generate a secret and add it into the store

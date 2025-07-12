@@ -366,6 +366,9 @@ pub enum SecretCommands {
     /// Add a new secret or overwrite an existing one
     Add(SecretAddArgs),
 
+    /// Audit password strength of secrets
+    Audit(SecretAuditArgs),
+
     /// Copy secret from old-path to new-path
     Copy(SecretCopyArgs),
 
@@ -389,6 +392,32 @@ pub enum SecretCommands {
 
     /// Show secret
     Show(SecretShowArgs),
+}
+
+#[derive(Args)]
+pub struct SecretAddArgs {
+    /// Toggle multiline edit mode
+    #[arg(short, long)]
+    pub multiline: bool,
+
+    /// Overwrite an existing secrets without prompting
+    #[arg(short, long)]
+    pub force: bool,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The path of the secret within the selected store
+    pub secret_path: String,
+}
+
+#[derive(Args)]
+pub struct SecretAuditArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The path of the secret within the selected store
+    pub secret_path: Option<String>,
 }
 
 #[derive(Args)]
@@ -477,23 +506,6 @@ pub struct SecretGrepArgs {
 
     /// The string to search in all secrets
     pub search_string: String,
-}
-
-#[derive(Args)]
-pub struct SecretAddArgs {
-    /// Toggle multiline edit mode
-    #[arg(short, long)]
-    pub multiline: bool,
-
-    /// Overwrite an existing secrets without prompting
-    #[arg(short, long)]
-    pub force: bool,
-
-    #[command(flatten)]
-    pub store_selection: StoreSelectionArgs,
-
-    /// The path of the secret within the selected store
-    pub secret_path: String,
 }
 
 #[derive(Args)]
