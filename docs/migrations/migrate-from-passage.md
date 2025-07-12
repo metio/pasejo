@@ -13,7 +13,7 @@ $ pasejo recipient add --file "${PASSAGE_DIR}/.age-recipients"
 $ find "${PASSAGE_DIR}" -name '*.age' -type f -print | \
     sed s,"${PASSAGE_DIR}/",, | \
     sed s,.age,, | \
-    xargs -I {} sh -c 'passage show {} | pasejo secret add {} --offline'
+    xargs -I {} sh -c 'passage show {} | head --bytes -1 | pasejo secret add {} --offline'
 
 # sync local changes to the remote store
 $ pasejo store sync --push
