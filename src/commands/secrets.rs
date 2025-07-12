@@ -6,6 +6,7 @@ use crate::models::configuration::Configuration;
 use crate::secrets;
 use anyhow::Context;
 use notify_rust::{Notification, Timeout};
+use passwords::{analyzer, scorer};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
@@ -50,6 +51,47 @@ pub fn add(
         }
 
         logs::secret_added(secret_path);
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
+    }
+}
+
+pub fn audit(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    secret_path: Option<&String>,
+    offline: bool,
+) -> anyhow::Result<()> {
+    if let Some(registration) = configuration.select_store(store_name) {
+        let store_path = Path::new(&registration.path);
+        let synchronizer = registration.synchronizer.select_implementation(store_path);
+
+        if !offline {
+            logs::store_sync_pull(&registration.name);
+            synchronizer.pull()?;
+        }
+
+        let store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
+
+        if let Some(secret_path) = secret_path {
+            let value = store
+                .secrets
+                .get(secret_path)
+                .ok_or_else(|| anyhow::anyhow!("No secret found at '{secret_path}'"))?;
+            let score = scorer::score(&analyzer::analyze(value));
+            println!("{secret_path}: {score}/100");
+        } else {
+            for (key, value) in store.secrets {
+                let score = scorer::score(&analyzer::analyze(value));
+                println!("{key}: {score}/100");
+            }
+        }
+
         Ok(())
     } else {
         anyhow::bail!(

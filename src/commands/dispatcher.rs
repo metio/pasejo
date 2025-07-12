@@ -127,6 +127,12 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 args.multiline,
                 cli.offline,
             ),
+            SecretCommands::Audit(args) => secrets::audit(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                args.secret_path.as_ref(),
+                cli.offline,
+            ),
             SecretCommands::Copy(args) => secrets::copy(
                 &configuration,
                 args.store_selection.store.as_ref(),
