@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::env::var_os;
-use std::path::{Path, PathBuf, absolute};
+use std::path::{absolute, Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -184,9 +184,13 @@ impl Configuration {
     }
 
     pub fn encrypt_store(registration: &StoreRegistration, store: &PasswordStore) -> Result<()> {
+        Self::encrypt_store_to_path(store, Path::new(&registration.path))
+    }
+
+    pub fn encrypt_store_to_path(store: &PasswordStore, store_path: &Path) -> Result<()> {
         let recipients = recipients::read_recipients(&store.recipients)?;
         let store_toml = toml::to_string_pretty(&store)?;
-        secrets::encrypt(&store_toml, Path::new(&registration.path), &recipients)?;
+        secrets::encrypt(&store_toml, store_path, &recipients)?;
         Ok(())
     }
 

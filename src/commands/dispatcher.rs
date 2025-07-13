@@ -220,6 +220,13 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 stores::list(&configuration);
                 Ok(())
             }
+            StoreCommands::Merge(args) => stores::merge(
+                &configuration,
+                args.store_selection.store.as_ref(),
+                &args.common_ancestor,
+                &args.current_version,
+                &args.other_version,
+            ),
             StoreCommands::Remove(args) => {
                 stores::remove(configuration, args.store.as_ref(), args.remove_data)
             }

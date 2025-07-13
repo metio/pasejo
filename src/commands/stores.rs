@@ -7,6 +7,7 @@ use std::{fs, path};
 use crate::cli::logs;
 use crate::models::configuration::Configuration;
 use crate::synchronizers::synchronizer::Synchronizers;
+use crate::{one_time_passwords, recipients, secrets};
 use anyhow::{Context, Result};
 
 pub fn add(
@@ -126,6 +127,79 @@ pub fn list(configuration: &Configuration) {
             );
 
         println!("{text}");
+    }
+}
+
+pub fn merge(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    common_ancestor: &Path,
+    current_version: &Path,
+    other_version: &Path,
+) -> Result<()> {
+    if let Some(registration) = configuration.select_store(store_name) {
+        let common_ancestor_store = configuration
+            .decrypt_store_from_path(registration, common_ancestor)
+            .context("Cannot decrypt common ancestor store")?;
+        let mut current_version_store = configuration
+            .decrypt_store_from_path(registration, current_version)
+            .context("Cannot decrypt current version store")?;
+        let other_version_store = configuration
+            .decrypt_store_from_path(registration, other_version)
+            .context("Cannot decrypt other version store")?;
+
+        let mut errors = vec![];
+
+        match recipients::merge_recipients(
+            &common_ancestor_store.recipients,
+            &current_version_store.recipients,
+            &other_version_store.recipients,
+        ) {
+            Ok(merged_recipients) => {
+                current_version_store.recipients = merged_recipients;
+            }
+            Err(error) => {
+                errors.push(error);
+            }
+        }
+
+        match secrets::merge_secrets(
+            &common_ancestor_store.secrets,
+            &current_version_store.secrets,
+            &other_version_store.secrets,
+        ) {
+            Ok(merged_secrets) => {
+                current_version_store.secrets = merged_secrets;
+            }
+            Err(error) => {
+                errors.push(error);
+            }
+        }
+
+        match one_time_passwords::merge_one_time_passwords(
+            &common_ancestor_store.otp,
+            &current_version_store.otp,
+            &other_version_store.otp,
+        ) {
+            Ok(merged_one_time_passwords) => {
+                current_version_store.otp = merged_one_time_passwords;
+            }
+            Err(error) => {
+                errors.push(error);
+            }
+        }
+
+        if errors.is_empty() {
+            Configuration::encrypt_store_to_path(&current_version_store, current_version)
+        } else {
+            let error_messages: Vec<String> =
+                errors.into_iter().map(|error| error.to_string()).collect();
+            anyhow::bail!(error_messages.join("\n       "))
+        }
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
     }
 }
 

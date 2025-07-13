@@ -10,13 +10,14 @@ Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
   add               Adds a new store
+  decrypt           Decrypt a store and print its content
+  exec              Executes a command inside the directory of a store
+  list              List all available stores
+  merge             Merge two stores
   remove            Remove an existing store
   set-default       Mark a store as default
-  decrypt           Decrypt a store and print its content
-  list              List all available stores
   set-synchronizer  Sets the synchronizer for a store
   sync              Synchronizes the store with its remote counterpart
-  exec              Executes a command inside the directory of a store
   help              Print this message or the help of the given subcommand(s)
 
 Options:
