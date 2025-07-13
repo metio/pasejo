@@ -27,13 +27,13 @@ impl PasswordStore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 pub struct Recipient {
     pub name: String,
     pub public_key: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 pub struct OneTimePassword {
     pub secret: String,
     pub otp_type: OneTimePasswordType,

@@ -83,12 +83,12 @@ pub fn audit(
                 .secrets
                 .get(secret_path)
                 .ok_or_else(|| anyhow::anyhow!("No secret found at '{secret_path}'"))?;
-            let score = scorer::score(&analyzer::analyze(value));
-            println!("{secret_path}: {score}/100");
+            let password_strength = scorer::score(&analyzer::analyze(value));
+            println!("{secret_path}: {password_strength}/100");
         } else {
             for (key, value) in store.secrets {
-                let score = scorer::score(&analyzer::analyze(value));
-                println!("{key}: {score}/100");
+                let password_strength = scorer::score(&analyzer::analyze(value));
+                println!("{key}: {password_strength}/100");
             }
         }
 

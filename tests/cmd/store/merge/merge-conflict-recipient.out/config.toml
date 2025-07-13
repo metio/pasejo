@@ -1,0 +1,25 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/ancestor"
+name = "ancestor"
+synchronizer = "None"
+
+[[stores.identities]]
+file = "[CWD]/some-identity"
+
+[[stores]]
+path = "[CWD]/current"
+name = "current"
+synchronizer = "None"
+
+[[stores.identities]]
+file = "[CWD]/some-identity"
+
+[[stores]]
+path = "[CWD]/other"
+name = "other"
+synchronizer = "None"
+
+[[stores.identities]]
+file = "[CWD]/some-identity"

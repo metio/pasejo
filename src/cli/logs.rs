@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::synchronizers::synchronizer::Synchronizers;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use std::path::Path;
 use std::time::Duration;
 
@@ -83,5 +83,31 @@ pub fn recipient_does_not_exist_ignored(public_key: &str) {
 pub fn no_identities_exist_yet(store_name: &String) {
     warn!(
         "There are no identities in the store '{store_name}' yet. Please add one using 'pasejo identity add ...'"
+    );
+}
+
+pub fn merge_conflict_recipient_names(
+    public_key: &String,
+    first_name: &String,
+    second_name: &String,
+) {
+    error!(
+        "Merge conflict for recipient with public key '{public_key}': names '{first_name}' and '{second_name}' differ",
+    );
+}
+
+pub fn merge_conflict_recipient_removed_and_renamed(public_key: &String, new_name: &String) {
+    error!(
+        "Merge conflict for recipient with public key '{public_key}': recipient was removed in one version and renamed to '{new_name}' in the other"
+    );
+}
+
+pub fn merge_conflict_values(value_type: &str, secret_path: &str) {
+    error!("Merge conflict for {value_type} at '{secret_path}': values differ in the two versions");
+}
+
+pub fn merge_conflict_removed_and_modified(value_type: &str, secret_path: &str) {
+    error!(
+        "Merge conflict for {value_type} at '{secret_path}': {value_type} was removed in one version and modified in the other"
     );
 }

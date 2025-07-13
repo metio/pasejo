@@ -573,26 +573,29 @@ pub enum StoreCommands {
     /// Adds a new store
     Add(StoreAddArgs),
 
+    /// Decrypt a store and print its content
+    Decrypt(StoreDecryptArgs),
+
+    /// Executes a command inside the directory of a store
+    Exec(StoreExecArgs),
+
+    /// List all available stores
+    List(StoreListArgs),
+
+    /// Merge two stores
+    Merge(StoreMergeArgs),
+
     /// Remove an existing store
     Remove(StoreRemoveArgs),
 
     /// Mark a store as default
     SetDefault(StoreSetDefaultArgs),
 
-    /// Decrypt a store and print its content
-    Decrypt(StoreDecryptArgs),
-
-    /// List all available stores
-    List(StoreListArgs),
-
     /// Sets the synchronizer for a store
     SetSynchronizer(StoreSetSynchronizerArgs),
 
     /// Synchronizes the store with its remote counterpart
     Sync(StoreSyncArgs),
-
-    /// Executes a command inside the directory of a store
-    Exec(StoreExecArgs),
 }
 
 #[derive(Args)]
@@ -675,6 +678,24 @@ pub struct StoreDecryptArgs {
     /// Overwrite the path to the store
     #[arg(long, value_hint = FilePath)]
     pub store_path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct StoreMergeArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The path to the common ancestor of the two stores
+    #[arg(long, value_hint = FilePath)]
+    pub common_ancestor: PathBuf,
+
+    /// The path to current version of the store
+    #[arg(long, value_hint = FilePath)]
+    pub current_version: PathBuf,
+
+    /// The path to the other version of the store
+    #[arg(long, value_hint = FilePath)]
+    pub other_version: PathBuf,
 }
 
 #[derive(Args)]
