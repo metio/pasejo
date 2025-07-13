@@ -20,13 +20,13 @@ jobs:
             apt_packages: ""
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            apt_packages: gcc-aarch64-linux-gnu musl-tools gcc-multilib
+            apt_packages: gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             apt_packages: ""
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
-            apt_packages: gcc-mingw-w64-x86-64-win32
+            apt_packages: gcc-mingw-w64-x86-64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
