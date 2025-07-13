@@ -40,48 +40,38 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            os: macOS-latest
-            cross: true
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            cross: true
-          - target: x86_64-apple-darwin
-            os: macOS-latest
-            cross: true
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            cross: false
     steps:
       - id: checkout
         name: Clone Git Repository
         if: needs.prepare.outputs.release_version != ''
         uses: actions/checkout@v4
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Cache
         if: needs.prepare.outputs.release_version != ''
+        uses: actions/cache@v4
         with:
-          targets: aarch64-apple-darwin,aarch64-unknown-linux-gnu,x86_64-apple-darwin,x86_64-unknown-linux-gnu
-      - name: Install cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Set up Rust Target
         if: needs.prepare.outputs.release_version != ''
-        with:
-          key: ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
       - id: versioning
         name: Modify release version
         if: needs.prepare.outputs.release_version != ''
         run: sed -i -e '0,/authors/s/^version = .*/version = "${{ needs.prepare.outputs.release_version }}"/' Cargo.toml
       - id: build
         name: Build Project
-        if: needs.prepare.outputs.release_version != '' && !matrix.cross
+        if: needs.prepare.outputs.release_version != ''
         run: cargo build --release --target ${{ matrix.target }}
-      - id: cross
-        name: Build Project
-        if: needs.prepare.outputs.release_version != '' && matrix.cross
-        run: cross build --release --target ${{ matrix.target }}
       - id: move
         name: Move Binary
         if: needs.prepare.outputs.release_version
