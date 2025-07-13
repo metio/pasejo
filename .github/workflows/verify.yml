@@ -38,7 +38,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Set up Rust Target
         run: rustup target add ${{ matrix.target }}
       - name: Install additional packages
