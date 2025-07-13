@@ -42,18 +42,23 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             apt_packages: ""
+            binary_name: pasejo
           - target: x86_64-apple-darwin
             os: macos-latest
             apt_packages: ""
+            binary_name: pasejo
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             apt_packages: gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+            binary_name: pasejo
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             apt_packages: ""
+            binary_name: pasejo
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
             apt_packages: gcc-mingw-w64-x86-64
+            binary_name: pasejo.exe
     steps:
       - id: checkout
         name: Clone Git Repository
@@ -85,14 +90,14 @@ jobs:
       - id: move
         name: Move Binary
         if: needs.prepare.outputs.release_version
-        run: mv target/${{ matrix.target }}/release/${{ github.event.repository.name }} ./${{ github.event.repository.name }}
+        run: mv target/${{ matrix.target }}/release/${{ matrix.binary_name }} ./${{ matrix.binary_name }}
       - id: tar
         name: Create tar.gz Archive
         if: needs.prepare.outputs.release_version != ''
         run: >
           tar --create --gzip
           --file ${{ github.event.repository.name }}-${{ matrix.target }}.tar.gz
-          ${{ github.event.repository.name }}
+          ${{ matrix.binary_name }}
           LICENSE
           README.md
       - id: upload
