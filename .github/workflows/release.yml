@@ -72,7 +72,7 @@ jobs:
         if: needs.prepare.outputs.release_version != ''
         run: rustup target add ${{ matrix.target }}
       - name: Install additional packages
-        if: matrix.apt_packages != ''
+        if: needs.prepare.outputs.release_version != '' && matrix.apt_packages != ''
         run: sudo apt-get install --yes --no-install-recommends ${{ matrix.apt_packages }}
       - id: versioning
         name: Modify release version
