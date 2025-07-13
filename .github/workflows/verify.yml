@@ -48,3 +48,5 @@ jobs:
         run: cargo check --release --target ${{ matrix.target }}
       - name: Test Code
         run: cargo test
+      - name: Build Code
+        run: cargo build --release --target ${{ matrix.target }}
