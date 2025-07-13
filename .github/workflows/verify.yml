@@ -20,7 +20,7 @@ jobs:
             apt_packages: ""
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            apt_packages: gcc-aarch64-linux-gnu musl-tools
+            apt_packages: gcc-aarch64-linux-gnu musl-tools gcc-multilib
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             apt_packages: ""
