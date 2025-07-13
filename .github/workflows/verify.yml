@@ -36,4 +36,4 @@ jobs:
       - name: Check Code
         run: cargo check --target ${{ matrix.target }}
       - name: Test Code
-        run: cargo test --target ${{ matrix.target }}
+        run: cargo test
