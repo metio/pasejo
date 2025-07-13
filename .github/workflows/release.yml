@@ -41,12 +41,19 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-latest
+            apt_packages: ""
           - target: x86_64-apple-darwin
             os: macos-latest
+            apt_packages: ""
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
+            apt_packages: gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            apt_packages: ""
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            apt_packages: gcc-mingw-w64-x86-64
     steps:
       - id: checkout
         name: Clone Git Repository
@@ -64,6 +71,9 @@ jobs:
       - name: Set up Rust Target
         if: needs.prepare.outputs.release_version != ''
         run: rustup target add ${{ matrix.target }}
+      - name: Install additional packages
+        if: matrix.apt_packages != ''
+        run: sudo apt-get install --yes --no-install-recommends ${{ matrix.apt_packages }}
       - id: versioning
         name: Modify release version
         if: needs.prepare.outputs.release_version != ''

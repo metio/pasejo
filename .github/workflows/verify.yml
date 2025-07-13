@@ -45,6 +45,6 @@ jobs:
         if: matrix.apt_packages != ''
         run: sudo apt-get install --yes --no-install-recommends ${{ matrix.apt_packages }}
       - name: Check Code
-        run: cargo check --target ${{ matrix.target }}
+        run: cargo check --release --target ${{ matrix.target }}
       - name: Test Code
         run: cargo test
