@@ -22,7 +22,7 @@ default = []
 age = { version = "0.11.1", features = ["armor", "cli-common", "plugin", "ssh"] }
 anyhow = { version = "1.0.98" }
 arboard = { version = "3.6.0", default-features = false, features = ["wayland-data-control"] }
-clap = { version = "4.5.42", features = ["derive"] }
+clap = { version = "4.5.43", features = ["derive"] }
 clap_complete = { version = "4.5.55", features = ["unstable-dynamic"] }
 clap-verbosity-flag = { version = "3.0.3" }
 confy = { version = "1.0.0" }
