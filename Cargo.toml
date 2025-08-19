@@ -58,4 +58,4 @@ ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
 trycmd = { version = "0.15.10" }
 
 [build-dependencies]
-cc = "1.2.32"
+cc = "1.2.33"
