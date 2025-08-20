@@ -24,7 +24,7 @@ anyhow = { version = "1.0.99" }
 arboard = { version = "3.6.0", default-features = false, features = ["wayland-data-control"] }
 clap = { version = "4.5.45", features = ["derive"] }
 clap_complete = { version = "4.5.57", features = ["unstable-dynamic"] }
-clap-verbosity-flag = { version = "3.0.3" }
+clap-verbosity-flag = { version = "3.0.4" }
 confy = { version = "1.0.0" }
 const-str = { version = "0.6.4" }
 duct = { version = "1.0.0" }
