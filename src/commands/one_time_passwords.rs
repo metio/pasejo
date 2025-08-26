@@ -33,7 +33,7 @@ pub fn remove(
 
         if store.otp.contains_key(password_path)
             && !force
-            && prompts::get_confirmation_from_user("Remove existing one-time password?")?
+            && !prompts::get_confirmation_from_user("Remove existing one-time password?")?
         {
             anyhow::bail!(
                 "Not allowed to remove one-time password at {password_path}. Use --force to overwrite."
@@ -120,7 +120,7 @@ pub fn add(
 
         if store.otp.contains_key(password_path)
             && !force
-            && prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
         {
             anyhow::bail!(
                 "One-time password already exists at {password_path}. Use --force to overwrite."
@@ -220,7 +220,7 @@ pub fn mv(
 
         if store.otp.contains_key(new_path)
             && !force
-            && prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
         {
             anyhow::bail!(
                 "One-time password already exists at {new_path}. Use --force to overwrite."
@@ -271,7 +271,7 @@ pub fn copy(
 
         if store.otp.contains_key(target_path)
             && !force
-            && prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
         {
             anyhow::bail!(
                 "One-time password already exists at {target_path}. Use --force to overwrite."
