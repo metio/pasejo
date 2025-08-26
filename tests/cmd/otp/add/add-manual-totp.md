@@ -11,4 +11,7 @@ Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' a
 $ pasejo otp add --type totp --secret JEQDYMZAN5YGK3RAONXXK4TDMU some-name
 Added one-time password at 'some-name'
 
+$ pasejo otp add --type totp --secret jeqdymzan5ygk3raonxxk4tdmu lower-case-secret
+Added one-time password at 'lower-case-secret'
+
 ```
