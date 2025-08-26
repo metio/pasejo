@@ -11,4 +11,10 @@ Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' a
 $ pasejo otp add --url otpauth://totp/Example:alice@example.com?secret=JEQDYMZAN5YGK3RAONXXK4TDMU&issuer=Example some-name
 Added one-time password at 'some-name'
 
+$ pasejo otp add --url otpauth://totp/Example:alice@example.com?secret=jeqdymzan5ygk3raonxxk4tdmu&issuer=Example lower-case-secret
+Added one-time password at 'lower-case-secret'
+
+$ pasejo otp add --url otpauth://totp/Different:alice@example.com?secret=jeqdymzan5ygk3raonxxk4tdmu&issuer=Example mismatched-label-issuer
+Added one-time password at 'mismatched-label-issuer'
+
 ```

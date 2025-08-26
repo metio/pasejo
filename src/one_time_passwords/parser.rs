@@ -5,9 +5,12 @@ use crate::models::password_store::{
     OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
 };
 use image;
-use otp_std::Auth;
+use otp_std::auth::query::Query;
+use otp_std::base::SECRET;
 use otp_std::Otp::{Hotp, Totp};
+use otp_std::{auth, Otp, Type};
 use rqrr;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 #[allow(clippy::too_many_arguments)]
@@ -34,7 +37,7 @@ pub fn parse_otp_args(
         parse_from_url(&content)
     } else {
         Ok(OneTimePassword {
-            secret: secret.cloned().unwrap_or_default(),
+            secret: secret.cloned().unwrap_or_default().to_uppercase(),
             otp_type: otp_type.cloned().unwrap_or_default(),
             algorithm: algorithm.cloned().unwrap_or_default(),
             digits: digits.unwrap_or(6),
@@ -46,8 +49,16 @@ pub fn parse_otp_args(
 }
 
 fn parse_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
-    let parsed = Auth::parse_url(url)?;
-    match parsed.otp {
+    let url = auth::url::parse(url)?;
+    auth::scheme::check_url(&url)?;
+    let mut query: Query<'_> = url.query_pairs().collect();
+    if let Some(secret) = query.get(SECRET) {
+        query.insert(Cow::from(SECRET), Cow::from(secret.to_uppercase()));
+    }
+    let type_of = Type::extract_from(&url)?;
+    let otp = Otp::extract_from(&mut query, type_of)?;
+
+    match otp {
         Hotp(hotp) => Ok(OneTimePassword {
             secret: hotp.base.secret.to_string(),
             otp_type: OneTimePasswordType::Hotp,
