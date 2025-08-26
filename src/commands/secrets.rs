@@ -34,7 +34,7 @@ pub fn add(
 
         if store.secrets.contains_key(secret_path)
             && !force
-            && prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!("Secret already exists at {secret_path}. Use --force to overwrite.");
         }
@@ -123,7 +123,7 @@ pub fn copy(
 
         if store.secrets.contains_key(target_path)
             && !force
-            && prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!("Secret already exists at {target_path}. Use --force to overwrite.");
         }
@@ -174,7 +174,7 @@ pub fn mv(
 
         if store.secrets.contains_key(new_path)
             && !force
-            && prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!("Secret already exists at {new_path}. Use --force to overwrite.");
         }
@@ -259,7 +259,7 @@ pub fn remove(
 
         if store.secrets.contains_key(secret_path)
             && !force
-            && prompts::get_confirmation_from_user("Remove existing secret?")?
+            && !prompts::get_confirmation_from_user("Remove existing secret?")?
         {
             anyhow::bail!(
                 "Not allowed to remove secret at {secret_path}. Use --force to overwrite."
@@ -391,10 +391,10 @@ pub fn generate(
         if store.secrets.contains_key(secret_path)
             && !force
             && !inplace
-            && prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!(
-                "Secret already exists at {secret_path}. Use --force to overwrite or --inplace to its first line in-place."
+                "Secret already exists at {secret_path}. Use --force to overwrite entirely or --inplace to modify its first line in-place."
             );
         }
 
