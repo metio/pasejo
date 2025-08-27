@@ -34,7 +34,7 @@ log = { version = "0.4.27" }
 image = { version = "0.25.6" }
 inquire = { version = "0.7.5", features = ["editor"] }
 notify-rust = { version = "4.11.7" }
-otp-std = { version = "0.2.3", features = ["auth", "sha2"] }
+otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
 passwords = { version = "3.1.16" }
 qr2term = { version = "0.3.3" }
 regex = { version = "1.11.2" }

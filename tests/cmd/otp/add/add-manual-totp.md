@@ -14,4 +14,7 @@ Added one-time password at 'some-name'
 $ pasejo otp add --type totp --secret jeqdymzan5ygk3raonxxk4tdmu lower-case-secret
 Added one-time password at 'lower-case-secret'
 
+$ pasejo otp add --type totp --secret jeqdymztebxxazlo short-secret
+Added one-time password at 'short-secret'
+
 ```

@@ -17,4 +17,7 @@ Added one-time password at 'lower-case-secret'
 $ pasejo otp add --url otpauth://totp/Different:alice@example.com?secret=jeqdymzan5ygk3raonxxk4tdmu&issuer=Example mismatched-label-issuer
 Added one-time password at 'mismatched-label-issuer'
 
+$ pasejo otp add --url otpauth://totp/Different:alice@example.com?secret=jeqdymztebxxazlo&issuer=Example short-secret
+Added one-time password at 'short-secret'
+
 ```
