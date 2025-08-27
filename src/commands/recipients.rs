@@ -20,7 +20,10 @@ pub fn add(
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
         let mut store = if store_path.exists() {
-            if !offline {
+            if !offline
+                && synchronizer
+                    .should_pull(configuration.pull_interval_seconds, &registration.name)?
+            {
                 logs::store_sync_pull(&registration.name);
                 synchronizer.pull()?;
             }
@@ -82,7 +85,9 @@ pub fn remove(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
@@ -135,9 +140,12 @@ pub fn list(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        if !offline {
-            let store_path = Path::new(&registration.path);
-            let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let store_path = Path::new(&registration.path);
+        let synchronizer = registration.synchronizer.select_implementation(store_path);
+
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }

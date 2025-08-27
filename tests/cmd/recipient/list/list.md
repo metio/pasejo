@@ -12,7 +12,6 @@ $ pasejo recipient list
 age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd
 
 $ pasejo recipient list --verbose
-Pulling changes from remote for store 'something'
 age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd
 
 $ pasejo recipient list --quiet

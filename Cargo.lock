@@ -2889,6 +2889,7 @@ dependencies = [
  "clap_complete",
  "confy",
  "const-str",
+ "directories",
  "duct",
  "env_logger",
  "human-panic",

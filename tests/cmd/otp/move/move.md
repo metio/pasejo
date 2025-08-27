@@ -22,7 +22,6 @@ $ pasejo otp move unique-name new-name
 $ pasejo otp move sub/name deeply/nested/name/for/password --quiet
 
 $ pasejo otp move deeply/nested/name/for/password here-it-is --verbose
-Pulling changes from remote for store 'something'
 Pushing changes to remote for store 'something'
 
 $ pasejo otp show here-it-is

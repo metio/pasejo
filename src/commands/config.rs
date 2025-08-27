@@ -14,6 +14,12 @@ pub fn get(configuration: &Configuration, option: &ConfigurationOption) {
         ConfigurationOption::ClipboardTimeout => {
             println!("{}", configuration.clipboard_timeout.unwrap_or(45));
         }
+        ConfigurationOption::PullIntervalSeconds => {
+            println!(
+                "{}",
+                configuration.pull_interval_seconds.unwrap_or(60 * 60 * 24)
+            );
+        }
     }
 }
 
@@ -37,6 +43,14 @@ pub fn set(
             } else {
                 let timeout = value.parse::<u64>()?;
                 configuration.clipboard_timeout = Some(timeout);
+            }
+        }
+        ConfigurationOption::PullIntervalSeconds => {
+            if value.is_empty() {
+                configuration.pull_interval_seconds = None;
+            } else {
+                let interval = value.parse::<u64>()?;
+                configuration.pull_interval_seconds = Some(interval);
             }
         }
     }

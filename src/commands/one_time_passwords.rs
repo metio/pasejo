@@ -22,7 +22,9 @@ pub fn remove(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
@@ -70,7 +72,9 @@ pub fn list(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
@@ -109,7 +113,9 @@ pub fn add(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
@@ -156,7 +162,9 @@ pub fn show(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
@@ -209,7 +217,9 @@ pub fn mv(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }
@@ -260,7 +270,9 @@ pub fn copy(
         let store_path = Path::new(&registration.path);
         let synchronizer = registration.synchronizer.select_implementation(store_path);
 
-        if !offline {
+        if !offline
+            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
+        {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
         }

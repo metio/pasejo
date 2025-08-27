@@ -28,12 +28,16 @@ pub struct Configuration {
 
     /// How long should secrets/OTPs be kept in the clipboard in seconds?
     pub clipboard_timeout: Option<u64>,
+
+    /// Time in seconds between automated pulls
+    pub pull_interval_seconds: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, clap::ValueEnum)]
 pub enum ConfigurationOption {
     IgnoreMissingIdentities,
     ClipboardTimeout,
+    PullIntervalSeconds,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

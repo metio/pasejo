@@ -13,4 +13,8 @@ impl Synchronizer for None {
     fn pull(&self) -> anyhow::Result<()> {
         Ok(())
     }
+
+    fn should_pull(&self, _: Option<u64>, _: &str) -> anyhow::Result<bool> {
+        Ok(false)
+    }
 }
