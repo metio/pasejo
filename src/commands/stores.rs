@@ -87,11 +87,17 @@ pub fn decrypt(
     store_path: Option<&PathBuf>,
 ) -> Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        if !offline && store_path.is_none() {
+        if store_path.is_none() {
             let store_path = Path::new(&registration.path);
             let synchronizer = registration.synchronizer.select_implementation(store_path);
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
+
+            if !offline
+                && synchronizer
+                    .should_pull(configuration.pull_interval_seconds, &registration.name)?
+            {
+                logs::store_sync_pull(&registration.name);
+                synchronizer.pull()?;
+            }
         }
 
         let store = if let Some(path) = store_path {

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::synchronizers::synchronizer::Synchronizer;
+use crate::synchronizers::synchronizer::{Synchronizer, Synchronizers};
 use anyhow::Context;
 use duct::cmd;
 use std::path::PathBuf;
@@ -53,5 +53,13 @@ impl Synchronizer for Mercurial {
         } else {
             anyhow::bail!("Cannot determine parent of store path");
         }
+    }
+
+    fn should_pull(
+        &self,
+        pull_interval_seconds: Option<u64>,
+        store_name: &str,
+    ) -> anyhow::Result<bool> {
+        Synchronizers::should_pull(pull_interval_seconds, store_name)
     }
 }

@@ -18,7 +18,6 @@ $ pasejo otp show some-name --quiet
 266507
 
 $ pasejo otp show some-name --verbose
-Pulling changes from remote for store 'something'
 Showing one-time password at 'some-name'
 290697
 

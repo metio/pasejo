@@ -75,7 +75,7 @@ impl OneTimePassword {
         Ok(code)
     }
 
-    fn base(&self) -> anyhow::Result<Base> {
+    fn base(&self) -> anyhow::Result<Base<'_>> {
         let secret = Secret::decode(&self.secret)?;
         let base = Base::builder()
             .secret(secret)
