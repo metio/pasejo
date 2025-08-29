@@ -8,7 +8,7 @@ use crate::synchronizers::pijul::Pijul;
 use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 pub trait Synchronizer {
@@ -50,35 +50,55 @@ impl Synchronizers {
         pull_interval_seconds: Option<u64>,
         store_name: &str,
     ) -> anyhow::Result<bool> {
-        if let Some(base_dirs) = BaseDirs::new() {
+        if let Some((last_pulls_directory, last_pull_file)) = Self::last_pull_paths(store_name) {
+            if last_pull_file.exists() {
+                let last_pull_content = fs::read_to_string(&last_pull_file)?;
+                let last_pull_seconds: u64 = last_pull_content.parse()?;
+                let epoch_seconds = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs();
+                let seconds_since_last_pull = epoch_seconds - last_pull_seconds;
+                let interval = pull_interval_seconds.unwrap_or(60 * 60 * 24);
+                let should_pull = seconds_since_last_pull > interval;
+
+                if should_pull {
+                    fs::write(last_pull_file, epoch_seconds.to_string())?;
+                    return Ok(should_pull);
+                }
+            } else {
+                fs::create_dir_all(last_pulls_directory)?;
+                let epoch_seconds = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs();
+                fs::write(last_pull_file, epoch_seconds.to_string())?;
+            }
+        }
+
+        Ok(true)
+    }
+
+    pub fn write_last_pull(store_name: &str) -> anyhow::Result<()> {
+        if let Some((last_pulls_directory, last_pull_file)) = Self::last_pull_paths(store_name) {
+            if !last_pull_file.exists() {
+                fs::create_dir_all(last_pulls_directory)?;
+            }
+            let epoch_seconds = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs();
+            Ok(fs::write(last_pull_file, epoch_seconds.to_string())?)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn last_pull_paths(store_name: &str) -> Option<(PathBuf, PathBuf)> {
+        BaseDirs::new().map(|base_dirs| {
             let data_local_dir = base_dirs.data_local_dir();
             let last_pulls_directory = data_local_dir
                 .join(env!("CARGO_PKG_NAME"))
                 .join("last-pulls");
             let last_pull_file = last_pulls_directory.join(store_name);
-            if last_pull_file.exists() {
-                let last_pull_content = fs::read_to_string(&last_pull_file)?;
-                let last_pull_seconds: u64 = last_pull_content.parse()?;
-                let now_in_seconds = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)?
-                    .as_secs();
-                let seconds_since_last_pull = now_in_seconds - last_pull_seconds;
-                let interval = pull_interval_seconds.unwrap_or(60 * 60 * 24);
-                let should_pull = seconds_since_last_pull > interval;
-
-                if should_pull {
-                    fs::write(last_pull_file, now_in_seconds.to_string())?;
-                    return Ok(should_pull);
-                }
-            } else {
-                fs::create_dir_all(last_pulls_directory)?;
-                let now_in_seconds = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)?
-                    .as_secs();
-                fs::write(last_pull_file, now_in_seconds.to_string())?;
-            }
-        }
-
-        Ok(true)
+            (last_pulls_directory, last_pull_file)
+        })
     }
 }
