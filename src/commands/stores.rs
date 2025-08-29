@@ -240,6 +240,7 @@ pub fn sync(
         if pull.unwrap_or(false) {
             logs::store_sync_pull(&registration.name);
             synchronizer.pull()?;
+            Synchronizers::write_last_pull(&registration.name)?;
         }
         if push.unwrap_or(false) {
             logs::store_sync_push(&registration.name);
