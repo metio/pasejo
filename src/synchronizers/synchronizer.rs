@@ -52,10 +52,10 @@ impl Synchronizers {
     ) -> anyhow::Result<bool> {
         if let Some(base_dirs) = BaseDirs::new() {
             let data_local_dir = base_dirs.data_local_dir();
-            let last_pull_file = data_local_dir
+            let last_pulls_directory = data_local_dir
                 .join(env!("CARGO_PKG_NAME"))
-                .join("last-pulls")
-                .join(store_name);
+                .join("last-pulls");
+            let last_pull_file = last_pulls_directory.join(store_name);
             if last_pull_file.exists() {
                 let last_pull_content = fs::read_to_string(&last_pull_file)?;
                 let last_pull_seconds: u64 = last_pull_content.parse()?;
@@ -70,6 +70,12 @@ impl Synchronizers {
                     fs::write(last_pull_file, now_in_seconds.to_string())?;
                     return Ok(should_pull);
                 }
+            } else {
+                fs::create_dir_all(last_pulls_directory)?;
+                let now_in_seconds = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs();
+                fs::write(last_pull_file, now_in_seconds.to_string())?;
             }
         }
 
