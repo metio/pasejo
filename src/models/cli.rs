@@ -651,6 +651,16 @@ pub struct StoreSyncArgs {
     #[command(flatten)]
     pub store_selection: StoreSelectionArgs,
 
+    /// Toggle whether all stores should be synced
+    #[arg(
+        long,
+        default_missing_value = "true",
+        default_value("false"),
+        num_args=0..=1,
+        conflicts_with = "store"
+    )]
+    pub all: Option<bool>,
+
     /// Toggle whether changes from the remote store should be pulled
     #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
     pub pull: Option<bool>,

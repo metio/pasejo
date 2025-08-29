@@ -6,6 +6,7 @@ Usage: pasejo store sync [OPTIONS]
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+      --all [<ALL>]    Toggle whether all stores should be synced [default: false] [possible values: true, false]
       --pull [<PULL>]  Toggle whether changes from the remote store should be pulled [default: false] [possible values: true, false]
       --push [<PUSH>]  Toggle whether local changes should be pushed to the remote store [default: false] [possible values: true, false]
   -v, --verbose...     Increase logging verbosity
@@ -22,6 +23,7 @@ Usage: pasejo store sync [OPTIONS]
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+      --all [<ALL>]    Toggle whether all stores should be synced [default: false] [possible values: true, false]
       --pull [<PULL>]  Toggle whether changes from the remote store should be pulled [default: false] [possible values: true, false]
       --push [<PUSH>]  Toggle whether local changes should be pushed to the remote store [default: false] [possible values: true, false]
   -v, --verbose...     Increase logging verbosity
@@ -38,6 +40,7 @@ Usage: pasejo store sync [OPTIONS]
 
 Options:
   -s, --store <STORE>  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+      --all [<ALL>]    Toggle whether all stores should be synced [default: false] [possible values: true, false]
       --pull [<PULL>]  Toggle whether changes from the remote store should be pulled [default: false] [possible values: true, false]
       --push [<PUSH>]  Toggle whether local changes should be pushed to the remote store [default: false] [possible values: true, false]
   -v, --verbose...     Increase logging verbosity

@@ -241,12 +241,23 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 args.store_selection.store.as_ref(),
                 &args.synchronizer,
             ),
-            StoreCommands::Sync(args) => stores::sync(
-                &configuration,
-                args.store_selection.store.as_ref(),
-                args.pull,
-                args.push,
-            ),
+            StoreCommands::Sync(args) => {
+                if let Some(all) = args.all
+                    && all
+                {
+                    for store in &configuration.stores {
+                        stores::sync(&configuration, Some(&store.name), args.pull, args.push)?;
+                    }
+                    Ok(())
+                } else {
+                    stores::sync(
+                        &configuration,
+                        args.store_selection.store.as_ref(),
+                        args.pull,
+                        args.push,
+                    )
+                }
+            }
         },
     }
 }
