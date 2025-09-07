@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
 use crate::cli::logs;
 use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, write_last_execution};
 use crate::models::configuration::{Configuration, StoreRegistration};
