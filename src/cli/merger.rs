@@ -37,11 +37,11 @@ where
                 merge_conflict = true;
                 cli::logs::merge_conflict_removed_and_modified(value_type, key);
             }
-        } else if let Some(other_value) = other_value {
-            if value != other_value {
-                merge_conflict = true;
-                cli::logs::merge_conflict_removed_and_modified(value_type, key);
-            }
+        } else if let Some(other_value) = other_value
+            && value != other_value
+        {
+            merge_conflict = true;
+            cli::logs::merge_conflict_removed_and_modified(value_type, key);
         }
     }
 

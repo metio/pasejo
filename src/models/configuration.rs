@@ -91,72 +91,70 @@ impl Configuration {
                 toml::Value::from(vec![] as Vec<String>),
             );
         }
-        if let Some(stores_value) = migrated_config.get_mut("stores") {
-            if let Some(stores) = stores_value.as_array_mut() {
-                for store in stores {
-                    if let Some(table) = store.as_table_mut() {
-                        let has_pull_commands = table.contains_key("pull_commands");
-                        let has_push_commands = table.contains_key("push_commands");
+        if let Some(stores_value) = migrated_config.get_mut("stores")
+            && let Some(stores) = stores_value.as_array_mut()
+        {
+            for store in stores {
+                if let Some(table) = store.as_table_mut() {
+                    let has_pull_commands = table.contains_key("pull_commands");
+                    let has_push_commands = table.contains_key("push_commands");
 
-                        if let Some(synchronizer) = table.remove("synchronizer") {
-                            if let Some(used_synchronizer) = synchronizer.as_str() {
-                                let mut pull_commands = Vec::new();
-                                let mut push_commands = Vec::new();
+                    if let Some(synchronizer) = table.remove("synchronizer") {
+                        if let Some(used_synchronizer) = synchronizer.as_str() {
+                            let mut pull_commands = Vec::new();
+                            let mut push_commands = Vec::new();
 
-                                match used_synchronizer {
-                                    "Git" => {
-                                        pull_commands.push(String::from("git pull"));
-                                        push_commands.push(String::from("git add %p"));
-                                        push_commands.push(String::from(
-                                            "git commit --message 'pasejo commit'",
-                                        ));
-                                        push_commands.push(String::from("git push"));
-                                    }
-                                    "Mercurial" => {
-                                        pull_commands.push(String::from("hg pull"));
-                                        push_commands.push(String::from("hg add %p"));
-                                        push_commands.push(String::from(
-                                            "hg commit --message 'pasejo commit'",
-                                        ));
-                                        push_commands.push(String::from("hg push"));
-                                    }
-                                    "Pijul" => {
-                                        pull_commands.push(String::from("pijul pull"));
-                                        push_commands.push(String::from("pijul add %p"));
-                                        push_commands.push(String::from(
-                                            "pijul record --message 'pasejo commit'",
-                                        ));
-                                        push_commands.push(String::from("pijul push"));
-                                    }
-                                    _ => {}
+                            match used_synchronizer {
+                                "Git" => {
+                                    pull_commands.push(String::from("git pull"));
+                                    push_commands.push(String::from("git add %p"));
+                                    push_commands
+                                        .push(String::from("git commit --message 'pasejo commit'"));
+                                    push_commands.push(String::from("git push"));
                                 }
-
-                                if !has_pull_commands {
-                                    table.insert(
-                                        "pull_commands".to_string(),
-                                        toml::Value::from(pull_commands),
-                                    );
+                                "Mercurial" => {
+                                    pull_commands.push(String::from("hg pull"));
+                                    push_commands.push(String::from("hg add %p"));
+                                    push_commands
+                                        .push(String::from("hg commit --message 'pasejo commit'"));
+                                    push_commands.push(String::from("hg push"));
                                 }
-                                if !has_push_commands {
-                                    table.insert(
-                                        "push_commands".to_string(),
-                                        toml::Value::from(push_commands),
-                                    );
+                                "Pijul" => {
+                                    pull_commands.push(String::from("pijul pull"));
+                                    push_commands.push(String::from("pijul add %p"));
+                                    push_commands.push(String::from(
+                                        "pijul record --message 'pasejo commit'",
+                                    ));
+                                    push_commands.push(String::from("pijul push"));
                                 }
+                                _ => {}
                             }
-                        } else {
+
                             if !has_pull_commands {
                                 table.insert(
                                     "pull_commands".to_string(),
-                                    toml::Value::from(vec![] as Vec<String>),
+                                    toml::Value::from(pull_commands),
                                 );
                             }
                             if !has_push_commands {
                                 table.insert(
                                     "push_commands".to_string(),
-                                    toml::Value::from(vec![] as Vec<String>),
+                                    toml::Value::from(push_commands),
                                 );
                             }
+                        }
+                    } else {
+                        if !has_pull_commands {
+                            table.insert(
+                                "pull_commands".to_string(),
+                                toml::Value::from(vec![] as Vec<String>),
+                            );
+                        }
+                        if !has_push_commands {
+                            table.insert(
+                                "push_commands".to_string(),
+                                toml::Value::from(vec![] as Vec<String>),
+                            );
                         }
                     }
                 }
