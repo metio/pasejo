@@ -1,3 +1,5 @@
 default_store = "something"
 identities = []
+pull_commands = []
+push_commands = []
 stores = []

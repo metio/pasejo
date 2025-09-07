@@ -2,14 +2,61 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::{logs, prompts};
+use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 use crate::secrets;
 use anyhow::Context;
 use notify_rust::{Notification, Timeout};
-use std::path::Path;
 use std::thread;
 use std::time::Duration;
+
+pub fn add(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    password_path: &str,
+    password: &OneTimePassword,
+    force: bool,
+    offline: bool,
+) -> anyhow::Result<()> {
+    if let Some(registration) = configuration.select_store(store_name) {
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
+
+        hooks.execute_pull_commands()?;
+
+        let mut store = configuration
+            .decrypt_store(registration)
+            .context("Cannot decrypt store")?;
+
+        if store.otp.contains_key(password_path)
+            && !force
+            && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
+        {
+            anyhow::bail!(
+                "One-time password already exists at {password_path}. Use --force to overwrite."
+            );
+        }
+
+        store.otp.insert(password_path.to_owned(), password.clone());
+
+        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
+
+        logs::one_time_password_added(password_path);
+
+        hooks.execute_push_commands()?;
+
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "No store found in configuration. Run 'pasejo store add ...' first to add one"
+        )
+    }
+}
 
 pub fn remove(
     configuration: &Configuration,
@@ -19,15 +66,14 @@ pub fn remove(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -45,12 +91,10 @@ pub fn remove(
         if store.otp.remove(password_path).is_some() {
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                logs::store_sync_push(&registration.name);
-                synchronizer.push()?;
-            }
+            logs::one_time_password_removed(password_path);
 
-            // logs::secret_removed(current_path, new_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!("No one-time password found at '{password_path}'")
@@ -69,15 +113,14 @@ pub fn list(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let store = configuration
             .decrypt_store(registration)
@@ -101,56 +144,6 @@ pub fn list(
     }
 }
 
-pub fn add(
-    configuration: &Configuration,
-    store_name: Option<&String>,
-    password_path: &str,
-    password: &OneTimePassword,
-    force: bool,
-    offline: bool,
-) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
-
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
-
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
-
-        if store.otp.contains_key(password_path)
-            && !force
-            && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
-        {
-            anyhow::bail!(
-                "One-time password already exists at {password_path}. Use --force to overwrite."
-            );
-        }
-
-        store.otp.insert(password_path.to_owned(), password.clone());
-
-        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-        if !offline {
-            logs::store_sync_push(&registration.name);
-            synchronizer.push()?;
-        }
-
-        logs::one_time_password_added(password_path);
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
-}
-
 pub fn show(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -159,15 +152,14 @@ pub fn show(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -214,15 +206,14 @@ pub fn mv(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -241,12 +232,10 @@ pub fn mv(
             store.otp.insert(new_path.to_owned(), password);
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                logs::store_sync_push(&registration.name);
-                synchronizer.push()?;
-            }
+            logs::one_time_password_moved(current_path, new_path);
 
-            // logs::secret_moved(current_path, new_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!("No one-time password found at '{current_path}'")
@@ -267,15 +256,14 @@ pub fn copy(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -296,12 +284,10 @@ pub fn copy(
                 .insert(target_path.to_owned(), password.to_owned());
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                logs::store_sync_push(&registration.name);
-                synchronizer.push()?;
-            }
+            logs::one_time_password_copied(source_path, target_path);
 
-            // logs::secret_moved(current_path, new_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!("No one-time password found at '{source_path}'")

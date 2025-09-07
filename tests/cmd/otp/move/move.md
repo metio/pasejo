@@ -18,11 +18,12 @@ $ pasejo otp add --type totp --secret JEQDYMZAN5YGK3RAONXXK4TDMU unique-name
 Added one-time password at 'unique-name'
 
 $ pasejo otp move unique-name new-name
+Moved one-time password from 'unique-name' to 'new-name'
 
 $ pasejo otp move sub/name deeply/nested/name/for/password --quiet
 
 $ pasejo otp move deeply/nested/name/for/password here-it-is --verbose
-Pushing changes to remote for store 'something'
+Moved one-time password from 'deeply/nested/name/for/password' to 'here-it-is'
 
 $ pasejo otp show here-it-is
 558961

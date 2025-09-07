@@ -2938,6 +2938,7 @@ dependencies = [
  "rqrr",
  "serde",
  "serial_test",
+ "shlex",
  "ssh-key",
  "termtree 0.5.1",
  "toml 0.9.5",

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::commands::{config, identities, one_time_passwords, recipients, secrets, stores};
+use crate::commands::{config, hooks, identities, one_time_passwords, recipients, secrets, stores};
 use crate::models::cli::{
     Cli, Commands, ConfigCommands, IdentityCommands, OtpCommands, RecipientCommands,
     SecretCommands, StoreCommands,
@@ -21,6 +21,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
             }
             ConfigCommands::Set(args) => config::set(configuration, &args.option, &args.value),
         },
+        Commands::Hook { command } => hooks::dispatch(command, configuration),
         Commands::Identity { command } => match command {
             IdentityCommands::Add(args) => identities::add(
                 configuration,
@@ -202,14 +203,9 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
             ),
         },
         Commands::Store { command } => match command {
-            StoreCommands::Add(args) => stores::add(
-                configuration,
-                args.path.as_path(),
-                &args.name,
-                &args.synchronizer,
-                args.default,
-                cli.offline,
-            ),
+            StoreCommands::Add(args) => {
+                stores::add(configuration, args.path.as_path(), &args.name, args.default)
+            }
             StoreCommands::Decrypt(args) => stores::decrypt(
                 &configuration,
                 args.store_selection.store.as_ref(),
@@ -236,28 +232,6 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
                 args.store_selection.store.as_ref(),
                 &args.command,
             ),
-            StoreCommands::SetSynchronizer(args) => stores::set_synchronizer(
-                configuration,
-                args.store_selection.store.as_ref(),
-                &args.synchronizer,
-            ),
-            StoreCommands::Sync(args) => {
-                if let Some(all) = args.all
-                    && all
-                {
-                    for store in &configuration.stores {
-                        stores::sync(&configuration, Some(&store.name), args.pull, args.push)?;
-                    }
-                    Ok(())
-                } else {
-                    stores::sync(
-                        &configuration,
-                        args.store_selection.store.as_ref(),
-                        args.pull,
-                        args.push,
-                    )
-                }
-            }
         },
     }
 }

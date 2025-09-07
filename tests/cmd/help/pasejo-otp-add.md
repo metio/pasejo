@@ -15,10 +15,10 @@ Options:
       --secret <SECRET>        The base secret of the one-time password
       --type <OTP_TYPE>        The type of the one-time password [possible values: totp, hotp]
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
-  -v, --verbose...             Increase logging verbosity
       --digits <DIGITS>        The digits of the one-time password
-  -q, --quiet...               Decrease logging verbosity
+  -v, --verbose...             Increase logging verbosity
       --period <PERIOD>        The period of the one-time password
+  -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
       --counter <COUNTER>      The counter of the one-time password
   -h, --help                   Print help
@@ -42,10 +42,10 @@ Options:
       --secret <SECRET>        The base secret of the one-time password
       --type <OTP_TYPE>        The type of the one-time password [possible values: totp, hotp]
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
-  -v, --verbose...             Increase logging verbosity
       --digits <DIGITS>        The digits of the one-time password
-  -q, --quiet...               Decrease logging verbosity
+  -v, --verbose...             Increase logging verbosity
       --period <PERIOD>        The period of the one-time password
+  -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
       --counter <COUNTER>      The counter of the one-time password
   -h, --help                   Print help
@@ -69,10 +69,10 @@ Options:
       --secret <SECRET>        The base secret of the one-time password
       --type <OTP_TYPE>        The type of the one-time password [possible values: totp, hotp]
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
-  -v, --verbose...             Increase logging verbosity
       --digits <DIGITS>        The digits of the one-time password
-  -q, --quiet...               Decrease logging verbosity
+  -v, --verbose...             Increase logging verbosity
       --period <PERIOD>        The period of the one-time password
+  -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
       --counter <COUNTER>      The counter of the one-time password
   -h, --help                   Print help

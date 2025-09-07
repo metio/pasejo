@@ -1,9 +1,12 @@
 identities = []
+pull_commands = []
+push_commands = []
 
 [[stores]]
 path = "[CWD]/ancestor"
 name = "ancestor"
-synchronizer = "None"
+pull_commands = []
+push_commands = []
 
 [[stores.identities]]
 file = "[CWD]/some-identity"
@@ -11,7 +14,8 @@ file = "[CWD]/some-identity"
 [[stores]]
 path = "[CWD]/current"
 name = "current"
-synchronizer = "None"
+pull_commands = []
+push_commands = []
 
 [[stores.identities]]
 file = "[CWD]/some-identity"
@@ -19,7 +23,8 @@ file = "[CWD]/some-identity"
 [[stores]]
 path = "[CWD]/other"
 name = "other"
-synchronizer = "None"
+pull_commands = []
+push_commands = []
 
 [[stores.identities]]
 file = "[CWD]/some-identity"

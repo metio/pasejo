@@ -6,6 +6,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   config     Manage pasejo configuration
+  hook       Manage hooks
   identity   Manage identities
   otp        Manage one-time passwords
   recipient  Manage recipients
@@ -30,6 +31,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   config     Manage pasejo configuration
+  hook       Manage hooks
   identity   Manage identities
   otp        Manage one-time passwords
   recipient  Manage recipients
@@ -54,6 +56,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   config     Manage pasejo configuration
+  hook       Manage hooks
   identity   Manage identities
   otp        Manage one-time passwords
   recipient  Manage recipients

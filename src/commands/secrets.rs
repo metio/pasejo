@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::{logs, prompts};
+use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::Configuration;
 use crate::secrets;
 use anyhow::Context;
 use notify_rust::{Notification, Timeout};
 use passwords::{analyzer, scorer};
-use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
@@ -20,15 +20,14 @@ pub fn add(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -47,12 +46,10 @@ pub fn add(
 
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-        if !offline {
-            logs::store_sync_push(&registration.name);
-            synchronizer.push()?;
-        }
-
         logs::secret_added(secret_path);
+
+        hooks.execute_push_commands()?;
+
         Ok(())
     } else {
         anyhow::bail!(
@@ -68,15 +65,14 @@ pub fn audit(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let store = configuration
             .decrypt_store(registration)
@@ -113,15 +109,14 @@ pub fn copy(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -140,12 +135,10 @@ pub fn copy(
                 .insert(target_path.to_owned(), secret.to_owned());
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                logs::store_sync_push(&registration.name);
-                synchronizer.push()?;
-            }
+            logs::secret_copied(source_path, target_path);
 
-            // logs::secret_moved(current_path, new_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!("No secret found at '{source_path}'")
@@ -166,15 +159,14 @@ pub fn mv(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -191,12 +183,10 @@ pub fn mv(
             store.secrets.insert(new_path.to_owned(), secret);
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                logs::store_sync_push(&registration.name);
-                synchronizer.push()?;
-            }
+            logs::secret_moved(current_path, new_path);
 
-            // logs::secret_moved(current_path, new_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!("No secret found at '{current_path}'")
@@ -215,15 +205,14 @@ pub fn list(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let store = configuration
             .decrypt_store(registration)
@@ -255,15 +244,14 @@ pub fn remove(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -281,11 +269,10 @@ pub fn remove(
         if store.secrets.remove(secret_path).is_some() {
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                synchronizer.push()?;
-            }
+            logs::secret_removed(secret_path);
 
-            // logs::secret_removed(current_path, new_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!("No secret found at '{secret_path}'")
@@ -307,15 +294,14 @@ pub fn show(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let store = configuration
             .decrypt_store(registration)
@@ -390,15 +376,14 @@ pub fn generate(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -443,12 +428,10 @@ pub fn generate(
 
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-        if !offline {
-            logs::store_sync_push(&registration.name);
-            synchronizer.push()?;
-        }
-
         logs::secret_generated(secret_path);
+
+        hooks.execute_push_commands()?;
+
         Ok(())
     } else {
         anyhow::bail!(
@@ -464,15 +447,14 @@ pub fn edit(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -485,12 +467,10 @@ pub fn edit(
 
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-            if !offline {
-                logs::store_sync_push(&registration.name);
-                synchronizer.push()?;
-            }
+            logs::secret_edited(secret_path);
 
-            logs::secret_added(secret_path);
+            hooks.execute_push_commands()?;
+
             Ok(())
         } else {
             anyhow::bail!(
@@ -512,15 +492,14 @@ pub fn grep(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let store = configuration
             .decrypt_store(registration)

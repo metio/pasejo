@@ -1,7 +1,0 @@
-identities = []
-
-[[stores]]
-path = "[CWD]/store"
-name = "something"
-synchronizer = "Mercurial"
-identities = []

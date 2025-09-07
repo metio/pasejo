@@ -20,8 +20,9 @@ Added one-time password at 'unique-name'
 $ pasejo otp remove unique-name --force --quiet
 
 $ pasejo otp remove sub/name --force --verbose
-Pushing changes to remote for store 'something'
+Removed one-time password at 'sub/name'
 
 $ pasejo otp remove some-name --force
+Removed one-time password at 'some-name'
 
 ```

@@ -16,8 +16,8 @@ Options:
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -v, --verbose...                  Increase logging verbosity
-  -q, --quiet...                    Decrease logging verbosity
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
+  -q, --quiet...                    Decrease logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
   -t, --strict                      Whether the password rules are strict
@@ -43,8 +43,8 @@ Options:
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -v, --verbose...                  Increase logging verbosity
-  -q, --quiet...                    Decrease logging verbosity
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
+  -q, --quiet...                    Decrease logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
   -t, --strict                      Whether the password rules are strict
@@ -70,8 +70,8 @@ Options:
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -v, --verbose...                  Increase logging verbosity
-  -q, --quiet...                    Decrease logging verbosity
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
+  -q, --quiet...                    Decrease logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
   -t, --strict                      Whether the password rules are strict

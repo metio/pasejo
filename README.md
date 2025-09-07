@@ -14,7 +14,7 @@ Its main features are:
 - Support for text-based secrets as well as one-time passwords (TOTP/HOTP)
 - Clipboard support for secrets and one-time passwords
 - Completions for various shells (bash, elvish, fish, powershell, zsh)
-- Rudimentary support for remote sync using Git, Mercurial, or Pijul
+- Execute automated commands before/after reading/writing secrets/passwords 
 
 > [!IMPORTANT]
 > `pasejo` relies on the [age crate](https://crates.io/crates/age) which itself is in beta and not intended for production use. Therefore, this project is not intended for production use either. Use at your own risk.

@@ -12,6 +12,7 @@ $ pasejo secret generate some-secret
 Generated secret at 'some-secret'
 
 $ pasejo secret remove some-secret --force
+Removed secret at 'some-secret'
 
 $ pasejo secret list
 

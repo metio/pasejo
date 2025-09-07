@@ -9,6 +9,7 @@ Here are some step-by-step guides to help you get started with `pasejo`:
 - [Add a new secret](./how-to-add-secret.md): Learn how to add a new secret to your store.
 - [Add a new one-time password](./how-to-add-otp.md): Learn how to add a new one-time password to your store.
 - [Show a secret](./how-to-show-secret.md): Learn how to show a secret in your store.
+- [Using hooks](./how-to-use-hooks.md): Learn how hooks can be used.
 - [Create age identity files](./how-to-create-age-identity.md): Learn how to create age identity files.
 - [Create age recipient files](./how-to-create-age-recipient.md): Learn how to create age recipient files.
 - [Use pasejo with Git](./how-to-use-pasejo-with-git.md): Learn how to use `pasejo` with Git.

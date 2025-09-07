@@ -1,0 +1,17 @@
+identities = []
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "[CWD]/store"
+name = "something"
+identities = []
+pull_commands = []
+push_commands = ["sdfgdf"]
+
+[[stores]]
+path = "[CWD]/another"
+name = "another"
+identities = []
+pull_commands = []
+push_commands = []

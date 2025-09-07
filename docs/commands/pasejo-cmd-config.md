@@ -31,7 +31,7 @@ Get a configuration value
 Usage: pasejo config get [OPTIONS] <OPTION>
 
 Arguments:
-  <OPTION>  Name of the configuration option to get [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds]
+  <OPTION>  Name of the configuration option to get [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -64,7 +64,7 @@ Set a configuration value
 Usage: pasejo config set [OPTIONS] <OPTION> <VALUE>
 
 Arguments:
-  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds]
+  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
   <VALUE>   Value to set the configuration option to
 
 Options:

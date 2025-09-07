@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::synchronizers::synchronizer::Synchronizers;
 use log::{debug, error, info, warn};
 use std::path::Path;
 use std::time::Duration;
@@ -18,8 +17,24 @@ pub fn secret_added(secret_path: &str) {
     info!("Added secret at '{secret_path}'");
 }
 
+pub fn secret_edited(secret_path: &str) {
+    info!("Edited secret at '{secret_path}'");
+}
+
 pub fn one_time_password_added(password_path: &str) {
     info!("Added one-time password at '{password_path}'");
+}
+
+pub fn one_time_password_copied(source_path: &str, target_path: &str) {
+    info!("Copied one-time password from '{source_path}' to '{target_path}'");
+}
+
+pub fn one_time_password_moved(source_path: &str, target_path: &str) {
+    info!("Moved one-time password from '{source_path}' to '{target_path}'");
+}
+
+pub fn one_time_password_removed(password_path: &str) {
+    info!("Removed one-time password at '{password_path}'");
 }
 
 pub fn secret_generated(secret_path: &str) {
@@ -60,20 +75,16 @@ pub fn store_set_default(store_name: &str) {
     info!("Store '{store_name}' is now the default");
 }
 
-pub fn store_set_synchronizer(store_name: &str, synchronizer: &Synchronizers) {
-    info!("Store '{store_name}' now synchronizes with {synchronizer:?}");
-}
-
 pub fn store_remove_success(store_name: &str) {
     info!("Store '{store_name}' removed");
 }
 
-pub fn store_sync_pull(store_name: &str) {
-    debug!("Pulling changes from remote for store '{store_name}'");
+pub fn execute_pull_hooks(store_name: &str) {
+    debug!("Executing pull hooks for store '{store_name}'");
 }
 
-pub fn store_sync_push(store_name: &str) {
-    debug!("Pushing changes to remote for store '{store_name}'");
+pub fn execute_push_hooks(store_name: &str) {
+    debug!("Executing push hooks for store '{store_name}'");
 }
 
 pub fn recipient_does_not_exist_ignored(public_key: &str) {
@@ -110,4 +121,16 @@ pub fn merge_conflict_removed_and_modified(value_type: &str, secret_path: &str) 
     error!(
         "Merge conflict for {value_type} at '{secret_path}': {value_type} was removed in one version and modified in the other"
     );
+}
+
+pub fn secret_copied(source_path: &str, target_path: &str) {
+    info!("Copied secret from '{source_path}' to '{target_path}'");
+}
+
+pub fn secret_moved(source_path: &str, target_path: &str) {
+    info!("Moved secret from '{source_path}' to '{target_path}'");
+}
+
+pub fn secret_removed(secret_path: &str) {
+    info!("Removed secret at '{secret_path}'");
 }

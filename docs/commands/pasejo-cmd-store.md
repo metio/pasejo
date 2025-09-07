@@ -9,16 +9,14 @@ Manage stores
 Usage: pasejo store [OPTIONS] <COMMAND>
 
 Commands:
-  add               Adds a new store
-  decrypt           Decrypt a store and print its content
-  exec              Executes a command inside the directory of a store
-  list              List all available stores
-  merge             Merge two stores
-  remove            Remove an existing store
-  set-default       Mark a store as default
-  set-synchronizer  Sets the synchronizer for a store
-  sync              Synchronizes the store with its remote counterpart
-  help              Print this message or the help of the given subcommand(s)
+  add          Adds a new store
+  decrypt      Decrypt a store and print its content
+  exec         Executes a command inside the directory of a store
+  list         List all available stores
+  merge        Merge two stores
+  remove       Remove an existing store
+  set-default  Mark a store as default
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity

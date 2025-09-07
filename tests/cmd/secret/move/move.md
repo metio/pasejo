@@ -12,6 +12,7 @@ $ pasejo secret add some-secret
 Added secret at 'some-secret'
 
 $ pasejo secret move some-secret another-secret
+Moved secret from 'some-secret' to 'another-secret'
 
 $ pasejo secret list
 another-secret

@@ -10,11 +10,11 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/pasejo store sync --all --pull
+ExecStart=/usr/bin/pasejo hook run --all --pull
 RemainAfterExit=false
 
 [Install]
 WantedBy=default.target
 ```
 
-Adjust the path to `pasejo` to the one used on your system! See `pasejo store sync --help` for all available options.
+Adjust the path to `pasejo` to the one used on your system! See `pasejo hook run --help` for all available options.

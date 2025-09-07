@@ -1,6 +1,6 @@
 # Using pasejo with Git
 
-`pasejo` has rudimentary support for remote synchronization using Git. This allows you to keep your secrets in sync across multiple devices or share them with team members.
+`pasejo` allows running arbitrary commands during the `pull` and `push` [hook phases](how-to-use-hooks.md). This can be used to integrate with Git, e.g., by calling `git pull` and `git push`.
 
 ## Setting Up a Git Store
 
@@ -13,7 +13,8 @@ $ git init /path/to/your/repo
 This command initializes a new Git repository at the specified path. Make sure to replace `/path/to/your/repo` with the actual path where you want to create the repository. Once the repository is created, you can add a `pasejo` store into it and enable synchronization:
 
 ```
-$ pasejo store add --path /path/to/your/repo/pasejo.store --name my-git-store --synchronizer git
+$ pasejo store add --path /path/to/your/repo/pasejo.store --name my-git-store
+$ pasejo hook set --pull 'git pull' --push 'git add %p' --push 'git commit --message "automated pasejo commit"' --push 'git push'
 ```
 
 This command will register a new store named `my-git-store` at the specified path. Make sure that the path points inside a valid Git repository. The filename `pasejo.store` can be any name you choose, and it's safe to pick any path within your Git repository.

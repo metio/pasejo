@@ -6,6 +6,6 @@ $ pasejo identity add --file some-identity --store something
 Identity using file '[CWD]/some-identity' added
 
 $ pasejo identity list --store something
-[CWD]/some-identity (store)
+store: [CWD]/some-identity
 
 ```

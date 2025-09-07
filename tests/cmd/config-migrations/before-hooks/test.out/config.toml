@@ -1,0 +1,50 @@
+identities = []
+pull_commands = []
+push_commands = []
+
+[[stores]]
+identities = []
+name = "something"
+path = "[CWD]/store"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+identities = []
+name = "git"
+path = "[CWD]/git"
+pull_commands = ["git pull"]
+push_commands = [
+    "git add %p",
+    "git commit --message 'pasejo commit'",
+    "git push",
+]
+
+[[stores]]
+identities = []
+name = "pijul"
+path = "[CWD]/pijul"
+pull_commands = ["pijul pull"]
+push_commands = [
+    "pijul add %p",
+    "pijul record --message 'pasejo commit'",
+    "pijul push",
+]
+
+[[stores]]
+identities = []
+name = "mercurial"
+path = "[CWD]/mercurial"
+pull_commands = ["hg pull"]
+push_commands = [
+    "hg add %p",
+    "hg commit --message 'pasejo commit'",
+    "hg push",
+]
+
+[[stores]]
+identities = []
+name = "no-synchronizer"
+path = "[CWD]/no-synchronizer"
+pull_commands = []
+push_commands = []

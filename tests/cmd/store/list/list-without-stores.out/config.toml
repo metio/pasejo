@@ -1,2 +1,4 @@
 stores = []
 identities = []
+pull_commands = []
+push_commands = []
