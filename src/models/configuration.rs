@@ -1,16 +1,15 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::env::var_os;
-use std::path::{absolute, Path, PathBuf};
-
-use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-
 use crate::cli::{constants, environment_variables};
 use crate::models::password_store::PasswordStore;
-use crate::synchronizers::synchronizer::Synchronizers;
 use crate::{identities, recipients, secrets};
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use std::env::var_os;
+use std::fs;
+use std::path::{absolute, Path, PathBuf};
+use toml::Table;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -29,15 +28,17 @@ pub struct Configuration {
     /// How long should secrets/OTPs be kept in the clipboard in seconds?
     pub clipboard_timeout: Option<u64>,
 
-    /// Time in seconds between automated pulls
+    /// Time in seconds between automated execution of configured pull commands
     pub pull_interval_seconds: Option<u64>,
-}
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, clap::ValueEnum)]
-pub enum ConfigurationOption {
-    IgnoreMissingIdentities,
-    ClipboardTimeout,
-    PullIntervalSeconds,
+    /// Time in seconds between automated execution of configured push commands
+    pub push_interval_seconds: Option<u64>,
+
+    /// Global pull commands used for all stores
+    pub pull_commands: Vec<String>,
+
+    /// Global push commands used for all stores
+    pub push_commands: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -48,11 +49,14 @@ pub struct StoreRegistration {
     /// The name of the store
     pub name: String,
 
-    /// The synchronizer used in the store
-    pub synchronizer: Synchronizers,
-
     /// The identities used in the store
     pub identities: Vec<Identity>,
+
+    /// The commands to execute when pulling changes into the store
+    pub pull_commands: Vec<String>,
+
+    /// The commands to execute when pushing changes from the store
+    pub push_commands: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -62,7 +66,105 @@ pub struct Identity {
 
 impl Configuration {
     pub fn load_configuration() -> Result<Self> {
-        confy::load_path(Self::config_path()?).context("Could not load configuration")
+        let config_path = Self::config_path()?;
+        if let Ok(config) = confy::load_path(&config_path) {
+            Ok(config)
+        } else {
+            Self::migrate_configuration(&config_path).context("Could not migrate configuration")?;
+            confy::load_path(&config_path).context("Could not load configuration")
+        }
+    }
+
+    fn migrate_configuration(config_path: &Path) -> Result<()> {
+        let config_content = fs::read_to_string(config_path)?;
+        let mut migrated_config = config_content.parse::<Table>()?;
+
+        if !migrated_config.contains_key("pull_commands") {
+            migrated_config.insert(
+                "pull_commands".to_string(),
+                toml::Value::from(vec![] as Vec<String>),
+            );
+        }
+        if !migrated_config.contains_key("push_commands") {
+            migrated_config.insert(
+                "push_commands".to_string(),
+                toml::Value::from(vec![] as Vec<String>),
+            );
+        }
+        if let Some(stores_value) = migrated_config.get_mut("stores") {
+            if let Some(stores) = stores_value.as_array_mut() {
+                for store in stores {
+                    if let Some(table) = store.as_table_mut() {
+                        let has_pull_commands = table.contains_key("pull_commands");
+                        let has_push_commands = table.contains_key("push_commands");
+
+                        if let Some(synchronizer) = table.remove("synchronizer") {
+                            if let Some(used_synchronizer) = synchronizer.as_str() {
+                                let mut pull_commands = Vec::new();
+                                let mut push_commands = Vec::new();
+
+                                match used_synchronizer {
+                                    "Git" => {
+                                        pull_commands.push(String::from("git pull"));
+                                        push_commands.push(String::from("git add %p"));
+                                        push_commands.push(String::from(
+                                            "git commit --message 'pasejo commit'",
+                                        ));
+                                        push_commands.push(String::from("git push"));
+                                    }
+                                    "Mercurial" => {
+                                        pull_commands.push(String::from("hg pull"));
+                                        push_commands.push(String::from("hg add %p"));
+                                        push_commands.push(String::from(
+                                            "hg commit --message 'pasejo commit'",
+                                        ));
+                                        push_commands.push(String::from("hg push"));
+                                    }
+                                    "Pijul" => {
+                                        pull_commands.push(String::from("pijul pull"));
+                                        push_commands.push(String::from("pijul add %p"));
+                                        push_commands.push(String::from(
+                                            "pijul record --message 'pasejo commit'",
+                                        ));
+                                        push_commands.push(String::from("pijul push"));
+                                    }
+                                    _ => {}
+                                }
+
+                                if !has_pull_commands {
+                                    table.insert(
+                                        "pull_commands".to_string(),
+                                        toml::Value::from(pull_commands),
+                                    );
+                                }
+                                if !has_push_commands {
+                                    table.insert(
+                                        "push_commands".to_string(),
+                                        toml::Value::from(push_commands),
+                                    );
+                                }
+                            }
+                        } else {
+                            if !has_pull_commands {
+                                table.insert(
+                                    "pull_commands".to_string(),
+                                    toml::Value::from(vec![] as Vec<String>),
+                                );
+                            }
+                            if !has_push_commands {
+                                table.insert(
+                                    "push_commands".to_string(),
+                                    toml::Value::from(vec![] as Vec<String>),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        confy::store_path(config_path, migrated_config).context("Could not store configuration")?;
+        Ok(())
     }
 
     pub fn save_configuration(&self) -> Result<()> {
@@ -82,17 +184,13 @@ impl Configuration {
         )
     }
 
-    pub fn add_store(
-        &mut self,
-        store_root_path: &str,
-        store_name: &str,
-        synchronizer: Synchronizers,
-    ) -> Result<()> {
+    pub fn add_store(&mut self, store_root_path: &str, store_name: &str) -> Result<()> {
         let registration = StoreRegistration {
             path: store_root_path.to_string(),
             name: store_name.to_owned(),
-            synchronizer,
             identities: vec![],
+            pull_commands: vec![],
+            push_commands: vec![],
         };
         self.stores.push(registration);
         self.save_configuration()
@@ -229,5 +327,11 @@ impl Configuration {
         self.stores
             .iter_mut()
             .find(|store| store.name.eq_ignore_ascii_case(store_name))
+    }
+}
+
+impl StoreRegistration {
+    pub fn path(&self) -> &Path {
+        Path::new(&self.path)
     }
 }

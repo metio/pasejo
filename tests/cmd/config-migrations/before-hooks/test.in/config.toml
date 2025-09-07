@@ -1,0 +1,30 @@
+identities = []
+
+[[stores]]
+path = "[CWD]/store"
+name = "something"
+identities = []
+synchronizer = "None"
+
+[[stores]]
+path = "[CWD]/git"
+name = "git"
+identities = []
+synchronizer = "Git"
+
+[[stores]]
+path = "[CWD]/pijul"
+name = "pijul"
+identities = []
+synchronizer = "Pijul"
+
+[[stores]]
+path = "[CWD]/mercurial"
+name = "mercurial"
+identities = []
+synchronizer = "Mercurial"
+
+[[stores]]
+path = "[CWD]/no-synchronizer"
+name = "no-synchronizer"
+identities = []

@@ -3,6 +3,7 @@
 
 mod config;
 pub mod dispatcher;
+mod hooks;
 pub mod identities;
 pub mod one_time_passwords;
 pub mod recipients;

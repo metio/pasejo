@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::{fs, path};
 
 use crate::cli::logs;
+use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::Configuration;
-use crate::synchronizers::synchronizer::Synchronizers;
 use crate::{one_time_passwords, recipients, secrets};
 use anyhow::{Context, Result};
 
@@ -14,9 +14,7 @@ pub fn add(
     mut configuration: Configuration,
     store_path: &Path,
     store_name: &str,
-    synchronizer: &Synchronizers,
     default: bool,
-    offline: bool,
 ) -> Result<()> {
     if configuration.find_store(store_name).is_some() {
         anyhow::bail!("Store name already exists. Please use a different name.");
@@ -30,16 +28,7 @@ pub fn add(
 
     if let Some(parent) = absolute_path.parent() {
         fs::create_dir_all(parent)?;
-        configuration.add_store(
-            &absolute_path.display().to_string(),
-            store_name,
-            synchronizer.clone(),
-        )?;
-        if !offline {
-            let synchronizer = synchronizer.select_implementation(&absolute_path);
-            logs::store_sync_push(store_name);
-            synchronizer.push()?;
-        }
+        configuration.add_store(&absolute_path.display().to_string(), store_name)?;
         logs::store_add_success(store_name, &absolute_path.display().to_string());
         if default {
             set_default(configuration, store_name)?;
@@ -88,16 +77,14 @@ pub fn decrypt(
 ) -> Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
         if store_path.is_none() {
-            let store_path = Path::new(&registration.path);
-            let synchronizer = registration.synchronizer.select_implementation(store_path);
+            let hooks = HookExecutor {
+                configuration,
+                registration,
+                offline,
+                force: false,
+            };
 
-            if !offline
-                && synchronizer
-                    .should_pull(configuration.pull_interval_seconds, &registration.name)?
-            {
-                logs::store_sync_pull(&registration.name);
-                synchronizer.pull()?;
-            }
+            hooks.execute_pull_commands()?;
         }
 
         let store = if let Some(path) = store_path {
@@ -209,58 +196,13 @@ pub fn merge(
     }
 }
 
-pub fn set_synchronizer(
-    mut configuration: Configuration,
-    store_name: Option<&String>,
-    synchronizer: &Synchronizers,
-) -> Result<()> {
-    if let Some(registration) = configuration.select_store_mut(store_name) {
-        let name = registration.name.clone();
-        registration.synchronizer = synchronizer.clone();
-        configuration.save_configuration()?;
-        logs::store_set_synchronizer(&name, synchronizer);
-
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
-}
-
-pub fn sync(
-    configuration: &Configuration,
-    store_name: Option<&String>,
-    pull: Option<bool>,
-    push: Option<bool>,
-) -> Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
-        if pull.unwrap_or(false) {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-            Synchronizers::write_last_pull(&registration.name)?;
-        }
-        if push.unwrap_or(false) {
-            logs::store_sync_push(&registration.name);
-            synchronizer.push()?;
-        }
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
-}
-
 pub fn exec(
     configuration: &Configuration,
     store_name: Option<&String>,
     command: &[String],
 ) -> Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
+        let store_path = registration.path();
         if let Some(parent) = store_path.parent() {
             if let Some(split) = command.split_first() {
                 duct::cmd(split.0, split.1)

@@ -1,14 +1,18 @@
 default_store = "something"
 identities = []
+pull_commands = []
+push_commands = []
 
 [[stores]]
-path = "store"
+identities = []
 name = "something"
-synchronizer = "None"
-identities = []
+path = "store"
+pull_commands = []
+push_commands = []
 
 [[stores]]
-path = "other"
-name = "other"
-synchronizer = "None"
 identities = []
+name = "other"
+path = "other"
+pull_commands = []
+push_commands = []

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::path::{Path, absolute};
+use std::path::{absolute, Path};
 
 use clap::error::ErrorKind;
 
@@ -84,15 +84,15 @@ pub fn list(
 ) -> anyhow::Result<()> {
     if global {
         for identity in &configuration.identities {
-            println!("{} (global)", identity.file.clone());
+            println!("global: {}", identity.file.clone());
         }
         Ok(())
     } else if let Some(registration) = configuration.select_store(store_name) {
-        for identity in &registration.identities {
-            println!("{} (store)", identity.file.clone());
-        }
         for identity in &configuration.identities {
-            println!("{} (global)", identity.file.clone());
+            println!("global: {}", identity.file.clone());
+        }
+        for identity in &registration.identities {
+            println!("store: {}", identity.file.clone());
         }
 
         Ok(())

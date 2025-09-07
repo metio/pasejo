@@ -12,6 +12,7 @@ $ pasejo secret generate some-secret
 Generated secret at 'some-secret'
 
 $ pasejo secret copy some-secret somewhere-else
+Copied secret from 'some-secret' to 'somewhere-else'
 
 $ pasejo secret list
 some-secret

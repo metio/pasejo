@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::logs;
+use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
@@ -17,16 +18,15 @@ pub fn add(
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
         let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
         let mut store = if store_path.exists() {
-            if !offline
-                && synchronizer
-                    .should_pull(configuration.pull_interval_seconds, &registration.name)?
-            {
-                logs::store_sync_pull(&registration.name);
-                synchronizer.pull()?;
-            }
+            hooks.execute_pull_commands()?;
             configuration
                 .decrypt_store(registration)
                 .context("Cannot decrypt store")?
@@ -57,14 +57,11 @@ pub fn add(
             logs::recipient_added(&public_key.0);
         }
 
-        if !offline {
-            logs::store_sync_push(&registration.name);
-            synchronizer.push()?;
-        }
-
         if configuration.identities.is_empty() && registration.identities.is_empty() {
             logs::no_identities_exist_yet(&registration.name);
         }
+
+        hooks.execute_push_commands()?;
 
         Ok(())
     } else {
@@ -82,15 +79,14 @@ pub fn remove(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let mut store = configuration
             .decrypt_store(registration)
@@ -120,12 +116,10 @@ pub fn remove(
 
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
-        if !offline {
-            logs::store_sync_push(&registration.name);
-            synchronizer.push()?;
-        }
-
         logs::recipient_removed(public_key);
+
+        hooks.execute_push_commands()?;
+
         Ok(())
     } else {
         anyhow::bail!(
@@ -140,15 +134,14 @@ pub fn list(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
-        let synchronizer = registration.synchronizer.select_implementation(store_path);
+        let hooks = HookExecutor {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        };
 
-        if !offline
-            && synchronizer.should_pull(configuration.pull_interval_seconds, &registration.name)?
-        {
-            logs::store_sync_pull(&registration.name);
-            synchronizer.pull()?;
-        }
+        hooks.execute_pull_commands()?;
 
         let store = configuration
             .decrypt_store(registration)
@@ -161,7 +154,6 @@ pub fn list(
             );
         }
 
-        // logs::recipient_removed(public_key);
         Ok(())
     } else {
         anyhow::bail!(

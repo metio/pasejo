@@ -4,7 +4,7 @@ You can migrate from `passage` to `pasejo` using the following snippet. It itera
 
 ```shell
 # ensure your local copy has the same state as your remote store
-$ pasejo store sync --pull
+$ pasejo hook run --pull
 
 # add all recipients from passage to pasejo
 $ pasejo recipient add --file "${PASSAGE_DIR}/.age-recipients"
@@ -16,5 +16,5 @@ $ find "${PASSAGE_DIR}" -name '*.age' -type f -print | \
     xargs -I {} sh -c 'passage show {} | head --bytes -1 | pasejo secret add {} --offline'
 
 # sync local changes to the remote store
-$ pasejo store sync --push
+$ pasejo hook run --push
 ```

@@ -1,4 +1,6 @@
 stores = []
+pull_commands = []
+push_commands = []
 
 [[identities]]
 file = "[CWD]/some-identity"

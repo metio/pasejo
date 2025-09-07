@@ -1,9 +1,12 @@
 identities = []
+pull_commands = []
+push_commands = []
 
 [[stores]]
 path = "[CWD]/something"
 name = "something"
-synchronizer = "None"
+pull_commands = []
+push_commands = []
 
 [[stores.identities]]
 file = "[CWD]/some-identity"
@@ -11,7 +14,8 @@ file = "[CWD]/some-identity"
 [[stores]]
 path = "[CWD]/other"
 name = "other"
-synchronizer = "None"
+pull_commands = []
+push_commands = []
 
 [[stores.identities]]
 file = "[CWD]/some-identity"

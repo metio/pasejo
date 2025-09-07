@@ -10,7 +10,7 @@ $ find "${PASSWORD_STORE_DIR}" -name '*.gpg' -type f -print | \
     xargs -I {} sh -c 'gopass show {} | head --bytes -1 | pasejo secret add {} --offline'
 
 # sync local changes to the remote store
-$ pasejo store sync --push
+$ pasejo hook run --push
 ```
 
 This snippet assumes that you have already set up a `pasejo` store and that you have the `PASSWORD_STORE_DIR` environment variable set to the path of your `gopass` store. Additionally, you need to add identities and recipients to your `pasejo` store before running this command to allow for encryption/decryption to work properly.

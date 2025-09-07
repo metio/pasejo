@@ -5,12 +5,11 @@ use std::path::PathBuf;
 
 use crate::cli::completer;
 use crate::cli::parser;
-use crate::models::configuration::ConfigurationOption;
 use crate::models::password_store::{OneTimePasswordAlgorithm, OneTimePasswordType};
-use crate::synchronizers::synchronizer::Synchronizers;
 use clap::ValueHint::{DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::InfoLevel;
+use serde::{Deserialize, Serialize};
 
 /// age-backed password manager for teams
 #[derive(Parser)]
@@ -33,6 +32,12 @@ pub enum Commands {
     Config {
         #[command(subcommand)]
         command: ConfigCommands,
+    },
+
+    /// Manage hooks
+    Hook {
+        #[command(subcommand)]
+        command: HookCommands,
     },
 
     /// Manage identities
@@ -90,12 +95,84 @@ pub struct ConfigSetArgs {
     pub value: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, clap::ValueEnum)]
+pub enum ConfigurationOption {
+    IgnoreMissingIdentities,
+    ClipboardTimeout,
+    PullIntervalSeconds,
+    PushIntervalSeconds,
+}
+
+#[derive(Subcommand)]
+pub enum HookCommands {
+    /// Set hook commands to a store or globally to all stores
+    Set(HookSetArgs),
+
+    /// Get configured hook commands
+    Get(HookGetArgs),
+
+    /// Run configured hook commands
+    Run(HookRunArgs),
+}
+
 #[derive(Args)]
-pub struct StoreSelectionArgs {
-    /// Optional name of store to use. Defaults to the default store or the
-    /// first one defined in the local user configuration
-    #[arg(short, long, add = completer::store_name(), value_parser = parser::store_name)]
-    pub store: Option<String>,
+pub struct HookSetArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Add commands to the global configuration or save them per store.
+    #[arg(short, long, conflicts_with = "store")]
+    pub global: bool,
+
+    /// The pull command(s) to set
+    #[arg(long)]
+    pub pull: Vec<String>,
+
+    /// The push command(s) to set
+    #[arg(long)]
+    pub push: Vec<String>,
+
+    /// Prepend commands instead of replacing them
+    #[arg(long, conflicts_with = "append")]
+    pub prepend: bool,
+
+    /// Append commands instead of replacing them
+    #[arg(long, conflicts_with = "prepend")]
+    pub append: bool,
+}
+
+#[derive(Args)]
+pub struct HookGetArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Add commands to the global configuration or save them per store.
+    #[arg(short, long, conflicts_with = "store")]
+    pub global: bool,
+}
+
+#[derive(Args)]
+pub struct HookRunArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Toggle whether hooks should be executed in all stores
+    #[arg(
+        long,
+        default_missing_value = "true",
+        default_value("false"),
+        num_args=0..=1,
+        conflicts_with = "store"
+    )]
+    pub all: Option<bool>,
+
+    /// Toggle whether changes from the remote store should be pulled
+    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
+    pub pull: Option<bool>,
+
+    /// Toggle whether local changes should be pushed to the remote store
+    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
+    pub push: Option<bool>,
 }
 
 #[derive(Subcommand)]
@@ -590,12 +667,6 @@ pub enum StoreCommands {
 
     /// Mark a store as default
     SetDefault(StoreSetDefaultArgs),
-
-    /// Sets the synchronizer for a store
-    SetSynchronizer(StoreSetSynchronizerArgs),
-
-    /// Synchronizes the store with its remote counterpart
-    Sync(StoreSyncArgs),
 }
 
 #[derive(Args)]
@@ -607,10 +678,6 @@ pub struct StoreAddArgs {
     /// The name for the new store
     #[arg(short, long)]
     pub name: String,
-
-    /// The synchronizer to use
-    #[arg(long, default_value_t, value_enum)]
-    pub synchronizer: Synchronizers,
 
     /// Whether the new store should be the default store
     #[arg(short, long)]
@@ -634,40 +701,6 @@ pub struct StoreSetDefaultArgs {
     /// The name of the store to use as default
     #[arg(value_parser = parser::store_name)]
     pub name: String,
-}
-
-#[derive(Args)]
-pub struct StoreSetSynchronizerArgs {
-    #[command(flatten)]
-    pub store_selection: StoreSelectionArgs,
-
-    /// The synchronizer to use
-    #[arg(value_enum)]
-    pub synchronizer: Synchronizers,
-}
-
-#[derive(Args)]
-pub struct StoreSyncArgs {
-    #[command(flatten)]
-    pub store_selection: StoreSelectionArgs,
-
-    /// Toggle whether all stores should be synced
-    #[arg(
-        long,
-        default_missing_value = "true",
-        default_value("false"),
-        num_args=0..=1,
-        conflicts_with = "store"
-    )]
-    pub all: Option<bool>,
-
-    /// Toggle whether changes from the remote store should be pulled
-    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
-    pub pull: Option<bool>,
-
-    /// Toggle whether local changes should be pushed to the remote store
-    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
-    pub push: Option<bool>,
 }
 
 #[derive(Args)]
@@ -710,6 +743,14 @@ pub struct StoreMergeArgs {
 
 #[derive(Args)]
 pub struct StoreListArgs {}
+
+#[derive(Args)]
+pub struct StoreSelectionArgs {
+    /// Optional name of store to use. Defaults to the default store or the
+    /// first one defined in the local user configuration
+    #[arg(short, long, add = completer::store_name(), value_parser = parser::store_name)]
+    pub store: Option<String>,
+}
 
 #[cfg(test)]
 mod tests {

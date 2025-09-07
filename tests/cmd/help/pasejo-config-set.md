@@ -5,7 +5,7 @@ Set a configuration value
 Usage: pasejo config set [OPTIONS] <OPTION> <VALUE>
 
 Arguments:
-  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds]
+  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
   <VALUE>   Value to set the configuration option to
 
 Options:
@@ -22,7 +22,7 @@ Set a configuration value
 Usage: pasejo config set [OPTIONS] <OPTION> <VALUE>
 
 Arguments:
-  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds]
+  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
   <VALUE>   Value to set the configuration option to
 
 Options:
@@ -39,7 +39,7 @@ Set a configuration value
 Usage: pasejo config set [OPTIONS] <OPTION> <VALUE>
 
 Arguments:
-  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds]
+  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
   <VALUE>   Value to set the configuration option to
 
 Options:
