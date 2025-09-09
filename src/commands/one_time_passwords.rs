@@ -1,14 +1,12 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{logs, prompts};
+use crate::cli::{clipboard, logs, prompts};
 use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 use crate::secrets;
 use anyhow::Context;
-use notify_rust::{Notification, Timeout};
-use std::thread;
 use std::time::Duration;
 
 pub fn add(
@@ -174,17 +172,8 @@ pub fn show(
             logs::one_time_password_show(password_path);
             println!("{code}");
             if clip {
-                let mut clipboard = arboard::Clipboard::new()?;
-                clipboard.set_text(format!("{code}"))?;
-                thread::sleep(Duration::from_secs(
-                    configuration.clipboard_timeout.unwrap_or(45),
-                ));
-                clipboard.clear()?;
-                Notification::new()
-                    .summary("pasejo")
-                    .body("Clipboard cleared")
-                    .timeout(Timeout::Default)
-                    .show()?;
+                let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
+                clipboard::copy_text_to_clipboard(&format!("{code}"), duration)?;
             }
             Ok(())
         } else {
