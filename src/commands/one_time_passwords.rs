@@ -164,8 +164,9 @@ pub fn show(
             .context("Cannot decrypt store")?;
 
         if let Some(password) = store.otp.get_mut(password_path) {
+            let is_hotp = password.otp_type == OneTimePasswordType::Hotp;
             let code = password.generate()?;
-            if password.otp_type == OneTimePasswordType::Hotp {
+            if is_hotp {
                 Configuration::encrypt_store(registration, &store)
                     .context("Cannot encrypt store")?;
             }
@@ -174,6 +175,9 @@ pub fn show(
             if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
                 clipboard::copy_text_to_clipboard(&format!("{code}"), duration)?;
+            }
+            if is_hotp {
+                hooks.execute_push_commands()?;
             }
             Ok(())
         } else {
