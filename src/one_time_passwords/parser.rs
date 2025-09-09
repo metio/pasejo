@@ -70,12 +70,12 @@ fn parse_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
         }),
         Totp(totp) => Ok(OneTimePassword {
             secret: totp.base.secret.to_string(),
-            otp_type: OneTimePasswordType::Hotp,
+            otp_type: OneTimePasswordType::Totp,
             algorithm: totp.base.algorithm.into(),
             digits: totp.base.digits.into(),
-            period: 0,
+            period: totp.period.into(),
             counter: 0,
-            skew: 0,
+            skew: totp.skew.into(),
         }),
     }
 }
