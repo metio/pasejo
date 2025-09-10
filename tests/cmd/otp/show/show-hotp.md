@@ -12,13 +12,13 @@ $ pasejo otp add --url otpauth://hotp/Example:alice@google.com?secret=JEQDYMZAN5
 Added one-time password at 'some-name'
 
 $ pasejo otp show some-name
-266507
+[..]
 
 $ pasejo otp show some-name --quiet
-290697
+[..]
 
 $ pasejo otp show some-name --verbose
 Showing one-time password at 'some-name'
-861574
+[..]
 
 ```

@@ -8,10 +8,17 @@ Identity using file '[CWD]/some-identity' added
 $ pasejo recipient add --public-key age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd
 Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' added
 
-$ pasejo secret generate some-secret
-Generated secret at 'some-secret'
+$ pasejo otp add --url otpauth://totp/Example:alice@google.com?secret=JEQDYMZAN5YGK3RAONXXK4TDMU&issuer=Example some-name
+Added one-time password at 'some-name'
 
-$ pasejo secret show some-secret
+$ pasejo otp show some-name
+[..]
+
+$ pasejo otp show some-name --quiet
+[..]
+
+$ pasejo otp show some-name --verbose
+Showing one-time password at 'some-name'
 [..]
 
 ```

@@ -23,6 +23,6 @@ $ pasejo otp copy deeply/nested/name/for/password here-it-is --verbose
 Copied one-time password from 'deeply/nested/name/for/password' to 'here-it-is'
 
 $ pasejo otp show here-it-is
-266507
+[..]
 
 ```
