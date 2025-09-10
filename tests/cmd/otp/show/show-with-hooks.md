@@ -13,10 +13,18 @@ Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' a
 $ pasejo otp add --url otpauth://hotp/Example:alice@google.com?secret=JEQDYMZAN5YGK3RAONXXK4TDMU&counter=1&issuer=Example some-hotp
 Added one-time password at 'some-hotp'
 
+$ pasejo otp add --url otpauth://totp/Example:alice@google.com?secret=JEQDYMZAN5YGK3RAONXXK4TDMU&issuer=Example some-totp
+Added one-time password at 'some-totp'
+
 $ pasejo otp show some-hotp --verbose
 Executing pull hooks for store 'something'
 Showing one-time password at 'some-hotp'
-266507
+[..]
 Executing push hooks for store 'something'
+
+$ pasejo otp show some-totp --verbose
+Executing pull hooks for store 'something'
+Showing one-time password at 'some-totp'
+[..]
 
 ```
