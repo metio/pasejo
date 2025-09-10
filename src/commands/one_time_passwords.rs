@@ -170,12 +170,16 @@ pub fn show(
                 Configuration::encrypt_store(registration, &store)
                     .context("Cannot encrypt store")?;
             }
-            logs::one_time_password_show(password_path);
-            println!("{code}");
+
             if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
+                logs::one_time_password_copy_into_clipboard(password_path, &duration);
                 clipboard::copy_text_to_clipboard(&format!("{code}"), duration)?;
+            } else {
+                logs::one_time_password_show(password_path);
+                println!("{code}");
             }
+
             if is_hotp {
                 hooks.execute_push_commands()?;
             }

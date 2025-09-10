@@ -37,6 +37,12 @@ pub fn one_time_password_removed(password_path: &str) {
     info!("Removed one-time password at '{password_path}'");
 }
 
+pub fn one_time_password_copy_into_clipboard(password_path: &str, duration: &Duration) {
+    info!(
+        "Copying one-time password at '{password_path}' into clipboard. Will be removed after {duration:?} or once you terminate this process."
+    );
+}
+
 pub fn secret_generated(secret_path: &str) {
     info!("Generated secret at '{secret_path}'");
 }
