@@ -14,6 +14,13 @@ repository = "https://github.com/metio/pasejo"
 keywords = ["password", "manager", "age", "passage", "pass"]
 categories = ["command-line-utilities"]
 readme = "README.md"
+exclude = [
+    ".github/*",
+    "dev/*",
+    "docs/*",
+    "tests/*",
+    "vhs/*",
+]
 
 [features]
 default = []
