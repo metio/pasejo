@@ -40,7 +40,7 @@ env_logger = { version = "0.11.8" }
 human-panic = { version = "2.0.3" }
 log = { version = "0.4.28" }
 image = { version = "0.25.8" }
-inquire = { version = "0.8.0", features = ["editor"] }
+inquire = { version = "0.9.1", features = ["editor"] }
 notify-rust = { version = "4.11.7" }
 otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
 passwords = { version = "3.1.16" }
