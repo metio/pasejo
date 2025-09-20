@@ -10,7 +10,15 @@ pub fn read(
     ignore_missing_identities: bool,
 ) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
     let existing_identities = if ignore_missing_identities {
-        let age_plugin_yubikey = LazyCell::new(|| which::which("age-plugin-yubikey"));
+        let age_plugin_yubikey_output = LazyCell::new(|| {
+            if let Ok(plugin_binary) = which::which("age-plugin-yubikey") {
+                return cmd!(plugin_binary, "--identity")
+                    .stdout_capture()
+                    .stderr_null()
+                    .read();
+            }
+            Ok(String::new())
+        });
 
         let mut files = vec![];
         for file in identity_files {
@@ -20,11 +28,7 @@ pub fn read(
                         if line.starts_with("AGE-PLUGIN-YUBIKEY-") {
                             let parts = line.split('-').collect::<Vec<&str>>();
                             if let Some(split) = parts.split_last()
-                                && let Ok(plugin_binary) = &*age_plugin_yubikey
-                                && let Ok(output) = cmd!(plugin_binary, "--identity")
-                                    .stdout_capture()
-                                    .stderr_null()
-                                    .read()
+                                && let Ok(output) = &*age_plugin_yubikey_output
                                 && output.contains(split.0)
                             {
                                 files.push(file.clone());
