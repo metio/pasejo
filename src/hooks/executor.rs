@@ -78,7 +78,7 @@ impl HookExecutor<'_> {
                             .run()
                             .context("Failed to run command")?;
                     } else {
-                        anyhow::bail!("Cannot parse command: {:?}", command);
+                        anyhow::bail!("Cannot parse command: {command:?}");
                     }
                 }
             } else {
