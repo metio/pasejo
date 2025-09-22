@@ -11,7 +11,11 @@ Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' a
 $ pasejo secret add some-secret
 Added secret at 'some-secret'
 
+$ pasejo secret generate other-secret
+Generated secret at 'other-secret'
+
 $ pasejo secret list
+other-secret
 some-secret
 
 ```
