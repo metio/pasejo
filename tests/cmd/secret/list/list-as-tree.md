@@ -21,7 +21,7 @@ $ pasejo secret generate sub/sub/sub/secret
 Generated secret at 'sub/sub/sub/secret'
 
 $ pasejo secret list --tree
-
+something
 ├── nested
 │   └── secret
 ├── other-secret
