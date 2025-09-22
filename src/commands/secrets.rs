@@ -219,7 +219,7 @@ pub fn list(
         if tree {
             print!(
                 "{}",
-                secrets::format_as_tree("", &store.secret_names_as_list())
+                secrets::format_as_tree(&registration.name, &store.secret_names_as_list())
             );
         } else {
             for secret in store.secret_names_as_list() {
