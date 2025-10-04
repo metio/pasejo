@@ -16,8 +16,8 @@ Options:
       --type <OTP_TYPE>        The type of the one-time password [possible values: totp, hotp]
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
       --digits <DIGITS>        The digits of the one-time password
-  -v, --verbose...             Increase logging verbosity
       --period <PERIOD>        The period of the one-time password
+  -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
       --counter <COUNTER>      The counter of the one-time password
@@ -43,8 +43,8 @@ Options:
       --type <OTP_TYPE>        The type of the one-time password [possible values: totp, hotp]
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
       --digits <DIGITS>        The digits of the one-time password
-  -v, --verbose...             Increase logging verbosity
       --period <PERIOD>        The period of the one-time password
+  -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
       --counter <COUNTER>      The counter of the one-time password
@@ -70,8 +70,8 @@ Options:
       --type <OTP_TYPE>        The type of the one-time password [possible values: totp, hotp]
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
       --digits <DIGITS>        The digits of the one-time password
-  -v, --verbose...             Increase logging verbosity
       --period <PERIOD>        The period of the one-time password
+  -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
       --counter <COUNTER>      The counter of the one-time password

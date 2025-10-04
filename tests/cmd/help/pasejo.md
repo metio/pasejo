@@ -6,6 +6,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   config     Manage pasejo configuration
+  export     Export passwords
   hook       Manage hooks
   identity   Manage identities
   otp        Manage one-time passwords
@@ -31,6 +32,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   config     Manage pasejo configuration
+  export     Export passwords
   hook       Manage hooks
   identity   Manage identities
   otp        Manage one-time passwords
@@ -56,6 +58,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
   config     Manage pasejo configuration
+  export     Export passwords
   hook       Manage hooks
   identity   Manage identities
   otp        Manage one-time passwords

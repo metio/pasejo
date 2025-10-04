@@ -34,6 +34,12 @@ pub enum Commands {
         command: ConfigCommands,
     },
 
+    /// Export passwords
+    Export {
+        #[command(subcommand)]
+        command: ExportCommands,
+    },
+
     /// Manage hooks
     Hook {
         #[command(subcommand)]
@@ -101,6 +107,40 @@ pub enum ConfigurationOption {
     ClipboardTimeout,
     PullIntervalSeconds,
     PushIntervalSeconds,
+}
+
+#[derive(Subcommand)]
+pub enum ExportCommands {
+    /// Export all passwords of a store in Bitwarden JSON format
+    Bitwarden(BitwardenArgs),
+}
+
+#[derive(Args)]
+pub struct BitwardenArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// The organization ID to use. When set, outputs organization JSON format
+    #[arg(long)]
+    pub organization_id: Option<String>,
+
+    /// The collection ID to use
+    #[arg(long, requires = "organization_id")]
+    pub collection_id: Option<String>,
+
+    /// The collection name to use
+    #[arg(long, requires = "organization_id")]
+    pub collection_name: Option<String>,
+
+    #[arg(long, default_values_t = [String::from("login"), String::from("email"), String::from("username")])]
+    pub username_keys: Vec<String>,
+
+    #[arg(long, default_values_t = [String::from("uri"), String::from("url"), String::from("link"), String::from("site")])]
+    pub uri_keys: Vec<String>,
+
+    /// Toggle whether to print pretty JSON or not
+    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
+    pub pretty: Option<bool>,
 }
 
 #[derive(Subcommand)]

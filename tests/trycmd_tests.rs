@@ -7,6 +7,7 @@ fn cli_tests() {
         .case("tests/cmd/completion/*.md")
         .case("tests/cmd/config/*/*.md")
         .case("tests/cmd/config-migrations/*/*.md")
+        .case("tests/cmd/export/*/*.md")
         .case("tests/cmd/help/*.md")
         .case("tests/cmd/hook/*/*.md")
         .case("tests/cmd/identity/*/*.md")

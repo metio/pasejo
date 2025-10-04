@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::commands::{config, hooks, identities, one_time_passwords, recipients, secrets, stores};
+use crate::commands::{
+    config, export, hooks, identities, one_time_passwords, recipients, secrets, stores,
+};
 use crate::models::cli::{
     Cli, Commands, ConfigCommands, IdentityCommands, OtpCommands, RecipientCommands,
     SecretCommands, StoreCommands,
@@ -21,6 +23,7 @@ pub fn dispatch_command(cli: &Cli, configuration: Configuration) -> Result<()> {
             }
             ConfigCommands::Set(args) => config::set(configuration, &args.option, &args.value),
         },
+        Commands::Export { command } => export::dispatch(command, &configuration, cli.offline),
         Commands::Hook { command } => hooks::dispatch(command, configuration),
         Commands::Identity { command } => match command {
             IdentityCommands::Add(args) => identities::add(
