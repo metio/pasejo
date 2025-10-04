@@ -3,7 +3,7 @@
 
 use crate::exporters;
 use crate::hooks::executor::HookExecutor;
-use crate::models::cli::ExportCommands;
+use crate::models::cli::{BitwardenArgs, ExportCommands};
 use crate::models::configuration::Configuration;
 use anyhow::Context;
 
@@ -13,32 +13,16 @@ pub fn dispatch(
     offline: bool,
 ) -> anyhow::Result<()> {
     match command {
-        ExportCommands::Bitwarden(args) => export_as_json(
-            configuration,
-            args.store_selection.store.as_ref(),
-            args.organization_id.as_ref(),
-            args.collection_id.as_ref(),
-            args.collection_name.as_ref(),
-            &args.username_keys,
-            &args.uri_keys,
-            args.pretty,
-            offline,
-        ),
+        ExportCommands::Bitwarden(args) => export_as_json(configuration, args, offline),
     }
 }
 
 fn export_as_json(
     configuration: &Configuration,
-    store_name: Option<&String>,
-    organization_id: Option<&String>,
-    collection_id: Option<&String>,
-    collection_name: Option<&String>,
-    username_keys: &[String],
-    uri_keys: &[String],
-    pretty: Option<bool>,
+    args: &BitwardenArgs,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
+    if let Some(registration) = configuration.select_store(args.store_selection.store.as_ref()) {
         let hooks = HookExecutor {
             configuration,
             registration,
@@ -56,12 +40,12 @@ fn export_as_json(
             "{}",
             exporters::bitwarden::json(
                 &store,
-                organization_id,
-                collection_id,
-                collection_name,
-                username_keys,
-                uri_keys,
-                pretty,
+                args.organization_id.as_ref(),
+                args.collection_id.as_ref(),
+                args.collection_name.as_ref(),
+                args.username_keys.as_ref(),
+                args.uri_keys.as_ref(),
+                args.pretty,
             )?
         );
 
