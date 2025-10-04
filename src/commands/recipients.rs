@@ -7,7 +7,6 @@ use crate::models::configuration::Configuration;
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
 use anyhow::Context;
-use std::path::Path;
 
 pub fn add(
     configuration: &Configuration,
@@ -17,7 +16,7 @@ pub fn add(
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = Path::new(&registration.path);
+        let store_path = registration.path();
         let hooks = HookExecutor {
             configuration,
             registration,
