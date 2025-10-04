@@ -27,6 +27,12 @@ jobs:
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
             apt_packages: gcc-mingw-w64-x86-64
+          - target: aarch64-pc-windows-msvc
+            os: windows
+            apt_packages: ""
+          - target: x86_64-pc-windows-msvc
+            os: windows
+            apt_packages: ""
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
