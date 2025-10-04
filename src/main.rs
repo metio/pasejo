@@ -4,6 +4,7 @@
 mod cli;
 mod commands;
 mod downloader;
+mod exporters;
 mod hooks;
 mod identities;
 mod models;

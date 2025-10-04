@@ -15,11 +15,11 @@ Options:
   -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
-  -v, --verbose...                  Increase logging verbosity
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -q, --quiet...                    Decrease logging verbosity
+  -v, --verbose...                  Increase logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
+  -q, --quiet...                    Decrease logging verbosity
   -t, --strict                      Whether the password rules are strict
   -h, --help                        Print help
 
@@ -42,11 +42,11 @@ Options:
   -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
-  -v, --verbose...                  Increase logging verbosity
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -q, --quiet...                    Decrease logging verbosity
+  -v, --verbose...                  Increase logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
+  -q, --quiet...                    Decrease logging verbosity
   -t, --strict                      Whether the password rules are strict
   -h, --help                        Print help
 
@@ -69,11 +69,11 @@ Options:
   -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
-  -v, --verbose...                  Increase logging verbosity
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -q, --quiet...                    Decrease logging verbosity
+  -v, --verbose...                  Increase logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
+  -q, --quiet...                    Decrease logging verbosity
   -t, --strict                      Whether the password rules are strict
   -h, --help                        Print help
 
