@@ -265,7 +265,7 @@ impl Configuration {
     }
 
     pub fn decrypt_store(&self, registration: &StoreRegistration) -> Result<PasswordStore> {
-        self.decrypt_store_from_path(registration, Path::new(&registration.path))
+        self.decrypt_store_from_path(registration, registration.path())
     }
 
     pub fn decrypt_store_from_path(
@@ -284,7 +284,7 @@ impl Configuration {
     }
 
     pub fn encrypt_store(registration: &StoreRegistration, store: &PasswordStore) -> Result<()> {
-        Self::encrypt_store_to_path(store, Path::new(&registration.path))
+        Self::encrypt_store_to_path(store, registration.path())
     }
 
     pub fn encrypt_store_to_path(store: &PasswordStore, store_path: &Path) -> Result<()> {

@@ -56,7 +56,7 @@ pub fn remove(
     if remove_data {
         let path_to_store = Path::new(path);
         if path_to_store.exists() {
-            fs::remove_dir(path_to_store)?;
+            fs::remove_file(path_to_store)?;
         }
     }
     logs::store_remove_success(name);
