@@ -44,7 +44,7 @@ pub struct Configuration {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct StoreRegistration {
     /// The local file system path of the store
-    pub path: String,
+    pub path: PathBuf,
 
     /// The name of the store
     pub name: String,
@@ -61,7 +61,7 @@ pub struct StoreRegistration {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Identity {
-    pub file: String,
+    pub file: PathBuf,
 }
 
 impl Configuration {
@@ -184,7 +184,7 @@ impl Configuration {
 
     pub fn add_store(&mut self, store_root_path: &str, store_name: &str) -> Result<()> {
         let registration = StoreRegistration {
-            path: store_root_path.to_string(),
+            path: PathBuf::from(store_root_path),
             name: store_name.to_owned(),
             identities: vec![],
             pull_commands: vec![],
@@ -244,10 +244,10 @@ impl Configuration {
         false
     }
 
-    pub fn all_identity_files(&self, store: &StoreRegistration) -> Vec<String> {
+    pub fn all_identity_files(&self, store: &StoreRegistration) -> Vec<PathBuf> {
         let mut identities = self.identities.clone();
         identities.extend(store.identities.clone());
-        let mut files: Vec<String> = identities
+        let mut files: Vec<PathBuf> = identities
             .iter()
             .map(|identity| identity.file.clone())
             .collect();
@@ -330,6 +330,6 @@ impl Configuration {
 
 impl StoreRegistration {
     pub fn path(&self) -> &Path {
-        Path::new(&self.path)
+        self.path.as_path()
     }
 }

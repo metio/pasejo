@@ -115,8 +115,8 @@ pub fn list(configuration: &Configuration) {
             .clone()
             .filter(|default| default == &store.name)
             .map_or_else(
-                || format!("{}: {}", store.name, store.path),
-                |default| format!("{}: {} (default)", default, store.path),
+                || format!("{}: {}", store.name, store.path.display()),
+                |default| format!("{}: {} (default)", default, store.path.display()),
             );
 
         println!("{text}");
