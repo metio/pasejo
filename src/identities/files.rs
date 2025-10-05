@@ -4,9 +4,10 @@
 use age::cli_common::{read_identities, StdinGuard};
 use duct::cmd;
 use std::cell::LazyCell;
+use std::path::PathBuf;
 
 pub fn read(
-    identity_files: Vec<String>,
+    identity_files: Vec<PathBuf>,
     ignore_missing_identities: bool,
 ) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
     let existing_identities = if ignore_missing_identities {
@@ -36,7 +37,7 @@ pub fn read(
                         }
                     });
                 } else {
-                    files.push(file.clone());
+                    files.push(file);
                 }
             }
         }
@@ -45,8 +46,13 @@ pub fn read(
         identity_files
     };
 
+    let filenames = existing_identities
+        .iter()
+        .map(|file| format!("{}", file.display()))
+        .collect();
+
     Ok(read_identities(
-        existing_identities,
+        filenames,
         None,
         &mut StdinGuard::new(true),
     )?)
