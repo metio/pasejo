@@ -24,6 +24,27 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             apt_packages: ""
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            apt_packages: ""
+          - target: i686-unknown-linux-gnu
+            os: ubuntu-latest
+            apt_packages: ""
+          - target: x86_64-unknown-freebsd
+            os: ubuntu-latest
+            apt_packages: ""
+          - target: x86_64-unknown-netbsd
+            os: ubuntu-latest
+            apt_packages: ""
+          - target: powerpc64-unknown-linux-gnu
+            os: ubuntu-latest
+            apt_packages: ""
+          - target: powerpc64le-unknown-linux-gnu
+            os: ubuntu-latest
+            apt_packages: ""
+          - target: riscv64gc-unknown-linux-gnu
+            os: ubuntu-latest
+            apt_packages: ""
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
             apt_packages: gcc-mingw-w64-x86-64
