@@ -17,7 +17,7 @@ pub fn add(
 ) -> anyhow::Result<()> {
     let absolute_path = absolute(identity_file)?;
     let identity = Identity {
-        file: absolute_path.display().to_string(),
+        file: absolute_path.clone(),
     };
     if configuration.has_identity(&identity, store_name, global) {
         error_exit(
@@ -56,7 +56,7 @@ pub fn remove(
 ) -> anyhow::Result<()> {
     let absolute_path = absolute(identity_file)?;
     let identity = Identity {
-        file: absolute_path.display().to_string(),
+        file: absolute_path.clone(),
     };
     if configuration.has_identity(&identity, store_name, global) {
         configuration.remove_identity(&identity, store_name, global)?;
@@ -84,15 +84,15 @@ pub fn list(
 ) -> anyhow::Result<()> {
     if global {
         for identity in &configuration.identities {
-            println!("global: {}", identity.file.clone());
+            println!("global: {}", identity.file.display());
         }
         Ok(())
     } else if let Some(registration) = configuration.select_store(store_name) {
         for identity in &configuration.identities {
-            println!("global: {}", identity.file.clone());
+            println!("global: {}", identity.file.display());
         }
         for identity in &registration.identities {
-            println!("store: {}", identity.file.clone());
+            println!("store: {}", identity.file.display());
         }
 
         Ok(())

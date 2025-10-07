@@ -11,7 +11,9 @@ use assert_cmd::cargo::cargo_bin;
 use assert_cmd::prelude::*;
 use assert_fs::TempDir;
 use predicates::prelude::*;
+#[cfg(unix)]
 use rexpect::session::PtySession;
+#[cfg(unix)]
 use rexpect::spawn;
 use serial_test::serial;
 use ssh_key::rand_core::OsRng;
@@ -19,6 +21,7 @@ use ssh_key::{Algorithm, LineEnding, PrivateKey};
 
 #[test]
 #[serial]
+#[cfg(unix)]
 fn insert_secret_with_age_key() -> anyhow::Result<()> {
     let key = age::x25519::Identity::generate();
     insert_secret_with_key(
@@ -30,6 +33,7 @@ fn insert_secret_with_age_key() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
+#[cfg(unix)]
 fn insert_secret_with_ssh_ed25519_key() -> anyhow::Result<()> {
     let key = PrivateKey::random(&mut OsRng::default(), Algorithm::Ed25519)?;
     insert_secret_with_key(
@@ -41,6 +45,7 @@ fn insert_secret_with_ssh_ed25519_key() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
+#[cfg(unix)]
 #[ignore] // it takes too long to run - execute with: cargo test -- --ignored
 fn insert_secret_with_ssh_rsa_key() -> anyhow::Result<()> {
     let key = PrivateKey::random(&mut OsRng::default(), Algorithm::Rsa { hash: None })?;
@@ -51,6 +56,7 @@ fn insert_secret_with_ssh_rsa_key() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn insert_secret_with_key(public_key: &str, private_key: &str) -> anyhow::Result<()> {
     let secret_name = "some/secret";
     let secret_text = "here is a very secret text";
@@ -94,6 +100,7 @@ fn insert_secret_with_key(public_key: &str, private_key: &str) -> anyhow::Result
     Ok(())
 }
 
+#[cfg(unix)]
 fn run_command<T>(
     command: &str,
     public_key: &str,
