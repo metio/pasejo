@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 #[test]
+#[cfg(not(windows))]
 fn cli_tests() {
     trycmd::TestCases::new()
         .case("tests/cmd/completion/*.md")
