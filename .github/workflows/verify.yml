@@ -43,7 +43,7 @@ jobs:
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install prerequisites
-        if: matrix.os == "ubuntu-latest"
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           case ${{ matrix.target }} in
             aarch64-unknown-linux-gnu)  sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
@@ -51,7 +51,7 @@ jobs:
             x86_64-unknown-linux-musl)  sudo apt-get -y update ; sudo apt-get -y install musl-tools ;;
           esac
       - name: Set up env variables
-        if: matrix.os == "ubuntu-latest"
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           case ${{ matrix.target }} in
             aarch64-unknown-linux-musl) echo CC=aarch64-linux-gnu-gcc >> $GITHUB_ENV; echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc >> $GITHUB_ENV ;;
