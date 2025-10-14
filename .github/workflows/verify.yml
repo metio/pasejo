@@ -57,13 +57,15 @@ jobs:
           tool: cross
       - name: Overwrite build command env variable
         if: matrix.use-cross
-        shell: bash
         run: echo "BUILD_COMMAND=cross" >> $GITHUB_ENV
       - name: Set up Rust Target
         run: rustup target add ${{ matrix.target }}
       - name: Check Code
+        shell: bash
         run: $BUILD_COMMAND check --release --target ${{ matrix.target }}
       - name: Test Code
+        shell: bash
         run: $BUILD_COMMAND test
       - name: Build Code
+        shell: bash
         run: $BUILD_COMMAND build --release --target ${{ matrix.target }}
