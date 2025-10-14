@@ -14,26 +14,31 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-latest
-            apt_packages: ""
           - target: x86_64-apple-darwin
             os: macos-latest
-            apt_packages: ""
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            apt_packages: gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+            use-cross: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            use-cross: true
+          - target: arm-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            use-cross: true
+          - target: arm-unknown-linux-musleabihf
+            os: ubuntu-latest
+            use-cross: true
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            apt_packages: ""
           - target: x86_64-pc-windows-gnu
-            os: ubuntu-latest
-            apt_packages: gcc-mingw-w64-x86-64
+            os: windows-latest
           - target: aarch64-pc-windows-msvc
             os: windows-latest
-            apt_packages: ""
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            apt_packages: ""
     runs-on: ${{ matrix.os }}
+    env:
+      BUILD_COMMAND: cargo
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -45,14 +50,20 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install cross
+        if: matrix.use-cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+      - name: Overwrite build command env variable
+        if: matrix.use-cross
+        shell: bash
+        run: echo "BUILD_COMMAND=cross" >> $GITHUB_ENV
       - name: Set up Rust Target
         run: rustup target add ${{ matrix.target }}
-      - name: Install additional packages
-        if: matrix.apt_packages != ''
-        run: sudo apt-get install --yes --no-install-recommends ${{ matrix.apt_packages }}
       - name: Check Code
-        run: cargo check --release --target ${{ matrix.target }}
+        run: $BUILD_COMMAND check --release --target ${{ matrix.target }}
       - name: Test Code
-        run: cargo test
+        run: $BUILD_COMMAND test
       - name: Build Code
-        run: cargo build --release --target ${{ matrix.target }}
+        run: $BUILD_COMMAND build --release --target ${{ matrix.target }}
