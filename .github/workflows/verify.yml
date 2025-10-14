@@ -18,17 +18,11 @@ jobs:
             os: macos-latest
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            use-cross: true
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
-            use-cross: true
-          - target: arm-unknown-linux-gnueabihf
-            os: ubuntu-latest
-            use-cross: true
-          - target: arm-unknown-linux-musleabihf
-            os: ubuntu-latest
-            use-cross: true
           - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
           - target: x86_64-pc-windows-gnu
             os: windows-latest
@@ -37,8 +31,6 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
     runs-on: ${{ matrix.os }}
-    env:
-      BUILD_COMMAND: cargo
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -50,22 +42,19 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install cross
-        if: matrix.use-cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-      - name: Overwrite build command env variable
-        if: matrix.use-cross
-        run: echo "BUILD_COMMAND=cross" >> $GITHUB_ENV
+      - name: Install prerequisites
+        shell: bash
+        run: |
+          case ${{ matrix.target }} in
+            aarch64-unknown-linux-gnu) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+            aarch64-unknown-linux-musl) sudo apt-get -y update ; sudo apt-get -y install musl musl-dev musl-tools ;;
+            x86_64-unknown-linux-musl) sudo apt-get -y update ; sudo apt-get -y install musl musl-dev musl-tools ;;
+          esac
       - name: Set up Rust Target
         run: rustup target add ${{ matrix.target }}
       - name: Check Code
-        shell: bash
-        run: $BUILD_COMMAND check --release --target ${{ matrix.target }}
+        run: cargo check --release --target ${{ matrix.target }}
       - name: Test Code
-        shell: bash
-        run: $BUILD_COMMAND test
+        run: cargo test
       - name: Build Code
-        shell: bash
-        run: $BUILD_COMMAND build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
