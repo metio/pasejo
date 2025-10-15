@@ -38,6 +38,7 @@ jobs:
         run: cargo test
   build:
     name: Build ${{ matrix.target }}
+    needs: check
     strategy:
       fail-fast: false
       matrix:
