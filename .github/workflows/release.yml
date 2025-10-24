@@ -41,23 +41,30 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-latest
-            apt_packages: ""
             binary_name: pasejo
           - target: x86_64-apple-darwin
             os: macos-latest
-            apt_packages: ""
             binary_name: pasejo
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            apt_packages: gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+            binary_name: pasejo
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
             binary_name: pasejo
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            apt_packages: ""
+            binary_name: pasejo
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
             binary_name: pasejo
           - target: x86_64-pc-windows-gnu
-            os: ubuntu-latest
-            apt_packages: gcc-mingw-w64-x86-64
+            os: windows-latest
+            binary_name: pasejo.exe
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            binary_name: pasejo.exe
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
             binary_name: pasejo.exe
     steps:
       - id: checkout
@@ -73,12 +80,24 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install prerequisites
+        if: needs.prepare.outputs.release_version != '' && startsWith(matrix.os, 'ubuntu')
+        run: |
+          case ${{ matrix.target }} in
+            aarch64-unknown-linux-gnu)  sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+            aarch64-unknown-linux-musl) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu musl-tools ;;
+            x86_64-unknown-linux-musl)  sudo apt-get -y update ; sudo apt-get -y install musl-tools ;;
+          esac
+      - name: Set up env variables
+        if: needs.prepare.outputs.release_version != '' && startsWith(matrix.os, 'ubuntu')
+        run: |
+          case ${{ matrix.target }} in
+            aarch64-unknown-linux-gnu) echo JEMALLOC_SYS_WITH_LG_PAGE=16 >> $GITHUB_ENV ;;
+            aarch64-unknown-linux-musl) echo CC=aarch64-linux-gnu-gcc >> $GITHUB_ENV; echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc >> $GITHUB_ENV ; echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" >> $GITHUB_ENV; echo JEMALLOC_SYS_WITH_LG_PAGE=16 >> $GITHUB_ENV ;;
+          esac
       - name: Set up Rust Target
         if: needs.prepare.outputs.release_version != ''
         run: rustup target add ${{ matrix.target }}
-      - name: Install additional packages
-        if: needs.prepare.outputs.release_version != '' && matrix.apt_packages != ''
-        run: sudo apt-get install --yes --no-install-recommends ${{ matrix.apt_packages }}
       - id: versioning
         name: Modify release version
         if: needs.prepare.outputs.release_version != ''
