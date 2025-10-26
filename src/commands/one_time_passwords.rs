@@ -3,13 +3,78 @@
 
 use crate::cli::{clipboard, logs, prompts};
 use crate::hooks::executor::HookExecutor;
+use crate::models::cli::{Cli, OtpCommands};
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
+use crate::one_time_passwords::parser::parse_otp_args;
 use crate::secrets;
 use anyhow::Context;
 use std::time::Duration;
 
-pub fn add(
+pub fn dispatch(
+    command: &OtpCommands,
+    cli: &Cli,
+    configuration: &Configuration,
+) -> anyhow::Result<()> {
+    match command {
+        OtpCommands::Add(args) => add(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.password_path,
+            &parse_otp_args(
+                args.otp_type.as_ref(),
+                args.algorithm.as_ref(),
+                args.secret.as_ref(),
+                args.digits,
+                args.period,
+                args.counter,
+                args.skew,
+                args.url.as_ref(),
+                args.qrcode.as_ref(),
+            )?,
+            args.force,
+            cli.offline,
+        ),
+        OtpCommands::Copy(args) => copy(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.force,
+            &args.source_path,
+            &args.target_path,
+            cli.offline,
+        ),
+        OtpCommands::List(args) => list(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.tree,
+            cli.offline,
+        ),
+        OtpCommands::Move(args) => mv(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.force,
+            &args.current_path,
+            &args.new_path,
+            cli.offline,
+        ),
+        OtpCommands::Remove(args) => remove(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.force,
+            &args.password_path,
+            cli.offline,
+        ),
+        OtpCommands::Show(args) => show(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.password_path,
+            args.clip,
+            cli.offline,
+        ),
+    }
+}
+
+fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
     password_path: &str,
@@ -56,7 +121,7 @@ pub fn add(
     }
 }
 
-pub fn remove(
+fn remove(
     configuration: &Configuration,
     store_name: Option<&String>,
     force: bool,
@@ -104,7 +169,7 @@ pub fn remove(
     }
 }
 
-pub fn list(
+fn list(
     configuration: &Configuration,
     store_name: Option<&String>,
     tree: bool,
@@ -142,7 +207,7 @@ pub fn list(
     }
 }
 
-pub fn show(
+fn show(
     configuration: &Configuration,
     store_name: Option<&String>,
     password_path: &str,
@@ -194,7 +259,7 @@ pub fn show(
     }
 }
 
-pub fn mv(
+fn mv(
     configuration: &Configuration,
     store_name: Option<&String>,
     force: bool,
@@ -244,7 +309,7 @@ pub fn mv(
     }
 }
 
-pub fn copy(
+fn copy(
     configuration: &Configuration,
     store_name: Option<&String>,
     force: bool,

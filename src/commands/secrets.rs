@@ -3,13 +3,104 @@
 
 use crate::cli::{clipboard, logs, prompts};
 use crate::hooks::executor::HookExecutor;
+use crate::models::cli::SecretCommands;
 use crate::models::configuration::Configuration;
 use crate::secrets;
 use anyhow::Context;
 use passwords::{analyzer, scorer};
 use std::time::Duration;
 
-pub fn add(
+pub fn dispatch(
+    command: &SecretCommands,
+    configuration: &Configuration,
+    offline: bool,
+) -> anyhow::Result<()> {
+    match command {
+        SecretCommands::Add(args) => add(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.secret_path,
+            args.force,
+            args.multiline,
+            offline,
+        ),
+        SecretCommands::Audit(args) => audit(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.secret_path.as_ref(),
+            offline,
+        ),
+        SecretCommands::Copy(args) => copy(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.force,
+            &args.source_path,
+            &args.target_path,
+            offline,
+        ),
+        SecretCommands::List(args) => list(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.tree,
+            offline,
+        ),
+        SecretCommands::Show(args) => show(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.qrcode,
+            &args.secret_path,
+            args.line,
+            args.clip,
+            offline,
+        ),
+        SecretCommands::Move(args) => mv(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.force,
+            &args.current_path,
+            &args.new_path,
+            offline,
+        ),
+        SecretCommands::Remove(args) => remove(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.force,
+            &args.secret_path,
+            offline,
+        ),
+        SecretCommands::Generate(args) => generate(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.secret_path,
+            args.force,
+            args.inplace,
+            args.length,
+            args.numbers,
+            args.lowercase_letters,
+            args.uppercase_letters,
+            args.symbols,
+            args.spaces,
+            args.exclude_similar_characters,
+            args.strict,
+            offline,
+        ),
+        SecretCommands::Edit(args) => edit(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.secret_path,
+            offline,
+        ),
+        SecretCommands::Grep(args) => grep(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.search_string,
+            args.regex,
+            offline,
+        ),
+    }
+}
+
+fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
     secret_path: &str,
@@ -56,7 +147,7 @@ pub fn add(
     }
 }
 
-pub fn audit(
+fn audit(
     configuration: &Configuration,
     store_name: Option<&String>,
     secret_path: Option<&String>,
@@ -98,7 +189,7 @@ pub fn audit(
     }
 }
 
-pub fn copy(
+fn copy(
     configuration: &Configuration,
     store_name: Option<&String>,
     force: bool,
@@ -148,7 +239,7 @@ pub fn copy(
     }
 }
 
-pub fn mv(
+fn mv(
     configuration: &Configuration,
     store_name: Option<&String>,
     force: bool,
@@ -196,7 +287,7 @@ pub fn mv(
     }
 }
 
-pub fn list(
+fn list(
     configuration: &Configuration,
     store_name: Option<&String>,
     tree: bool,
@@ -234,7 +325,7 @@ pub fn list(
     }
 }
 
-pub fn remove(
+fn remove(
     configuration: &Configuration,
     store_name: Option<&String>,
     force: bool,
@@ -282,7 +373,7 @@ pub fn remove(
     }
 }
 
-pub fn show(
+fn show(
     configuration: &Configuration,
     store_name: Option<&String>,
     qrcode: bool,
@@ -349,7 +440,7 @@ pub fn show(
 
 #[allow(clippy::fn_params_excessive_bools)]
 #[allow(clippy::too_many_arguments)]
-pub fn generate(
+fn generate(
     configuration: &Configuration,
     store_name: Option<&String>,
     secret_path: &str,
@@ -430,7 +521,7 @@ pub fn generate(
     }
 }
 
-pub fn edit(
+fn edit(
     configuration: &Configuration,
     store_name: Option<&String>,
     secret_path: &str,
@@ -474,7 +565,7 @@ pub fn edit(
     }
 }
 
-pub fn grep(
+fn grep(
     configuration: &Configuration,
     store_name: Option<&String>,
     search_string: &String,

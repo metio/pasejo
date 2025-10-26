@@ -12,10 +12,11 @@ mod one_time_passwords;
 mod recipients;
 mod secrets;
 
+use crate::commands::stores;
+use crate::models::cli::Commands;
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
-use commands::dispatcher::dispatch_command;
 use human_panic::{setup_panic, Metadata};
 use models::cli::Cli;
 use models::configuration::Configuration;
@@ -41,5 +42,22 @@ fn main() -> Result<()> {
         .init();
     let configuration = Configuration::load_configuration()?;
 
-    dispatch_command(&cli, configuration)
+    match &cli.command {
+        Commands::Config { command } => commands::config::dispatch(command, configuration),
+        Commands::Export { command } => {
+            commands::export::dispatch(command, &configuration, cli.offline)
+        }
+        Commands::Hook { command } => commands::hooks::dispatch(command, configuration),
+        Commands::Identity { command } => commands::identities::dispatch(command, configuration),
+        Commands::Otp { command } => {
+            commands::one_time_passwords::dispatch(command, &cli, &configuration)
+        }
+        Commands::Recipient { command } => {
+            commands::recipients::dispatch(command, &configuration, cli.offline)
+        }
+        Commands::Secret { command } => {
+            commands::secrets::dispatch(command, &configuration, cli.offline)
+        }
+        Commands::Store { command } => stores::dispatch(command, configuration, cli.offline),
+    }
 }
