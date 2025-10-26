@@ -1,10 +1,20 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::models::cli::ConfigurationOption;
+use crate::models::cli::{ConfigCommands, ConfigurationOption};
 use crate::models::configuration::Configuration;
 
-pub fn get(configuration: &Configuration, option: &ConfigurationOption) {
+pub fn dispatch(command: &ConfigCommands, configuration: Configuration) -> anyhow::Result<()> {
+    match command {
+        ConfigCommands::Get(args) => {
+            get(&configuration, &args.option);
+            Ok(())
+        }
+        ConfigCommands::Set(args) => set(configuration, &args.option, &args.value),
+    }
+}
+
+fn get(configuration: &Configuration, option: &ConfigurationOption) {
     match option {
         ConfigurationOption::IgnoreMissingIdentities => {
             println!(
@@ -30,7 +40,7 @@ pub fn get(configuration: &Configuration, option: &ConfigurationOption) {
     }
 }
 
-pub fn set(
+fn set(
     mut configuration: Configuration,
     option: &ConfigurationOption,
     value: &str,

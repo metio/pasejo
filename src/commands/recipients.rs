@@ -3,12 +3,40 @@
 
 use crate::cli::logs;
 use crate::hooks::executor::HookExecutor;
+use crate::models::cli::RecipientCommands;
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
+use crate::recipients::public_key;
 use anyhow::Context;
 
-pub fn add(
+pub fn dispatch(
+    command: &RecipientCommands,
+    configuration: &Configuration,
+    offline: bool,
+) -> anyhow::Result<()> {
+    match command {
+        RecipientCommands::Add(args) => add(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &public_key::get(&args.keys)?,
+            args.name.as_ref(),
+            offline,
+        ),
+        RecipientCommands::Remove(args) => remove(
+            configuration,
+            args.store_selection.store.as_ref(),
+            &args.public_key,
+            args.ignore_unknown,
+            offline,
+        ),
+        RecipientCommands::List(args) => {
+            list(configuration, args.store_selection.store.as_ref(), offline)
+        }
+    }
+}
+
+fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
     public_keys: &[(String, String)],
@@ -70,7 +98,7 @@ pub fn add(
     }
 }
 
-pub fn remove(
+fn remove(
     configuration: &Configuration,
     store_name: Option<&String>,
     public_key: &str,
@@ -127,7 +155,7 @@ pub fn remove(
     }
 }
 
-pub fn list(
+fn list(
     configuration: &Configuration,
     store_name: Option<&String>,
     offline: bool,

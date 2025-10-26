@@ -7,9 +7,33 @@ use clap::error::ErrorKind;
 
 use crate::cli::errors::error_exit;
 use crate::cli::logs;
+use crate::models::cli::IdentityCommands;
 use crate::models::configuration::{Configuration, Identity};
 
-pub fn add(
+pub fn dispatch(command: &IdentityCommands, configuration: Configuration) -> anyhow::Result<()> {
+    match command {
+        IdentityCommands::Add(args) => add(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.file.as_path(),
+            args.global,
+        ),
+        IdentityCommands::Remove(args) => remove(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.file.as_path(),
+            args.global,
+            args.ignore_unknown,
+        ),
+        IdentityCommands::List(args) => list(
+            &configuration,
+            args.store_selection.store.as_ref(),
+            args.global,
+        ),
+    }
+}
+
+fn add(
     mut configuration: Configuration,
     store_name: Option<&String>,
     identity_file: &Path,
@@ -47,7 +71,7 @@ pub fn add(
     }
 }
 
-pub fn remove(
+fn remove(
     mut configuration: Configuration,
     store_name: Option<&String>,
     identity_file: &Path,
@@ -77,7 +101,7 @@ pub fn remove(
     }
 }
 
-pub fn list(
+fn list(
     configuration: &Configuration,
     store_name: Option<&String>,
     global: bool,

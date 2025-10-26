@@ -6,16 +6,53 @@ use std::{fs, path};
 
 use crate::cli::logs;
 use crate::hooks::executor::HookExecutor;
+use crate::models::cli::StoreCommands;
 use crate::models::configuration::Configuration;
 use crate::{one_time_passwords, recipients, secrets};
-use anyhow::{Context, Result};
+use anyhow::Context;
 
-pub fn add(
+pub fn dispatch(
+    command: &StoreCommands,
+    configuration: Configuration,
+    offline: bool,
+) -> anyhow::Result<()> {
+    match command {
+        StoreCommands::Add(args) => {
+            add(configuration, args.path.as_path(), &args.name, args.default)
+        }
+        StoreCommands::Decrypt(args) => decrypt(
+            &configuration,
+            args.store_selection.store.as_ref(),
+            args.store_path.as_ref(),
+            offline,
+        ),
+        StoreCommands::List(_) => {
+            list(&configuration);
+            Ok(())
+        }
+        StoreCommands::Merge(args) => merge(
+            &configuration,
+            args.store_selection.store.as_ref(),
+            &args.common_ancestor,
+            &args.current_version,
+            &args.other_version,
+        ),
+        StoreCommands::Remove(args) => remove(configuration, args.store.as_ref(), args.remove_data),
+        StoreCommands::SetDefault(args) => set_default(configuration, &args.name),
+        StoreCommands::Exec(args) => exec(
+            &configuration,
+            args.store_selection.store.as_ref(),
+            &args.command,
+        ),
+    }
+}
+
+fn add(
     mut configuration: Configuration,
     store_path: &Path,
     store_name: &str,
     default: bool,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     if configuration.find_store(store_name).is_some() {
         anyhow::bail!("Store name already exists. Please use a different name.");
     }
@@ -39,11 +76,11 @@ pub fn add(
     }
 }
 
-pub fn remove(
+fn remove(
     mut configuration: Configuration,
     store_name: Option<&String>,
     remove_data: bool,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     let (name, path) = if let Some(registration) = configuration.select_store(store_name) {
         (&registration.name.clone(), &registration.path.clone())
     } else {
@@ -63,18 +100,18 @@ pub fn remove(
     Ok(())
 }
 
-pub fn set_default(mut configuration: Configuration, store_name: &str) -> Result<()> {
+fn set_default(mut configuration: Configuration, store_name: &str) -> anyhow::Result<()> {
     configuration.set_default_store(store_name)?;
     logs::store_set_default(store_name);
     Ok(())
 }
 
-pub fn decrypt(
+fn decrypt(
     configuration: &Configuration,
     store_name: Option<&String>,
-    offline: bool,
     store_path: Option<&PathBuf>,
-) -> Result<()> {
+    offline: bool,
+) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
         if store_path.is_none() {
             let hooks = HookExecutor {
@@ -108,7 +145,7 @@ pub fn decrypt(
     }
 }
 
-pub fn list(configuration: &Configuration) {
+fn list(configuration: &Configuration) {
     for store in &configuration.stores {
         let text = configuration
             .default_store
@@ -123,13 +160,13 @@ pub fn list(configuration: &Configuration) {
     }
 }
 
-pub fn merge(
+fn merge(
     configuration: &Configuration,
     store_name: Option<&String>,
     common_ancestor: &Path,
     current_version: &Path,
     other_version: &Path,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
         let common_ancestor_store = configuration
             .decrypt_store_from_path(registration, common_ancestor)
@@ -196,11 +233,11 @@ pub fn merge(
     }
 }
 
-pub fn exec(
+fn exec(
     configuration: &Configuration,
     store_name: Option<&String>,
     command: &[String],
-) -> Result<()> {
+) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
         let store_path = registration.path();
         if let Some(parent) = store_path.parent() {
