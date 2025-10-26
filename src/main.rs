@@ -24,7 +24,7 @@ use models::configuration::Configuration;
 fn main() -> Result<()> {
     setup_panic!(
         Metadata::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-            .authors("metio.wtf <whatup@mmetio.wtf>")
+            .authors("metio.wtf <pasejo@metio.wtf>")
             .homepage("https://github.com/metio/pasejo")
             .support("- Open a support request by creating a ticket on GitHub")
     );
