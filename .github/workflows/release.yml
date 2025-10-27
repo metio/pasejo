@@ -122,7 +122,7 @@ jobs:
       - id: upload
         name: Upload Artifact
         if: needs.prepare.outputs.release_version != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ github.event.repository.name }}-${{ matrix.target }}
           path: ${{ github.event.repository.name }}-${{ matrix.target }}.tar.gz
