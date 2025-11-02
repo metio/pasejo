@@ -6,8 +6,15 @@ Register-ArgumentCompleter -Native -CommandName pasejo -ScriptBlock {
 
     $prev = $env:COMPLETE;
     $env:COMPLETE = "powershell";
+
+    $args = $commandAst.Extent.Text
+    $args = $args.Substring(0, [math]::Min($cursorPosition, $args.Length));
+    if ($wordToComplete -eq "") {
+        $args += " ''";
+    }
+
     $results = Invoke-Expression @"
-& [CWD]/target/debug/pasejo -- $commandAst
+& [CWD]/target/debug/pasejo -- $args
 "@;
     if ($null -eq $prev) {
         Remove-Item Env:/COMPLETE;

@@ -8,3 +8,10 @@ name = "same"
 identities = []
 pull_commands = []
 push_commands = []
+
+[[stores]]
+path = "[CWD]/store"
+name = "different"
+identities = []
+pull_commands = []
+push_commands = []
