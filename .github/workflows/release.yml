@@ -17,7 +17,7 @@ jobs:
     steps:
       - id: checkout
         name: Clone Git Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - id: last_release
@@ -70,7 +70,7 @@ jobs:
       - id: checkout
         name: Clone Git Repository
         if: needs.prepare.outputs.release_version != ''
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Cache
         if: needs.prepare.outputs.release_version != ''
         uses: actions/cache@v4
@@ -135,7 +135,7 @@ jobs:
     steps:
       - id: checkout
         name: Clone Git Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: needs.prepare.outputs.release_version != ''
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
