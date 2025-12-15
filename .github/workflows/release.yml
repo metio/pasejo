@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Cache
         if: needs.prepare.outputs.release_version != ''
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
