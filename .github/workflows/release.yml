@@ -146,7 +146,7 @@ jobs:
       - id: download
         name: Download Artifacts
         if: needs.prepare.outputs.release_version != ''
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: dist
           pattern: ${{ github.event.repository.name }}-*
