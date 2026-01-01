@@ -73,7 +73,7 @@ fn add(
             } else {
                 store.recipients.push(Recipient {
                     public_key: public_key.0.clone(),
-                    name: name.map_or(&public_key.1, |value| value).to_string(),
+                    name: name.map_or(&public_key.1, |value| value).clone(),
                 });
             }
         }
