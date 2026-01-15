@@ -68,7 +68,7 @@ ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
 trycmd = { version = "0.15.11" }
 
 [target.'cfg(unix)'.dev-dependencies]
-rexpect = { version = "0.6.2" }
+rexpect = { version = "0.6.3" }
 
 [build-dependencies]
 cc = "1.2.52"
