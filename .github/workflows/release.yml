@@ -205,7 +205,7 @@ jobs:
       - id: mail
         name: Send Mail
         if: needs.prepare.outputs.release_version != ''
-        uses: dawidd6/action-send-mail@v8
+        uses: dawidd6/action-send-mail@v9
         with:
           server_address: ${{ secrets.MAIL_SERVER }}
           server_port: ${{ secrets.MAIL_PORT }}
