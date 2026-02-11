@@ -65,7 +65,7 @@ predicates = "3.1.4"
 regex = { version = "1.12.3" }
 serial_test = { version = "3.3.1" }
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
-trycmd = { version = "0.15.11" }
+trycmd = { version = "1.0.0" }
 
 [target.'cfg(unix)'.dev-dependencies]
 rexpect = { version = "0.6.3" }
