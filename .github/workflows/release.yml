@@ -158,7 +158,7 @@ jobs:
         working-directory: dist
       - id: import_gpg
         name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         if: needs.prepare.outputs.release_version != ''
         with:
           gpg_private_key: ${{ secrets.GPG_SECRET_KEY_BASE64 }}
