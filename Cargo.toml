@@ -54,7 +54,7 @@ ssh-key = { version = "0.6.7", features = ["ed25519", "encryption"] }
 termtree = { version = "1.0.0" }
 toml = { version = "1.0.4" }
 ureq = { version = "3.2.0" }
-uuid = { version = "1.21.0", features = ["v7"] }
+uuid = { version = "1.22.0", features = ["v7"] }
 which = { version = "8.0.1" }
 
 [dev-dependencies]
