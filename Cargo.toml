@@ -41,7 +41,7 @@ human-panic = { version = "2.0.8" }
 log = { version = "0.4.29" }
 image = { version = "0.25.10" }
 inquire = { version = "0.9.4", features = ["editor"] }
-notify-rust = { version = "4.14.0" }
+notify-rust = { version = "4.15.0" }
 otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
 passwords = { version = "3.1.16" }
 qr2term = { version = "0.3.3" }
