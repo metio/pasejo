@@ -26,7 +26,7 @@ impl HookExecutor<'_> {
                     self.execute(&self.configuration.pull_commands)?;
                     self.execute(&self.registration.pull_commands)?;
                     if self.force {
-                        write_last_execution(last_push_paths(store_name))?;
+                        write_last_execution(last_pull_paths(store_name))?;
                     }
                 }
                 Ok(())
