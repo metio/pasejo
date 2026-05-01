@@ -5,7 +5,6 @@ use crate::exporters;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::{BitwardenArgs, ExportCommands};
 use crate::models::configuration::Configuration;
-use anyhow::Context;
 
 pub fn dispatch(
     command: &ExportCommands,
@@ -32,9 +31,7 @@ fn export_as_json(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         println!(
             "{}",

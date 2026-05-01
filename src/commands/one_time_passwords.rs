@@ -92,9 +92,7 @@ fn add(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.otp.contains_key(password_path)
             && !force
@@ -138,9 +136,7 @@ fn remove(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.otp.contains_key(password_path)
             && !force
@@ -185,9 +181,7 @@ fn list(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         if tree {
             print!(
@@ -224,9 +218,7 @@ fn show(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if let Some(password) = store.otp.get_mut(password_path) {
             let is_hotp = password.otp_type == OneTimePasswordType::Hotp;
@@ -277,9 +269,7 @@ fn mv(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.otp.contains_key(new_path)
             && !force
@@ -327,9 +317,7 @@ fn copy(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.otp.contains_key(target_path)
             && !force

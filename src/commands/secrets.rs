@@ -118,9 +118,7 @@ fn add(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.secrets.contains_key(secret_path)
             && !force
@@ -163,9 +161,7 @@ fn audit(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         if let Some(secret_path) = secret_path {
             let value = store
@@ -207,9 +203,7 @@ fn copy(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.secrets.contains_key(target_path)
             && !force
@@ -257,9 +251,7 @@ fn mv(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.secrets.contains_key(new_path)
             && !force
@@ -303,9 +295,7 @@ fn list(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         if tree {
             print!(
@@ -342,9 +332,7 @@ fn remove(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.secrets.contains_key(secret_path)
             && !force
@@ -392,9 +380,7 @@ fn show(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         if let Some(decrypted_text) = store.secrets.get(secret_path) {
             let text_to_show = line.map_or_else(
@@ -466,9 +452,7 @@ fn generate(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.secrets.contains_key(secret_path)
             && !force
@@ -537,9 +521,7 @@ fn edit(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if let Some(current_value) = store.secrets.get(secret_path) {
             let secret = &prompts::edit_secret(secret_path, current_value)?;
@@ -582,9 +564,7 @@ fn grep(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         if regex {
             let re = regex::Regex::new(search_string)?;
