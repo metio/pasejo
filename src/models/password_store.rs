@@ -4,6 +4,7 @@
 use otp_std::{Algorithm, Base, Counter, Digits, Hotp, Period, Secret, Skew, Totp};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct PasswordStore {
@@ -17,6 +18,22 @@ pub struct PasswordStore {
     pub otp: BTreeMap<String, OneTimePassword>,
 }
 
+impl Zeroize for PasswordStore {
+    fn zeroize(&mut self) {
+        self.recipients.zeroize();
+
+        self.secrets
+            .values_mut()
+            .for_each(zeroize::Zeroize::zeroize);
+        self.secrets.clear();
+
+        self.otp.values_mut().for_each(zeroize::Zeroize::zeroize);
+        self.otp.clear();
+    }
+}
+
+impl ZeroizeOnDrop for PasswordStore {}
+
 impl PasswordStore {
     pub fn secret_names_as_list(&self) -> Vec<String> {
         self.secrets.keys().cloned().collect()
@@ -27,16 +44,18 @@ impl PasswordStore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct Recipient {
     pub name: String,
     pub public_key: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct OneTimePassword {
     pub secret: String,
+    #[zeroize(skip)]
     pub otp_type: OneTimePasswordType,
+    #[zeroize(skip)]
     pub algorithm: OneTimePasswordAlgorithm,
     pub digits: u8,
     pub period: u64,
