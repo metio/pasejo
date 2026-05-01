@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::path::{absolute, Path};
+use std::path::{Path, absolute};
 
 use clap::error::ErrorKind;
 
