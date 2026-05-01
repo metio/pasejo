@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::fs::write;
 use std::io::Write;
 use std::path::Path;
 
@@ -18,6 +17,27 @@ pub fn encrypt(
     let mut writer = encryptor.wrap_output(&mut encrypted)?;
     writer.write_all(secret.as_bytes())?;
     writer.finish()?;
-    write(path, encrypted)?;
+    write_file(path, &encrypted)?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn write_file(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
+    use std::fs::OpenOptions;
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?;
+    file.write_all(contents)?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn write_file(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
+    std::fs::write(path, contents)?;
     Ok(())
 }
