@@ -5,10 +5,10 @@ use crate::models::password_store::{
     OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
 };
 use image;
+use otp_std::Otp::{Hotp, Totp};
 use otp_std::auth::query::Query;
 use otp_std::base::SECRET;
-use otp_std::Otp::{Hotp, Totp};
-use otp_std::{auth, Otp, Type};
+use otp_std::{Otp, Type, auth};
 use rqrr;
 use std::borrow::Cow;
 use std::path::PathBuf;

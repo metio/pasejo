@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::env::var_os;
 use std::fs;
-use std::path::{absolute, Path, PathBuf};
+use std::path::{Path, PathBuf, absolute};
 use toml::Table;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

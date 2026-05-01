@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::constants::APPLICATION_NAME;
-use crate::exporters::parser::{parse_secret, ParsedSecret};
+use crate::exporters::parser::{ParsedSecret, parse_secret};
 use crate::models::password_store::PasswordStore;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

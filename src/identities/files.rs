@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use age::cli_common::{read_identities, StdinGuard};
+use age::cli_common::{StdinGuard, read_identities};
 use duct::cmd;
 use std::cell::LazyCell;
 use std::path::PathBuf;
