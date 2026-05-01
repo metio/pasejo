@@ -274,6 +274,11 @@ impl Configuration {
         store_path: &Path,
     ) -> Result<PasswordStore> {
         let identity_files = self.all_identity_files(registration);
+        if identity_files.is_empty() {
+            anyhow::bail!(
+                "No identity files to decrypt. Add at least one identity to complete store initialization."
+            );
+        }
         let identities = identities::read(
             identity_files,
             self.ignore_missing_identities.unwrap_or(true),

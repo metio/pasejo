@@ -54,9 +54,7 @@ fn add(
 
         let mut store = if store_path.exists() {
             hooks.execute_pull_commands()?;
-            configuration
-                .decrypt_store(registration)
-                .context("Cannot decrypt store")?
+            configuration.decrypt_store(registration)?
         } else {
             PasswordStore::default()
         };
@@ -115,9 +113,7 @@ fn remove(
 
         hooks.execute_pull_commands()?;
 
-        let mut store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let mut store = configuration.decrypt_store(registration)?;
 
         if store.recipients.len() == 1 && store.recipients[0].public_key == public_key {
             anyhow::bail!(
@@ -170,9 +166,7 @@ fn list(
 
         hooks.execute_pull_commands()?;
 
-        let store = configuration
-            .decrypt_store(registration)
-            .context("Cannot decrypt store")?;
+        let store = configuration.decrypt_store(registration)?;
 
         for recipient in &store.recipients {
             println!(

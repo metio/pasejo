@@ -8,9 +8,6 @@ There are no identities in the store 'something' yet. Please add one using 'pase
 
 $ pasejo recipient add --public-key age1acvmq9pv8lwr60xa7va36vnz2wr78zutk3mpy3jzyw8pfpdeg45qjhfqp8
 ? 1
-Error: Cannot decrypt store
-
-Caused by:
-    No matching keys found
+Error: No identity files to decrypt. Add at least one identity to complete store initialization.
 
 ```

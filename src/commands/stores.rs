@@ -125,13 +125,9 @@ fn decrypt(
         }
 
         let store = if let Some(path) = store_path {
-            configuration
-                .decrypt_store_from_path(registration, path)
-                .context("Cannot decrypt store")?
+            configuration.decrypt_store_from_path(registration, path)?
         } else {
-            configuration
-                .decrypt_store(registration)
-                .context("Cannot decrypt store")?
+            configuration.decrypt_store(registration)?
         };
 
         let content = toml::to_string(&store)?;

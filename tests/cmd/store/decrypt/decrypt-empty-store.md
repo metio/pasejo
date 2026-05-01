@@ -4,10 +4,6 @@ Store 'something' added at '[CWD]/store'
 
 $ pasejo store decrypt
 ? 1
-Error: Cannot decrypt store
-
-Caused by:
-    0: Cannot read file at '[CWD]/store'
-    1: No such file or directory (os error 2)
+Error: No identity files to decrypt. Add at least one identity to complete store initialization.
 
 ```
