@@ -47,6 +47,9 @@ impl HookExecutor<'_> {
                     logs::execute_push_hooks(&self.registration.name);
                     self.execute(&self.configuration.push_commands)?;
                     self.execute(&self.registration.push_commands)?;
+                    if self.force {
+                        write_last_execution(last_push_paths(store_name))?;
+                    }
                 }
                 Ok(())
             } else {
