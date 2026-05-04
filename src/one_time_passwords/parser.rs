@@ -4,12 +4,11 @@
 use crate::models::password_store::{
     OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
 };
-use image;
+use anyhow::Context;
 use otp_std::Otp::{Hotp, Totp};
 use otp_std::auth::query::Query;
 use otp_std::base::SECRET;
 use otp_std::{Otp, Type, auth};
-use rqrr;
 use std::borrow::Cow;
 use std::path::PathBuf;
 
@@ -33,7 +32,12 @@ pub fn parse_otp_args(
         let img = image::open(qrcode)?.to_luma8();
         let mut img = rqrr::PreparedImage::prepare(img);
         let grids = img.detect_grids();
-        let (_, content) = grids[0].decode()?;
+        let grid = grids
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No QR code found in '{}'", qrcode.display()))?;
+        let (_, content) = grid
+            .decode()
+            .with_context(|| format!("Failed to decode QR code in '{}'", qrcode.display()))?;
         parse_from_url(&content)
     } else {
         Ok(OneTimePassword {

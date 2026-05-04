@@ -11,4 +11,8 @@ Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' a
 $ pasejo otp add --qrcode qrcode.png some-name
 Added one-time password at 'some-name'
 
+$ pasejo otp add --qrcode invalid-qrcode.png other-name
+? 1
+Error: No QR code found in 'invalid-qrcode.png'
+
 ```
