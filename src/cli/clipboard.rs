@@ -60,14 +60,17 @@ fn interrupt_flag() -> &'static Arc<AtomicBool> {
 }
 
 pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<()> {
+    // Install the Ctrl-C handler before any secret enters the clipboard, so
+    // SIGINT triggers our handler (which lets the loop exit and Drop run
+    // clear()) instead of the default action that _exit()s without unwinding.
+    let interrupted = interrupt_flag();
+    interrupted.store(false, Ordering::Relaxed);
+
     let mut guard = ClipboardGuard {
         clipboard: arboard::Clipboard::new()?,
         cleared: false,
     };
     guard.clipboard.set().exclude_from_history().text(text)?;
-
-    let interrupted = interrupt_flag();
-    interrupted.store(false, Ordering::Relaxed);
 
     // Poll instead of one long sleep so we can respond to Ctrl-C promptly,
     // and clamp each tick to the remaining time so we never oversleep the
