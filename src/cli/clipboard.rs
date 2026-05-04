@@ -90,10 +90,13 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
 
     guard.clear();
 
-    Notification::new()
+    if let Err(error) = Notification::new()
         .summary("pasejo")
         .body("Clipboard cleared")
         .timeout(Timeout::Default)
-        .show()?;
+        .show()
+    {
+        log::debug!("Failed to show clipboard-cleared notification: {error}");
+    }
     Ok(())
 }
