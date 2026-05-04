@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::environment_variables;
+use crate::downloader::username;
 use anyhow::Context;
 use std::env;
 
 pub fn download_public_key(username: &str) -> anyhow::Result<String> {
+    let username = username::validate(username)?;
     let codeberg_host = env::var(environment_variables::CODEBERG_HOST)
         .unwrap_or_else(|_| String::from("codeberg.org"));
     let key = ureq::get(format!("https://{codeberg_host}/{username}.keys"))

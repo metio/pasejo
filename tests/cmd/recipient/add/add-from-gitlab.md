@@ -6,4 +6,8 @@ $ pasejo recipient add --gitlab sebastian.hoss
 Recipient for 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA/FenZ/57gW+roJr8DaWAE94QJapctVF4eBugQDOAFr' added
 There are no identities in the store 'something' yet. Please add one using 'pasejo identity add ...'
 
+$ pasejo recipient add --gitlab sebastian/hoss
+? 1
+Error: Invalid username 'sebastian/hoss': must start with an ASCII letter or digit and contain only ASCII letters, digits, '-', '_' and '.'
+
 ```

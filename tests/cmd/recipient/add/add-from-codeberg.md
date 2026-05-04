@@ -6,4 +6,8 @@ $ pasejo recipient add --codeberg sebhoss
 Recipient for 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJgE1240mCyWQRPB6hcGuVqX6wVtrJJZCGh1KSAaODmB' added
 There are no identities in the store 'something' yet. Please add one using 'pasejo identity add ...'
 
+$ pasejo recipient add --codeberg seb/hoss
+? 1
+Error: Invalid username 'seb/hoss': must start with an ASCII letter or digit and contain only ASCII letters, digits, '-', '_' and '.'
+
 ```
