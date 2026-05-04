@@ -11,8 +11,8 @@ use arboard::SetExtLinux;
 #[cfg(windows)]
 use arboard::SetExtWindows;
 use notify_rust::{Notification, Timeout};
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -41,22 +41,21 @@ impl Drop for ClipboardGuard {
     }
 }
 
-static INTERRUPTED: OnceLock<Arc<AtomicBool>> = OnceLock::new();
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+static HANDLER_INSTALLED: OnceLock<()> = OnceLock::new();
 
 /// Returns a process-wide interrupt flag, installing the Ctrl-C handler on
 /// first use. `ctrlc::set_handler` only allows one handler per process, so
 /// installing it once and reusing the same flag avoids the second-call
 /// silent-failure where a stale handler consumes SIGINT but no live caller
 /// reads its flag.
-fn interrupt_flag() -> &'static Arc<AtomicBool> {
-    INTERRUPTED.get_or_init(|| {
-        let flag = Arc::new(AtomicBool::new(false));
-        let handler_flag = Arc::clone(&flag);
-        let _ = ctrlc::set_handler(move || {
-            handler_flag.store(true, Ordering::Relaxed);
+fn interrupt_flag() -> &'static AtomicBool {
+    HANDLER_INSTALLED.get_or_init(|| {
+        let _ = ctrlc::set_handler(|| {
+            INTERRUPTED.store(true, Ordering::Relaxed);
         });
-        flag
-    })
+    });
+    &INTERRUPTED
 }
 
 pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<()> {
