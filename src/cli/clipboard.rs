@@ -15,35 +15,59 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
+use zeroize::Zeroizing;
 
 const POLL_TICK: Duration = Duration::from_millis(100);
 
-/// RAII guard: clears the clipboard on drop. Covers normal return, `?`
-/// propagation, panic unwind, and the explicit `drop(guard)` we use to
-/// clear before showing the notification.
+/// RAII guard: clears the clipboard on drop, but only if it still contains
+/// the secret we wrote. If the user has copied something else in the
+/// meantime, we leave their new clipboard contents alone. The expected
+/// value is held in `Zeroizing` so it's wiped from memory on drop.
 struct ClipboardGuard {
     clipboard: arboard::Clipboard,
+    expected: Zeroizing<String>,
 }
 
 impl Drop for ClipboardGuard {
     fn drop(&mut self) {
-        // Best-effort: nothing useful to do if this fails on shutdown.
-        let _ = self.clipboard.clear();
+        match self.clipboard.get().text() {
+            Ok(current) if current.as_str() == self.expected.as_str() => {
+                let _ = self.clipboard.clear();
+            }
+            Ok(_) => {
+                // User copied something else; leave their clipboard alone.
+            }
+            Err(error) => {
+                // Couldn't read the clipboard to compare — clear defensively
+                // rather than risk leaving the secret behind.
+                log::debug!("Failed to read clipboard for compare: {error}");
+                let _ = self.clipboard.clear();
+            }
+        }
     }
 }
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
-static HANDLER_INSTALLED: OnceLock<()> = OnceLock::new();
+static HANDLER_OK: OnceLock<bool> = OnceLock::new();
 
 /// Installs a process-wide Ctrl-C handler on first call. `ctrlc::set_handler`
 /// only allows one handler per process, so we install it lazily once and
-/// reuse the same `INTERRUPTED` flag for every call.
-fn install_interrupt_handler() {
-    HANDLER_INSTALLED.get_or_init(|| {
-        let _ = ctrlc::set_handler(|| {
-            INTERRUPTED.store(true, Ordering::Relaxed);
-        });
-    });
+/// reuse the same `INTERRUPTED` flag for every call. Returns `true` when
+/// the handler is in place; `false` means Ctrl-C will not break the wait
+/// loop, and the caller has already been warned.
+fn install_interrupt_handler() -> bool {
+    *HANDLER_OK.get_or_init(|| {
+        match ctrlc::set_handler(|| INTERRUPTED.store(true, Ordering::Relaxed)) {
+            Ok(()) => true,
+            Err(error) => {
+                log::warn!(
+                    "Failed to install Ctrl-C handler: {error}. \
+                     Clipboard will only clear after the configured timeout."
+                );
+                false
+            }
+        }
+    })
 }
 
 pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<()> {
@@ -56,6 +80,7 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
 
     let mut guard = ClipboardGuard {
         clipboard: arboard::Clipboard::new()?,
+        expected: Zeroizing::new(text.to_owned()),
     };
     guard.clipboard.set().exclude_from_history().text(text)?;
 
@@ -70,11 +95,17 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
         thread::sleep(remaining.min(POLL_TICK));
     }
 
+    let cancelled = INTERRUPTED.load(Ordering::Relaxed);
     drop(guard); // clear clipboard before notifying the user it's cleared
 
+    let body = if cancelled {
+        "Clipboard cleared (cancelled)"
+    } else {
+        "Clipboard cleared"
+    };
     if let Err(error) = Notification::new()
         .summary("pasejo")
-        .body("Clipboard cleared")
+        .body(body)
         .timeout(Timeout::Default)
         .show()
     {
