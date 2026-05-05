@@ -19,6 +19,17 @@ use zeroize::Zeroizing;
 
 const POLL_TICK: Duration = Duration::from_millis(100);
 
+/// Outcome of attempting to clear the clipboard at the end of a copy.
+enum ClearOutcome {
+    /// Secret was still in the clipboard and we removed it.
+    Cleared,
+    /// User copied something else; we left their clipboard untouched.
+    Unchanged,
+    /// Couldn't read the clipboard to compare, so we cleared defensively.
+    /// May have wiped the user's new clipboard contents.
+    ForciblyCleared,
+}
+
 /// RAII guard: clears the clipboard on drop, but only if it still contains
 /// the secret we wrote. If the user has copied something else in the
 /// meantime, we leave their new clipboard contents alone. The expected
@@ -28,22 +39,35 @@ struct ClipboardGuard {
     expected: Zeroizing<String>,
 }
 
-impl Drop for ClipboardGuard {
-    fn drop(&mut self) {
+impl ClipboardGuard {
+    /// Performs the clear-if-unchanged logic and returns the outcome so the
+    /// caller can react (e.g. tailor a notification, log a failure).
+    fn clear_if_unchanged(&mut self) -> anyhow::Result<ClearOutcome> {
         match self.clipboard.get().text() {
             Ok(current) if current.as_str() == self.expected.as_str() => {
-                let _ = self.clipboard.clear();
+                self.clipboard.clear()?;
+                Ok(ClearOutcome::Cleared)
             }
-            Ok(_) => {
-                // User copied something else; leave their clipboard alone.
-            }
+            Ok(_) => Ok(ClearOutcome::Unchanged),
             Err(error) => {
                 // Couldn't read the clipboard to compare — clear defensively
                 // rather than risk leaving the secret behind.
                 log::debug!("Failed to read clipboard for compare: {error}");
-                let _ = self.clipboard.clear();
+                self.clipboard.clear()?;
+                Ok(ClearOutcome::ForciblyCleared)
             }
         }
+    }
+}
+
+impl Drop for ClipboardGuard {
+    fn drop(&mut self) {
+        // Best-effort fallback for panic / early-return paths. The explicit
+        // call site discards the result; here we silently discard so we
+        // don't paper over a still-present secret without telling anyone.
+        // If we already cleared via the explicit call, this is a near-no-op
+        // (the comparison fails because the clipboard is now empty).
+        let _ = self.clear_if_unchanged();
     }
 }
 
@@ -86,22 +110,29 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
 
     // Poll so we respond to Ctrl-C promptly, clamping each tick so we never
     // oversleep the requested duration.
-    let deadline = Instant::now() + duration;
-    while !INTERRUPTED.load(Ordering::Relaxed) {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
+    let deadline = Instant::now().checked_add(duration);
+    loop {
+        if INTERRUPTED.load(Ordering::Relaxed) { break; }
+        let remaining = deadline
+            .map(|d| d.saturating_duration_since(Instant::now()))
+            .unwrap_or(POLL_TICK); // unbounded: never naturally expire
+        if deadline.is_some() && remaining.is_zero() { break; }
         thread::sleep(remaining.min(POLL_TICK));
     }
 
     let cancelled = INTERRUPTED.load(Ordering::Relaxed);
-    drop(guard); // clear clipboard before notifying the user it's cleared
+    let outcome = guard.clear_if_unchanged();
+    drop(guard); // ensures the secret is wiped from memory even on early-return paths
 
-    let body = if cancelled {
-        "Clipboard cleared (cancelled)"
-    } else {
-        "Clipboard cleared"
+    let body = match outcome {
+        Ok(ClearOutcome::Cleared) if cancelled => "Clipboard cleared (cancelled)",
+        Ok(ClearOutcome::Cleared) => "Clipboard cleared",
+        Ok(ClearOutcome::Unchanged) => "Clipboard left untouched (you copied something else)",
+        Ok(ClearOutcome::ForciblyCleared) => "Clipboard cleared (couldn't verify contents)",
+        Err(error) => {
+            log::warn!("Failed to clear clipboard: {error}");
+            "Failed to clear clipboard! Please clear it manually."
+        }
     };
     if let Err(error) = Notification::new()
         .summary("pasejo")
