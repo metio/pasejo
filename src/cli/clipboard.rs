@@ -100,6 +100,36 @@ fn install_interrupt_handler() {
     });
 }
 
+/// Copies `text` to the system clipboard for at most `duration`, then clears it.
+///
+/// Intended for short-lived secrets (passwords, OTP codes). The function
+/// blocks until either the timer expires or the user presses Ctrl-C, and
+/// only returns once the clear-up step has run.
+///
+/// # Behaviour
+///
+/// - The text is placed on the clipboard with `exclude_from_history` set
+///   where the platform supports it (macOS, Windows, and Linux clipboard
+///   managers that honour the hint — many Linux managers do not).
+/// - A process-wide Ctrl-C handler is installed on first call via
+///   `ctrlc::set_handler`. Once installed, SIGINT sets a flag rather than
+///   terminating the process, so the wait loop can exit cleanly and the
+///   clipboard can be cleared. Subsequent calls reuse the same handler.
+/// - `duration` is clamped to one year so the wait is always bounded.
+/// - On exit, the clipboard is cleared only if it still contains the value
+///   we wrote — if the user copied something else in the meantime, their
+///   new contents are left alone.
+/// - A desktop notification reports the outcome (cleared, untouched, or
+///   failure). Failure to notify is non-fatal.
+/// - The in-memory copy of the secret is held in `Zeroizing` and wiped on
+///   drop. The caller's `&str` is *not* wiped — that is the caller's
+///   responsibility.
+///
+/// # Errors
+///
+/// Returns `Err` if the clipboard handle cannot be opened or the initial
+/// `set` fails. Failures during the wait loop or clear step are logged and
+/// surfaced through the notification / stderr rather than returned.
 pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<()> {
     // Install the Ctrl-C handler before any secret enters the clipboard, so
     // SIGINT triggers our handler (which lets the loop exit and Drop run
