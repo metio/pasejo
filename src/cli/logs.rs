@@ -39,7 +39,7 @@ pub fn one_time_password_removed(password_path: &str) {
 
 pub fn one_time_password_copy_into_clipboard(password_path: &str, duration: &Duration) {
     info!(
-        "Copying one-time password at '{password_path}' into clipboard. Will be removed after {duration:?} or once you terminate this process."
+        "One-time password '{password_path}' copied to clipboard — will be cleared in {duration:?} (Ctrl-C to clear now)"
     );
 }
 
@@ -57,7 +57,7 @@ pub fn secret_show_as_text(secret_path: &str) {
 
 pub fn secret_copy_into_clipboard(secret_path: &str, duration: &Duration) {
     info!(
-        "Copying secret at '{secret_path}' into clipboard. Will be removed after {duration:?} or once you terminate this process."
+        "Secret '{secret_path}' copied to clipboard — will be cleared in {duration:?} (Ctrl-C to clear now)"
     );
 }
 
