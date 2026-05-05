@@ -152,46 +152,30 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
     // both guarantees loop termination and keeps `Instant + Duration` from
     // overflowing on absurd configured timeouts.
     let deadline = Instant::now() + duration.min(MAX_DEADLINE);
-    loop {
+    let cancelled = loop {
         if INTERRUPTED.load(Ordering::Relaxed) {
-            break;
+            break true;
         }
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            break;
+            break false;
         }
         thread::sleep(remaining.min(POLL_TICK));
-    }
+    };
 
-    let cancelled = INTERRUPTED.load(Ordering::Relaxed);
     let outcome = guard.clear_if_unchanged();
     drop(guard); // ensures the secret is wiped from memory even on early-return paths
 
-    let suffix = if cancelled { " (cancelled)" } else { "" };
-    let (body, timeout) = match outcome {
-        Ok(ClearOutcome::Cleared) => (format!("Clipboard cleared{suffix}"), Timeout::Default),
-        Ok(ClearOutcome::Unchanged) => (
-            format!("Clipboard left untouched (you copied something else){suffix}"),
-            Timeout::Default,
-        ),
-        Ok(ClearOutcome::ForciblyCleared) => (
-            format!("Clipboard cleared (couldn't verify contents){suffix}"),
-            Timeout::Default,
-        ),
-        Err(error) => {
-            // Critical path: the user's secret may still be in the clipboard.
-            // Emit to stderr in addition to the notification, since a missing
-            // notification daemon would otherwise leave the user uninformed.
-            log::warn!("Failed to clear clipboard: {error}");
-            log::error!(
-                "Clipboard could not be cleared automatically — please clear it manually now."
-            );
-            (
-                format!("Failed to clear clipboard! Please clear it manually.{suffix}"),
-                Timeout::Never,
-            )
-        }
-    };
+    if let Err(error) = &outcome {
+        // Critical path: the user's secret may still be in the clipboard.
+        // Emit to stderr in addition to the notification, since a missing
+        // notification daemon would otherwise leave the user uninformed.
+        log::warn!("Failed to clear clipboard: {error}");
+        log::error!(
+            "Clipboard could not be cleared automatically — please clear it manually now."
+        );
+    }
+    let (body, timeout) = notification(&outcome, cancelled);
     if let Err(error) = Notification::new()
         .summary("pasejo")
         .body(&body)
@@ -201,4 +185,118 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
         log::debug!("Failed to show clipboard-cleared notification: {error}");
     }
     Ok(())
+}
+
+/// Builds the notification body and timeout for a given clear outcome.
+/// Pure: no side effects, no I/O. Logging of the underlying error is the
+/// caller's responsibility.
+fn notification(
+    outcome: &anyhow::Result<ClearOutcome>,
+    cancelled: bool,
+) -> (String, Timeout) {
+    let suffix = if cancelled { " (cancelled)" } else { "" };
+    match outcome {
+        Ok(ClearOutcome::Cleared) => (format!("Clipboard cleared{suffix}"), Timeout::Default),
+        Ok(ClearOutcome::Unchanged) => (
+            format!("Clipboard left untouched (you copied something else){suffix}"),
+            Timeout::Default,
+        ),
+        Ok(ClearOutcome::ForciblyCleared) => (
+            format!("Clipboard cleared (couldn't verify contents){suffix}"),
+            Timeout::Default,
+        ),
+        Err(_) => (
+            format!("Failed to clear clipboard! Please clear it manually.{suffix}"),
+            Timeout::Never,
+        ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn max_deadline_does_not_overflow_instant() {
+        // Smoke check: adding the clamp ceiling to "now" must not panic on
+        // any platform we support.
+        let _ = Instant::now() + MAX_DEADLINE;
+    }
+
+    #[test]
+    fn duration_max_is_clamped_to_max_deadline() {
+        assert_eq!(Duration::MAX.min(MAX_DEADLINE), MAX_DEADLINE);
+    }
+
+    #[test]
+    fn small_duration_is_not_clamped() {
+        let small = Duration::from_secs(45);
+        assert_eq!(small.min(MAX_DEADLINE), small);
+    }
+
+    #[test]
+    fn cleared_body_uses_default_timeout() {
+        let (body, timeout) = notification(&Ok(ClearOutcome::Cleared), false);
+        assert_eq!(body, "Clipboard cleared");
+        assert!(matches!(timeout, Timeout::Default));
+    }
+
+    #[test]
+    fn cancelled_suffix_appended_to_cleared() {
+        let (body, _) = notification(&Ok(ClearOutcome::Cleared), true);
+        assert_eq!(body, "Clipboard cleared (cancelled)");
+    }
+
+    #[test]
+    fn cancelled_suffix_appended_to_unchanged() {
+        let (body, _) = notification(&Ok(ClearOutcome::Unchanged), true);
+        assert!(body.starts_with("Clipboard left untouched"));
+        assert!(body.ends_with(" (cancelled)"));
+    }
+
+    #[test]
+    fn cancelled_suffix_appended_to_forcibly_cleared() {
+        let (body, _) = notification(&Ok(ClearOutcome::ForciblyCleared), true);
+        assert!(body.contains("couldn't verify"));
+        assert!(body.ends_with(" (cancelled)"));
+    }
+
+    #[test]
+    fn cancelled_suffix_appended_to_failure() {
+        let (body, _) = notification(&Err(anyhow::anyhow!("boom")), true);
+        assert!(body.starts_with("Failed to clear clipboard!"));
+        assert!(body.ends_with(" (cancelled)"));
+    }
+
+    #[test]
+    fn no_cancelled_suffix_when_not_cancelled() {
+        for outcome in [
+            Ok(ClearOutcome::Cleared),
+            Ok(ClearOutcome::Unchanged),
+            Ok(ClearOutcome::ForciblyCleared),
+        ] {
+            let (body, _) = notification(&outcome, false);
+            assert!(!body.contains("(cancelled)"), "unexpected suffix in {body:?}");
+        }
+        let (body, _) = notification(&Err(anyhow::anyhow!("boom")), false);
+        assert!(!body.contains("(cancelled)"), "unexpected suffix in {body:?}");
+    }
+
+    #[test]
+    fn failure_uses_never_timeout() {
+        let (_, timeout) = notification(&Err(anyhow::anyhow!("boom")), false);
+        assert!(matches!(timeout, Timeout::Never));
+    }
+
+    #[test]
+    fn success_variants_use_default_timeout() {
+        for outcome in [
+            Ok(ClearOutcome::Cleared),
+            Ok(ClearOutcome::Unchanged),
+            Ok(ClearOutcome::ForciblyCleared),
+        ] {
+            let (_, timeout) = notification(&outcome, false);
+            assert!(matches!(timeout, Timeout::Default));
+        }
+    }
 }
