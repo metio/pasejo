@@ -19,6 +19,11 @@ use zeroize::Zeroizing;
 
 const POLL_TICK: Duration = Duration::from_millis(100);
 
+/// Upper bound on how long we'll hold a secret in the clipboard. Absurd
+/// `clipboard_timeout` values get clamped to this so the wait loop is
+/// guaranteed to terminate (and `Instant + Duration` can't overflow).
+const MAX_DEADLINE: Duration = Duration::from_hours(24 * 365);
+
 /// Outcome of attempting to clear the clipboard at the end of a copy.
 enum ClearOutcome {
     /// Secret was still in the clipboard and we removed it.
@@ -109,14 +114,18 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
     guard.clipboard.set().exclude_from_history().text(text)?;
 
     // Poll so we respond to Ctrl-C promptly, clamping each tick so we never
-    // oversleep the requested duration.
-    let deadline = Instant::now().checked_add(duration);
+    // oversleep the requested duration. Clamping `duration` to `MAX_DEADLINE`
+    // both guarantees loop termination and keeps `Instant + Duration` from
+    // overflowing on absurd configured timeouts.
+    let deadline = Instant::now() + duration.min(MAX_DEADLINE);
     loop {
-        if INTERRUPTED.load(Ordering::Relaxed) { break; }
-        let remaining = deadline
-            .map(|d| d.saturating_duration_since(Instant::now()))
-            .unwrap_or(POLL_TICK); // unbounded: never naturally expire
-        if deadline.is_some() && remaining.is_zero() { break; }
+        if INTERRUPTED.load(Ordering::Relaxed) {
+            break;
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
         thread::sleep(remaining.min(POLL_TICK));
     }
 
