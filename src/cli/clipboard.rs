@@ -42,12 +42,18 @@ enum ClearOutcome {
 struct ClipboardGuard {
     clipboard: arboard::Clipboard,
     expected: Zeroizing<String>,
+    /// Set once `clear_if_unchanged` has been called. When true, `Drop`
+    /// skips its fallback so we don't repeat the (potentially blocking)
+    /// clipboard read on platforms like X11.
+    cleared: bool,
 }
 
 impl ClipboardGuard {
     /// Performs the clear-if-unchanged logic and returns the outcome so the
     /// caller can react (e.g. tailor a notification, log a failure).
     fn clear_if_unchanged(&mut self) -> anyhow::Result<ClearOutcome> {
+        // Mark first so Drop becomes a no-op even if an early `?` propagates.
+        self.cleared = true;
         match self.clipboard.get().text() {
             Ok(current) if current.as_str() == self.expected.as_str() => {
                 self.clipboard.clear()?;
@@ -68,48 +74,46 @@ impl ClipboardGuard {
 impl Drop for ClipboardGuard {
     fn drop(&mut self) {
         // Best-effort fallback for panic / early-return paths. The explicit
-        // call site discards the result; here we silently discard so we
-        // don't paper over a still-present secret without telling anyone.
-        // If we already cleared via the explicit call, this is a near-no-op
-        // (the comparison fails because the clipboard is now empty).
+        // call site sets `cleared = true` so this becomes a no-op there.
+        if self.cleared {
+            return;
+        }
         let _ = self.clear_if_unchanged();
     }
 }
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
-static HANDLER_OK: OnceLock<bool> = OnceLock::new();
+static HANDLER_INSTALLED: OnceLock<()> = OnceLock::new();
 
 /// Installs a process-wide Ctrl-C handler on first call. `ctrlc::set_handler`
 /// only allows one handler per process, so we install it lazily once and
-/// reuse the same `INTERRUPTED` flag for every call. Returns `true` when
-/// the handler is in place; `false` means Ctrl-C will not break the wait
-/// loop, and the caller has already been warned.
-fn install_interrupt_handler() -> bool {
-    *HANDLER_OK.get_or_init(|| {
-        match ctrlc::set_handler(|| INTERRUPTED.store(true, Ordering::Relaxed)) {
-            Ok(()) => true,
-            Err(error) => {
-                log::warn!(
-                    "Failed to install Ctrl-C handler: {error}. \
-                     Clipboard will only clear after the configured timeout."
-                );
-                false
-            }
+/// reuse the same `INTERRUPTED` flag for every call. If installation fails,
+/// the wait loop will only exit when the configured timeout elapses.
+fn install_interrupt_handler() {
+    HANDLER_INSTALLED.get_or_init(|| {
+        if let Err(error) = ctrlc::set_handler(|| INTERRUPTED.store(true, Ordering::Relaxed)) {
+            log::warn!(
+                "Failed to install Ctrl-C handler: {error}. \
+                 Clipboard will only clear after the configured timeout."
+            );
         }
-    })
+    });
 }
 
 pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<()> {
     // Install the Ctrl-C handler before any secret enters the clipboard, so
     // SIGINT triggers our handler (which lets the loop exit and Drop run
     // clear()) instead of the default action that _exit()s without unwinding.
-    // INTERRUPTED starts `false` from the static initializer; we don't reset
-    // it here because pasejo only calls this function once per process.
     install_interrupt_handler();
+    // Reset the flag so a Ctrl-C from a prior invocation in the same process
+    // doesn't make us skip the wait. The handler itself is `'static` and
+    // remains installed across calls.
+    INTERRUPTED.store(false, Ordering::Relaxed);
 
     let mut guard = ClipboardGuard {
         clipboard: arboard::Clipboard::new()?,
         expected: Zeroizing::new(text.to_owned()),
+        cleared: false,
     };
     guard.clipboard.set().exclude_from_history().text(text)?;
 
@@ -133,20 +137,35 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
     let outcome = guard.clear_if_unchanged();
     drop(guard); // ensures the secret is wiped from memory even on early-return paths
 
-    let body = match outcome {
-        Ok(ClearOutcome::Cleared) if cancelled => "Clipboard cleared (cancelled)",
-        Ok(ClearOutcome::Cleared) => "Clipboard cleared",
-        Ok(ClearOutcome::Unchanged) => "Clipboard left untouched (you copied something else)",
-        Ok(ClearOutcome::ForciblyCleared) => "Clipboard cleared (couldn't verify contents)",
+    let suffix = if cancelled { " (cancelled)" } else { "" };
+    let (body, timeout) = match outcome {
+        Ok(ClearOutcome::Cleared) => (format!("Clipboard cleared{suffix}"), Timeout::Default),
+        Ok(ClearOutcome::Unchanged) => (
+            format!("Clipboard left untouched (you copied something else){suffix}"),
+            Timeout::Default,
+        ),
+        Ok(ClearOutcome::ForciblyCleared) => (
+            format!("Clipboard cleared (couldn't verify contents){suffix}"),
+            Timeout::Default,
+        ),
         Err(error) => {
+            // Critical path: the user's secret may still be in the clipboard.
+            // Emit to stderr in addition to the notification, since a missing
+            // notification daemon would otherwise leave the user uninformed.
             log::warn!("Failed to clear clipboard: {error}");
-            "Failed to clear clipboard! Please clear it manually."
+            log::error!(
+                "Clipboard could not be cleared automatically — please clear it manually now."
+            );
+            (
+                format!("Failed to clear clipboard! Please clear it manually.{suffix}"),
+                Timeout::Never,
+            )
         }
     };
     if let Err(error) = Notification::new()
         .summary("pasejo")
-        .body(body)
-        .timeout(Timeout::Default)
+        .body(&body)
+        .timeout(timeout)
         .show()
     {
         log::debug!("Failed to show clipboard-cleared notification: {error}");
