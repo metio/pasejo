@@ -10,6 +10,7 @@ use crate::one_time_passwords::parser::parse_otp_args;
 use crate::secrets;
 use anyhow::Context;
 use std::time::Duration;
+use zeroize::Zeroizing;
 
 pub fn dispatch(
     command: &OtpCommands,
@@ -231,7 +232,8 @@ fn show(
             if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
                 logs::one_time_password_copy_into_clipboard(password_path, &duration);
-                clipboard::copy_text_to_clipboard(&format!("{code}"), duration)?;
+                let code_text = Zeroizing::new(format!("{code}"));
+                clipboard::copy_text_to_clipboard(code_text.as_str(), duration)?;
             } else {
                 logs::one_time_password_show(password_path);
                 println!("{code}");
