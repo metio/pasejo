@@ -13,6 +13,16 @@ pub const PASEJO_DEFAULT_STORE: &str = const_str::convert_ascii_case!(
     const_str::concat!(constants::APPLICATION_NAME, "_default_store")
 );
 
+pub const PASEJO_DATA_DIR: &str = const_str::convert_ascii_case!(
+    upper,
+    const_str::concat!(constants::APPLICATION_NAME, "_data_dir")
+);
+
+pub const PASEJO_DISABLE_HOOK_THROTTLING: &str = const_str::convert_ascii_case!(
+    upper,
+    const_str::concat!(constants::APPLICATION_NAME, "_disable_hook_throttling")
+);
+
 pub const CODEBERG_HOST: &str = "CODEBERG_HOST";
 pub const GITHUB_HOST: &str = "GITHUB_HOST";
 pub const GITLAB_HOST: &str = "GITLAB_HOST";

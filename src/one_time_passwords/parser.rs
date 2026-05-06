@@ -83,3 +83,119 @@ fn parse_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
         }),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_are_filled_in_for_missing_arguments() {
+        let result = parse_otp_args(None, None, None, None, None, None, None, None, None).unwrap();
+        assert_eq!(result.secret, "");
+        assert_eq!(result.otp_type, OneTimePasswordType::Totp);
+        assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha1);
+        assert_eq!(result.digits, 6);
+        assert_eq!(result.period, 30);
+        assert_eq!(result.counter, 1);
+        assert_eq!(result.skew, 0);
+    }
+
+    #[test]
+    fn secret_is_uppercased() {
+        let secret = String::from("jbswy3dpehpk3pxp");
+        let result =
+            parse_otp_args(None, None, Some(&secret), None, None, None, None, None, None).unwrap();
+        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[test]
+    fn explicit_arguments_override_defaults() {
+        let secret = String::from("ABCD");
+        let result = parse_otp_args(
+            Some(&OneTimePasswordType::Hotp),
+            Some(&OneTimePasswordAlgorithm::Sha256),
+            Some(&secret),
+            Some(8),
+            Some(60),
+            Some(42),
+            Some(2),
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(result.secret, "ABCD");
+        assert_eq!(result.otp_type, OneTimePasswordType::Hotp);
+        assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha256);
+        assert_eq!(result.digits, 8);
+        assert_eq!(result.period, 60);
+        assert_eq!(result.counter, 42);
+        assert_eq!(result.skew, 2);
+    }
+
+    #[test]
+    fn invalid_url_is_rejected() {
+        let url = String::from("not-a-url");
+        let result =
+            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn totp_url_yields_totp_one_time_password() {
+        let url = String::from(
+            "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&period=30",
+        );
+        let result =
+            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        assert_eq!(result.otp_type, OneTimePasswordType::Totp);
+        assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha1);
+        assert_eq!(result.digits, 6);
+        assert_eq!(result.period, 30);
+        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[test]
+    fn hotp_url_yields_hotp_with_counter_from_url() {
+        let url = String::from(
+            "otpauth://hotp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&counter=5",
+        );
+        let result =
+            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        assert_eq!(result.otp_type, OneTimePasswordType::Hotp);
+        assert_eq!(result.counter, 5);
+    }
+
+    #[test]
+    fn url_takes_precedence_over_other_arguments() {
+        // Even when manual arguments are provided, the url path should be taken
+        // and the manual arguments ignored.
+        let manual_secret = String::from("ZZZZ");
+        let url = String::from(
+            "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30",
+        );
+        let result = parse_otp_args(
+            Some(&OneTimePasswordType::Hotp),
+            Some(&OneTimePasswordAlgorithm::Sha512),
+            Some(&manual_secret),
+            Some(8),
+            Some(60),
+            None,
+            None,
+            Some(&url),
+            None,
+        )
+        .unwrap();
+        assert_eq!(result.otp_type, OneTimePasswordType::Totp);
+        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[test]
+    fn url_with_lowercase_secret_is_uppercased() {
+        let url = String::from(
+            "otpauth://totp/Example:alice?secret=jbswy3dpehpk3pxp&algorithm=SHA1&digits=6&period=30",
+        );
+        let result =
+            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
+    }
+}

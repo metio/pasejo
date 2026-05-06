@@ -36,3 +36,72 @@ pub fn parse_secret(secret: &str) -> ParsedSecret {
         fields,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_input_yields_empty_parsed_secret() {
+        let parsed = parse_secret("");
+        assert!(parsed.password.is_none());
+        assert!(parsed.notes.is_empty());
+        assert!(parsed.fields.is_empty());
+    }
+
+    #[test]
+    fn first_non_field_line_becomes_password() {
+        let parsed = parse_secret("hunter2");
+        assert_eq!(parsed.password.as_deref(), Some("hunter2"));
+        assert!(parsed.notes.is_empty());
+        assert!(parsed.fields.is_empty());
+    }
+
+    #[test]
+    fn lines_with_colon_separator_become_fields() {
+        let parsed = parse_secret("hunter2\nuser: alice\nurl: https://example.com");
+        assert_eq!(parsed.password.as_deref(), Some("hunter2"));
+        assert_eq!(
+            parsed.fields.get("user").map(String::as_str),
+            Some("alice")
+        );
+        assert_eq!(
+            parsed.fields.get("url").map(String::as_str),
+            Some("https://example.com")
+        );
+        assert!(parsed.notes.is_empty());
+    }
+
+    #[test]
+    fn additional_non_field_lines_become_notes() {
+        let parsed = parse_secret("hunter2\nfirst note\nsecond note");
+        assert_eq!(parsed.password.as_deref(), Some("hunter2"));
+        assert_eq!(parsed.notes, vec!["first note", "second note"]);
+    }
+
+    #[test]
+    fn empty_lines_are_skipped() {
+        let parsed = parse_secret("\n\nhunter2\n\nnote\n");
+        assert_eq!(parsed.password.as_deref(), Some("hunter2"));
+        assert_eq!(parsed.notes, vec!["note"]);
+    }
+
+    #[test]
+    fn lines_are_trimmed_before_inspection() {
+        let parsed = parse_secret("  hunter2  \n  user: alice  ");
+        assert_eq!(parsed.password.as_deref(), Some("hunter2"));
+        assert_eq!(
+            parsed.fields.get("user").map(String::as_str),
+            Some("alice")
+        );
+    }
+
+    #[test]
+    fn line_without_colon_space_is_not_a_field() {
+        // The parser specifically looks for ": " (colon + space), so "user:alice"
+        // is treated as the password (first non-field line), not a field.
+        let parsed = parse_secret("user:alice");
+        assert_eq!(parsed.password.as_deref(), Some("user:alice"));
+        assert!(parsed.fields.is_empty());
+    }
+}

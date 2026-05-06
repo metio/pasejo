@@ -338,3 +338,185 @@ impl StoreRegistration {
         self.path.as_path()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn registration(name: &str, path: &str) -> StoreRegistration {
+        StoreRegistration {
+            path: PathBuf::from(path),
+            name: name.to_string(),
+            identities: vec![],
+            pull_commands: vec![],
+            push_commands: vec![],
+        }
+    }
+
+    fn configuration_with_stores(stores: Vec<StoreRegistration>) -> Configuration {
+        Configuration {
+            stores,
+            ..Configuration::default()
+        }
+    }
+
+    #[test]
+    fn all_store_names_returns_names_in_registration_order() {
+        let cfg = configuration_with_stores(vec![
+            registration("alpha", "/tmp/alpha"),
+            registration("beta", "/tmp/beta"),
+        ]);
+        assert_eq!(cfg.all_store_names(), vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn all_store_names_is_empty_for_default_configuration() {
+        assert!(Configuration::default().all_store_names().is_empty());
+    }
+
+    #[test]
+    fn find_store_is_case_insensitive() {
+        let cfg = configuration_with_stores(vec![registration("Alpha", "/tmp/alpha")]);
+        assert!(cfg.find_store("alpha").is_some());
+        assert!(cfg.find_store("ALPHA").is_some());
+        assert!(cfg.find_store("Alpha").is_some());
+    }
+
+    #[test]
+    fn find_store_returns_none_for_unknown_name() {
+        let cfg = configuration_with_stores(vec![registration("alpha", "/tmp/alpha")]);
+        assert!(cfg.find_store("missing").is_none());
+    }
+
+    #[test]
+    fn all_identity_files_combines_global_and_store_and_dedups() {
+        let mut cfg = configuration_with_stores(vec![StoreRegistration {
+            path: PathBuf::from("/tmp/alpha"),
+            name: String::from("alpha"),
+            identities: vec![
+                Identity {
+                    file: PathBuf::from("/keys/store"),
+                },
+                Identity {
+                    file: PathBuf::from("/keys/shared"),
+                },
+            ],
+            pull_commands: vec![],
+            push_commands: vec![],
+        }]);
+        cfg.identities = vec![
+            Identity {
+                file: PathBuf::from("/keys/global"),
+            },
+            Identity {
+                file: PathBuf::from("/keys/shared"),
+            },
+        ];
+
+        let files = cfg.all_identity_files(cfg.stores.first().unwrap());
+        assert_eq!(
+            files,
+            vec![
+                PathBuf::from("/keys/global"),
+                PathBuf::from("/keys/shared"),
+                PathBuf::from("/keys/store"),
+            ]
+        );
+    }
+
+    #[test]
+    fn all_identity_files_returns_empty_when_none_configured() {
+        let cfg = configuration_with_stores(vec![registration("alpha", "/tmp/alpha")]);
+        let files = cfg.all_identity_files(cfg.stores.first().unwrap());
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn has_identity_global_finds_match() {
+        let mut cfg = Configuration {
+            identities: vec![Identity {
+                file: PathBuf::from("/keys/k1"),
+            }],
+            ..Configuration::default()
+        };
+        let identity = Identity {
+            file: PathBuf::from("/keys/k1"),
+        };
+        assert!(cfg.has_identity(&identity, None, true));
+    }
+
+    #[test]
+    fn has_identity_global_returns_false_when_missing() {
+        let mut cfg = Configuration::default();
+        let identity = Identity {
+            file: PathBuf::from("/keys/k1"),
+        };
+        assert!(!cfg.has_identity(&identity, None, true));
+    }
+
+    #[test]
+    fn has_identity_per_store_uses_store_identities() {
+        let mut cfg = configuration_with_stores(vec![StoreRegistration {
+            path: PathBuf::from("/tmp/alpha"),
+            name: String::from("alpha"),
+            identities: vec![Identity {
+                file: PathBuf::from("/keys/store"),
+            }],
+            pull_commands: vec![],
+            push_commands: vec![],
+        }]);
+        let identity = Identity {
+            file: PathBuf::from("/keys/store"),
+        };
+        let store_name = String::from("alpha");
+        assert!(cfg.has_identity(&identity, Some(&store_name), false));
+
+        let other_identity = Identity {
+            file: PathBuf::from("/keys/elsewhere"),
+        };
+        assert!(!cfg.has_identity(&other_identity, Some(&store_name), false));
+    }
+
+    #[test]
+    fn select_store_with_explicit_name_returns_named_store() {
+        let cfg = configuration_with_stores(vec![
+            registration("alpha", "/tmp/alpha"),
+            registration("beta", "/tmp/beta"),
+        ]);
+        let name = String::from("beta");
+        let store = cfg.select_store(Some(&name)).unwrap();
+        assert_eq!(store.name, "beta");
+    }
+
+    #[test]
+    fn select_store_falls_back_to_first_when_no_default() {
+        let cfg = configuration_with_stores(vec![
+            registration("alpha", "/tmp/alpha"),
+            registration("beta", "/tmp/beta"),
+        ]);
+        // No name given and no default; first store is the fallback.
+        // Note: this test must not run with PASEJO_DEFAULT_STORE set in the
+        // environment, otherwise the env var will steer the lookup. Tests in
+        // this crate run in parallel so we don't rely on env state here — we
+        // only assert the structural behavior on default configurations.
+        if std::env::var_os(crate::cli::environment_variables::PASEJO_DEFAULT_STORE)
+            .is_none()
+        {
+            let store = cfg.select_store(None).unwrap();
+            assert_eq!(store.name, "alpha");
+        }
+    }
+
+    #[test]
+    fn select_store_returns_none_for_unknown_name() {
+        let cfg = configuration_with_stores(vec![registration("alpha", "/tmp/alpha")]);
+        let name = String::from("missing");
+        assert!(cfg.select_store(Some(&name)).is_none());
+    }
+
+    #[test]
+    fn store_registration_path_returns_inner_path() {
+        let reg = registration("alpha", "/tmp/alpha");
+        assert_eq!(reg.path(), Path::new("/tmp/alpha"));
+    }
+}
