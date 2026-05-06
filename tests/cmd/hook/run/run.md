@@ -42,7 +42,7 @@ $ pasejo hook set --pull 'sdfgdf'
 $ pasejo hook run --pull --verbose
 ? 1
 Executing pull hooks for store 'something'
-Error: Failed to run command
+Error: Failed to run hook "sdfgdf"
 
 Caused by:
     No such file or directory (os error 2)
@@ -52,7 +52,7 @@ $ pasejo hook set --push 'sdfgdf'
 $ pasejo hook run --push --verbose
 ? 1
 Executing push hooks for store 'something'
-Error: Failed to run command
+Error: Failed to run hook "sdfgdf"
 
 Caused by:
     No such file or directory (os error 2)

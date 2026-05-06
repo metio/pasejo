@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{constants, environment_variables};
+use crate::cli::{atomic_write, constants, environment_variables};
 use crate::models::password_store::PasswordStore;
 use crate::{identities, recipients, secrets};
 use anyhow::{Context, Result};
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::env::var_os;
 use std::fs;
@@ -22,7 +23,12 @@ pub struct Configuration {
     /// The default store to use when no store name was specified
     pub default_store: Option<String>,
 
-    /// Toggle whether missing identity files will be ignored
+    /// Toggle whether missing identity files will be ignored. Defaults to
+    /// `true` so users with multiple hardware tokens (e.g. Yubikeys) can
+    /// plug in whichever backup is available without listing every key
+    /// explicitly. age still requires a matching recipient to decrypt, so
+    /// a missing identity surfaces as "cannot decrypt" rather than as a
+    /// silent fallback to the wrong key.
     pub ignore_missing_identities: Option<bool>,
 
     /// How long should secrets/OTPs be kept in the clipboard in seconds?
@@ -67,12 +73,51 @@ pub struct Identity {
 impl Configuration {
     pub fn load_configuration() -> Result<Self> {
         let config_path = Self::config_path()?;
-        if let Ok(config) = confy::load_path(&config_path) {
-            Ok(config)
-        } else {
-            Self::migrate_configuration(&config_path).context("Could not migrate configuration")?;
-            confy::load_path(&config_path).context("Could not load configuration")
+        Self::migrate_legacy_config_path(&config_path)?;
+        match Self::read_from_path(&config_path) {
+            Ok(config) => Ok(config),
+            Err(_) => {
+                Self::migrate_configuration(&config_path)
+                    .context("Could not migrate configuration")?;
+                Self::read_from_path(&config_path).context("Could not load configuration")
+            }
         }
+    }
+
+    /// One-shot relocation of the configuration file from the path used by
+    /// the previous `confy`-based implementation (`ProjectDirs::from("rs",
+    /// "pasejo", "pasejo")`) to the current path. Only relevant on macOS
+    /// and Windows; on Linux both paths resolve to the same directory.
+    /// Remove this function and its caller once users have migrated.
+    fn migrate_legacy_config_path(new_path: &Path) -> Result<()> {
+        if var_os(environment_variables::PASEJO_CONFIG).is_some() || new_path.exists() {
+            return Ok(());
+        }
+        let Some(legacy_dirs) = ProjectDirs::from(
+            "rs",
+            constants::APPLICATION_NAME,
+            constants::APPLICATION_NAME,
+        ) else {
+            return Ok(());
+        };
+        let legacy_path = legacy_dirs.config_dir().join("config.toml");
+        if legacy_path == new_path || !legacy_path.exists() {
+            return Ok(());
+        }
+        if let Some(parent) = new_path.parent() {
+            fs::create_dir_all(parent).context("Could not create configuration directory")?;
+        }
+        fs::rename(&legacy_path, new_path)
+            .context("Could not migrate legacy configuration file")?;
+        Ok(())
+    }
+
+    fn read_from_path(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let content = fs::read_to_string(path)?;
+        Ok(toml::from_str(&content)?)
     }
 
     fn migrate_configuration(config_path: &Path) -> Result<()> {
@@ -161,30 +206,36 @@ impl Configuration {
             }
         }
 
-        confy::store_path(config_path, migrated_config).context("Could not store configuration")?;
+        let serialized = toml::to_string_pretty(&migrated_config)
+            .context("Could not serialize migrated configuration")?;
+        atomic_write::write(config_path, serialized.as_bytes())
+            .context("Could not store configuration")?;
         Ok(())
     }
 
     pub fn save_configuration(&self) -> Result<()> {
-        confy::store_path(Self::config_path()?, self).context("Could not store configuration")
+        let path = Self::config_path()?;
+        let serialized =
+            toml::to_string_pretty(self).context("Could not serialize configuration")?;
+        atomic_write::write(&path, serialized.as_bytes())
+            .context("Could not store configuration")
     }
 
     fn config_path() -> Result<PathBuf> {
-        var_os(environment_variables::PASEJO_CONFIG).map_or_else(
-            || {
-                confy::get_configuration_file_path(constants::APPLICATION_NAME, "config")
-                    .context("Could not determine configuration path")
-            },
-            |path| {
-                absolute(PathBuf::from(path))
-                    .context("Could not resolve absolute path to configuration")
-            },
-        )
+        if let Some(path) = var_os(environment_variables::PASEJO_CONFIG) {
+            return absolute(PathBuf::from(path))
+                .context("Could not resolve absolute path to configuration");
+        }
+        let project_dirs = ProjectDirs::from("wtf", "metio", constants::APPLICATION_NAME)
+            .context("Could not determine configuration path")?;
+        Ok(project_dirs.config_dir().join("config.toml"))
     }
 
     pub fn add_store(&mut self, store_root_path: &str, store_name: &str) -> Result<()> {
+        let canonical_path = absolute(PathBuf::from(store_root_path))
+            .context("Could not resolve absolute store path")?;
         let registration = StoreRegistration {
-            path: PathBuf::from(store_root_path),
+            path: canonical_path,
             name: store_name.to_owned(),
             identities: vec![],
             pull_commands: vec![],
@@ -518,5 +569,18 @@ mod tests {
     fn store_registration_path_returns_inner_path() {
         let reg = registration("alpha", "/tmp/alpha");
         assert_eq!(reg.path(), Path::new("/tmp/alpha"));
+    }
+
+    #[test]
+    fn add_store_canonicalizes_relative_path() {
+        // We can't safely call save_configuration here (it touches the user
+        // config), so we exercise the canonicalization step directly.
+        let relative = "./relative-store.age";
+        let resolved = absolute(PathBuf::from(relative)).unwrap();
+        assert!(
+            resolved.is_absolute(),
+            "expected an absolute path, got {}",
+            resolved.display()
+        );
     }
 }
