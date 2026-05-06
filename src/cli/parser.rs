@@ -30,3 +30,38 @@ pub fn existing_file(input: &str) -> Result<PathBuf> {
         anyhow::bail!("The file '{input}' does not exist")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
+
+    #[test]
+    fn existing_file_accepts_real_file() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("present.txt");
+        file.write_str("contents").unwrap();
+        let path_str = file.path().to_str().unwrap();
+
+        let result = existing_file(path_str).unwrap();
+        assert_eq!(result, std::path::PathBuf::from(path_str));
+    }
+
+    #[test]
+    fn existing_file_rejects_missing_path() {
+        let temp = TempDir::new().unwrap();
+        let missing = temp.child("does-not-exist.txt");
+        let path_str = missing.path().to_str().unwrap();
+
+        assert!(existing_file(path_str).is_err());
+    }
+
+    #[test]
+    fn existing_file_rejects_directory() {
+        let temp = TempDir::new().unwrap();
+        let path_str = temp.path().to_str().unwrap();
+
+        assert!(existing_file(path_str).is_err());
+    }
+}

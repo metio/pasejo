@@ -17,5 +17,12 @@ fn cli_tests() {
         .case("tests/cmd/secret/*/*.md")
         .case("tests/cmd/store/*/*.md")
         .case("docs/commands/pasejo-cmd-*.md")
-        .env("PASEJO_CONFIG", "config.toml");
+        // Point to a test-local configuration file. Without this,
+        // all tests would use the same configuration file which would
+        // make the test suite flaky
+        .env("PASEJO_CONFIG", "config.toml")
+        // Disable hook-throttle marker tracking entirely. Without this,
+        // markers persisted in the user's data dir would carry over between
+        // tests (and between `cargo test` runs), making the suite flaky.
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1");
 }

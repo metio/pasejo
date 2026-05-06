@@ -71,6 +71,8 @@ fn split_ssh_key(key: &str) -> anyhow::Result<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
 
     #[test]
     fn public_key_from_args() {
@@ -96,5 +98,121 @@ mod tests {
         };
         let public_key = get(&args);
         assert_eq!(String::from("public key"), public_key.unwrap()[0].0);
+    }
+
+    #[test]
+    fn no_source_returns_error() {
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: None,
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+        assert!(get(&args).is_err());
+    }
+
+    #[test]
+    fn split_ssh_key_separates_key_from_comment() {
+        let (key, comment) =
+            split_ssh_key("ssh-ed25519 AAAA alice@example.com").unwrap();
+        assert_eq!(key, "ssh-ed25519 AAAA");
+        assert_eq!(comment, "alice@example.com");
+    }
+
+    #[test]
+    fn split_ssh_key_joins_multi_word_comment() {
+        let (key, comment) =
+            split_ssh_key("ssh-ed25519 AAAA alice example user").unwrap();
+        assert_eq!(key, "ssh-ed25519 AAAA");
+        assert_eq!(comment, "alice example user");
+    }
+
+    #[test]
+    fn split_ssh_key_without_comment_yields_empty_comment() {
+        let (key, comment) = split_ssh_key("ssh-ed25519 AAAA").unwrap();
+        assert_eq!(key, "ssh-ed25519 AAAA");
+        assert_eq!(comment, "");
+    }
+
+    #[test]
+    fn split_ssh_key_rejects_truncated_ssh_line() {
+        assert!(split_ssh_key("ssh-ed25519").is_err());
+    }
+
+    #[test]
+    fn split_ssh_key_passes_age_keys_through_unchanged() {
+        let (key, comment) = split_ssh_key("age1xyz").unwrap();
+        assert_eq!(key, "age1xyz");
+        assert_eq!(comment, "");
+    }
+
+    #[test]
+    fn public_key_from_file_with_age_key() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("recipients.txt");
+        file.write_str("age1abc\nage1def\n").unwrap();
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(file.path().to_string_lossy().into_owned()),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        let result = get(&args).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, "age1abc");
+        assert_eq!(result[0].1, "");
+        assert_eq!(result[1].0, "age1def");
+    }
+
+    #[test]
+    fn public_key_from_file_attaches_preceding_comments() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("recipients.txt");
+        file.write_str("# alice\nage1abc\n# bob\nage1def\n")
+            .unwrap();
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(file.path().to_string_lossy().into_owned()),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        let result = get(&args).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], (String::from("age1abc"), String::from("alice")));
+        assert_eq!(result[1], (String::from("age1def"), String::from("bob")));
+    }
+
+    #[test]
+    fn public_key_from_empty_file_returns_error() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("empty.txt");
+        file.write_str("").unwrap();
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(file.path().to_string_lossy().into_owned()),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        assert!(get(&args).is_err());
+    }
+
+    #[test]
+    fn public_key_from_missing_file_returns_error() {
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(String::from("/nonexistent/path/to/file")),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        assert!(get(&args).is_err());
     }
 }
