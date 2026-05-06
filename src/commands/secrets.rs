@@ -9,6 +9,7 @@ use crate::secrets;
 use anyhow::Context;
 use passwords::{analyzer, scorer};
 use std::time::Duration;
+use zeroize::Zeroizing;
 
 pub fn dispatch(
     command: &SecretCommands,
@@ -127,9 +128,9 @@ fn add(
             anyhow::bail!("Secret already exists at {secret_path}. Use --force to overwrite.");
         }
 
-        let secret = &prompts::read_secret_from_user_input(secret_path, multiline)?;
+        let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
 
-        store.secrets.insert(secret_path.to_owned(), secret.clone());
+        store.secrets.insert(secret_path.to_owned(), secret);
 
         Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
@@ -171,7 +172,7 @@ fn audit(
             let password_strength = scorer::score(&analyzer::analyze(value));
             println!("{secret_path}: {password_strength}/100");
         } else {
-            for (key, value) in store.secrets {
+            for (key, value) in &store.secrets {
                 let password_strength = scorer::score(&analyzer::analyze(value));
                 println!("{key}: {password_strength}/100");
             }
@@ -343,7 +344,8 @@ fn remove(
             );
         }
 
-        if store.secrets.remove(secret_path).is_some() {
+        if let Some(removed) = store.secrets.remove(secret_path) {
+            drop(Zeroizing::new(removed));
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
             logs::secret_removed(secret_path);
@@ -383,7 +385,7 @@ fn show(
         let store = configuration.decrypt_store(registration)?;
 
         if let Some(decrypted_text) = store.secrets.get(secret_path) {
-            let text_to_show = line.map_or_else(
+            let text_to_show = Zeroizing::new(line.map_or_else(
                 || decrypted_text.to_owned(),
                 |line| {
                     if line >= 0 {
@@ -400,18 +402,18 @@ fn show(
                             .join("\n")
                     }
                 },
-            );
+            ));
 
             if qrcode {
                 logs::secret_show_as_qrcode(secret_path);
-                qr2term::print_qr(&text_to_show)?;
+                qr2term::print_qr(text_to_show.as_str())?;
             } else if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
                 logs::secret_copy_into_clipboard(secret_path, &duration);
-                clipboard::copy_text_to_clipboard(&text_to_show, duration)?;
+                clipboard::copy_text_to_clipboard(text_to_show.as_str(), duration)?;
             } else {
                 logs::secret_show_as_text(secret_path);
-                println!("{text_to_show}");
+                println!("{}", text_to_show.as_str());
             }
             Ok(())
         } else {
@@ -479,6 +481,7 @@ fn generate(
 
         if inplace {
             if let Some(current_value) = store.secrets.get(secret_path) {
+                let secret = Zeroizing::new(secret);
                 let mut remainder = current_value.lines().skip(1).collect::<Vec<&str>>();
                 remainder.splice(..0, vec![secret.as_str()]);
                 store
@@ -524,9 +527,9 @@ fn edit(
         let mut store = configuration.decrypt_store(registration)?;
 
         if let Some(current_value) = store.secrets.get(secret_path) {
-            let secret = &prompts::edit_secret(secret_path, current_value)?;
+            let secret = prompts::edit_secret(secret_path, current_value)?;
 
-            store.secrets.insert(secret_path.to_owned(), secret.clone());
+            store.secrets.insert(secret_path.to_owned(), secret);
 
             Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
