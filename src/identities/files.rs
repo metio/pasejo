@@ -23,21 +23,37 @@ pub fn read(
 
         let mut files = vec![];
         for file in identity_files {
-            if let Ok(content) = std::fs::read_to_string(&file) {
-                if content.contains("AGE-PLUGIN-YUBIKEY-") {
-                    content.lines().for_each(|line| {
-                        if line.starts_with("AGE-PLUGIN-YUBIKEY-") {
-                            let parts = line.split('-').collect::<Vec<&str>>();
-                            if let Some(split) = parts.split_last()
-                                && let Ok(output) = &*age_plugin_yubikey_output
-                                && output.contains(split.0)
-                            {
-                                files.push(file.clone());
+            match std::fs::read_to_string(&file) {
+                Ok(content) => {
+                    if content.contains("AGE-PLUGIN-YUBIKEY-") {
+                        let mut matched_any = false;
+                        content.lines().for_each(|line| {
+                            if line.starts_with("AGE-PLUGIN-YUBIKEY-") {
+                                let parts = line.split('-').collect::<Vec<&str>>();
+                                if let Some(split) = parts.split_last()
+                                    && let Ok(output) = &*age_plugin_yubikey_output
+                                    && output.contains(split.0)
+                                {
+                                    files.push(file.clone());
+                                    matched_any = true;
+                                }
                             }
+                        });
+                        if !matched_any {
+                            log::debug!(
+                                "Skipping yubikey identity file with no matching device: {}",
+                                file.display()
+                            );
                         }
-                    });
-                } else {
-                    files.push(file);
+                    } else {
+                        files.push(file);
+                    }
+                }
+                Err(error) => {
+                    log::debug!(
+                        "Skipping missing identity file {}: {error}",
+                        file.display()
+                    );
                 }
             }
         }

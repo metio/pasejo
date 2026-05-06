@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+pub mod atomic_write;
 pub mod clipboard;
 pub mod completer;
 pub mod constants;

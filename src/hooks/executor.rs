@@ -6,7 +6,8 @@ use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, writ
 use crate::models::configuration::{Configuration, StoreRegistration};
 use anyhow::Context;
 use duct::cmd;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
+use std::path::Path;
 
 pub struct HookExecutor<'a> {
     pub configuration: &'a Configuration,
@@ -60,32 +61,47 @@ impl HookExecutor<'_> {
         }
     }
 
-    fn execute(&self, commands: &Vec<String>) -> anyhow::Result<()> {
-        if !commands.is_empty() {
-            if let Some(parent) = self.registration.path().parent() {
-                for command in commands {
-                    let replaced = self
-                        .registration
-                        .path()
-                        .to_str()
-                        .map_or_else(|| command.to_owned(), |path| command.replace("%p", path));
+    fn execute(&self, commands: &[String]) -> anyhow::Result<()> {
+        if commands.is_empty() {
+            return Ok(());
+        }
 
-                    if let Some(parts) = shlex::split(&replaced) {
-                        let binary = &parts[0];
-                        let args = &parts[1..];
+        let store_path = self.registration.path();
+        let parent = store_path.parent().with_context(|| {
+            format!(
+                "Cannot determine parent of store path {}",
+                store_path.display()
+            )
+        })?;
 
-                        cmd(binary, args)
-                            .stdout_null()
-                            .stderr_null()
-                            .dir(parent)
-                            .run()
-                            .context("Failed to run command")?;
-                    } else {
-                        anyhow::bail!("Cannot parse command: {command:?}");
-                    }
+        for command in commands {
+            let Some(template) = shlex::split(command) else {
+                anyhow::bail!("Cannot parse command: {command:?}");
+            };
+            let args = build_args(&template, store_path)?;
+            let (binary, rest) = args
+                .split_first()
+                .with_context(|| format!("Empty hook command: {command:?}"))?;
+
+            let output = cmd(binary, rest)
+                .stdout_null()
+                .stderr_capture()
+                .unchecked()
+                .dir(parent)
+                .run()
+                .with_context(|| format!("Failed to run hook {command:?}"))?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let detail = stderr.trim();
+                let exit = output
+                    .status
+                    .code()
+                    .map_or_else(|| String::from("signal"), |c| c.to_string());
+                if detail.is_empty() {
+                    anyhow::bail!("hook {command:?} failed (exit {exit})");
                 }
-            } else {
-                anyhow::bail!("Cannot determine parent of store path");
+                anyhow::bail!("hook {command:?} failed (exit {exit}): {detail}");
             }
         }
 
@@ -104,5 +120,95 @@ impl HookExecutor<'_> {
             self.configuration.push_interval_seconds,
             last_push_paths(store_name),
         )
+    }
+}
+
+/// Resolve `%p` placeholders in a tokenized hook command. A token equal to
+/// `"%p"` is replaced with the raw store path passed as a single argument,
+/// so paths containing shell metacharacters (quotes, semicolons, spaces)
+/// can never escape their argument boundary. Tokens that merely contain
+/// `%p` (e.g. `--git-dir=%p/.git`) get string substitution and require the
+/// store path to be valid UTF-8.
+fn build_args(template: &[String], path: &Path) -> anyhow::Result<Vec<OsString>> {
+    let mut out = Vec::with_capacity(template.len());
+    for token in template {
+        if token == "%p" {
+            out.push(path.as_os_str().to_os_string());
+        } else if token.contains("%p") {
+            let path_str = path.to_str().with_context(|| {
+                format!(
+                    "Cannot substitute %p in token {token:?}: store path {} is not valid UTF-8",
+                    path.display()
+                )
+            })?;
+            out.push(OsString::from(token.replace("%p", path_str)));
+        } else {
+            out.push(OsString::from(token));
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn build_args_passes_path_with_metacharacters_as_single_arg() {
+        let template = shlex::split("git add %p").unwrap();
+        let path = PathBuf::from("/tmp/pasejo'; touch /tmp/PWNED #/store.age");
+
+        let args = build_args(&template, &path).unwrap();
+
+        assert_eq!(args.len(), 3);
+        assert_eq!(args[0], OsString::from("git"));
+        assert_eq!(args[1], OsString::from("add"));
+        assert_eq!(args[2], path.as_os_str());
+    }
+
+    #[test]
+    fn build_args_substitutes_inside_token() {
+        let template = shlex::split("git --git-dir=%p/.git status").unwrap();
+        let path = PathBuf::from("/tmp/store");
+
+        let args = build_args(&template, &path).unwrap();
+
+        assert_eq!(args.len(), 3);
+        assert_eq!(args[0], OsString::from("git"));
+        assert_eq!(args[1], OsString::from("--git-dir=/tmp/store/.git"));
+        assert_eq!(args[2], OsString::from("status"));
+    }
+
+    #[test]
+    fn build_args_leaves_unrelated_tokens_alone() {
+        let template = shlex::split("echo hello world").unwrap();
+        let path = PathBuf::from("/tmp/store");
+
+        let args = build_args(&template, &path).unwrap();
+
+        assert_eq!(
+            args,
+            vec![
+                OsString::from("echo"),
+                OsString::from("hello"),
+                OsString::from("world"),
+            ]
+        );
+    }
+
+    #[test]
+    fn build_args_handles_quoted_token_with_path() {
+        // The user wrote: git commit -m "msg %p"
+        // shlex strips the quotes, so the message becomes one token.
+        let template = shlex::split("git commit -m \"changed %p\"").unwrap();
+        let path = PathBuf::from("/tmp/store");
+
+        let args = build_args(&template, &path).unwrap();
+
+        assert_eq!(args[0], OsString::from("git"));
+        assert_eq!(args[1], OsString::from("commit"));
+        assert_eq!(args[2], OsString::from("-m"));
+        assert_eq!(args[3], OsString::from("changed /tmp/store"));
     }
 }

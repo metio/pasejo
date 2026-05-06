@@ -6,6 +6,8 @@ use std::path::Path;
 
 use age::{Encryptor, Recipient};
 
+use crate::cli::atomic_write;
+
 pub fn encrypt(
     secret: &str,
     path: &Path,
@@ -17,27 +19,64 @@ pub fn encrypt(
     let mut writer = encryptor.wrap_output(&mut encrypted)?;
     writer.write_all(secret.as_bytes())?;
     writer.finish()?;
-    write_file(path, &encrypted)?;
+    atomic_write::write(path, &encrypted)?;
     Ok(())
 }
 
-#[cfg(unix)]
-fn write_file(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
-    use std::fs::OpenOptions;
-    use std::os::unix::fs::OpenOptionsExt;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::secrets;
+    use age::x25519;
+    use assert_fs::TempDir;
 
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)?;
-    file.write_all(contents)?;
-    Ok(())
-}
+    fn fresh_identity_pair() -> (x25519::Identity, x25519::Recipient) {
+        let identity = x25519::Identity::generate();
+        let recipient = identity.to_public();
+        (identity, recipient)
+    }
 
-#[cfg(not(unix))]
-fn write_file(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
-    std::fs::write(path, contents)?;
-    Ok(())
+    #[test]
+    fn encrypt_decrypt_round_trip_with_x25519_identity() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("store.age");
+        let (identity, recipient) = fresh_identity_pair();
+        let plaintext = "top secret payload\nwith two lines";
+
+        let recipients: Vec<Box<dyn Recipient + Send>> = vec![Box::new(recipient)];
+        encrypt(plaintext, &path, &recipients).unwrap();
+
+        let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
+        let decrypted = secrets::decrypt(&path, &identities).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn encrypt_overwrites_existing_store_file_atomically() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("store.age");
+        let (identity, recipient) = fresh_identity_pair();
+        let recipients: Vec<Box<dyn Recipient + Send>> = vec![Box::new(recipient)];
+
+        encrypt("first", &path, &recipients).unwrap();
+        encrypt("second", &path, &recipients).unwrap();
+
+        let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
+        let decrypted = secrets::decrypt(&path, &identities).unwrap();
+        assert_eq!(decrypted, "second");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn encrypted_store_file_is_0600_on_unix() {
+        use std::fs;
+        use std::os::unix::fs::PermissionsExt;
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("store.age");
+        let (_identity, recipient) = fresh_identity_pair();
+        let recipients: Vec<Box<dyn Recipient + Send>> = vec![Box::new(recipient)];
+        encrypt("payload", &path, &recipients).unwrap();
+        let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+    }
 }
