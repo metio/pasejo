@@ -74,13 +74,11 @@ impl Configuration {
     pub fn load_configuration() -> Result<Self> {
         let config_path = Self::config_path()?;
         Self::migrate_legacy_config_path(&config_path)?;
-        match Self::read_from_path(&config_path) {
-            Ok(config) => Ok(config),
-            Err(_) => {
-                Self::migrate_configuration(&config_path)
-                    .context("Could not migrate configuration")?;
-                Self::read_from_path(&config_path).context("Could not load configuration")
-            }
+        if let Ok(config) = Self::read_from_path(&config_path) {
+            Ok(config)
+        } else {
+            Self::migrate_configuration(&config_path).context("Could not migrate configuration")?;
+            Self::read_from_path(&config_path).context("Could not load configuration")
         }
     }
 
@@ -217,8 +215,7 @@ impl Configuration {
         let path = Self::config_path()?;
         let serialized =
             toml::to_string_pretty(self).context("Could not serialize configuration")?;
-        atomic_write::write(&path, serialized.as_bytes())
-            .context("Could not store configuration")
+        atomic_write::write(&path, serialized.as_bytes()).context("Could not store configuration")
     }
 
     fn config_path() -> Result<PathBuf> {
@@ -550,9 +547,7 @@ mod tests {
         // environment, otherwise the env var will steer the lookup. Tests in
         // this crate run in parallel so we don't rely on env state here — we
         // only assert the structural behavior on default configurations.
-        if std::env::var_os(crate::cli::environment_variables::PASEJO_DEFAULT_STORE)
-            .is_none()
-        {
+        if std::env::var_os(crate::cli::environment_variables::PASEJO_DEFAULT_STORE).is_none() {
             let store = cfg.select_store(None).unwrap();
             assert_eq!(store.name, "alpha");
         }
