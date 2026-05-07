@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::{clipboard, logs, prompts};
-use crate::hooks::executor::HookExecutor;
+use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::SecretCommands;
 use crate::models::configuration::Configuration;
 use crate::secrets;
-use anyhow::Context;
-use passwords::{analyzer, scorer};
 use std::time::Duration;
 use zeroize::Zeroizing;
 
@@ -109,41 +107,18 @@ fn add(
     multiline: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(secret_path)
             && !force
             && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!("Secret already exists at {secret_path}. Use --force to overwrite.");
         }
-
         let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
-
         store.secrets.insert(secret_path.to_owned(), secret);
-
-        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
         logs::secret_added(secret_path);
-
-        hooks.execute_push_commands()?;
-
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn audit(
@@ -152,18 +127,8 @@ fn audit(
     secret_path: Option<&String>,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let store = configuration.decrypt_store(registration)?;
-
+    use passwords::{analyzer, scorer};
+    with_store(configuration, store_name, offline, |_, store| {
         if let Some(secret_path) = secret_path {
             let value = store
                 .secrets
@@ -177,13 +142,8 @@ fn audit(
                 println!("{key}: {password_strength}/100");
             }
         }
-
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Unchanged))
+    })
 }
 
 fn copy(
@@ -194,44 +154,22 @@ fn copy(
     target_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(target_path)
             && !force
             && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!("Secret already exists at {target_path}. Use --force to overwrite.");
         }
-
-        if let Some(secret) = store.secrets.get(source_path) {
-            store
-                .secrets
-                .insert(target_path.to_owned(), secret.to_owned());
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::secret_copied(source_path, target_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+        let Some(secret) = store.secrets.get(source_path) else {
             anyhow::bail!("No secret found at '{source_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        };
+        store
+            .secrets
+            .insert(target_path.to_owned(), secret.to_owned());
+        logs::secret_copied(source_path, target_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn mv(
@@ -242,42 +180,20 @@ fn mv(
     new_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(new_path)
             && !force
             && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
         {
             anyhow::bail!("Secret already exists at {new_path}. Use --force to overwrite.");
         }
-
-        if let Some(secret) = store.secrets.remove(current_path) {
-            store.secrets.insert(new_path.to_owned(), secret);
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::secret_moved(current_path, new_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+        let Some(secret) = store.secrets.remove(current_path) else {
             anyhow::bail!("No secret found at '{current_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        };
+        store.secrets.insert(new_path.to_owned(), secret);
+        logs::secret_moved(current_path, new_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn list(
@@ -286,18 +202,7 @@ fn list(
     tree: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |registration, store| {
         if tree {
             print!(
                 "{}",
@@ -308,12 +213,8 @@ fn list(
                 println!("{secret}");
             }
         }
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Unchanged))
+    })
 }
 
 fn remove(
@@ -323,18 +224,7 @@ fn remove(
     secret_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(secret_path)
             && !force
             && !prompts::get_confirmation_from_user("Remove existing secret?")?
@@ -343,24 +233,13 @@ fn remove(
                 "Not allowed to remove secret at {secret_path}. Use --force to overwrite."
             );
         }
-
-        if let Some(removed) = store.secrets.remove(secret_path) {
-            drop(Zeroizing::new(removed));
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::secret_removed(secret_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+        let Some(removed) = store.secrets.remove(secret_path) else {
             anyhow::bail!("No secret found at '{secret_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        };
+        drop(Zeroizing::new(removed));
+        logs::secret_removed(secret_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn show(
@@ -372,20 +251,15 @@ fn show(
     clip: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let store = configuration.decrypt_store(registration)?;
-
-        if let Some(decrypted_text) = store.secrets.get(secret_path) {
-            let text_to_show = Zeroizing::new(line.map_or_else(
+    with_store_then(
+        configuration,
+        store_name,
+        offline,
+        |_, store| {
+            let Some(decrypted_text) = store.secrets.get(secret_path) else {
+                anyhow::bail!("No secret found at '{secret_path}'")
+            };
+            let extracted = line.map_or_else(
                 || decrypted_text.to_owned(),
                 |line| {
                     if line >= 0 {
@@ -402,8 +276,10 @@ fn show(
                             .join("\n")
                     }
                 },
-            ));
-
+            );
+            Ok((Zeroizing::new(extracted), StoreMutation::Unchanged))
+        },
+        |text_to_show: &Zeroizing<String>| {
             if qrcode {
                 logs::secret_show_as_qrcode(secret_path);
                 qr2term::print_qr(text_to_show.as_str())?;
@@ -416,14 +292,9 @@ fn show(
                 println!("{}", text_to_show.as_str());
             }
             Ok(())
-        } else {
-            anyhow::bail!("No secret found at '{secret_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        },
+    )?;
+    Ok(())
 }
 
 #[allow(clippy::fn_params_excessive_bools)]
@@ -444,18 +315,7 @@ fn generate(
     strict: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(secret_path)
             && !force
             && !inplace
@@ -476,7 +336,6 @@ fn generate(
             exclude_similar_characters,
             strict,
         };
-
         let secret = generator.generate_one().map_err(anyhow::Error::msg)?;
 
         if inplace {
@@ -494,18 +353,9 @@ fn generate(
             store.secrets.insert(secret_path.to_owned(), secret);
         }
 
-        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
         logs::secret_generated(secret_path);
-
-        hooks.execute_push_commands()?;
-
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn edit(
@@ -514,40 +364,17 @@ fn edit(
     secret_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
-        if let Some(current_value) = store.secrets.get(secret_path) {
-            let secret = prompts::edit_secret(secret_path, current_value)?;
-
-            store.secrets.insert(secret_path.to_owned(), secret);
-
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::secret_edited(secret_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+    with_store(configuration, store_name, offline, |_, store| {
+        let Some(current_value) = store.secrets.get(secret_path) else {
             anyhow::bail!(
                 "Secret does not exist at {secret_path}. Use 'pasejo secret add' to create it."
             );
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        };
+        let secret = prompts::edit_secret(secret_path, current_value)?;
+        store.secrets.insert(secret_path.to_owned(), secret);
+        logs::secret_edited(secret_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn grep(
@@ -557,18 +384,7 @@ fn grep(
     regex: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if regex {
             let re = regex::Regex::new(search_string)?;
             for (key, value) in &store.secrets {
@@ -583,11 +399,6 @@ fn grep(
                 }
             }
         }
-
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Unchanged))
+    })
 }

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::{clipboard, logs, prompts};
-use crate::hooks::executor::HookExecutor;
+use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::{Cli, OtpCommands};
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 use crate::one_time_passwords::parser::parse_otp_args;
 use crate::secrets;
-use anyhow::Context;
 use std::time::Duration;
 use zeroize::Zeroizing;
 
@@ -83,18 +82,7 @@ fn add(
     force: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.otp.contains_key(password_path)
             && !force
             && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
@@ -103,21 +91,10 @@ fn add(
                 "One-time password already exists at {password_path}. Use --force to overwrite."
             );
         }
-
         store.otp.insert(password_path.to_owned(), password.clone());
-
-        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
         logs::one_time_password_added(password_path);
-
-        hooks.execute_push_commands()?;
-
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn remove(
@@ -127,18 +104,7 @@ fn remove(
     password_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.otp.contains_key(password_path)
             && !force
             && !prompts::get_confirmation_from_user("Remove existing one-time password?")?
@@ -147,23 +113,12 @@ fn remove(
                 "Not allowed to remove one-time password at {password_path}. Use --force to overwrite."
             );
         }
-
-        if store.otp.remove(password_path).is_some() {
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::one_time_password_removed(password_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+        if store.otp.remove(password_path).is_none() {
             anyhow::bail!("No one-time password found at '{password_path}'")
         }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        logs::one_time_password_removed(password_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn list(
@@ -172,18 +127,7 @@ fn list(
     tree: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if tree {
             print!(
                 "{}",
@@ -194,12 +138,8 @@ fn list(
                 println!("{secret}");
             }
         }
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        Ok(((), StoreMutation::Unchanged))
+    })
 }
 
 fn show(
@@ -209,26 +149,24 @@ fn show(
     clip: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
-        if let Some(password) = store.otp.get_mut(password_path) {
+    with_store_then(
+        configuration,
+        store_name,
+        offline,
+        |_, store| {
+            let Some(password) = store.otp.get_mut(password_path) else {
+                anyhow::bail!("No one-time password found at '{password_path}'")
+            };
             let is_hotp = password.otp_type == OneTimePasswordType::Hotp;
             let code = password.generate()?;
-            if is_hotp {
-                Configuration::encrypt_store(registration, &store)
-                    .context("Cannot encrypt store")?;
-            }
-
+            let mutation = if is_hotp {
+                StoreMutation::Modified
+            } else {
+                StoreMutation::Unchanged
+            };
+            Ok((code, mutation))
+        },
+        |code: &u32| {
             if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
                 logs::one_time_password_copy_into_clipboard(password_path, &duration);
@@ -238,19 +176,10 @@ fn show(
                 logs::one_time_password_show(password_path);
                 println!("{code}");
             }
-
-            if is_hotp {
-                hooks.execute_push_commands()?;
-            }
             Ok(())
-        } else {
-            anyhow::bail!("No one-time password found at '{password_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        },
+    )?;
+    Ok(())
 }
 
 fn mv(
@@ -261,18 +190,7 @@ fn mv(
     new_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.otp.contains_key(new_path)
             && !force
             && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
@@ -281,24 +199,13 @@ fn mv(
                 "One-time password already exists at {new_path}. Use --force to overwrite."
             );
         }
-
-        if let Some(password) = store.otp.remove(current_path) {
-            store.otp.insert(new_path.to_owned(), password);
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::one_time_password_moved(current_path, new_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+        let Some(password) = store.otp.remove(current_path) else {
             anyhow::bail!("No one-time password found at '{current_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        };
+        store.otp.insert(new_path.to_owned(), password);
+        logs::one_time_password_moved(current_path, new_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
 
 fn copy(
@@ -309,18 +216,7 @@ fn copy(
     target_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline,
-            force: false,
-        };
-
-        hooks.execute_pull_commands()?;
-
-        let mut store = configuration.decrypt_store(registration)?;
-
+    with_store(configuration, store_name, offline, |_, store| {
         if store.otp.contains_key(target_path)
             && !force
             && !prompts::get_confirmation_from_user("Overwrite existing one-time password?")?
@@ -329,24 +225,13 @@ fn copy(
                 "One-time password already exists at {target_path}. Use --force to overwrite."
             );
         }
-
-        if let Some(password) = store.otp.get(source_path) {
-            store
-                .otp
-                .insert(target_path.to_owned(), password.to_owned());
-            Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
-
-            logs::one_time_password_copied(source_path, target_path);
-
-            hooks.execute_push_commands()?;
-
-            Ok(())
-        } else {
+        let Some(password) = store.otp.get(source_path) else {
             anyhow::bail!("No one-time password found at '{source_path}'")
-        }
-    } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
-    }
+        };
+        store
+            .otp
+            .insert(target_path.to_owned(), password.to_owned());
+        logs::one_time_password_copied(source_path, target_path);
+        Ok(((), StoreMutation::Modified))
+    })
 }
