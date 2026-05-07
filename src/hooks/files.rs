@@ -29,13 +29,12 @@ pub fn should_execute(
                 return Ok(should_execute);
             }
             return Ok(false);
-        } else {
-            fs::create_dir_all(last_directory)?;
-            let epoch_seconds = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)?
-                .as_secs();
-            fs::write(last_file, epoch_seconds.to_string())?;
         }
+        fs::create_dir_all(last_directory)?;
+        let epoch_seconds = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs();
+        fs::write(last_file, epoch_seconds.to_string())?;
     }
 
     Ok(true)
