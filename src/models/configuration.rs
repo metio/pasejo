@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 use std::env::var_os;
 use std::fs;
 use std::path::{Path, PathBuf, absolute};
+use std::sync::OnceLock;
 use toml::Table;
+
+static CACHED_CONFIGURATION: OnceLock<Configuration> = OnceLock::new();
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
@@ -80,6 +83,18 @@ impl Configuration {
             Self::migrate_configuration(&config_path).context("Could not migrate configuration")?;
             Self::read_from_path(&config_path).context("Could not load configuration")
         }
+    }
+
+    /// Process-wide cached load. The first caller (clap value parser, completer,
+    /// or `main`) reads the file from disk; subsequent callers within the same
+    /// process get the same `Configuration` reference back. Errors are not
+    /// cached — if the first call fails, the next call retries.
+    pub fn cached() -> Result<&'static Self> {
+        if let Some(cached) = CACHED_CONFIGURATION.get() {
+            return Ok(cached);
+        }
+        let loaded = Self::load_configuration()?;
+        Ok(CACHED_CONFIGURATION.get_or_init(|| loaded))
     }
 
     /// One-shot relocation of the configuration file from the path used by

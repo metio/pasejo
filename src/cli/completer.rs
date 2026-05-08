@@ -7,7 +7,7 @@ use crate::models::configuration::Configuration;
 
 pub fn store_name() -> ArgValueCompleter {
     ArgValueCompleter::new(|current: &std::ffi::OsStr| {
-        Configuration::load_configuration().map_or_else(
+        Configuration::cached().map_or_else(
             |_| vec![],
             |configuration| {
                 let names = configuration.all_store_names();
