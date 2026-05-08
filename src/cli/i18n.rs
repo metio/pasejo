@@ -24,6 +24,7 @@ use i18n_embed::{DesktopLanguageRequester, LanguageLoader};
 use i18n_embed_fl::fl;
 use log::{debug, error, info, warn};
 use rust_embed::RustEmbed;
+use unic_langid::LanguageIdentifier;
 
 #[derive(RustEmbed)]
 #[folder = "i18n/"]
@@ -46,7 +47,7 @@ static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
 /// Selects the language based on the desktop locale and loads its messages.
 /// Falls back to English when the requested locale has no translation.
 pub fn init() -> Result<()> {
-    let requested = DesktopLanguageRequester::requested_languages();
+    let requested = requested_languages();
     i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested)
         .context("Could not initialize translations")?;
     // `select` may have loaded an additional language bundle whose
@@ -55,6 +56,61 @@ pub fn init() -> Result<()> {
     // marks too.
     LANGUAGE_LOADER.set_use_isolating(false);
     Ok(())
+}
+
+/// Resolve the user's preferred languages.
+///
+/// We can't just call `DesktopLanguageRequester::requested_languages()`
+/// directly: on macOS that delegates to `CFLocaleCopyPreferredLanguages`,
+/// which reads System Preferences and ignores the POSIX `LANG` / `LC_*`
+/// environment variables entirely. That makes it impossible to override
+/// the locale from the shell or from CI, and it means our translation
+/// snapshot tests (`cli_tests_de`, `cli_tests_es`, …) silently get the
+/// English fallback on every macOS runner.
+///
+/// We follow standard CLI conventions instead: POSIX env vars win, the
+/// OS-native preference is the fallback. Precedence matches GNU gettext —
+/// `LANGUAGE` (colon-separated chain) overrides `LC_ALL`, which overrides
+/// `LC_MESSAGES`, which overrides `LANG`. `C` / `POSIX` / unparseable
+/// values are treated as "no specific locale", which lets the loader's
+/// fallback language (English) be used.
+fn requested_languages() -> Vec<LanguageIdentifier> {
+    for var in ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"] {
+        let Ok(value) = std::env::var(var) else {
+            continue;
+        };
+        if value.is_empty() {
+            continue;
+        }
+        let candidates: Vec<&str> = if var == "LANGUAGE" {
+            value.split(':').collect()
+        } else {
+            vec![value.as_str()]
+        };
+        return candidates
+            .into_iter()
+            .filter_map(parse_posix_locale)
+            .collect();
+    }
+    DesktopLanguageRequester::requested_languages()
+}
+
+/// Strip the codeset (`.UTF-8`) and modifier (`@euro`) suffixes a POSIX
+/// locale tag may carry, normalize the underscore POSIX uses to the
+/// hyphen BCP 47 expects, and return `None` for empty / `C` / `POSIX`
+/// values so the caller can fall through to the next env var or to the
+/// loader's fallback language.
+fn parse_posix_locale(raw: &str) -> Option<LanguageIdentifier> {
+    let trimmed = raw
+        .split('.')
+        .next()?
+        .split('@')
+        .next()?
+        .trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("C") || trimmed.eq_ignore_ascii_case("POSIX") {
+        return None;
+    }
+    trimmed.replace('_', "-").parse().ok()
 }
 
 fn bool_key(value: bool) -> &'static str {
