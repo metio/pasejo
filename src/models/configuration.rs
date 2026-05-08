@@ -37,6 +37,12 @@ pub struct Configuration {
     /// How long should secrets/OTPs be kept in the clipboard in seconds?
     pub clipboard_timeout: Option<u64>,
 
+    /// Whether to show a desktop notification when the clipboard is
+    /// cleared (or fails to clear). Defaults to `true` so users see a
+    /// confirmation. Set to `false` to silence the popup — the
+    /// stderr warnings on clear failure are still emitted regardless.
+    pub clipboard_notify: Option<bool>,
+
     /// Time in seconds between automated execution of configured pull commands
     pub pull_interval_seconds: Option<u64>,
 

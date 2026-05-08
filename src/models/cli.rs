@@ -105,6 +105,7 @@ pub struct ConfigSetArgs {
 pub enum ConfigurationOption {
     IgnoreMissingIdentities,
     ClipboardTimeout,
+    ClipboardNotify,
     PullIntervalSeconds,
     PushIntervalSeconds,
 }

@@ -25,6 +25,9 @@ fn get(configuration: &Configuration, option: &ConfigurationOption) {
         ConfigurationOption::ClipboardTimeout => {
             println!("{}", configuration.clipboard_timeout.unwrap_or(45));
         }
+        ConfigurationOption::ClipboardNotify => {
+            println!("{}", configuration.clipboard_notify.unwrap_or(true));
+        }
         ConfigurationOption::PullIntervalSeconds => {
             println!(
                 "{}",
@@ -60,6 +63,14 @@ fn set(
             } else {
                 let timeout = value.parse::<u64>()?;
                 configuration.clipboard_timeout = Some(timeout);
+            }
+        }
+        ConfigurationOption::ClipboardNotify => {
+            if value.is_empty() {
+                configuration.clipboard_notify = None;
+            } else {
+                let truthy = matches!(value.to_ascii_lowercase().as_str(), "true" | "1" | "yes");
+                configuration.clipboard_notify = Some(truthy);
             }
         }
         ConfigurationOption::PullIntervalSeconds => {

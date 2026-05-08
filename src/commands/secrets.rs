@@ -283,8 +283,9 @@ fn show(
                 qr2term::print_qr(text_to_show.as_str())?;
             } else if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
+                let notify = configuration.clipboard_notify.unwrap_or(true);
                 i18n::secret_copy_into_clipboard(secret_path, &duration);
-                clipboard::copy_text_to_clipboard(text_to_show.as_str(), duration)?;
+                clipboard::copy_text_to_clipboard(text_to_show.as_str(), duration, notify)?;
             } else {
                 i18n::secret_show_as_text(secret_path);
                 println!("{}", text_to_show.as_str());

@@ -20,6 +20,16 @@ Options:
 
 ```
 
+## Configuration Options
+
+The following configuration options are available:
+
+- `ignore-missing-identities`: If set to `true`, the application will ignore missing identities when decrypting stores. This is useful if you want to use the application without having all identities available, e.g., when using multiple Yubikeys. The default value is `true`.
+- `clipboard-timeout`: The timeout in seconds for how long the application should keep secrets or one-time passwords in the clipboard. The default value is `45` seconds.
+- `clipboard-notify`: If set to `true`, `pasejo` shows a desktop notification when the clipboard is cleared (or fails to clear) after a `secret show --clip` / `otp show --clip`. Set to `false` to silence the popup; stderr warnings on clear failure are still emitted regardless. The default value is `true`.
+- `pull-interval-seconds`: The interval in seconds `pasejo` will wait between calling the configured pull hooks of a store. The default value is `86400` seconds (24 hours).
+- `push-interval-seconds`: The interval in seconds `pasejo` will wait between calling the configured push hooks of a store. The default value is `86400` seconds (24 hours).
+
 ## `pasejo config get`
 
 The `pasejo config get` subcommand is used to retrieve the value of a specific configuration option. It works like this:
@@ -31,7 +41,7 @@ Get a configuration value
 Usage: pasejo config get [OPTIONS] <OPTION>
 
 Arguments:
-  <OPTION>  Name of the configuration option to get [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
+  <OPTION>  Name of the configuration option to get [possible values: ignore-missing-identities, clipboard-timeout, clipboard-notify, pull-interval-seconds, push-interval-seconds]
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -64,7 +74,7 @@ Set a configuration value
 Usage: pasejo config set [OPTIONS] <OPTION> <VALUE>
 
 Arguments:
-  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, pull-interval-seconds, push-interval-seconds]
+  <OPTION>  Name of the configuration option to set [possible values: ignore-missing-identities, clipboard-timeout, clipboard-notify, pull-interval-seconds, push-interval-seconds]
   <VALUE>   Value to set the configuration option to
 
 Options:
@@ -90,11 +100,3 @@ $ pasejo config get ignore-missing-identities
 false
 
 ```
-
-## Configuration Options
-
-The following configuration options are available:
-
-- `ignore-missing-identities`: If set to `true`, the application will ignore missing identities when decrypting stores. This is useful if you want to use the application without having all identities available. The default value is `true`.
-- `clipboard-timeout`: The timeout in seconds for how long the application should keep secrets or one-time passwords in the clipboard. The default value is `45` seconds.
-- `pull-interval-seconds`: The interval in seconds `pasejo` will wait between pull operations of the configured synchronizer of a store. The default value is `86400` seconds (24 hours).
