@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::{fs, path};
 
 use crate::cli::i18n;
@@ -232,14 +233,21 @@ fn exec(
     if let Some(registration) = configuration.select_store(store_name) {
         let store_path = registration.path();
         if let Some(parent) = store_path.parent() {
-            if let Some(split) = command.split_first() {
-                duct::cmd(split.0, split.1)
+            if let Some((binary, rest)) = command.split_first() {
+                let status = Command::new(binary)
+                    .args(rest)
                     .env("PASEJO_EXEC_STORE_PATH", store_path)
                     .env("PASEJO_EXEC_STORE_PARENT", parent)
-                    .env("PASEJO_EXEC_COMMAND", split.0)
-                    .dir(parent)
-                    .run()
-                    .with_context(|| format!("Failed to run command {}", split.0))?;
+                    .env("PASEJO_EXEC_COMMAND", binary)
+                    .current_dir(parent)
+                    .status()
+                    .with_context(|| format!("Failed to run command {binary}"))?;
+                if !status.success() {
+                    let exit = status
+                        .code()
+                        .map_or_else(|| String::from("signal"), |c| c.to_string());
+                    anyhow::bail!("Command {binary} exited with {exit}");
+                }
             }
         } else {
             anyhow::bail!(

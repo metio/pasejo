@@ -5,9 +5,9 @@ use crate::cli::i18n;
 use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, write_last_execution};
 use crate::models::configuration::{Configuration, StoreRegistration};
 use anyhow::Context;
-use duct::cmd;
 use std::ffi::{OsStr, OsString};
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 pub struct HookExecutor<'a> {
     pub configuration: &'a Configuration,
@@ -83,12 +83,11 @@ impl HookExecutor<'_> {
                 .split_first()
                 .with_context(|| format!("Empty hook command: {command:?}"))?;
 
-            let output = cmd(binary, rest)
-                .stdout_null()
-                .stderr_capture()
-                .unchecked()
-                .dir(parent)
-                .run()
+            let output = Command::new(binary)
+                .args(rest)
+                .stdout(Stdio::null())
+                .current_dir(parent)
+                .output()
                 .with_context(|| format!("Failed to run hook {command:?}"))?;
 
             if !output.status.success() {

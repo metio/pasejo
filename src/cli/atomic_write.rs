@@ -6,6 +6,8 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Write `contents` to `path` atomically. On Unix the resulting file is
 /// created with mode `0600` so secrets and configuration material are
@@ -44,11 +46,29 @@ pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
 }
 
 fn temp_path(path: &Path) -> PathBuf {
+    // Uniqueness comes from three independent sources, layered defensively:
+    //   * `process::id()` disambiguates concurrent pasejo invocations
+    //     writing to the same directory.
+    //   * `SystemTime::now()` (nanos since the epoch) disambiguates
+    //     sequential calls in different moments. Falls back to 0 if the
+    //     clock is before the epoch — implausible on a real system, but
+    //     the counter below still keeps things unique if it happens.
+    //   * An atomic counter disambiguates rapid calls within a single
+    //     process where the clock hasn't ticked.
+    // `OpenOptions::create_new(true)` in `open_temp` is the actual
+    // safety net: if the temp path *did* collide, the open fails rather
+    // than overwriting. The pieces above just keep that path unlikely.
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let pid = std::process::id();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_nanos());
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+
     let mut name = path
         .file_name()
         .map_or_else(OsString::new, std::ffi::OsStr::to_os_string);
-    name.push(".tmp.");
-    name.push(uuid::Uuid::now_v7().simple().to_string());
+    name.push(format!(".tmp.{pid}.{nanos}.{counter}"));
     let mut tmp = path.to_path_buf();
     tmp.set_file_name(name);
     tmp

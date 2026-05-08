@@ -87,7 +87,7 @@ dependencies = [
  "scrypt",
  "sha2",
  "subtle",
- "which 4.4.2",
+ "which",
  "wsl",
  "x25519-dalek",
  "zeroize",
@@ -1267,18 +1267,6 @@ name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
-
-[[package]]
-name = "duct"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6ce170a0e8454fa0f9b0e5ca38a6ba17ed76a50916839d217eb5357e05cdfde"
-dependencies = [
- "libc",
- "os_pipe",
- "shared_child",
- "shared_thread",
-]
 
 [[package]]
 name = "dunce"
@@ -3138,7 +3126,6 @@ dependencies = [
  "clap_complete",
  "ctrlc",
  "directories",
- "duct",
  "env_logger",
  "human-panic",
  "i18n-embed 0.16.0",
@@ -3166,7 +3153,6 @@ dependencies = [
  "unic-langid",
  "ureq",
  "uuid",
- "which 8.0.2",
  "zeroize",
 ]
 
@@ -3268,7 +3254,7 @@ dependencies = [
  "nom",
  "percent-encoding",
  "secrecy",
- "which 4.4.2",
+ "which",
  "zeroize",
 ]
 
@@ -4218,22 +4204,6 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
-
-[[package]]
-name = "shared_child"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0d94659ad3c2137fef23ae75b03d5241d633f8acded53d672decfa0e6e0caef"
-dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
-name = "shared_thread"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7a6f98357c6bb0ebace19b22220e5543801d9de90ffe77f8abb27c056bac064"
 
 [[package]]
 name = "shlex"
@@ -5188,15 +5158,6 @@ dependencies = [
  "home",
  "once_cell",
  "rustix 0.38.34",
-]
-
-[[package]]
-name = "which"
-version = "8.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81995fafaaaf6ae47a7d0cc83c67caf92aeb7e5331650ae6ff856f7c0c60c459"
-dependencies = [
- "libc",
 ]
 
 [[package]]
