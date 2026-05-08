@@ -73,4 +73,4 @@ trycmd = { version = "1.2.0" }
 rexpect = { version = "0.7.0" }
 
 [build-dependencies]
-cc = "1.2.61"
+cc = "1.2.62"
