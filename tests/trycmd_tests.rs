@@ -34,3 +34,88 @@ fn cli_tests() {
         .env("LANG", "en")
         .env("LC_ALL", "en");
 }
+
+/// Translation gates: small, targeted suites that run the binary under a
+/// non-default locale and assert the translated output. These are *not*
+/// mirrors of `cli_tests` — each only covers a representative slice of
+/// commands that exercise i18n message families, enough to catch broken
+/// `.ftl` files, missing message ids, or argument-name mismatches between
+/// Rust and Fluent. Add a new case to each suite whenever you add a new
+/// message family to `cli/i18n.rs`; the English coverage in `cli_tests`
+/// stays comprehensive.
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_de() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-de/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "de")
+        .env("LC_ALL", "de");
+}
+
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_es() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-es/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "es")
+        .env("LC_ALL", "es");
+}
+
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_fr() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-fr/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "fr")
+        .env("LC_ALL", "fr");
+}
+
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_it() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-it/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "it")
+        .env("LC_ALL", "it");
+}
+
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_ja() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-ja/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "ja")
+        .env("LC_ALL", "ja");
+}
+
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_ko() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-ko/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "ko")
+        .env("LC_ALL", "ko");
+}
+
+#[test]
+#[cfg(not(windows))]
+fn cli_tests_zh() {
+    trycmd::TestCases::new()
+        .case("tests/cmd-zh/**/*.md")
+        .env("PASEJO_CONFIG", "config.toml")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env("LANG", "zh")
+        .env("LC_ALL", "zh");
+}
