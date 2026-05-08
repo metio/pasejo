@@ -3,22 +3,25 @@
 
 use std::fs;
 
-use crate::downloader::{codeberg, github, gitlab};
+use crate::downloader::{Provider, download_public_key};
 use crate::models::cli::RecipientKeysArgs;
 
 pub fn get(args: &RecipientKeysArgs) -> anyhow::Result<Vec<(String, String)>> {
     if let Some(public_key) = &args.public_key {
         Ok(vec![split_ssh_key(public_key)?])
     } else if let Some(codeberg_username) = &args.codeberg {
-        Ok(vec![split_ssh_key(&codeberg::download_public_key(
+        Ok(vec![split_ssh_key(&download_public_key(
+            Provider::Codeberg,
             codeberg_username,
         )?)?])
     } else if let Some(github_username) = &args.github {
-        Ok(vec![split_ssh_key(&github::download_public_key(
+        Ok(vec![split_ssh_key(&download_public_key(
+            Provider::Github,
             github_username,
         )?)?])
     } else if let Some(gitlab_username) = &args.gitlab {
-        Ok(vec![split_ssh_key(&gitlab::download_public_key(
+        Ok(vec![split_ssh_key(&download_public_key(
+            Provider::Gitlab,
             gitlab_username,
         )?)?])
     } else if let Some(filename) = &args.file {
