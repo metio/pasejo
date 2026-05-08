@@ -105,6 +105,14 @@ mod interactive_tests {
     where
         T: FnOnce(PtySession, TempDir) -> anyhow::Result<()>,
     {
+        // Pin the locale so every child process picks up English from the
+        // i18n loader, regardless of the developer's shell locale. These
+        // tests are #[serial] so the global env mutation is race-free.
+        unsafe {
+            env::set_var("LANG", "en");
+            env::set_var("LC_ALL", "en");
+        }
+
         let cargo_package_name = env!("CARGO_PKG_NAME");
         let temp = TempDir::new()?;
         let identity_file = temp.path().join("private-key");

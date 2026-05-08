@@ -24,5 +24,13 @@ fn cli_tests() {
         // Disable hook-throttle marker tracking entirely. Without this,
         // markers persisted in the user's data dir would carry over between
         // tests (and between `cargo test` runs), making the suite flaky.
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1");
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        // Pin the locale so the binary's i18n loader always selects English.
+        // Without this, snapshots would be checked against the developer's
+        // system locale (e.g. de_DE) and break on machines other than the
+        // author's. LC_ALL takes precedence over LANG / LC_MESSAGES, so
+        // setting it is sufficient on its own, but we set both for
+        // belt-and-braces.
+        .env("LANG", "en")
+        .env("LC_ALL", "en");
 }
