@@ -6,7 +6,7 @@ use std::path::{Path, absolute};
 use clap::error::ErrorKind;
 
 use crate::cli::errors::error_exit;
-use crate::cli::logs;
+use crate::cli::i18n;
 use crate::models::cli::IdentityCommands;
 use crate::models::configuration::{Configuration, Identity};
 
@@ -66,7 +66,7 @@ fn add(
             );
         }
 
-        logs::identity_added(absolute_path.as_path());
+        i18n::identity_added(absolute_path.as_path());
         Ok(())
     }
 }
@@ -84,7 +84,7 @@ fn remove(
     };
     if configuration.has_identity(&identity, store_name, global) {
         configuration.remove_identity(&identity, store_name, global)?;
-        logs::identity_removed(absolute_path.as_path());
+        i18n::identity_removed(absolute_path.as_path());
         Ok(())
     } else if ignore_missing {
         Ok(())
@@ -108,15 +108,15 @@ fn list(
 ) -> anyhow::Result<()> {
     if global {
         for identity in &configuration.identities {
-            println!("global: {}", identity.file.display());
+            i18n::list_global_identity(&identity.file);
         }
         Ok(())
     } else if let Some(registration) = configuration.select_store(store_name) {
         for identity in &configuration.identities {
-            println!("global: {}", identity.file.display());
+            i18n::list_global_identity(&identity.file);
         }
         for identity in &registration.identities {
-            println!("store: {}", identity.file.display());
+            i18n::list_store_identity(&identity.file);
         }
 
         Ok(())

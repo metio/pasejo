@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{clipboard, logs, prompts};
+use crate::cli::{clipboard, i18n, prompts};
 use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::SecretCommands;
 use crate::models::configuration::Configuration;
@@ -116,7 +116,7 @@ fn add(
         }
         let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
         store.secrets.insert(secret_path.to_owned(), secret);
-        logs::secret_added(secret_path);
+        i18n::secret_added(secret_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -134,12 +134,10 @@ fn audit(
                 .secrets
                 .get(secret_path)
                 .ok_or_else(|| anyhow::anyhow!("No secret found at '{secret_path}'"))?;
-            let password_strength = scorer::score(&analyzer::analyze(value));
-            println!("{secret_path}: {password_strength}/100");
+            i18n::password_strength(secret_path, scorer::score(&analyzer::analyze(value)));
         } else {
             for (key, value) in &store.secrets {
-                let password_strength = scorer::score(&analyzer::analyze(value));
-                println!("{key}: {password_strength}/100");
+                i18n::password_strength(key, scorer::score(&analyzer::analyze(value)));
             }
         }
         Ok(((), StoreMutation::Unchanged))
@@ -167,7 +165,7 @@ fn copy(
         store
             .secrets
             .insert(target_path.to_owned(), secret.to_owned());
-        logs::secret_copied(source_path, target_path);
+        i18n::secret_copied(source_path, target_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -191,7 +189,7 @@ fn mv(
             anyhow::bail!("No secret found at '{current_path}'")
         };
         store.secrets.insert(new_path.to_owned(), secret);
-        logs::secret_moved(current_path, new_path);
+        i18n::secret_moved(current_path, new_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -237,7 +235,7 @@ fn remove(
             anyhow::bail!("No secret found at '{secret_path}'")
         };
         drop(Zeroizing::new(removed));
-        logs::secret_removed(secret_path);
+        i18n::secret_removed(secret_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -281,14 +279,14 @@ fn show(
         },
         |text_to_show: &Zeroizing<String>| {
             if qrcode {
-                logs::secret_show_as_qrcode(secret_path);
+                i18n::secret_show_as_qrcode(secret_path);
                 qr2term::print_qr(text_to_show.as_str())?;
             } else if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
-                logs::secret_copy_into_clipboard(secret_path, &duration);
+                i18n::secret_copy_into_clipboard(secret_path, &duration);
                 clipboard::copy_text_to_clipboard(text_to_show.as_str(), duration)?;
             } else {
-                logs::secret_show_as_text(secret_path);
+                i18n::secret_show_as_text(secret_path);
                 println!("{}", text_to_show.as_str());
             }
             Ok(())
@@ -353,7 +351,7 @@ fn generate(
             store.secrets.insert(secret_path.to_owned(), secret);
         }
 
-        logs::secret_generated(secret_path);
+        i18n::secret_generated(secret_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -372,7 +370,7 @@ fn edit(
         };
         let secret = prompts::edit_secret(secret_path, current_value)?;
         store.secrets.insert(secret_path.to_owned(), secret);
-        logs::secret_edited(secret_path);
+        i18n::secret_edited(secret_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -389,13 +387,13 @@ fn grep(
             let re = regex::Regex::new(search_string)?;
             for (key, value) in &store.secrets {
                 if re.is_match(value) {
-                    println!("{key}:\n{value}");
+                    i18n::secret_search_match(key, value);
                 }
             }
         } else {
             for (key, value) in &store.secrets {
                 if value.contains(search_string) {
-                    println!("{key}:\n{value}");
+                    i18n::secret_search_match(key, value);
                 }
             }
         }

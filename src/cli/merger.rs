@@ -30,18 +30,18 @@ where
                 merged_map.insert(key.clone(), current_value.clone());
             } else {
                 merge_conflict = true;
-                cli::logs::merge_conflict_values(value_type, key);
+                cli::i18n::merge_conflict_values(value_type, key);
             }
         } else if let Some(current_value) = current_value {
             if value != current_value {
                 merge_conflict = true;
-                cli::logs::merge_conflict_removed_and_modified(value_type, key);
+                cli::i18n::merge_conflict_removed_and_modified(value_type, key);
             }
         } else if let Some(other_value) = other_value
             && value != other_value
         {
             merge_conflict = true;
-            cli::logs::merge_conflict_removed_and_modified(value_type, key);
+            cli::i18n::merge_conflict_removed_and_modified(value_type, key);
         }
     }
 
@@ -58,7 +58,7 @@ where
             if let Some(already_added_value) = already_added_value {
                 if already_added_value != value {
                     merge_conflict = true;
-                    cli::logs::merge_conflict_values(value_type, key);
+                    cli::i18n::merge_conflict_values(value_type, key);
                 }
             } else {
                 merged_map.insert(key.clone(), value.clone());
