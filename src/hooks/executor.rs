@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::logs;
+use crate::cli::i18n;
 use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, write_last_execution};
 use crate::models::configuration::{Configuration, StoreRegistration};
 use anyhow::Context;
@@ -23,7 +23,7 @@ impl HookExecutor<'_> {
         {
             if let Some(store_name) = self.registration.path().file_name() {
                 if self.force || (!self.offline && self.should_pull(store_name)?) {
-                    logs::execute_pull_hooks(&self.registration.name);
+                    i18n::execute_pull_hooks(&self.registration.name);
                     self.execute(&self.configuration.pull_commands)?;
                     self.execute(&self.registration.pull_commands)?;
                     if self.force {
@@ -45,7 +45,7 @@ impl HookExecutor<'_> {
         {
             if let Some(store_name) = self.registration.path().file_name() {
                 if self.force || (!self.offline && self.should_push(store_name)?) {
-                    logs::execute_push_hooks(&self.registration.name);
+                    i18n::execute_push_hooks(&self.registration.name);
                     self.execute(&self.configuration.push_commands)?;
                     self.execute(&self.registration.push_commands)?;
                     if self.force {

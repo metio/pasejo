@@ -140,3 +140,94 @@ pub fn secret_moved(source_path: &str, target_path: &str) {
 pub fn secret_removed(secret_path: &str) {
     info!("Removed secret at '{secret_path}'");
 }
+
+pub fn list_global_identity(identity_file: &Path) {
+    println!("global: {}", identity_file.display());
+}
+
+pub fn list_store_identity(identity_file: &Path) {
+    println!("store: {}", identity_file.display());
+}
+
+pub fn list_global_pull_hook(command: &str) {
+    println!("global pull: {command}");
+}
+
+pub fn list_global_push_hook(command: &str) {
+    println!("global push: {command}");
+}
+
+pub fn list_store_pull_hook(command: &str) {
+    println!("store pull: {command}");
+}
+
+pub fn list_store_push_hook(command: &str) {
+    println!("store push: {command}");
+}
+
+pub fn list_store(store_name: &str, store_path: &Path, is_default: bool) {
+    if is_default {
+        println!("{store_name}: {} (default)", store_path.display());
+    } else {
+        println!("{store_name}: {}", store_path.display());
+    }
+}
+
+pub fn password_strength(secret_path: &str, score: f64) {
+    println!("{secret_path}: {score}/100");
+}
+
+pub fn secret_search_match(key: &str, value: &str) {
+    println!("{key}:\n{value}");
+}
+
+pub fn clipboard_read_for_compare_failed(error: &impl std::fmt::Display) {
+    debug!("Failed to read clipboard for compare: {error}");
+}
+
+pub fn clipboard_ctrlc_handler_install_failed(error: &impl std::fmt::Display) {
+    warn!(
+        "Failed to install Ctrl-C handler: {error}. Clipboard will only clear after the configured timeout."
+    );
+}
+
+pub fn clipboard_clear_failed(error: &impl std::fmt::Display) {
+    warn!("Failed to clear clipboard: {error}");
+}
+
+pub fn clipboard_manual_clear_required() {
+    error!("Clipboard could not be cleared automatically — please clear it manually now.");
+}
+
+pub fn clipboard_notification_dispatch_failed(error: &impl std::fmt::Display) {
+    debug!("Failed to show clipboard-cleared notification: {error}");
+}
+
+pub fn clipboard_notification_cleared(cancelled: bool) -> String {
+    format!("Clipboard cleared{}", cancellation_suffix(cancelled))
+}
+
+pub fn clipboard_notification_unchanged(cancelled: bool) -> String {
+    format!(
+        "Clipboard left untouched (you copied something else){}",
+        cancellation_suffix(cancelled)
+    )
+}
+
+pub fn clipboard_notification_forcibly_cleared(cancelled: bool) -> String {
+    format!(
+        "Clipboard cleared (couldn't verify contents){}",
+        cancellation_suffix(cancelled)
+    )
+}
+
+pub fn clipboard_notification_failed(cancelled: bool) -> String {
+    format!(
+        "Failed to clear clipboard! Please clear it manually.{}",
+        cancellation_suffix(cancelled)
+    )
+}
+
+const fn cancellation_suffix(cancelled: bool) -> &'static str {
+    if cancelled { " (cancelled)" } else { "" }
+}

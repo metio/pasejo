@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::logs;
+use crate::cli::i18n;
 use crate::commands::store_op::{NO_STORE_FOUND_ERROR, StoreMutation, with_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::RecipientCommands;
@@ -86,11 +86,11 @@ fn add(
     encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
     for public_key in public_keys {
-        logs::recipient_added(&public_key.0);
+        i18n::recipient_added(&public_key.0);
     }
 
     if configuration.identities.is_empty() && registration.identities.is_empty() {
-        logs::no_identities_exist_yet(&registration.name);
+        i18n::no_identities_exist_yet(&registration.name);
     }
 
     hooks.execute_push_commands()?;
@@ -116,7 +116,7 @@ fn remove(
             .any(|recipient| recipient.public_key == public_key)
         {
             if ignore_unknown {
-                logs::recipient_does_not_exist_ignored(public_key);
+                i18n::recipient_does_not_exist_ignored(public_key);
                 return Ok(((), StoreMutation::Unchanged));
             }
             anyhow::bail!("Recipient not found in the store");
@@ -124,7 +124,7 @@ fn remove(
         store
             .recipients
             .retain(|recipient| recipient.public_key != public_key);
-        logs::recipient_removed(public_key);
+        i18n::recipient_removed(public_key);
         Ok(((), StoreMutation::Modified))
     })
 }

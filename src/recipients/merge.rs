@@ -57,7 +57,7 @@ pub fn merge_recipients(
                 } else {
                     // If names are different, we got a merge conflict
                     merge_conflict = true;
-                    cli::logs::merge_conflict_recipient_names(
+                    cli::i18n::merge_conflict_recipient_names(
                         &recipient.public_key,
                         &current_recipient.name,
                         &other_recipient.name,
@@ -66,14 +66,14 @@ pub fn merge_recipients(
             } else if let (Some(current_recipient), None) = (current_recipient, other_recipient) {
                 // current has recipient, but other removed it
                 merge_conflict = true;
-                cli::logs::merge_conflict_recipient_removed_and_renamed(
+                cli::i18n::merge_conflict_recipient_removed_and_renamed(
                     &recipient.public_key,
                     &current_recipient.name,
                 );
             } else if let (None, Some(other_recipient)) = (current_recipient, other_recipient) {
                 // other has recipient, but current removed it
                 merge_conflict = true;
-                cli::logs::merge_conflict_recipient_removed_and_renamed(
+                cli::i18n::merge_conflict_recipient_removed_and_renamed(
                     &recipient.public_key,
                     &other_recipient.name,
                 );
@@ -106,7 +106,7 @@ pub fn merge_recipients(
                 if already_added_recipient.name != recipient.name {
                     // If the recipient is already added but with a different name, we have a conflict
                     merge_conflict = true;
-                    cli::logs::merge_conflict_recipient_names(
+                    cli::i18n::merge_conflict_recipient_names(
                         &recipient.public_key,
                         &already_added_recipient.name,
                         &recipient.name,

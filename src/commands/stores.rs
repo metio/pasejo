@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::{fs, path};
 
-use crate::cli::logs;
+use crate::cli::i18n;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::StoreCommands;
 use crate::models::configuration::{Configuration, encrypt_store_to_path};
@@ -66,7 +66,7 @@ fn add(
     if let Some(parent) = absolute_path.parent() {
         fs::create_dir_all(parent)?;
         configuration.add_store(&absolute_path.display().to_string(), store_name)?;
-        logs::store_add_success(store_name, &absolute_path.display().to_string());
+        i18n::store_add_success(store_name, &absolute_path.display().to_string());
         if default {
             set_default(configuration, store_name)?;
         }
@@ -96,13 +96,13 @@ fn remove(
             fs::remove_file(path_to_store)?;
         }
     }
-    logs::store_remove_success(name);
+    i18n::store_remove_success(name);
     Ok(())
 }
 
 fn set_default(mut configuration: Configuration, store_name: &str) -> anyhow::Result<()> {
     configuration.set_default_store(store_name)?;
-    logs::store_set_default(store_name);
+    i18n::store_set_default(store_name);
     Ok(())
 }
 
@@ -143,16 +143,11 @@ fn decrypt(
 
 fn list(configuration: &Configuration) {
     for store in &configuration.stores {
-        let text = configuration
+        let is_default = configuration
             .default_store
-            .clone()
-            .filter(|default| default == &store.name)
-            .map_or_else(
-                || format!("{}: {}", store.name, store.path.display()),
-                |default| format!("{}: {} (default)", default, store.path.display()),
-            );
-
-        println!("{text}");
+            .as_ref()
+            .is_some_and(|default| default == &store.name);
+        i18n::list_store(&store.name, &store.path, is_default);
     }
 }
 

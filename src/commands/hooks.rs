@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use crate::cli::i18n;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HookCommands;
 use crate::models::configuration::Configuration;
@@ -48,24 +49,24 @@ fn get(
 ) -> anyhow::Result<()> {
     if global {
         for command in &configuration.pull_commands {
-            println!("global pull: {command}");
+            i18n::list_global_pull_hook(command);
         }
         for command in &configuration.push_commands {
-            println!("global push: {command}");
+            i18n::list_global_push_hook(command);
         }
         Ok(())
     } else if let Some(registration) = configuration.select_store(store_name) {
         for command in &configuration.pull_commands {
-            println!("global pull: {command}");
+            i18n::list_global_pull_hook(command);
         }
         for command in &registration.pull_commands {
-            println!("store pull: {command}");
+            i18n::list_store_pull_hook(command);
         }
         for command in &configuration.push_commands {
-            println!("global push: {command}");
+            i18n::list_global_push_hook(command);
         }
         for command in &registration.push_commands {
-            println!("store push: {command}");
+            i18n::list_store_push_hook(command);
         }
 
         Ok(())

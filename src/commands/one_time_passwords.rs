@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{clipboard, logs, prompts};
+use crate::cli::{clipboard, i18n, prompts};
 use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::{Cli, OtpCommands};
 use crate::models::configuration::Configuration;
@@ -92,7 +92,7 @@ fn add(
             );
         }
         store.otp.insert(password_path.to_owned(), password.clone());
-        logs::one_time_password_added(password_path);
+        i18n::one_time_password_added(password_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -116,7 +116,7 @@ fn remove(
         if store.otp.remove(password_path).is_none() {
             anyhow::bail!("No one-time password found at '{password_path}'")
         }
-        logs::one_time_password_removed(password_path);
+        i18n::one_time_password_removed(password_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -169,11 +169,11 @@ fn show(
         |code: &u32| {
             if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
-                logs::one_time_password_copy_into_clipboard(password_path, &duration);
+                i18n::one_time_password_copy_into_clipboard(password_path, &duration);
                 let code_text = Zeroizing::new(format!("{code}"));
                 clipboard::copy_text_to_clipboard(code_text.as_str(), duration)?;
             } else {
-                logs::one_time_password_show(password_path);
+                i18n::one_time_password_show(password_path);
                 println!("{code}");
             }
             Ok(())
@@ -203,7 +203,7 @@ fn mv(
             anyhow::bail!("No one-time password found at '{current_path}'")
         };
         store.otp.insert(new_path.to_owned(), password);
-        logs::one_time_password_moved(current_path, new_path);
+        i18n::one_time_password_moved(current_path, new_path);
         Ok(((), StoreMutation::Modified))
     })
 }
@@ -231,7 +231,7 @@ fn copy(
         store
             .otp
             .insert(target_path.to_owned(), password.to_owned());
-        logs::one_time_password_copied(source_path, target_path);
+        i18n::one_time_password_copied(source_path, target_path);
         Ok(((), StoreMutation::Modified))
     })
 }

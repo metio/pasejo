@@ -17,6 +17,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 use zeroize::Zeroizing;
 
+use crate::cli::i18n;
+
 const POLL_TICK: Duration = Duration::from_millis(100);
 
 /// Upper bound on how long we'll hold a secret in the clipboard. Absurd
@@ -63,7 +65,7 @@ impl ClipboardGuard {
             Err(error) => {
                 // Couldn't read the clipboard to compare — clear defensively
                 // rather than risk leaving the secret behind.
-                log::debug!("Failed to read clipboard for compare: {error}");
+                i18n::clipboard_read_for_compare_failed(&error);
                 self.clipboard.clear()?;
                 Ok(ClearOutcome::ForciblyCleared)
             }
@@ -92,10 +94,7 @@ static HANDLER_INSTALLED: OnceLock<()> = OnceLock::new();
 fn install_interrupt_handler() {
     HANDLER_INSTALLED.get_or_init(|| {
         if let Err(error) = ctrlc::set_handler(|| INTERRUPTED.store(true, Ordering::Relaxed)) {
-            log::warn!(
-                "Failed to install Ctrl-C handler: {error}. \
-                 Clipboard will only clear after the configured timeout."
-            );
+            i18n::clipboard_ctrlc_handler_install_failed(&error);
         }
     });
 }
@@ -170,8 +169,8 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
         // Critical path: the user's secret may still be in the clipboard.
         // Emit to stderr in addition to the notification, since a missing
         // notification daemon would otherwise leave the user uninformed.
-        log::warn!("Failed to clear clipboard: {error}");
-        log::error!("Clipboard could not be cleared automatically — please clear it manually now.");
+        i18n::clipboard_clear_failed(error);
+        i18n::clipboard_manual_clear_required();
     }
     let (body, timeout) = notification(&outcome, cancelled);
     if let Err(error) = Notification::new()
@@ -180,7 +179,7 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
         .timeout(timeout)
         .show()
     {
-        log::debug!("Failed to show clipboard-cleared notification: {error}");
+        i18n::clipboard_notification_dispatch_failed(&error);
     }
     Ok(())
 }
@@ -189,19 +188,21 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
 /// Pure: no side effects, no I/O. Logging of the underlying error is the
 /// caller's responsibility.
 fn notification(outcome: &anyhow::Result<ClearOutcome>, cancelled: bool) -> (String, Timeout) {
-    let suffix = if cancelled { " (cancelled)" } else { "" };
     match outcome {
-        Ok(ClearOutcome::Cleared) => (format!("Clipboard cleared{suffix}"), Timeout::Default),
+        Ok(ClearOutcome::Cleared) => (
+            i18n::clipboard_notification_cleared(cancelled),
+            Timeout::Default,
+        ),
         Ok(ClearOutcome::Unchanged) => (
-            format!("Clipboard left untouched (you copied something else){suffix}"),
+            i18n::clipboard_notification_unchanged(cancelled),
             Timeout::Default,
         ),
         Ok(ClearOutcome::ForciblyCleared) => (
-            format!("Clipboard cleared (couldn't verify contents){suffix}"),
+            i18n::clipboard_notification_forcibly_cleared(cancelled),
             Timeout::Default,
         ),
         Err(_) => (
-            format!("Failed to clear clipboard! Please clear it manually.{suffix}"),
+            i18n::clipboard_notification_failed(cancelled),
             Timeout::Never,
         ),
     }
