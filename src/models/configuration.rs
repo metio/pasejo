@@ -121,89 +121,7 @@ impl Configuration {
     fn migrate_configuration(config_path: &Path) -> Result<()> {
         let config_content = fs::read_to_string(config_path)?;
         let mut migrated_config = config_content.parse::<Table>()?;
-
-        if !migrated_config.contains_key("pull_commands") {
-            migrated_config.insert(
-                "pull_commands".to_string(),
-                toml::Value::from(vec![] as Vec<String>),
-            );
-        }
-        if !migrated_config.contains_key("push_commands") {
-            migrated_config.insert(
-                "push_commands".to_string(),
-                toml::Value::from(vec![] as Vec<String>),
-            );
-        }
-        if let Some(stores_value) = migrated_config.get_mut("stores")
-            && let Some(stores) = stores_value.as_array_mut()
-        {
-            for store in stores {
-                if let Some(table) = store.as_table_mut() {
-                    let has_pull_commands = table.contains_key("pull_commands");
-                    let has_push_commands = table.contains_key("push_commands");
-
-                    if let Some(synchronizer) = table.remove("synchronizer") {
-                        if let Some(used_synchronizer) = synchronizer.as_str() {
-                            let mut pull_commands = Vec::new();
-                            let mut push_commands = Vec::new();
-
-                            match used_synchronizer {
-                                "Git" => {
-                                    pull_commands.push(String::from("git pull"));
-                                    push_commands.push(String::from("git add %p"));
-                                    push_commands
-                                        .push(String::from("git commit --message 'pasejo commit'"));
-                                    push_commands.push(String::from("git push"));
-                                }
-                                "Mercurial" => {
-                                    pull_commands.push(String::from("hg pull"));
-                                    push_commands.push(String::from("hg add %p"));
-                                    push_commands
-                                        .push(String::from("hg commit --message 'pasejo commit'"));
-                                    push_commands.push(String::from("hg push"));
-                                }
-                                "Pijul" => {
-                                    pull_commands.push(String::from("pijul pull"));
-                                    push_commands.push(String::from("pijul add %p"));
-                                    push_commands.push(String::from(
-                                        "pijul record --message 'pasejo commit'",
-                                    ));
-                                    push_commands.push(String::from("pijul push"));
-                                }
-                                _ => {}
-                            }
-
-                            if !has_pull_commands {
-                                table.insert(
-                                    "pull_commands".to_string(),
-                                    toml::Value::from(pull_commands),
-                                );
-                            }
-                            if !has_push_commands {
-                                table.insert(
-                                    "push_commands".to_string(),
-                                    toml::Value::from(push_commands),
-                                );
-                            }
-                        }
-                    } else {
-                        if !has_pull_commands {
-                            table.insert(
-                                "pull_commands".to_string(),
-                                toml::Value::from(vec![] as Vec<String>),
-                            );
-                        }
-                        if !has_push_commands {
-                            table.insert(
-                                "push_commands".to_string(),
-                                toml::Value::from(vec![] as Vec<String>),
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
+        migrate_table(&mut migrated_config);
         let serialized = toml::to_string_pretty(&migrated_config)
             .context("Could not serialize migrated configuration")?;
         atomic_write::write(config_path, serialized.as_bytes())
@@ -384,6 +302,87 @@ impl Configuration {
 impl StoreRegistration {
     pub fn path(&self) -> &Path {
         self.path.as_path()
+    }
+}
+
+fn default_hook_commands(synchronizer: &str) -> Option<(Vec<String>, Vec<String>)> {
+    match synchronizer {
+        "Git" => Some((
+            vec![String::from("git pull")],
+            vec![
+                String::from("git add %p"),
+                String::from("git commit --message 'pasejo commit'"),
+                String::from("git push"),
+            ],
+        )),
+        "Mercurial" => Some((
+            vec![String::from("hg pull")],
+            vec![
+                String::from("hg add %p"),
+                String::from("hg commit --message 'pasejo commit'"),
+                String::from("hg push"),
+            ],
+        )),
+        "Pijul" => Some((
+            vec![String::from("pijul pull")],
+            vec![
+                String::from("pijul add %p"),
+                String::from("pijul record --message 'pasejo commit'"),
+                String::from("pijul push"),
+            ],
+        )),
+        _ => None,
+    }
+}
+
+fn migrate_table(table: &mut Table) {
+    if !table.contains_key("pull_commands") {
+        table.insert(
+            "pull_commands".to_string(),
+            toml::Value::from(Vec::<String>::new()),
+        );
+    }
+    if !table.contains_key("push_commands") {
+        table.insert(
+            "push_commands".to_string(),
+            toml::Value::from(Vec::<String>::new()),
+        );
+    }
+    if let Some(stores_value) = table.get_mut("stores")
+        && let Some(stores) = stores_value.as_array_mut()
+    {
+        for store in stores {
+            if let Some(store_table) = store.as_table_mut() {
+                migrate_store_table(store_table);
+            }
+        }
+    }
+}
+
+fn migrate_store_table(table: &mut Table) {
+    let has_pull_commands = table.contains_key("pull_commands");
+    let has_push_commands = table.contains_key("push_commands");
+
+    let (pull_commands, push_commands) = match table.remove("synchronizer") {
+        None => (Vec::new(), Vec::new()),
+        Some(synchronizer) => match synchronizer.as_str() {
+            Some(name) => default_hook_commands(name).unwrap_or_default(),
+            // Non-string synchronizer: drop the key but leave commands untouched.
+            None => return,
+        },
+    };
+
+    if !has_pull_commands {
+        table.insert(
+            "pull_commands".to_string(),
+            toml::Value::from(pull_commands),
+        );
+    }
+    if !has_push_commands {
+        table.insert(
+            "push_commands".to_string(),
+            toml::Value::from(push_commands),
+        );
     }
 }
 
@@ -577,5 +576,196 @@ mod tests {
             "expected an absolute path, got {}",
             resolved.display()
         );
+    }
+
+    fn parse_table(toml_text: &str) -> Table {
+        toml_text.parse::<Table>().unwrap()
+    }
+
+    fn string_array(value: &toml::Value) -> Vec<String> {
+        value
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn default_hook_commands_for_git() {
+        let (pull, push) = default_hook_commands("Git").unwrap();
+        assert_eq!(pull, vec!["git pull"]);
+        assert_eq!(
+            push,
+            vec![
+                "git add %p",
+                "git commit --message 'pasejo commit'",
+                "git push",
+            ]
+        );
+    }
+
+    #[test]
+    fn default_hook_commands_for_mercurial() {
+        let (pull, push) = default_hook_commands("Mercurial").unwrap();
+        assert_eq!(pull, vec!["hg pull"]);
+        assert_eq!(
+            push,
+            vec![
+                "hg add %p",
+                "hg commit --message 'pasejo commit'",
+                "hg push",
+            ]
+        );
+    }
+
+    #[test]
+    fn default_hook_commands_for_pijul() {
+        let (pull, push) = default_hook_commands("Pijul").unwrap();
+        assert_eq!(pull, vec!["pijul pull"]);
+        assert_eq!(
+            push,
+            vec![
+                "pijul add %p",
+                "pijul record --message 'pasejo commit'",
+                "pijul push",
+            ]
+        );
+    }
+
+    #[test]
+    fn default_hook_commands_for_unknown_returns_none() {
+        assert!(default_hook_commands("svn").is_none());
+        assert!(default_hook_commands("").is_none());
+    }
+
+    #[test]
+    fn migrate_table_inserts_top_level_command_arrays_when_missing() {
+        let mut table = parse_table("");
+        migrate_table(&mut table);
+        assert_eq!(string_array(&table["pull_commands"]), Vec::<String>::new());
+        assert_eq!(string_array(&table["push_commands"]), Vec::<String>::new());
+    }
+
+    #[test]
+    fn migrate_table_preserves_existing_top_level_command_arrays() {
+        let mut table = parse_table(
+            r#"
+            pull_commands = ["custom pull"]
+            push_commands = ["custom push"]
+            "#,
+        );
+        migrate_table(&mut table);
+        assert_eq!(string_array(&table["pull_commands"]), vec!["custom pull"]);
+        assert_eq!(string_array(&table["push_commands"]), vec!["custom push"]);
+    }
+
+    #[test]
+    fn migrate_table_replaces_git_synchronizer_with_default_commands() {
+        let mut table = parse_table(
+            r#"
+            [[stores]]
+            path = "/tmp/store"
+            name = "primary"
+            synchronizer = "Git"
+            "#,
+        );
+        migrate_table(&mut table);
+        let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
+        assert!(!store.contains_key("synchronizer"));
+        assert_eq!(string_array(&store["pull_commands"]), vec!["git pull"]);
+        assert_eq!(
+            string_array(&store["push_commands"]),
+            vec![
+                "git add %p",
+                "git commit --message 'pasejo commit'",
+                "git push",
+            ]
+        );
+    }
+
+    #[test]
+    fn migrate_table_drops_unknown_synchronizer_and_inserts_empty_commands() {
+        let mut table = parse_table(
+            r#"
+            [[stores]]
+            path = "/tmp/store"
+            name = "primary"
+            synchronizer = "svn"
+            "#,
+        );
+        migrate_table(&mut table);
+        let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
+        assert!(!store.contains_key("synchronizer"));
+        assert_eq!(string_array(&store["pull_commands"]), Vec::<String>::new());
+        assert_eq!(string_array(&store["push_commands"]), Vec::<String>::new());
+    }
+
+    #[test]
+    fn migrate_table_preserves_existing_per_store_commands_over_synchronizer_defaults() {
+        let mut table = parse_table(
+            r#"
+            [[stores]]
+            path = "/tmp/store"
+            name = "primary"
+            synchronizer = "Git"
+            pull_commands = ["already configured"]
+            push_commands = ["also configured"]
+            "#,
+        );
+        migrate_table(&mut table);
+        let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
+        assert!(!store.contains_key("synchronizer"));
+        assert_eq!(
+            string_array(&store["pull_commands"]),
+            vec!["already configured"]
+        );
+        assert_eq!(
+            string_array(&store["push_commands"]),
+            vec!["also configured"]
+        );
+    }
+
+    #[test]
+    fn migrate_table_inserts_empty_commands_when_no_synchronizer() {
+        let mut table = parse_table(
+            r#"
+            [[stores]]
+            path = "/tmp/store"
+            name = "primary"
+            "#,
+        );
+        migrate_table(&mut table);
+        let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
+        assert_eq!(string_array(&store["pull_commands"]), Vec::<String>::new());
+        assert_eq!(string_array(&store["push_commands"]), Vec::<String>::new());
+    }
+
+    #[test]
+    fn migrate_table_skips_command_insertion_when_synchronizer_is_not_a_string() {
+        let mut table = parse_table(
+            r#"
+            [[stores]]
+            path = "/tmp/store"
+            name = "primary"
+            synchronizer = 42
+            "#,
+        );
+        migrate_table(&mut table);
+        let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
+        // The non-string synchronizer is still removed, but no command keys are inserted.
+        assert!(!store.contains_key("synchronizer"));
+        assert!(!store.contains_key("pull_commands"));
+        assert!(!store.contains_key("push_commands"));
+    }
+
+    #[test]
+    fn migrate_table_handles_missing_stores_array() {
+        let mut table = parse_table(r#"default_store = "primary""#);
+        migrate_table(&mut table);
+        // Top-level command arrays still get filled in.
+        assert!(table.contains_key("pull_commands"));
+        assert!(table.contains_key("push_commands"));
+        assert!(!table.contains_key("stores"));
     }
 }
