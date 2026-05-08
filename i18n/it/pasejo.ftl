@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = Installazione del gestore Ctrl-C fallit
 clipboard-clear-failed = Cancellazione degli appunti fallita: { $error }
 clipboard-manual-clear-required = Gli appunti non sono stati cancellati automaticamente — cancellarli manualmente ora.
 clipboard-notification-dispatch-failed = Visualizzazione della notifica di cancellazione degli appunti fallita: { $error }
+clipboard-drop-clear-failed = Cancellazione degli appunti durante la pulizia fallita: { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] Appunti cancellati (annullato)
    *[false] Appunti cancellati

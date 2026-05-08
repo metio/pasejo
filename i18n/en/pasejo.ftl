@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = Failed to install Ctrl-C handler: { $er
 clipboard-clear-failed = Failed to clear clipboard: { $error }
 clipboard-manual-clear-required = Clipboard could not be cleared automatically — please clear it manually now.
 clipboard-notification-dispatch-failed = Failed to show clipboard-cleared notification: { $error }
+clipboard-drop-clear-failed = Failed to clear clipboard during cleanup: { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] Clipboard cleared (cancelled)
    *[false] Clipboard cleared

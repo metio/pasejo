@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = No se pudo instalar el manejador de Ctr
 clipboard-clear-failed = No se pudo borrar el portapapeles: { $error }
 clipboard-manual-clear-required = El portapapeles no se pudo borrar automáticamente — por favor, bórrelo manualmente ahora.
 clipboard-notification-dispatch-failed = No se pudo mostrar la notificación de borrado del portapapeles: { $error }
+clipboard-drop-clear-failed = No se pudo borrar el portapapeles durante la limpieza: { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] Portapapeles borrado (cancelado)
    *[false] Portapapeles borrado

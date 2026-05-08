@@ -47,7 +47,13 @@ passwords = { version = "3.1.16" }
 qr2term = { version = "0.3.3" }
 regex = { version = "1.12.3" }
 rqrr = { version = "0.10.1" }
-rust-embed = { version = "8.7" }
+# `debug-embed` makes rust-embed embed the i18n/ files into the binary in
+# debug builds too. Without it, every binary spawn reads the .ftl files
+# (and walks the i18n/ folder) from disk; trycmd spawns a fresh process
+# per .md case, so the per-spawn filesystem cost dominates the suite
+# runtime. Release builds embed regardless, so this only affects tests
+# and `cargo run` development.
+rust-embed = { version = "8.7", features = ["debug-embed"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149" }
 shlex = { version = "1.3.0" }
