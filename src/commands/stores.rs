@@ -7,7 +7,7 @@ use std::{fs, path};
 use crate::cli::logs;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::StoreCommands;
-use crate::models::configuration::Configuration;
+use crate::models::configuration::{Configuration, encrypt_store_to_path};
 use crate::{one_time_passwords, recipients, secrets};
 use anyhow::Context;
 
@@ -216,7 +216,7 @@ fn merge(
         }
 
         if errors.is_empty() {
-            Configuration::encrypt_store_to_path(&current_version_store, current_version)
+            encrypt_store_to_path(&current_version_store, current_version)
         } else {
             let error_messages: Vec<String> =
                 errors.into_iter().map(|error| error.to_string()).collect();

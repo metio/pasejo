@@ -269,17 +269,6 @@ impl Configuration {
         Ok(store)
     }
 
-    pub fn encrypt_store(registration: &StoreRegistration, store: &PasswordStore) -> Result<()> {
-        Self::encrypt_store_to_path(store, registration.path())
-    }
-
-    pub fn encrypt_store_to_path(store: &PasswordStore, store_path: &Path) -> Result<()> {
-        let recipients = recipients::read_recipients(&store.recipients)?;
-        let store_toml = toml::to_string_pretty(&store)?;
-        secrets::encrypt(&store_toml, store_path, &recipients)?;
-        Ok(())
-    }
-
     pub fn select_store(&self, store_name: Option<&String>) -> Option<&StoreRegistration> {
         store_name
             .cloned()
@@ -318,6 +307,17 @@ impl StoreRegistration {
     pub fn path(&self) -> &Path {
         self.path.as_path()
     }
+}
+
+pub fn encrypt_store(registration: &StoreRegistration, store: &PasswordStore) -> Result<()> {
+    encrypt_store_to_path(store, registration.path())
+}
+
+pub fn encrypt_store_to_path(store: &PasswordStore, store_path: &Path) -> Result<()> {
+    let recipients = recipients::read_recipients(&store.recipients)?;
+    let store_toml = toml::to_string_pretty(&store)?;
+    secrets::encrypt(&store_toml, store_path, &recipients)?;
+    Ok(())
 }
 
 fn default_hook_commands(synchronizer: &str) -> Option<(Vec<String>, Vec<String>)> {

@@ -5,7 +5,7 @@ use crate::cli::logs;
 use crate::commands::store_op::{NO_STORE_FOUND_ERROR, StoreMutation, with_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::RecipientCommands;
-use crate::models::configuration::Configuration;
+use crate::models::configuration::{Configuration, encrypt_store};
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
 use crate::recipients::public_key;
@@ -83,7 +83,7 @@ fn add(
         }
     }
 
-    Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
+    encrypt_store(registration, &store).context("Cannot encrypt store")?;
 
     for public_key in public_keys {
         logs::recipient_added(&public_key.0);
