@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::io::Write;
+use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
 
-use age::{Encryptor, Recipient};
+use age::{Decryptor, Encryptor, Recipient};
+use anyhow::Context;
 
 use crate::cli::atomic_write;
 
@@ -23,10 +25,23 @@ pub fn encrypt(
     Ok(())
 }
 
+pub fn decrypt(
+    path_to_decrypt: &Path,
+    identities: &[Box<dyn age::Identity>],
+) -> anyhow::Result<String> {
+    let encrypted = fs::read(path_to_decrypt)
+        .with_context(|| format!("Cannot read file at '{}'", path_to_decrypt.display()))?;
+    let decryptor = Decryptor::new_buffered(&encrypted[..])?;
+    let mut reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
+    let mut decrypted = vec![];
+    reader.read_to_end(&mut decrypted)?;
+    let decrypted_text = String::from_utf8(decrypted)?;
+    Ok(decrypted_text)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::secrets;
     use age::x25519;
     use assert_fs::TempDir;
 
@@ -47,7 +62,7 @@ mod tests {
         encrypt(plaintext, &path, &recipients).unwrap();
 
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
-        let decrypted = secrets::decrypt(&path, &identities).unwrap();
+        let decrypted = decrypt(&path, &identities).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -62,7 +77,7 @@ mod tests {
         encrypt("second", &path, &recipients).unwrap();
 
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
-        let decrypted = secrets::decrypt(&path, &identities).unwrap();
+        let decrypted = decrypt(&path, &identities).unwrap();
         assert_eq!(decrypted, "second");
     }
 

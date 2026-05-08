@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::hooks::executor::HookExecutor;
-use crate::models::configuration::{Configuration, StoreRegistration};
+use crate::models::configuration::{Configuration, StoreRegistration, encrypt_store};
 use crate::models::password_store::PasswordStore;
 use anyhow::{Context, Result};
 
@@ -67,7 +67,7 @@ where
     let mut store = configuration.decrypt_store(registration)?;
     let (value, mutation) = f(registration, &mut store)?;
     if matches!(mutation, StoreMutation::Modified) {
-        Configuration::encrypt_store(registration, &store).context("Cannot encrypt store")?;
+        encrypt_store(registration, &store).context("Cannot encrypt store")?;
     }
     then(&value)?;
     if matches!(mutation, StoreMutation::Modified) {
