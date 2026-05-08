@@ -28,6 +28,12 @@ fn get(configuration: &Configuration, option: &ConfigurationOption) {
         ConfigurationOption::ClipboardNotify => {
             println!("{}", configuration.clipboard_notify.unwrap_or(true));
         }
+        ConfigurationOption::KeyDownloadTimeoutSeconds => {
+            println!(
+                "{}",
+                configuration.key_download_timeout_seconds.unwrap_or(30)
+            );
+        }
         ConfigurationOption::PullIntervalSeconds => {
             println!(
                 "{}",
@@ -71,6 +77,14 @@ fn set(
             } else {
                 let truthy = matches!(value.to_ascii_lowercase().as_str(), "true" | "1" | "yes");
                 configuration.clipboard_notify = Some(truthy);
+            }
+        }
+        ConfigurationOption::KeyDownloadTimeoutSeconds => {
+            if value.is_empty() {
+                configuration.key_download_timeout_seconds = None;
+            } else {
+                let timeout = value.parse::<u64>()?;
+                configuration.key_download_timeout_seconds = Some(timeout);
             }
         }
         ConfigurationOption::PullIntervalSeconds => {

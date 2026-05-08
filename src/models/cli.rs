@@ -106,6 +106,7 @@ pub enum ConfigurationOption {
     IgnoreMissingIdentities,
     ClipboardTimeout,
     ClipboardNotify,
+    KeyDownloadTimeoutSeconds,
     PullIntervalSeconds,
     PushIntervalSeconds,
 }

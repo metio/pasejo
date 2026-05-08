@@ -2,27 +2,34 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::fs;
+use std::time::Duration;
 
 use crate::downloader::{Provider, download_public_key};
 use crate::models::cli::RecipientKeysArgs;
 
-pub fn get(args: &RecipientKeysArgs) -> anyhow::Result<Vec<(String, String)>> {
+pub fn get(
+    args: &RecipientKeysArgs,
+    download_timeout: Duration,
+) -> anyhow::Result<Vec<(String, String)>> {
     if let Some(public_key) = &args.public_key {
         Ok(vec![split_ssh_key(public_key)?])
     } else if let Some(codeberg_username) = &args.codeberg {
         Ok(vec![split_ssh_key(&download_public_key(
             Provider::Codeberg,
             codeberg_username,
+            download_timeout,
         )?)?])
     } else if let Some(github_username) = &args.github {
         Ok(vec![split_ssh_key(&download_public_key(
             Provider::Github,
             github_username,
+            download_timeout,
         )?)?])
     } else if let Some(gitlab_username) = &args.gitlab {
         Ok(vec![split_ssh_key(&download_public_key(
             Provider::Gitlab,
             gitlab_username,
+            download_timeout,
         )?)?])
     } else if let Some(filename) = &args.file {
         let mut public_keys = vec![];
@@ -86,7 +93,7 @@ mod tests {
             github: None,
             gitlab: None,
         };
-        let public_key = get(&args);
+        let public_key = get(&args, Duration::from_secs(30));
         assert_eq!(String::from("public key"), public_key.unwrap()[0].0);
     }
 
@@ -99,7 +106,7 @@ mod tests {
             github: Some(String::from("github")),
             gitlab: Some(String::from("gitlab")),
         };
-        let public_key = get(&args);
+        let public_key = get(&args, Duration::from_secs(30));
         assert_eq!(String::from("public key"), public_key.unwrap()[0].0);
     }
 
@@ -112,7 +119,7 @@ mod tests {
             github: None,
             gitlab: None,
         };
-        assert!(get(&args).is_err());
+        assert!(get(&args, Duration::from_secs(30)).is_err());
     }
 
     #[test]
@@ -161,7 +168,7 @@ mod tests {
             gitlab: None,
         };
 
-        let result = get(&args).unwrap();
+        let result = get(&args, Duration::from_secs(30)).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].0, "age1abc");
         assert_eq!(result[0].1, "");
@@ -182,7 +189,7 @@ mod tests {
             gitlab: None,
         };
 
-        let result = get(&args).unwrap();
+        let result = get(&args, Duration::from_secs(30)).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], (String::from("age1abc"), String::from("alice")));
         assert_eq!(result[1], (String::from("age1def"), String::from("bob")));
@@ -201,7 +208,7 @@ mod tests {
             gitlab: None,
         };
 
-        assert!(get(&args).is_err());
+        assert!(get(&args, Duration::from_secs(30)).is_err());
     }
 
     #[test]
@@ -214,6 +221,6 @@ mod tests {
             gitlab: None,
         };
 
-        assert!(get(&args).is_err());
+        assert!(get(&args, Duration::from_secs(30)).is_err());
     }
 }

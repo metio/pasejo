@@ -5,6 +5,7 @@ use crate::cli::environment_variables;
 use crate::downloader::username;
 use anyhow::Context;
 use std::env;
+use std::time::Duration;
 
 #[derive(Clone, Copy)]
 pub enum Provider {
@@ -39,11 +40,24 @@ impl Provider {
     }
 }
 
-pub fn download_public_key(provider: Provider, username: &str) -> anyhow::Result<String> {
+pub fn download_public_key(
+    provider: Provider,
+    username: &str,
+    timeout: Duration,
+) -> anyhow::Result<String> {
     let username = username::validate(username)?;
     let host =
         env::var(provider.host_env()).unwrap_or_else(|_| String::from(provider.default_host()));
-    let key = ureq::get(format!("https://{host}/{username}.keys"))
+    // ureq has no default timeout — without one, an unhealthy provider
+    // (e.g. codeberg.org returning 502 after several minutes) hangs the
+    // whole CLI. The cap is callable-controlled so users can tune it via
+    // the `key-download-timeout-seconds` config option.
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .build()
+        .into();
+    let key = agent
+        .get(format!("https://{host}/{username}.keys"))
         .call()
         .with_context(|| format!("Downloading public key from {} failed", provider.name()))?
         .body_mut()
