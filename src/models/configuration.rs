@@ -43,6 +43,14 @@ pub struct Configuration {
     /// stderr warnings on clear failure are still emitted regardless.
     pub clipboard_notify: Option<bool>,
 
+    /// How long to wait when downloading a public key from a provider
+    /// (Codeberg / GitHub / GitLab) before aborting with an error.
+    /// Defaults to 30 seconds. The download is a small file fetch and
+    /// should complete in well under a second on a healthy provider; a
+    /// shorter cap turns provider outages into prompt failures rather
+    /// than apparent hangs of the CLI (and of the test suite).
+    pub key_download_timeout_seconds: Option<u64>,
+
     /// Time in seconds between automated execution of configured pull commands
     pub pull_interval_seconds: Option<u64>,
 

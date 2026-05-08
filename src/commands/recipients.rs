@@ -10,6 +10,7 @@ use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
 use crate::recipients::public_key;
 use anyhow::{Context, Result};
+use std::time::Duration;
 
 pub fn dispatch(
     command: &RecipientCommands,
@@ -17,13 +18,18 @@ pub fn dispatch(
     offline: bool,
 ) -> Result<()> {
     match command {
-        RecipientCommands::Add(args) => add(
-            configuration,
-            args.store_selection.store.as_ref(),
-            &public_key::get(&args.keys)?,
-            args.name.as_ref(),
-            offline,
-        ),
+        RecipientCommands::Add(args) => {
+            let download_timeout = Duration::from_secs(
+                configuration.key_download_timeout_seconds.unwrap_or(30),
+            );
+            add(
+                configuration,
+                args.store_selection.store.as_ref(),
+                &public_key::get(&args.keys, download_timeout)?,
+                args.name.as_ref(),
+                offline,
+            )
+        }
         RecipientCommands::Remove(args) => remove(
             configuration,
             args.store_selection.store.as_ref(),
