@@ -12,6 +12,7 @@ mod one_time_passwords;
 mod recipients;
 mod secrets;
 
+use crate::cli::i18n;
 use crate::commands::stores;
 use crate::models::cli::Commands;
 use anyhow::Result;
@@ -28,6 +29,8 @@ fn main() -> Result<()> {
             .homepage("https://github.com/metio/pasejo")
             .support("- Open a support request by creating a ticket on GitHub")
     );
+
+    i18n::init()?;
 
     CompleteEnv::with_factory(Cli::command).complete();
 
