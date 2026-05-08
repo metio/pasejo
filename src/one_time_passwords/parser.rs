@@ -103,8 +103,18 @@ mod tests {
     #[test]
     fn secret_is_uppercased() {
         let secret = String::from("jbswy3dpehpk3pxp");
-        let result =
-            parse_otp_args(None, None, Some(&secret), None, None, None, None, None, None).unwrap();
+        let result = parse_otp_args(
+            None,
+            None,
+            Some(&secret),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
         assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
     }
 
@@ -135,8 +145,7 @@ mod tests {
     #[test]
     fn invalid_url_is_rejected() {
         let url = String::from("not-a-url");
-        let result =
-            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None);
+        let result = parse_otp_args(None, None, None, None, None, None, None, Some(&url), None);
         assert!(result.is_err());
     }
 

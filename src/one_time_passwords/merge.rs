@@ -52,8 +52,7 @@ mod tests {
     fn merge_without_change() {
         let otp = sample_otp("AAAA");
         let common = BTreeMap::from([("github".to_string(), otp.clone())]);
-        let result =
-            merge_one_time_passwords(&common, &common.clone(), &common.clone()).unwrap();
+        let result = merge_one_time_passwords(&common, &common.clone(), &common.clone()).unwrap();
         assert_eq!(result, common);
     }
 

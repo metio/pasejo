@@ -20,10 +20,7 @@ mod tests {
 
     #[test]
     fn with_name_prepends_comment_line() {
-        assert_eq!(
-            format_recipient("age1xyz", "alice"),
-            "# alice\nage1xyz"
-        );
+        assert_eq!(format_recipient("age1xyz", "alice"), "# alice\nage1xyz");
     }
 
     #[test]
