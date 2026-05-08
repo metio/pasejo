@@ -169,9 +169,10 @@ fn show(
         |code: &u32| {
             if clip {
                 let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
+                let notify = configuration.clipboard_notify.unwrap_or(true);
                 i18n::one_time_password_copy_into_clipboard(password_path, &duration);
                 let code_text = Zeroizing::new(format!("{code}"));
-                clipboard::copy_text_to_clipboard(code_text.as_str(), duration)?;
+                clipboard::copy_text_to_clipboard(code_text.as_str(), duration, notify)?;
             } else {
                 i18n::one_time_password_show(password_path);
                 println!("{code}");

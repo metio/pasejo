@@ -119,7 +119,9 @@ fn install_interrupt_handler() {
 ///   we wrote — if the user copied something else in the meantime, their
 ///   new contents are left alone.
 /// - A desktop notification reports the outcome (cleared, untouched, or
-///   failure). Failure to notify is non-fatal.
+///   failure) when `notify` is `true`. Set `notify` to `false` to silence
+///   the popup — stderr warnings on clear failure are still emitted
+///   regardless. Failure to notify is non-fatal.
 /// - The in-memory copy of the secret is held in `Zeroizing` and wiped on
 ///   drop. The caller's `&str` is *not* wiped — that is the caller's
 ///   responsibility.
@@ -129,7 +131,7 @@ fn install_interrupt_handler() {
 /// Returns `Err` if the clipboard handle cannot be opened or the initial
 /// `set` fails. Failures during the wait loop or clear step are logged and
 /// surfaced through the notification / stderr rather than returned.
-pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<()> {
+pub fn copy_text_to_clipboard(text: &str, duration: Duration, notify: bool) -> anyhow::Result<()> {
     // Install the Ctrl-C handler before any secret enters the clipboard, so
     // SIGINT triggers our handler (which lets the loop exit and Drop run
     // clear()) instead of the default action that _exit()s without unwinding.
@@ -172,14 +174,16 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
         i18n::clipboard_clear_failed(error);
         i18n::clipboard_manual_clear_required();
     }
-    let (body, timeout) = notification(&outcome, cancelled);
-    if let Err(error) = Notification::new()
-        .summary("pasejo")
-        .body(&body)
-        .timeout(timeout)
-        .show()
-    {
-        i18n::clipboard_notification_dispatch_failed(&error);
+    if notify {
+        let (body, timeout) = notification(&outcome, cancelled);
+        if let Err(error) = Notification::new()
+            .summary("pasejo")
+            .body(&body)
+            .timeout(timeout)
+            .show()
+        {
+            i18n::clipboard_notification_dispatch_failed(&error);
+        }
     }
     Ok(())
 }
