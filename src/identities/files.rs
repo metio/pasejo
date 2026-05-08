@@ -50,10 +50,7 @@ pub fn read(
                     }
                 }
                 Err(error) => {
-                    log::debug!(
-                        "Skipping missing identity file {}: {error}",
-                        file.display()
-                    );
+                    log::debug!("Skipping missing identity file {}: {error}", file.display());
                 }
             }
         }

@@ -33,9 +33,8 @@ pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
         file.sync_all()
             .with_context(|| format!("Failed to fsync {}", tmp.display()))?;
         drop(file);
-        fs::rename(&tmp, path).with_context(|| {
-            format!("Failed to rename {} to {}", tmp.display(), path.display())
-        })
+        fs::rename(&tmp, path)
+            .with_context(|| format!("Failed to rename {} to {}", tmp.display(), path.display()))
     })();
 
     if result.is_err() {

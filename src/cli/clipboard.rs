@@ -171,9 +171,7 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
         // Emit to stderr in addition to the notification, since a missing
         // notification daemon would otherwise leave the user uninformed.
         log::warn!("Failed to clear clipboard: {error}");
-        log::error!(
-            "Clipboard could not be cleared automatically — please clear it manually now."
-        );
+        log::error!("Clipboard could not be cleared automatically — please clear it manually now.");
     }
     let (body, timeout) = notification(&outcome, cancelled);
     if let Err(error) = Notification::new()
@@ -190,10 +188,7 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration) -> anyhow::Result<
 /// Builds the notification body and timeout for a given clear outcome.
 /// Pure: no side effects, no I/O. Logging of the underlying error is the
 /// caller's responsibility.
-fn notification(
-    outcome: &anyhow::Result<ClearOutcome>,
-    cancelled: bool,
-) -> (String, Timeout) {
+fn notification(outcome: &anyhow::Result<ClearOutcome>, cancelled: bool) -> (String, Timeout) {
     let suffix = if cancelled { " (cancelled)" } else { "" };
     match outcome {
         Ok(ClearOutcome::Cleared) => (format!("Clipboard cleared{suffix}"), Timeout::Default),
@@ -276,10 +271,16 @@ mod tests {
             Ok(ClearOutcome::ForciblyCleared),
         ] {
             let (body, _) = notification(&outcome, false);
-            assert!(!body.contains("(cancelled)"), "unexpected suffix in {body:?}");
+            assert!(
+                !body.contains("(cancelled)"),
+                "unexpected suffix in {body:?}"
+            );
         }
         let (body, _) = notification(&Err(anyhow::anyhow!("boom")), false);
-        assert!(!body.contains("(cancelled)"), "unexpected suffix in {body:?}");
+        assert!(
+            !body.contains("(cancelled)"),
+            "unexpected suffix in {body:?}"
+        );
     }
 
     #[test]

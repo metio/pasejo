@@ -117,16 +117,14 @@ mod tests {
 
     #[test]
     fn split_ssh_key_separates_key_from_comment() {
-        let (key, comment) =
-            split_ssh_key("ssh-ed25519 AAAA alice@example.com").unwrap();
+        let (key, comment) = split_ssh_key("ssh-ed25519 AAAA alice@example.com").unwrap();
         assert_eq!(key, "ssh-ed25519 AAAA");
         assert_eq!(comment, "alice@example.com");
     }
 
     #[test]
     fn split_ssh_key_joins_multi_word_comment() {
-        let (key, comment) =
-            split_ssh_key("ssh-ed25519 AAAA alice example user").unwrap();
+        let (key, comment) = split_ssh_key("ssh-ed25519 AAAA alice example user").unwrap();
         assert_eq!(key, "ssh-ed25519 AAAA");
         assert_eq!(comment, "alice example user");
     }

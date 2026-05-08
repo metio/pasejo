@@ -61,10 +61,7 @@ mod tests {
     fn lines_with_colon_separator_become_fields() {
         let parsed = parse_secret("hunter2\nuser: alice\nurl: https://example.com");
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
-        assert_eq!(
-            parsed.fields.get("user").map(String::as_str),
-            Some("alice")
-        );
+        assert_eq!(parsed.fields.get("user").map(String::as_str), Some("alice"));
         assert_eq!(
             parsed.fields.get("url").map(String::as_str),
             Some("https://example.com")
@@ -90,10 +87,7 @@ mod tests {
     fn lines_are_trimmed_before_inspection() {
         let parsed = parse_secret("  hunter2  \n  user: alice  ");
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
-        assert_eq!(
-            parsed.fields.get("user").map(String::as_str),
-            Some("alice")
-        );
+        assert_eq!(parsed.fields.get("user").map(String::as_str), Some("alice"));
     }
 
     #[test]
