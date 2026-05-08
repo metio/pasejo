@@ -294,7 +294,7 @@ mod tests {
         }
 
         // First call creates the marker; second call sees it within interval
-        // and returns false (with the production fix in place).
+        // and returns false
         let executed_first =
             should_execute(Some(60 * 60), last_pull_paths(OsStr::new("store-y"))).unwrap();
         let executed_second =
