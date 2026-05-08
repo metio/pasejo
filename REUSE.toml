@@ -10,7 +10,7 @@ SPDX-FileCopyrightText = "The pasejo Authors"
 SPDX-License-Identifier = "0BSD"
 
 [[annotations]]
-path = "tests/cmd/**"
+path = "tests/**"
 precedence = "override"
 SPDX-FileCopyrightText = "The pasejo Authors"
 SPDX-License-Identifier = "0BSD"
