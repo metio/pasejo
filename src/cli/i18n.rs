@@ -30,30 +30,26 @@ use unic_langid::LanguageIdentifier;
 #[folder = "i18n/"]
 struct Localizations;
 
-static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
-    let loader: FluentLanguageLoader = fluent_language_loader!();
-    loader
-        .load_fallback_language(&Localizations)
-        .expect("could not load fallback language");
-    // Strip the bidi isolation marks Fluent wraps around interpolated
-    // values by default. This keeps CLI output pipe-safe and snapshot tests
-    // stable. Per i18n-embed docs `set_use_isolating` is a no-op until at
-    // least one bundle has been loaded, so it must come *after*
-    // `load_fallback_language`.
-    loader.set_use_isolating(false);
-    loader
-});
+static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> =
+    LazyLock::new(|| fluent_language_loader!());
 
-/// Selects the language based on the desktop locale and loads its messages.
+/// Loads the fallback language, selects the user's preferred language
+/// based on the desktop locale, and applies project-wide Fluent settings.
 /// Falls back to English when the requested locale has no translation.
 pub fn init() -> Result<()> {
+    LANGUAGE_LOADER
+        .load_fallback_language(&Localizations)
+        .context("Could not load fallback language")?;
     let requested = requested_languages();
     i18n_embed::select(&*LANGUAGE_LOADER, &Localizations, &requested)
         .context("Could not initialize translations")?;
-    // `select` may have loaded an additional language bundle whose
-    // `is_isolating` flag defaults back to true; reapply the project-wide
-    // setting so messages from the newly-selected locale stay free of bidi
-    // marks too.
+    // Strip the bidi isolation marks Fluent wraps around interpolated
+    // values by default. This keeps CLI output pipe-safe and snapshot tests
+    // stable. Per i18n-embed docs `set_use_isolating` is a no-op until at
+    // least one bundle has been loaded, so it must come *after* the loads
+    // above. `select` may also have loaded an additional language bundle
+    // whose `is_isolating` flag defaults back to true; this single call
+    // applies the project-wide setting to every loaded bundle.
     LANGUAGE_LOADER.set_use_isolating(false);
     Ok(())
 }
@@ -101,19 +97,17 @@ fn requested_languages() -> Vec<LanguageIdentifier> {
 /// values so the caller can fall through to the next env var or to the
 /// loader's fallback language.
 fn parse_posix_locale(raw: &str) -> Option<LanguageIdentifier> {
-    let trimmed = raw
-        .split('.')
-        .next()?
-        .split('@')
-        .next()?
-        .trim();
-    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("C") || trimmed.eq_ignore_ascii_case("POSIX") {
+    let trimmed = raw.split('.').next()?.split('@').next()?.trim();
+    if trimmed.is_empty()
+        || trimmed.eq_ignore_ascii_case("C")
+        || trimmed.eq_ignore_ascii_case("POSIX")
+    {
         return None;
     }
     trimmed.replace('_', "-").parse().ok()
 }
 
-fn bool_key(value: bool) -> &'static str {
+const fn bool_key(value: bool) -> &'static str {
     if value { "true" } else { "false" }
 }
 
@@ -595,6 +589,18 @@ pub fn clipboard_notification_dispatch_failed(error: &impl std::fmt::Display) {
         fl!(
             LANGUAGE_LOADER,
             "clipboard-notification-dispatch-failed",
+            error = error.as_str()
+        )
+    );
+}
+
+pub fn clipboard_drop_clear_failed(error: &impl std::fmt::Display) {
+    let error = error.to_string();
+    debug!(
+        "{}",
+        fl!(
+            LANGUAGE_LOADER,
+            "clipboard-drop-clear-failed",
             error = error.as_str()
         )
     );

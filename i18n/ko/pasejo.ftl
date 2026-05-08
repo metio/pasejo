@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = Ctrl-C 핸들러를 설치하지 못했
 clipboard-clear-failed = 클립보드를 지우지 못했습니다: { $error }
 clipboard-manual-clear-required = 클립보드를 자동으로 지우지 못했습니다 — 지금 수동으로 지워 주세요.
 clipboard-notification-dispatch-failed = 클립보드 지우기 알림을 표시하지 못했습니다: { $error }
+clipboard-drop-clear-failed = 정리 중 클립보드를 지우지 못했습니다: { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] 클립보드를 지웠습니다 (취소됨)
    *[false] 클립보드를 지웠습니다

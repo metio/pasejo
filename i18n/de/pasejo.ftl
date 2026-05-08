@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = Konnte Strg-C-Handler nicht installiere
 clipboard-clear-failed = Konnte Zwischenablage nicht leeren: { $error }
 clipboard-manual-clear-required = Zwischenablage konnte nicht automatisch geleert werden — bitte jetzt manuell leeren.
 clipboard-notification-dispatch-failed = Konnte Benachrichtigung über das Leeren der Zwischenablage nicht anzeigen: { $error }
+clipboard-drop-clear-failed = Konnte Zwischenablage beim Aufräumen nicht leeren: { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] Zwischenablage geleert (abgebrochen)
    *[false] Zwischenablage geleert

@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = Échec de l'installation du gestionnair
 clipboard-clear-failed = Échec de l'effacement du presse-papiers : { $error }
 clipboard-manual-clear-required = Le presse-papiers n'a pas pu être effacé automatiquement — veuillez l'effacer manuellement maintenant.
 clipboard-notification-dispatch-failed = Échec de l'affichage de la notification d'effacement du presse-papiers : { $error }
+clipboard-drop-clear-failed = Échec de l'effacement du presse-papiers pendant le nettoyage : { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] Presse-papiers effacé (annulé)
    *[false] Presse-papiers effacé

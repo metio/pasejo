@@ -76,6 +76,7 @@ clipboard-ctrlc-handler-install-failed = 安装 Ctrl-C 处理程序失败: { $er
 clipboard-clear-failed = 清除剪贴板失败: { $error }
 clipboard-manual-clear-required = 剪贴板无法自动清除 — 请立即手动清除。
 clipboard-notification-dispatch-failed = 显示剪贴板清除通知失败: { $error }
+clipboard-drop-clear-failed = 清理期间清除剪贴板失败: { $error }
 clipboard-notification-cleared = { $cancelled ->
     [true] 剪贴板已清除（已取消）
    *[false] 剪贴板已清除
