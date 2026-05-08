@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+# Configuration for cargo-i18n / i18n-embed.
+# The fluent_language_loader! macro reads fallback_language at compile time;
+# the runtime loader uses it as the default when the requested language
+# cannot be matched.
+fallback_language = "en"
+
+[fluent]
+assets_dir = "i18n"
