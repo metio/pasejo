@@ -40,24 +40,28 @@ fn main() -> Result<()> {
         .format_source_path(false)
         .format_target(false)
         .init();
-    let configuration = Configuration::load_configuration()?;
+    let configuration = Configuration::cached()?;
 
     match &cli.command {
-        Commands::Config { command } => commands::config::dispatch(command, configuration),
+        Commands::Config { command } => commands::config::dispatch(command, configuration.clone()),
         Commands::Export { command } => {
-            commands::export::dispatch(command, &configuration, cli.offline)
+            commands::export::dispatch(command, configuration, cli.offline)
         }
-        Commands::Hook { command } => commands::hooks::dispatch(command, configuration),
-        Commands::Identity { command } => commands::identities::dispatch(command, configuration),
+        Commands::Hook { command } => commands::hooks::dispatch(command, configuration.clone()),
+        Commands::Identity { command } => {
+            commands::identities::dispatch(command, configuration.clone())
+        }
         Commands::Otp { command } => {
-            commands::one_time_passwords::dispatch(command, &cli, &configuration)
+            commands::one_time_passwords::dispatch(command, &cli, configuration)
         }
         Commands::Recipient { command } => {
-            commands::recipients::dispatch(command, &configuration, cli.offline)
+            commands::recipients::dispatch(command, configuration, cli.offline)
         }
         Commands::Secret { command } => {
-            commands::secrets::dispatch(command, &configuration, cli.offline)
+            commands::secrets::dispatch(command, configuration, cli.offline)
         }
-        Commands::Store { command } => stores::dispatch(command, configuration, cli.offline),
+        Commands::Store { command } => {
+            stores::dispatch(command, configuration.clone(), cli.offline)
+        }
     }
 }

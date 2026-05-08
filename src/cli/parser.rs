@@ -9,8 +9,7 @@ use anyhow::Result;
 use crate::models::configuration::Configuration;
 
 pub fn store_name(input: &str) -> Result<String> {
-    let configuration =
-        Configuration::load_configuration().context("Could not load configuration")?;
+    let configuration = Configuration::cached().context("Could not load configuration")?;
     let names = configuration.all_store_names();
 
     if names.contains(&input.to_owned()) {
