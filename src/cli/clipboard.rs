@@ -264,6 +264,7 @@ mod tests {
 
     #[test]
     fn cleared_body_uses_default_timeout() {
+        i18n::init_for_tests();
         let (body, timeout) = notification(&Ok(ClearOutcome::Cleared), false);
         assert_eq!(body, "Clipboard cleared");
         assert!(matches!(timeout, Timeout::Default));
@@ -271,12 +272,14 @@ mod tests {
 
     #[test]
     fn cancelled_suffix_appended_to_cleared() {
+        i18n::init_for_tests();
         let (body, _) = notification(&Ok(ClearOutcome::Cleared), true);
         assert_eq!(body, "Clipboard cleared (cancelled)");
     }
 
     #[test]
     fn cancelled_suffix_appended_to_unchanged() {
+        i18n::init_for_tests();
         let (body, _) = notification(&Ok(ClearOutcome::Unchanged), true);
         assert!(body.starts_with("Clipboard left untouched"));
         assert!(body.ends_with(" (cancelled)"));
@@ -284,6 +287,7 @@ mod tests {
 
     #[test]
     fn cancelled_suffix_appended_to_forcibly_cleared() {
+        i18n::init_for_tests();
         let (body, _) = notification(&Ok(ClearOutcome::ForciblyCleared), true);
         assert!(body.contains("couldn't verify"));
         assert!(body.ends_with(" (cancelled)"));
@@ -291,6 +295,7 @@ mod tests {
 
     #[test]
     fn cancelled_suffix_appended_to_failure() {
+        i18n::init_for_tests();
         let (body, _) = notification(&Err(anyhow::anyhow!("boom")), true);
         assert!(body.starts_with("Failed to clear clipboard!"));
         assert!(body.ends_with(" (cancelled)"));

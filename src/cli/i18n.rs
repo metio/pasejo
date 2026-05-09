@@ -54,6 +54,30 @@ pub fn init() -> Result<()> {
     Ok(())
 }
 
+/// Test-only initializer for the language loader.
+///
+/// Unit tests don't go through `main`, so `init` never runs and any
+/// `fl!` call returns the `"No localization for id: …"` placeholder
+/// instead of a real string. This helper loads the English fallback
+/// bundle deterministically — skipping the locale-driven `select` step
+/// so a host `LANG=de_DE.UTF-8` (or similar) can't change which bundle
+/// the assertions see — and turns off bidi isolation so the strings
+/// match plain `assert_eq!` comparisons.
+///
+/// Idempotent: subsequent calls are a no-op, so it's cheap to invoke at
+/// the top of every test that depends on resolved messages.
+#[cfg(test)]
+pub(crate) fn init_for_tests() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        LANGUAGE_LOADER
+            .load_fallback_language(&Localizations)
+            .expect("could not load English fallback bundle for tests");
+        LANGUAGE_LOADER.set_use_isolating(false);
+    });
+}
+
 /// Resolve the user's preferred languages.
 ///
 /// We can't just call `DesktopLanguageRequester::requested_languages()`
