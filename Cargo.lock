@@ -3772,9 +3772,9 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "rexpect"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e459b12e442eb95f78b7e69bb2c3a64fc96f24d90dbc47fb028d94ffb26ce1e8"
+checksum = "26529f2062f5635acde6f6c1b682945af1529e635726990764cfce7c9b0fdd79"
 dependencies = [
  "comma",
  "nix 0.31.2",
