@@ -28,55 +28,53 @@ pub fn merge_recipients(
             resulting_recipients.push(recipient.clone());
         } else if current_has_exact_match {
             // current has recipient, but other might have changed it
-            if let Some(other_recipient) = other_version_recipients
-                .iter()
-                .find(|&item| item.public_key == recipient.public_key)
-            {
+            if let Some(other_recipient) = other_recipient {
                 // other has recipient with the same public key but different name
                 resulting_recipients.push(other_recipient.clone());
             }
         } else if other_has_exact_match {
             // other has recipient, but current might have changed it
-            if let Some(current_recipient) = current_version_recipients
-                .iter()
-                .find(|&item| item.public_key == recipient.public_key)
-            {
+            if let Some(current_recipient) = current_recipient {
                 // current has recipient with the same public key but different name
                 resulting_recipients.push(current_recipient.clone());
             }
         } else {
             // both current and other might have changed or removed the recipient
-
-            if let (Some(current_recipient), Some(other_recipient)) =
-                (current_recipient, other_recipient)
-            {
-                // both current and other have a recipient with the same public key
-                if current_recipient.name == other_recipient.name {
-                    // If names are the same, we can keep either one
-                    resulting_recipients.push(current_recipient.clone());
-                } else {
-                    // If names are different, we got a merge conflict
+            match (current_recipient, other_recipient) {
+                (Some(current_recipient), Some(other_recipient)) => {
+                    // both have a recipient with the same public key
+                    if current_recipient.name == other_recipient.name {
+                        // If names are the same, we can keep either one
+                        resulting_recipients.push(current_recipient.clone());
+                    } else {
+                        // If names are different, we got a merge conflict
+                        merge_conflict = true;
+                        cli::i18n::merge_conflict_recipient_names(
+                            &recipient.public_key,
+                            &current_recipient.name,
+                            &other_recipient.name,
+                        );
+                    }
+                }
+                (Some(current_recipient), None) => {
+                    // current has recipient, but other removed it
                     merge_conflict = true;
-                    cli::i18n::merge_conflict_recipient_names(
+                    cli::i18n::merge_conflict_recipient_removed_and_renamed(
                         &recipient.public_key,
                         &current_recipient.name,
+                    );
+                }
+                (None, Some(other_recipient)) => {
+                    // other has recipient, but current removed it
+                    merge_conflict = true;
+                    cli::i18n::merge_conflict_recipient_removed_and_renamed(
+                        &recipient.public_key,
                         &other_recipient.name,
                     );
                 }
-            } else if let (Some(current_recipient), None) = (current_recipient, other_recipient) {
-                // current has recipient, but other removed it
-                merge_conflict = true;
-                cli::i18n::merge_conflict_recipient_removed_and_renamed(
-                    &recipient.public_key,
-                    &current_recipient.name,
-                );
-            } else if let (None, Some(other_recipient)) = (current_recipient, other_recipient) {
-                // other has recipient, but current removed it
-                merge_conflict = true;
-                cli::i18n::merge_conflict_recipient_removed_and_renamed(
-                    &recipient.public_key,
-                    &other_recipient.name,
-                );
+                (None, None) => {
+                    // both removed the recipient — drop from result
+                }
             }
         }
     }
