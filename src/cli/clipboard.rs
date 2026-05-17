@@ -460,9 +460,9 @@ mod tests {
     fn drop_swallows_clear_failure_without_panicking() {
         // Both reads succeed but clear fails. Drop must not propagate the
         // error (panicking from Drop during unwind would abort the
-        // process); the new debug log keeps a breadcrumb. We exercise the
-        // path here so any future regression that *does* panic shows up
-        // as a test failure.
+        // process); the debug log keeps a breadcrumb. We exercise the path
+        // here so any future regression that *does* panic shows up as a
+        // test failure.
         let stats = Rc::new(FakeStats::default());
         let guard = ClipboardGuard {
             clipboard: FakeClipboard {

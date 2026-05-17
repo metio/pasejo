@@ -83,21 +83,27 @@ fn remove(
     remove_data: bool,
 ) -> anyhow::Result<()> {
     let (name, path) = if let Some(registration) = configuration.select_store(store_name) {
-        (&registration.name.clone(), &registration.path.clone())
+        (registration.name.clone(), registration.path.clone())
     } else {
         anyhow::bail!(
             "No store found in configuration. Run 'pasejo store add ...' first to add one"
         )
     };
 
-    configuration.remove_store(name)?;
-    if remove_data {
-        let path_to_store = Path::new(path);
-        if path_to_store.exists() {
-            fs::remove_file(path_to_store)?;
-        }
+    // The configuration holds the only reference to the store's path, so
+    // the file must be deleted before the registration is erased. A delete
+    // that fails after the configuration is updated would orphan the file
+    // on disk with no way to find it again.
+    delete_store_file_if_requested(&path, remove_data)?;
+    configuration.remove_store(&name)?;
+    i18n::store_remove_success(&name);
+    Ok(())
+}
+
+fn delete_store_file_if_requested(path: &Path, remove_data: bool) -> anyhow::Result<()> {
+    if remove_data && path.exists() {
+        fs::remove_file(path)?;
     }
-    i18n::store_remove_success(name);
     Ok(())
 }
 
@@ -260,5 +266,57 @@ fn exec(
         anyhow::bail!(
             "No store found in configuration. Run 'pasejo store add ...' first to add one"
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
+
+    #[test]
+    fn delete_store_file_if_requested_does_nothing_when_remove_data_is_false() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("store");
+        file.write_str("payload").unwrap();
+
+        delete_store_file_if_requested(file.path(), false).unwrap();
+
+        assert!(file.path().exists(), "file must remain when remove_data=false");
+    }
+
+    #[test]
+    fn delete_store_file_if_requested_deletes_existing_file() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("store");
+        file.write_str("payload").unwrap();
+
+        delete_store_file_if_requested(file.path(), true).unwrap();
+
+        assert!(!file.path().exists());
+    }
+
+    #[test]
+    fn delete_store_file_if_requested_is_noop_when_file_already_missing() {
+        let temp = TempDir::new().unwrap();
+        let missing = temp.child("never-existed");
+
+        delete_store_file_if_requested(missing.path(), true).unwrap();
+    }
+
+    #[test]
+    fn delete_store_file_if_requested_fails_when_path_is_a_directory() {
+        // A path pointing at a directory triggers a reliable remove_file
+        // failure across platforms — used here to confirm the helper
+        // surfaces the error to its caller instead of swallowing it.
+        let temp = TempDir::new().unwrap();
+        let dir = temp.child("not-a-file");
+        dir.create_dir_all().unwrap();
+
+        let result = delete_store_file_if_requested(dir.path(), true);
+
+        assert!(result.is_err());
+        assert!(dir.path().exists(), "directory must remain on failure");
     }
 }
