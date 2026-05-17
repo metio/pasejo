@@ -41,7 +41,7 @@ fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
 /// `Modified` triggers re-encryption and the push hooks; `Unchanged` skips
 /// both.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StoreMutation {
+pub enum StoreMutation {
     Unchanged,
     Modified,
 }
@@ -51,7 +51,7 @@ pub(crate) enum StoreMutation {
 /// `f` returned [`StoreMutation::Modified`]). Returns the closure's value.
 ///
 /// Bails with the localized "no store" error when no store can be selected.
-pub(crate) fn with_store<F, T>(
+pub fn with_store<F, T>(
     configuration: &Configuration,
     store_name: Option<&String>,
     offline: bool,
@@ -71,7 +71,7 @@ where
 ///
 /// `then` always runs, regardless of [`StoreMutation`]. For read-only flows
 /// it executes after the closure with no encrypt/push around it.
-pub(crate) fn with_store_then<F, P, T>(
+pub fn with_store_then<F, P, T>(
     configuration: &Configuration,
     store_name: Option<&String>,
     offline: bool,
@@ -173,9 +173,8 @@ mod tests {
         assert!(guard.is_some());
 
         let (tx, rx) = mpsc::channel();
-        let worker_path = path.clone();
         let worker = std::thread::spawn(move || {
-            let second = acquire_store_lock(&worker_path).unwrap();
+            let second = acquire_store_lock(&path).unwrap();
             assert!(second.is_some());
             // Signal the moment the worker acquires the lock.
             tx.send(()).unwrap();

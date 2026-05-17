@@ -9,5 +9,5 @@ pub mod identities;
 pub mod one_time_passwords;
 pub mod recipients;
 pub mod secrets;
-pub(crate) mod store_op;
+pub mod store_op;
 pub mod stores;

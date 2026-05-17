@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use crate::browser::host;
 use crate::browser::matcher::find_matches;
 use crate::browser::protocol::QueryResponse;
 use crate::commands::store_op::{StoreMutation, with_store};
@@ -14,6 +15,7 @@ pub fn dispatch(
 ) -> anyhow::Result<()> {
     match command {
         BrowserCommands::Query(args) => query(args, configuration, offline),
+        BrowserCommands::Host(args) => host::run(configuration, args, offline),
     }
 }
 

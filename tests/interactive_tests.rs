@@ -14,7 +14,6 @@ mod interactive_tests {
     use assert_fs::TempDir;
     use predicates::prelude::*;
     use rexpect::session::PtySession;
-    use rexpect::spawn;
     use serial_test::serial;
     use ssh_key::rand_core::OsRng;
     use ssh_key::{Algorithm, LineEnding, PrivateKey};
@@ -43,7 +42,7 @@ mod interactive_tests {
 
     #[test]
     #[serial]
-    #[ignore] // it takes too long to run - execute with: cargo test -- --ignored
+    #[ignore = "slow: RSA key generation; run with: cargo test -- --ignored"]
     fn insert_secret_with_ssh_rsa_key() -> anyhow::Result<()> {
         let key = PrivateKey::random(&mut OsRng, Algorithm::Rsa { hash: None })?;
         insert_secret_with_key(
@@ -106,8 +105,9 @@ mod interactive_tests {
         T: FnOnce(PtySession, TempDir) -> anyhow::Result<()>,
     {
         let temp = prepare_environment(public_key, private_key)?;
-        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
-        let process = spawn(&format!("{cmd_path:?} {command}"), Some(30_000))?;
+        let mut spawn_cmd = std::process::Command::new(cargo_bin(env!("CARGO_PKG_NAME")));
+        spawn_cmd.args(command.split_whitespace());
+        let process = rexpect::session::spawn_command(spawn_cmd, Some(30_000))?;
         test_case(process, temp)?;
         Ok(())
     }
@@ -177,7 +177,9 @@ mod interactive_tests {
         name: &str,
         value: &str,
     ) -> anyhow::Result<()> {
-        let mut process = spawn(&format!("{cmd_path:?} secret add {name}"), Some(30_000))?;
+        let mut spawn_cmd = std::process::Command::new(cmd_path);
+        spawn_cmd.args(["secret", "add", name]);
+        let mut process = rexpect::session::spawn_command(spawn_cmd, Some(30_000))?;
         process.exp_string(&format!("Enter secret for {name}:"))?;
         process.send_line(value)?;
         process.exp_string("Confirmation:")?;
@@ -327,7 +329,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
 
         // The non-TTY path of `secret add` reads the entire stdin verbatim
@@ -374,7 +376,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
 
         assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?

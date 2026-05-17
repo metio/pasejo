@@ -22,6 +22,7 @@ pub fn merge_one_time_passwords(
 }
 
 #[cfg(test)]
+#[allow(clippy::redundant_clone)]
 mod tests {
     use super::*;
     use crate::models::password_store::{

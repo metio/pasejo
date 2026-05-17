@@ -123,6 +123,9 @@ pub enum ConfigurationOption {
 pub enum BrowserCommands {
     /// Search a store for credentials matching a domain
     Query(QueryArgs),
+
+    /// Run a native-messaging host that browser extensions connect to
+    Host(HostArgs),
 }
 
 #[derive(Args)]
@@ -142,6 +145,25 @@ pub struct QueryArgs {
     /// Toggle whether to print pretty JSON or not
     #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
     pub pretty: Option<bool>,
+}
+
+#[derive(Args, Default)]
+pub struct HostArgs {
+    /// Restrict the host to these stores. Stores outside the list are
+    /// invisible to the connecting extension. Repeatable.
+    #[arg(long, add = completer::store_name(), value_parser = parser::store_name)]
+    pub only_store: Vec<String>,
+
+    /// Use this store when a request omits the store field. Defaults to
+    /// the usual default-store / first-store fallback chain.
+    #[arg(long, add = completer::store_name(), value_parser = parser::store_name)]
+    pub default_store: Option<String>,
+
+    #[arg(long, default_values_t = default_username_keys())]
+    pub username_keys: Vec<String>,
+
+    #[arg(long, default_values_t = default_uri_keys())]
+    pub uri_keys: Vec<String>,
 }
 
 #[derive(Subcommand)]

@@ -6,6 +6,7 @@ Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
   query  Search a store for credentials matching a domain
+  host   Run a native-messaging host that browser extensions connect to
   help   Print this message or the help of the given subcommand(s)
 
 Options:
@@ -23,6 +24,7 @@ Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
   query  Search a store for credentials matching a domain
+  host   Run a native-messaging host that browser extensions connect to
   help   Print this message or the help of the given subcommand(s)
 
 Options:
@@ -40,6 +42,7 @@ Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
   query  Search a store for credentials matching a domain
+  host   Run a native-messaging host that browser extensions connect to
   help   Print this message or the help of the given subcommand(s)
 
 Options:

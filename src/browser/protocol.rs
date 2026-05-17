@@ -43,9 +43,14 @@ pub struct ErrorResponse {
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[allow(dead_code)]
 pub enum ErrorKind {
     UnknownStore,
+    // Reserved for the day the host distinguishes a known-but-unsupported
+    // action (e.g. a future `create` action sent against an older host).
+    // Today, every serde deserialization failure — including unknown
+    // variant names — surfaces as `DecodeError` with the parser message in
+    // `hint`.
+    #[allow(dead_code)]
     UnknownAction,
     DecodeError,
     IdentityLocked,

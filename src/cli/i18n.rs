@@ -67,7 +67,7 @@ pub fn init() -> Result<()> {
 /// Idempotent: subsequent calls are a no-op, so it's cheap to invoke at
 /// the top of every test that depends on resolved messages.
 #[cfg(test)]
-pub(crate) fn init_for_tests() {
+pub fn init_for_tests() {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| {
@@ -792,4 +792,23 @@ fl_string!(
     "error-command-exited-with",
     binary,
     exit
+);
+fl_string!(
+    error_browser_host_requires_pipe,
+    "error-browser-host-requires-pipe"
+);
+fl_string!(
+    error_browser_host_unknown_only_store,
+    "error-browser-host-unknown-only-store",
+    name
+);
+fl_string!(
+    error_browser_host_unknown_default_store,
+    "error-browser-host-unknown-default-store",
+    name
+);
+fl_string!(
+    error_browser_host_default_store_not_in_only,
+    "error-browser-host-default-store-not-in-only",
+    name
 );

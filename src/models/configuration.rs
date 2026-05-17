@@ -1052,13 +1052,13 @@ push_commands = []
 
     #[test]
     fn needs_migration_returns_true_when_top_level_pull_commands_missing() {
-        let table = parse_table(r#"push_commands = []"#);
+        let table = parse_table(r"push_commands = []");
         assert!(needs_migration(&table));
     }
 
     #[test]
     fn needs_migration_returns_true_when_top_level_push_commands_missing() {
-        let table = parse_table(r#"pull_commands = []"#);
+        let table = parse_table(r"pull_commands = []");
         assert!(needs_migration(&table));
     }
 
@@ -1118,10 +1118,10 @@ pull_commands = []
     #[test]
     fn needs_migration_returns_false_with_no_stores_array() {
         let table = parse_table(
-            r#"
+            r"
 pull_commands = []
 push_commands = []
-"#,
+",
         );
         assert!(!needs_migration(&table));
     }

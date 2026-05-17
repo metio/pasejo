@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 
 use anyhow::{Result, bail};
 use serde::Serialize;
@@ -10,13 +10,14 @@ use crate::browser::matcher::find_matches;
 use crate::browser::protocol::{
     ErrorKind, ErrorResponse, ListStoresResponse, QueryResponse, Request, StoreEntry,
 };
+use crate::cli::i18n;
 use crate::commands::store_op::{StoreMutation, with_store};
+use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration};
 
 // Chrome's documented native-messaging maximum is 1 MiB per direction.
 // Rejecting larger length prefixes prevents a malformed peer from driving
 // the host into multi-gigabyte allocations.
-#[allow(dead_code)]
 pub const MAX_MESSAGE_LEN: usize = 1024 * 1024;
 
 pub struct HostContext<'a> {
@@ -28,14 +29,12 @@ pub struct HostContext<'a> {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-#[allow(dead_code)]
 pub enum ResponsePayload {
     Query(QueryResponse),
     ListStores(ListStoresResponse),
     Error(ErrorResponse),
 }
 
-#[allow(dead_code)]
 pub fn handle_request(
     request: &Request,
     configuration: &Configuration,
@@ -169,7 +168,6 @@ pub fn list_stores_response(
     ListStoresResponse { stores }
 }
 
-#[allow(dead_code)]
 pub fn read_message<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>> {
     let mut len_buf = [0u8; 4];
     match reader.read_exact(&mut len_buf) {
@@ -186,12 +184,70 @@ pub fn read_message<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>> {
     Ok(Some(buf))
 }
 
-#[allow(dead_code)]
 pub fn write_message<W: Write>(writer: &mut W, bytes: &[u8]) -> Result<()> {
     let len = u32::try_from(bytes.len())?;
     writer.write_all(&len.to_le_bytes())?;
     writer.write_all(bytes)?;
     writer.flush()?;
+    Ok(())
+}
+
+pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Result<()> {
+    if std::io::stdin().is_terminal() {
+        bail!(i18n::error_browser_host_requires_pipe());
+    }
+    validate_args(configuration, args)?;
+
+    let context = HostContext {
+        only_store: &args.only_store,
+        default_store: args.default_store.as_deref(),
+        uri_keys: &args.uri_keys,
+        username_keys: &args.username_keys,
+    };
+
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    let mut input = stdin.lock();
+    let mut output = stdout.lock();
+
+    while let Some(bytes) = read_message(&mut input)? {
+        let response = process_message(&bytes, configuration, &context, offline);
+        let response_bytes = serde_json::to_vec(&response)?;
+        write_message(&mut output, &response_bytes)?;
+    }
+    Ok(())
+}
+
+fn process_message(
+    bytes: &[u8],
+    configuration: &Configuration,
+    context: &HostContext<'_>,
+    offline: bool,
+) -> ResponsePayload {
+    match serde_json::from_slice::<Request>(bytes) {
+        Ok(request) => handle_request(&request, configuration, context, offline),
+        Err(err) => ResponsePayload::Error(ErrorResponse {
+            error: ErrorKind::DecodeError,
+            store: None,
+            hint: Some(err.to_string()),
+        }),
+    }
+}
+
+fn validate_args(configuration: &Configuration, args: &HostArgs) -> Result<()> {
+    for name in &args.only_store {
+        if !configuration.stores.iter().any(|s| &s.name == name) {
+            bail!(i18n::error_browser_host_unknown_only_store(name));
+        }
+    }
+    if let Some(default) = &args.default_store {
+        if !configuration.stores.iter().any(|s| &s.name == default) {
+            bail!(i18n::error_browser_host_unknown_default_store(default));
+        }
+        if !args.only_store.is_empty() && !args.only_store.iter().any(|s| s == default) {
+            bail!(i18n::error_browser_host_default_store_not_in_only(default));
+        }
+    }
     Ok(())
 }
 
@@ -481,5 +537,107 @@ mod tests {
         let response = list_stores_response(&cfg, &ctx);
         assert_eq!(response.stores.len(), 1);
         assert!(!response.stores[0].default);
+    }
+
+    // --- validate_args ----------------------------------------------------
+
+    fn host_args(only_store: Vec<String>, default_store: Option<&str>) -> HostArgs {
+        HostArgs {
+            only_store,
+            default_store: default_store.map(str::to_owned),
+            ..HostArgs::default()
+        }
+    }
+
+    #[test]
+    fn validate_args_passes_for_empty_args() {
+        i18n::init_for_tests();
+        let cfg = configuration_with(&["personal"], None);
+        let args = host_args(vec![], None);
+        validate_args(&cfg, &args).unwrap();
+    }
+
+    #[test]
+    fn validate_args_rejects_unknown_only_store() {
+        i18n::init_for_tests();
+        let cfg = configuration_with(&["personal"], None);
+        let args = host_args(vec!["ghost".to_owned()], None);
+        let err = validate_args(&cfg, &args).unwrap_err().to_string();
+        assert!(err.contains("ghost"));
+    }
+
+    #[test]
+    fn validate_args_rejects_unknown_default_store() {
+        i18n::init_for_tests();
+        let cfg = configuration_with(&["personal"], None);
+        let args = host_args(vec![], Some("ghost"));
+        let err = validate_args(&cfg, &args).unwrap_err().to_string();
+        assert!(err.contains("ghost"));
+    }
+
+    #[test]
+    fn validate_args_rejects_default_outside_only_store() {
+        i18n::init_for_tests();
+        let cfg = configuration_with(&["personal", "work"], None);
+        let args = host_args(vec!["personal".to_owned()], Some("work"));
+        let err = validate_args(&cfg, &args).unwrap_err().to_string();
+        assert!(err.contains("work"));
+    }
+
+    #[test]
+    fn validate_args_accepts_default_inside_only_store() {
+        i18n::init_for_tests();
+        let cfg = configuration_with(&["personal", "work"], None);
+        let args = host_args(vec!["personal".to_owned(), "work".to_owned()], Some("work"));
+        validate_args(&cfg, &args).unwrap();
+    }
+
+    // --- process_message --------------------------------------------------
+
+    #[test]
+    fn process_message_emits_decode_error_for_malformed_json() {
+        let cfg = configuration_with(&[], None);
+        let only: Vec<String> = vec![];
+        let ctx = context(&only, None);
+        let response = process_message(b"not json at all", &cfg, &ctx, true);
+        match response {
+            ResponsePayload::Error(err) => {
+                assert_eq!(err.error, ErrorKind::DecodeError);
+                assert!(err.hint.is_some());
+            }
+            _ => panic!("expected DecodeError"),
+        }
+    }
+
+    #[test]
+    fn process_message_emits_decode_error_for_unknown_action() {
+        // Serde's tag-based deserialization rejects unknown variants as a
+        // parse error; the host surfaces this as DecodeError with the
+        // serde message in `hint`, instead of synthesizing a distinct
+        // `UnknownAction` kind. The UnknownAction variant is reserved for
+        // a future two-step parse that needs to differentiate.
+        let cfg = configuration_with(&[], None);
+        let only: Vec<String> = vec![];
+        let ctx = context(&only, None);
+        let response = process_message(br#"{"action":"create"}"#, &cfg, &ctx, true);
+        match response {
+            ResponsePayload::Error(err) => assert_eq!(err.error, ErrorKind::DecodeError),
+            _ => panic!("expected DecodeError"),
+        }
+    }
+
+    #[test]
+    fn process_message_routes_list_stores_to_response() {
+        let cfg = configuration_with(&["personal"], None);
+        let only: Vec<String> = vec![];
+        let ctx = context(&only, None);
+        let response = process_message(br#"{"action":"list_stores"}"#, &cfg, &ctx, true);
+        match response {
+            ResponsePayload::ListStores(payload) => {
+                assert_eq!(payload.stores.len(), 1);
+                assert_eq!(payload.stores[0].name, "personal");
+            }
+            _ => panic!("expected ListStores"),
+        }
     }
 }

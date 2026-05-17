@@ -128,6 +128,10 @@ pub fn merge_recipients(
 }
 
 #[cfg(test)]
+// Tests build symmetric `vec![recipient.clone()]` triples to mirror the
+// merge_recipients signature shape; removing only the last clone in each
+// test breaks that visual symmetry without any runtime payoff.
+#[allow(clippy::redundant_clone)]
 mod tests {
     use super::*;
 
