@@ -14,7 +14,13 @@ Added secret at 'some-secret'
 $ pasejo secret show some-secret
 
 
-$ pasejo secret show some-secret --line 0
+$ pasejo secret show some-secret --line 1
 
+
+$ pasejo secret show some-secret --line 0
+? 2
+error: invalid value '0' for '--line <LINE>': Line number must not be 0. Use 1 for the first line, -1 for the last
+
+For more information, try '--help'.
 
 ```
