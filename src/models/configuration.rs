@@ -205,7 +205,10 @@ impl Configuration {
     }
 
     pub fn set_default_store(&mut self, store_name: &str) -> Result<()> {
-        self.default_store = Some(store_name.to_owned());
+        let canonical = self.canonical_store_name(store_name).ok_or_else(|| {
+            anyhow::anyhow!("Store with name '{store_name}' does not exist in configuration")
+        })?;
+        self.default_store = Some(canonical);
         self.save_configuration()
     }
 
@@ -462,6 +465,40 @@ mod tests {
     fn find_store_returns_none_for_unknown_name() {
         let cfg = configuration_with_stores(vec![registration("alpha", "/tmp/alpha")]);
         assert!(cfg.find_store("missing").is_none());
+    }
+
+    #[test]
+    fn set_default_store_rejects_unknown_name() {
+        let mut cfg = configuration_with_stores(vec![registration("Personal", "/tmp/personal")]);
+
+        let result = cfg.set_default_store("missing");
+
+        assert!(result.is_err());
+        assert!(cfg.default_store.is_none(), "default_store must not be set on failure");
+    }
+
+    #[test]
+    fn set_default_store_rejects_unknown_name_without_clobbering_existing_default() {
+        let mut cfg = configuration_with_stores(vec![registration("Personal", "/tmp/personal")]);
+        cfg.default_store = Some(String::from("Personal"));
+
+        let result = cfg.set_default_store("missing");
+
+        assert!(result.is_err());
+        assert_eq!(
+            cfg.default_store.as_deref(),
+            Some("Personal"),
+            "existing default must survive a rejected update"
+        );
+    }
+
+    #[test]
+    fn set_default_store_error_message_mentions_the_input() {
+        let mut cfg = configuration_with_stores(vec![registration("Personal", "/tmp/personal")]);
+
+        let error = cfg.set_default_store("WORK").unwrap_err().to_string();
+
+        assert!(error.contains("WORK"));
     }
 
     #[test]
