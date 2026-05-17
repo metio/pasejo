@@ -249,7 +249,7 @@ enum LineSelector {
 }
 
 impl LineSelector {
-    fn from_args(line: Option<isize>, skip_lines: Option<u64>) -> Self {
+    const fn from_args(line: Option<isize>, skip_lines: Option<u64>) -> Self {
         match (line, skip_lines) {
             (Some(n), _) => Self::Line(n),
             (None, Some(n)) => Self::SkipFirst(n),
@@ -263,11 +263,7 @@ fn extract_line(decrypted_text: &str, selector: LineSelector) -> Zeroizing<Strin
         LineSelector::All => decrypted_text.to_owned(),
         LineSelector::Line(n) if n > 0 => {
             let index = usize::try_from(n).unwrap_or(usize::MAX).saturating_sub(1);
-            decrypted_text
-                .lines()
-                .nth(index)
-                .unwrap_or("")
-                .to_owned()
+            decrypted_text.lines().nth(index).unwrap_or("").to_owned()
         }
         LineSelector::Line(n) => {
             // n < 0 here (clap rejects 0); -1 == last line.
@@ -305,7 +301,10 @@ fn show(
             let Some(decrypted_text) = store.secrets.get(secret_path) else {
                 anyhow::bail!(i18n::error_no_secret_found(secret_path))
             };
-            Ok((extract_line(decrypted_text, selector), StoreMutation::Unchanged))
+            Ok((
+                extract_line(decrypted_text, selector),
+                StoreMutation::Unchanged,
+            ))
         },
         |text_to_show: &Zeroizing<String>| {
             if qrcode {

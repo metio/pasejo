@@ -231,10 +231,26 @@ fl_log!(info, secret_added, "secret-added", secret_path);
 fl_log!(info, secret_edited, "secret-edited", secret_path);
 fl_log!(info, secret_generated, "secret-generated", secret_path);
 fl_log!(info, secret_removed, "secret-removed", secret_path);
-fl_log!(info, secret_copied, "secret-copied", source_path, target_path);
+fl_log!(
+    info,
+    secret_copied,
+    "secret-copied",
+    source_path,
+    target_path
+);
 fl_log!(info, secret_moved, "secret-moved", source_path, target_path);
-fl_log!(info, one_time_password_added, "one-time-password-added", password_path);
-fl_log!(info, one_time_password_removed, "one-time-password-removed", password_path);
+fl_log!(
+    info,
+    one_time_password_added,
+    "one-time-password-added",
+    password_path
+);
+fl_log!(
+    info,
+    one_time_password_removed,
+    "one-time-password-removed",
+    password_path
+);
 fl_log!(
     info,
     one_time_password_copied,
@@ -249,9 +265,20 @@ fl_log!(
     source_path,
     target_path
 );
-fl_log!(info, store_add_success, "store-add-success", store_name, store_path);
+fl_log!(
+    info,
+    store_add_success,
+    "store-add-success",
+    store_name,
+    store_path
+);
 fl_log!(info, store_set_default, "store-set-default", store_name);
-fl_log!(info, store_remove_success, "store-remove-success", store_name);
+fl_log!(
+    info,
+    store_remove_success,
+    "store-remove-success",
+    store_name
+);
 fl_log!(
     info,
     recipient_does_not_exist_ignored,
@@ -260,14 +287,34 @@ fl_log!(
 );
 
 // Status logs — debug level
-fl_log!(debug, secret_show_as_qrcode, "secret-show-as-qrcode", secret_path);
-fl_log!(debug, secret_show_as_text, "secret-show-as-text", secret_path);
-fl_log!(debug, one_time_password_show, "one-time-password-show", password_path);
+fl_log!(
+    debug,
+    secret_show_as_qrcode,
+    "secret-show-as-qrcode",
+    secret_path
+);
+fl_log!(
+    debug,
+    secret_show_as_text,
+    "secret-show-as-text",
+    secret_path
+);
+fl_log!(
+    debug,
+    one_time_password_show,
+    "one-time-password-show",
+    password_path
+);
 fl_log!(debug, execute_pull_hooks, "execute-pull-hooks", store_name);
 fl_log!(debug, execute_push_hooks, "execute-push-hooks", store_name);
 
 // Status logs — warn / error levels
-fl_log!(warn, no_identities_exist_yet, "no-identities-exist-yet", store_name);
+fl_log!(
+    warn,
+    no_identities_exist_yet,
+    "no-identities-exist-yet",
+    store_name
+);
 fl_log!(
     error,
     merge_conflict_recipient_names,
@@ -283,7 +330,13 @@ fl_log!(
     public_key,
     new_name
 );
-fl_log!(error, merge_conflict_values, "merge-conflict-values", value_type, secret_path);
+fl_log!(
+    error,
+    merge_conflict_values,
+    "merge-conflict-values",
+    value_type,
+    secret_path
+);
 fl_log!(
     error,
     merge_conflict_removed_and_modified,
@@ -300,13 +353,22 @@ fl_println!(list_store_push_hook, "list-store-push-hook", command);
 fl_println!(secret_search_match, "secret-search-match", key, value);
 
 // Clipboard desktop notifications — return rendered String for notify-rust.
-fl_notification!(clipboard_notification_cleared, "clipboard-notification-cleared");
-fl_notification!(clipboard_notification_unchanged, "clipboard-notification-unchanged");
+fl_notification!(
+    clipboard_notification_cleared,
+    "clipboard-notification-cleared"
+);
+fl_notification!(
+    clipboard_notification_unchanged,
+    "clipboard-notification-unchanged"
+);
 fl_notification!(
     clipboard_notification_forcibly_cleared,
     "clipboard-notification-forcibly-cleared"
 );
-fl_notification!(clipboard_notification_failed, "clipboard-notification-failed");
+fl_notification!(
+    clipboard_notification_failed,
+    "clipboard-notification-failed"
+);
 
 // Path wrappers
 fl_log_path!(info, identity_added, "identity-added", identity_file);
@@ -315,7 +377,11 @@ fl_println_path!(list_global_identity, "list-global-identity", identity_file);
 fl_println_path!(list_store_identity, "list-store-identity", identity_file);
 
 // Error-display wrappers
-fl_log_error!(debug, clipboard_read_for_compare_failed, "clipboard-read-for-compare-failed");
+fl_log_error!(
+    debug,
+    clipboard_read_for_compare_failed,
+    "clipboard-read-for-compare-failed"
+);
 fl_log_error!(
     warn,
     clipboard_ctrlc_handler_install_failed,
@@ -327,7 +393,11 @@ fl_log_error!(
     clipboard_notification_dispatch_failed,
     "clipboard-notification-dispatch-failed"
 );
-fl_log_error!(debug, clipboard_drop_clear_failed, "clipboard-drop-clear-failed");
+fl_log_error!(
+    debug,
+    clipboard_drop_clear_failed,
+    "clipboard-drop-clear-failed"
+);
 
 // Remaining hand-written wrappers: mixed argument types that don't fit a
 // single-shape macro.
@@ -397,29 +467,61 @@ pub fn clipboard_manual_clear_required() {
 
 // Prompts
 fl_string!(prompt_enter_secret, "prompt-enter-secret", secret_path);
-fl_string!(prompt_could_not_read_secret, "prompt-could-not-read-secret", secret_path);
+fl_string!(
+    prompt_could_not_read_secret,
+    "prompt-could-not-read-secret",
+    secret_path
+);
 fl_string!(prompt_overwrite_secret, "prompt-overwrite-secret");
 fl_string!(prompt_remove_secret, "prompt-remove-secret");
-fl_string!(prompt_overwrite_one_time_password, "prompt-overwrite-one-time-password");
-fl_string!(prompt_remove_one_time_password, "prompt-remove-one-time-password");
+fl_string!(
+    prompt_overwrite_one_time_password,
+    "prompt-overwrite-one-time-password"
+);
+fl_string!(
+    prompt_remove_one_time_password,
+    "prompt-remove-one-time-password"
+);
 
 // Error messages
-fl_string!(error_cannot_get_user_confirmation, "error-cannot-get-user-confirmation");
+fl_string!(
+    error_cannot_get_user_confirmation,
+    "error-cannot-get-user-confirmation"
+);
 fl_string!(
     error_no_confirmation_from_non_terminal,
     "error-no-confirmation-from-non-terminal"
 );
-fl_string!(error_could_not_load_configuration, "error-could-not-load-configuration");
-fl_string!(error_store_does_not_exist, "error-store-does-not-exist", store_name);
-fl_string!(error_invalid_line_number, "error-invalid-line-number", input);
+fl_string!(
+    error_could_not_load_configuration,
+    "error-could-not-load-configuration"
+);
+fl_string!(
+    error_store_does_not_exist,
+    "error-store-does-not-exist",
+    store_name
+);
+fl_string!(
+    error_invalid_line_number,
+    "error-invalid-line-number",
+    input
+);
 fl_string!(
     error_line_number_must_not_be_zero,
     "error-line-number-must-not-be-zero"
 );
 fl_string!(error_invalid_count, "error-invalid-count", input);
 fl_string!(error_count_must_not_be_zero, "error-count-must-not-be-zero");
-fl_string!(error_file_does_not_exist, "error-file-does-not-exist", input);
-fl_string!(error_secret_already_exists, "error-secret-already-exists", secret_path);
+fl_string!(
+    error_file_does_not_exist,
+    "error-file-does-not-exist",
+    input
+);
+fl_string!(
+    error_secret_already_exists,
+    "error-secret-already-exists",
+    secret_path
+);
 fl_string!(
     error_secret_already_exists_overwrite_or_inplace,
     "error-secret-already-exists-overwrite-or-inplace",
@@ -451,20 +553,42 @@ fl_string!(
     "error-no-one-time-password-found",
     password_path
 );
-fl_string!(error_no_store_in_configuration, "error-no-store-in-configuration");
+fl_string!(
+    error_no_store_in_configuration,
+    "error-no-store-in-configuration"
+);
 fl_string!(error_no_store_or_global, "error-no-store-or-global");
-fl_string!(error_store_name_already_exists, "error-store-name-already-exists");
-fl_string!(error_store_path_is_directory, "error-store-path-is-directory");
-fl_string!(error_cannot_create_store_path, "error-cannot-create-store-path");
-fl_string!(error_cannot_get_store_parent, "error-cannot-get-store-parent");
+fl_string!(
+    error_store_name_already_exists,
+    "error-store-name-already-exists"
+);
+fl_string!(
+    error_store_path_is_directory,
+    "error-store-path-is-directory"
+);
+fl_string!(
+    error_cannot_create_store_path,
+    "error-cannot-create-store-path"
+);
+fl_string!(
+    error_cannot_get_store_parent,
+    "error-cannot-get-store-parent"
+);
 fl_string!(error_cannot_identify_store, "error-cannot-identify-store");
 fl_string!(
     error_no_identity_files_to_decrypt,
     "error-no-identity-files-to-decrypt"
 );
-fl_string!(error_invalid_ssh_public_key_format, "error-invalid-ssh-public-key-format");
+fl_string!(
+    error_invalid_ssh_public_key_format,
+    "error-invalid-ssh-public-key-format"
+);
 fl_string!(error_username_empty, "error-username-empty");
-fl_string!(error_username_contains_dotdot, "error-username-contains-dotdot", username);
+fl_string!(
+    error_username_contains_dotdot,
+    "error-username-contains-dotdot",
+    username
+);
 fl_string!(
     error_username_invalid_character,
     "error-username-invalid-character",
@@ -477,12 +601,36 @@ fl_string!(
 );
 fl_string!(error_no_public_key_source, "error-no-public-key-source");
 fl_string!(error_no_qrcode_found, "error-no-qrcode-found", qrcode);
-fl_string!(error_failed_to_decode_qrcode, "error-failed-to-decode-qrcode", qrcode);
-fl_string!(error_cannot_determine_store_name, "error-cannot-determine-store-name");
-fl_string!(error_cannot_parse_hook_command, "error-cannot-parse-hook-command", command);
-fl_string!(error_empty_hook_command, "error-empty-hook-command", command);
-fl_string!(error_failed_to_run_hook, "error-failed-to-run-hook", command);
-fl_string!(error_hook_failed_no_detail, "error-hook-failed-no-detail", command, exit);
+fl_string!(
+    error_failed_to_decode_qrcode,
+    "error-failed-to-decode-qrcode",
+    qrcode
+);
+fl_string!(
+    error_cannot_determine_store_name,
+    "error-cannot-determine-store-name"
+);
+fl_string!(
+    error_cannot_parse_hook_command,
+    "error-cannot-parse-hook-command",
+    command
+);
+fl_string!(
+    error_empty_hook_command,
+    "error-empty-hook-command",
+    command
+);
+fl_string!(
+    error_failed_to_run_hook,
+    "error-failed-to-run-hook",
+    command
+);
+fl_string!(
+    error_hook_failed_no_detail,
+    "error-hook-failed-no-detail",
+    command,
+    exit
+);
 fl_string!(
     error_hook_failed_with_detail,
     "error-hook-failed-with-detail",
@@ -495,9 +643,20 @@ fl_string!(
     "error-cannot-determine-store-parent-path",
     path
 );
-fl_string!(error_store_path_not_utf8, "error-store-path-not-utf8", token, path);
-fl_string!(error_merge_conflict_recipients, "error-merge-conflict-recipients");
-fl_string!(error_recipient_not_found_in_store, "error-recipient-not-found-in-store");
+fl_string!(
+    error_store_path_not_utf8,
+    "error-store-path-not-utf8",
+    token,
+    path
+);
+fl_string!(
+    error_merge_conflict_recipients,
+    "error-merge-conflict-recipients"
+);
+fl_string!(
+    error_recipient_not_found_in_store,
+    "error-recipient-not-found-in-store"
+);
 fl_string!(
     error_cannot_decrypt_common_ancestor_store,
     "error-cannot-decrypt-common-ancestor-store"
@@ -511,24 +670,58 @@ fl_string!(
     "error-cannot-decrypt-other-version-store"
 );
 fl_string!(error_cannot_read_file, "error-cannot-read-file", path);
-fl_string!(error_downloading_public_key_failed, "error-downloading-public-key-failed", provider);
+fl_string!(
+    error_downloading_public_key_failed,
+    "error-downloading-public-key-failed",
+    provider
+);
 fl_string!(
     error_cannot_determine_parent_directory,
     "error-cannot-determine-parent-directory",
     path
 );
-fl_string!(error_failed_to_create_directory, "error-failed-to-create-directory", path);
-fl_string!(error_failed_to_write_file, "error-failed-to-write-file", path);
-fl_string!(error_failed_to_fsync_file, "error-failed-to-fsync-file", path);
-fl_string!(error_failed_to_rename_file, "error-failed-to-rename-file", from, to);
-fl_string!(error_failed_to_create_file, "error-failed-to-create-file", path);
-fl_string!(error_could_not_resolve_config_path, "error-could-not-resolve-config-path");
+fl_string!(
+    error_failed_to_create_directory,
+    "error-failed-to-create-directory",
+    path
+);
+fl_string!(
+    error_failed_to_write_file,
+    "error-failed-to-write-file",
+    path
+);
+fl_string!(
+    error_failed_to_fsync_file,
+    "error-failed-to-fsync-file",
+    path
+);
+fl_string!(
+    error_failed_to_rename_file,
+    "error-failed-to-rename-file",
+    from,
+    to
+);
+fl_string!(
+    error_failed_to_create_file,
+    "error-failed-to-create-file",
+    path
+);
+fl_string!(
+    error_could_not_resolve_config_path,
+    "error-could-not-resolve-config-path"
+);
 fl_string!(
     error_could_not_determine_config_path,
     "error-could-not-determine-config-path"
 );
-fl_string!(error_could_not_resolve_store_path, "error-could-not-resolve-store-path");
-fl_string!(error_could_not_create_config_dir, "error-could-not-create-config-dir");
+fl_string!(
+    error_could_not_resolve_store_path,
+    "error-could-not-resolve-store-path"
+);
+fl_string!(
+    error_could_not_create_config_dir,
+    "error-could-not-create-config-dir"
+);
 fl_string!(
     error_could_not_migrate_legacy_config,
     "error-could-not-migrate-legacy-config"
@@ -539,12 +732,18 @@ fl_string!(
     error_could_not_remove_source_after_copy,
     "error-could-not-remove-source-after-copy"
 );
-fl_string!(error_could_not_read_configuration, "error-could-not-read-configuration");
+fl_string!(
+    error_could_not_read_configuration,
+    "error-could-not-read-configuration"
+);
 fl_string!(
     error_could_not_serialize_migrated_config,
     "error-could-not-serialize-migrated-config"
 );
-fl_string!(error_could_not_store_configuration, "error-could-not-store-configuration");
+fl_string!(
+    error_could_not_store_configuration,
+    "error-could-not-store-configuration"
+);
 fl_string!(
     error_could_not_load_migrated_config,
     "error-could-not-load-migrated-config"
@@ -553,7 +752,11 @@ fl_string!(
     error_could_not_serialize_configuration,
     "error-could-not-serialize-configuration"
 );
-fl_string!(error_config_not_valid_toml, "error-config-not-valid-toml", path);
+fl_string!(
+    error_config_not_valid_toml,
+    "error-config-not-valid-toml",
+    path
+);
 fl_string!(
     error_could_not_open_store_for_lock,
     "error-could-not-open-store-for-lock",
@@ -565,5 +768,14 @@ fl_string!(
     path
 );
 fl_string!(error_cannot_encrypt_store, "error-cannot-encrypt-store");
-fl_string!(error_failed_to_run_command, "error-failed-to-run-command", binary);
-fl_string!(error_command_exited_with, "error-command-exited-with", binary, exit);
+fl_string!(
+    error_failed_to_run_command,
+    "error-failed-to-run-command",
+    binary
+);
+fl_string!(
+    error_command_exited_with,
+    "error-command-exited-with",
+    binary,
+    exit
+);

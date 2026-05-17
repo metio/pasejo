@@ -157,7 +157,10 @@ mod tests {
 
         let executed = should_execute(Some(60), Some((dir, file.clone()))).unwrap();
 
-        assert!(!executed, "future-dated marker should not trigger execution");
+        assert!(
+            !executed,
+            "future-dated marker should not trigger execution"
+        );
         // The marker is left untouched — we did not refresh it.
         let written: u64 = std::fs::read_to_string(&file).unwrap().parse().unwrap();
         assert_eq!(written, future);

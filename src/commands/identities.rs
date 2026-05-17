@@ -31,9 +31,11 @@ pub fn dispatch(command: &IdentityCommands, configuration: &Configuration) -> an
                 args.ignore_unknown,
             )
         }
-        IdentityCommands::List(args) => {
-            list(configuration, args.store_selection.store.as_ref(), args.global)
-        }
+        IdentityCommands::List(args) => list(
+            configuration,
+            args.store_selection.store.as_ref(),
+            args.global,
+        ),
     }
 }
 

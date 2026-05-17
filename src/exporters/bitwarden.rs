@@ -20,20 +20,23 @@ pub fn json(
     uri_keys: &[String],
     pretty: bool,
 ) -> anyhow::Result<String> {
-    if let Some(organization_id) = organization_id {
-        let payload = build_organization(
-            store,
-            organization_id,
-            collection_id,
-            collection_name,
-            username_keys,
-            uri_keys,
-        );
-        serialize(&payload, pretty)
-    } else {
-        let payload = build_individual(store, username_keys, uri_keys);
-        serialize(&payload, pretty)
-    }
+    organization_id.map_or_else(
+        || {
+            let payload = build_individual(store, username_keys, uri_keys);
+            serialize(&payload, pretty)
+        },
+        |organization_id| {
+            let payload = build_organization(
+                store,
+                organization_id,
+                collection_id,
+                collection_name,
+                username_keys,
+                uri_keys,
+            );
+            serialize(&payload, pretty)
+        },
+    )
 }
 
 fn build_organization(
@@ -345,19 +348,14 @@ mod tests {
         let parsed: Value = serde_json::from_str(&output).unwrap();
         let folders = parsed.get("folders").unwrap().as_array().unwrap();
         assert_eq!(folders.len(), 2);
-        let folder_names: Vec<&str> = folders.iter().map(|f| f["name"].as_str().unwrap()).collect();
+        let folder_names: Vec<&str> = folders
+            .iter()
+            .map(|f| f["name"].as_str().unwrap())
+            .collect();
         assert!(folder_names.contains(&"work"));
         assert!(folder_names.contains(&"personal"));
-        let work_id = folders
-            .iter()
-            .find(|f| f["name"] == "work")
-            .unwrap()["id"]
-            .clone();
-        let personal_id = folders
-            .iter()
-            .find(|f| f["name"] == "personal")
-            .unwrap()["id"]
-            .clone();
+        let work_id = folders.iter().find(|f| f["name"] == "work").unwrap()["id"].clone();
+        let personal_id = folders.iter().find(|f| f["name"] == "personal").unwrap()["id"].clone();
         assert_ne!(work_id, personal_id);
     }
 
@@ -609,12 +607,7 @@ mod tests {
 
     #[test]
     fn item_ids_are_unique_across_export() {
-        let store = store_with(&[
-            ("a", "h1"),
-            ("b", "h2"),
-            ("work/c", "h3"),
-            ("work/d", "h4"),
-        ]);
+        let store = store_with(&[("a", "h1"), ("b", "h2"), ("work/c", "h3"), ("work/d", "h4")]);
 
         let payload = build_individual(&store, &[], &[]);
 
