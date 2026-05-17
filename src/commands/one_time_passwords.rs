@@ -6,7 +6,6 @@ use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::{Cli, OtpCommands};
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType, PasswordStore};
-use crate::one_time_passwords::parser::parse_otp_args;
 use crate::secrets;
 use std::time::Duration;
 use zeroize::Zeroizing;
@@ -21,17 +20,7 @@ pub fn dispatch(
             configuration,
             args.store_selection.store.as_ref(),
             &args.password_path,
-            &parse_otp_args(
-                args.otp_type.as_ref(),
-                args.algorithm.as_ref(),
-                args.secret.as_ref(),
-                args.digits,
-                args.period,
-                args.counter,
-                args.skew,
-                args.url.as_ref(),
-                args.qrcode.as_ref(),
-            )?,
+            &args.parse_password()?,
             args.force,
             cli.offline,
         ),

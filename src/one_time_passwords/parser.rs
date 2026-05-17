@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use crate::models::cli::OtpAddArgs;
 use crate::models::password_store::{
     OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
 };
@@ -10,44 +11,37 @@ use otp_std::auth::query::Query;
 use otp_std::base::SECRET;
 use otp_std::{Otp, Type, auth};
 use std::borrow::Cow;
-use std::path::PathBuf;
 
-#[allow(clippy::too_many_arguments)]
-pub fn parse_otp_args(
-    otp_type: Option<&OneTimePasswordType>,
-    algorithm: Option<&OneTimePasswordAlgorithm>,
-    secret: Option<&String>,
-    digits: Option<u8>,
-    period: Option<u64>,
-    counter: Option<u64>,
-    skew: Option<u64>,
-    url: Option<&String>,
-    qrcode: Option<&PathBuf>,
-) -> anyhow::Result<OneTimePassword> {
-    if let Some(url) = url {
-        // parse otpauth URL
-        parse_from_url(url)
-    } else if let Some(qrcode) = qrcode {
-        // parse otpauth URL from QR code
-        let img = image::open(qrcode)?.to_luma8();
-        let mut img = rqrr::PreparedImage::prepare(img);
-        let grids = img.detect_grids();
-        let grid = grids
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("No QR code found in '{}'", qrcode.display()))?;
-        let (_, content) = grid
-            .decode()
-            .with_context(|| format!("Failed to decode QR code in '{}'", qrcode.display()))?;
-        parse_from_url(&content)
-    } else {
+impl OtpAddArgs {
+    /// Resolve the user-supplied OTP arguments into a concrete
+    /// [`OneTimePassword`]. Precedence: `--url` over `--qrcode` over the
+    /// individual `--type`/`--algorithm`/`--secret`/… flags; clap already
+    /// enforces that `--url` and `--qrcode` are mutually exclusive and
+    /// that neither coexists with the manual flags.
+    pub fn parse_password(&self) -> anyhow::Result<OneTimePassword> {
+        if let Some(url) = &self.url {
+            return parse_from_url(url);
+        }
+        if let Some(qrcode) = &self.qrcode {
+            let img = image::open(qrcode)?.to_luma8();
+            let mut img = rqrr::PreparedImage::prepare(img);
+            let grids = img.detect_grids();
+            let grid = grids.first().ok_or_else(|| {
+                anyhow::anyhow!("No QR code found in '{}'", qrcode.display())
+            })?;
+            let (_, content) = grid.decode().with_context(|| {
+                format!("Failed to decode QR code in '{}'", qrcode.display())
+            })?;
+            return parse_from_url(&content);
+        }
         Ok(OneTimePassword {
-            secret: secret.cloned().unwrap_or_default().to_uppercase(),
-            otp_type: otp_type.cloned().unwrap_or_default(),
-            algorithm: algorithm.cloned().unwrap_or_default(),
-            digits: digits.unwrap_or(6),
-            period: period.unwrap_or(30),
-            counter: counter.unwrap_or(0),
-            skew: skew.unwrap_or(0),
+            secret: self.secret.clone().unwrap_or_default().to_uppercase(),
+            otp_type: self.otp_type.clone().unwrap_or_default(),
+            algorithm: self.algorithm.clone().unwrap_or_default(),
+            digits: self.digits.unwrap_or(6),
+            period: self.period.unwrap_or(30),
+            counter: self.counter.unwrap_or(0),
+            skew: self.skew.unwrap_or(0),
         })
     }
 }
@@ -87,10 +81,28 @@ fn parse_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::cli::StoreSelectionArgs;
+
+    fn empty_args() -> OtpAddArgs {
+        OtpAddArgs {
+            store_selection: StoreSelectionArgs { store: None },
+            force: false,
+            url: None,
+            qrcode: None,
+            secret: None,
+            otp_type: None,
+            algorithm: None,
+            digits: None,
+            period: None,
+            skew: None,
+            counter: None,
+            password_path: String::new(),
+        }
+    }
 
     #[test]
     fn defaults_are_filled_in_for_missing_arguments() {
-        let result = parse_otp_args(None, None, None, None, None, None, None, None, None).unwrap();
+        let result = empty_args().parse_password().unwrap();
         assert_eq!(result.secret, "");
         assert_eq!(result.otp_type, OneTimePasswordType::Totp);
         assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha1);
@@ -102,37 +114,26 @@ mod tests {
 
     #[test]
     fn secret_is_uppercased() {
-        let secret = String::from("jbswy3dpehpk3pxp");
-        let result = parse_otp_args(
-            None,
-            None,
-            Some(&secret),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
-        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
+        let args = OtpAddArgs {
+            secret: Some(String::from("jbswy3dpehpk3pxp")),
+            ..empty_args()
+        };
+        assert_eq!(args.parse_password().unwrap().secret, "JBSWY3DPEHPK3PXP");
     }
 
     #[test]
     fn explicit_arguments_override_defaults() {
-        let secret = String::from("ABCD");
-        let result = parse_otp_args(
-            Some(&OneTimePasswordType::Hotp),
-            Some(&OneTimePasswordAlgorithm::Sha256),
-            Some(&secret),
-            Some(8),
-            Some(60),
-            Some(42),
-            Some(2),
-            None,
-            None,
-        )
-        .unwrap();
+        let args = OtpAddArgs {
+            secret: Some(String::from("ABCD")),
+            otp_type: Some(OneTimePasswordType::Hotp),
+            algorithm: Some(OneTimePasswordAlgorithm::Sha256),
+            digits: Some(8),
+            period: Some(60),
+            counter: Some(42),
+            skew: Some(2),
+            ..empty_args()
+        };
+        let result = args.parse_password().unwrap();
         assert_eq!(result.secret, "ABCD");
         assert_eq!(result.otp_type, OneTimePasswordType::Hotp);
         assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha256);
@@ -144,18 +145,22 @@ mod tests {
 
     #[test]
     fn invalid_url_is_rejected() {
-        let url = String::from("not-a-url");
-        let result = parse_otp_args(None, None, None, None, None, None, None, Some(&url), None);
-        assert!(result.is_err());
+        let args = OtpAddArgs {
+            url: Some(String::from("not-a-url")),
+            ..empty_args()
+        };
+        assert!(args.parse_password().is_err());
     }
 
     #[test]
     fn totp_url_yields_totp_one_time_password() {
-        let url = String::from(
-            "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&period=30",
-        );
-        let result =
-            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        let args = OtpAddArgs {
+            url: Some(String::from(
+                "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&period=30",
+            )),
+            ..empty_args()
+        };
+        let result = args.parse_password().unwrap();
         assert_eq!(result.otp_type, OneTimePasswordType::Totp);
         assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha1);
         assert_eq!(result.digits, 6);
@@ -165,11 +170,13 @@ mod tests {
 
     #[test]
     fn hotp_url_yields_hotp_with_counter_from_url() {
-        let url = String::from(
-            "otpauth://hotp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&counter=5",
-        );
-        let result =
-            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        let args = OtpAddArgs {
+            url: Some(String::from(
+                "otpauth://hotp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&counter=5",
+            )),
+            ..empty_args()
+        };
+        let result = args.parse_password().unwrap();
         assert_eq!(result.otp_type, OneTimePasswordType::Hotp);
         assert_eq!(result.counter, 5);
     }
@@ -180,46 +187,49 @@ mod tests {
         // A URL importing counter=5 must produce that exact code on the first
         // call, not the code at counter=6 (which is what a pre-increment
         // implementation would emit).
-        let url = String::from(
-            "otpauth://hotp/Example:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=6&counter=5",
-        );
-        let mut otp =
-            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        let args = OtpAddArgs {
+            url: Some(String::from(
+                "otpauth://hotp/Example:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=6&counter=5",
+            )),
+            ..empty_args()
+        };
+        let mut otp = args.parse_password().unwrap();
         assert_eq!(otp.generate().unwrap(), 254_676);
         assert_eq!(otp.counter, 6);
     }
 
     #[test]
     fn url_takes_precedence_over_other_arguments() {
-        // Even when manual arguments are provided, the url path should be taken
-        // and the manual arguments ignored.
-        let manual_secret = String::from("ZZZZ");
-        let url = String::from(
-            "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30",
-        );
-        let result = parse_otp_args(
-            Some(&OneTimePasswordType::Hotp),
-            Some(&OneTimePasswordAlgorithm::Sha512),
-            Some(&manual_secret),
-            Some(8),
-            Some(60),
-            None,
-            None,
-            Some(&url),
-            None,
-        )
-        .unwrap();
+        // The url path is taken even when manual arguments are also set;
+        // clap normally rejects this combination, but the resolver is
+        // defensive: url wins.
+        let args = OtpAddArgs {
+            url: Some(String::from(
+                "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30",
+            )),
+            secret: Some(String::from("ZZZZ")),
+            otp_type: Some(OneTimePasswordType::Hotp),
+            algorithm: Some(OneTimePasswordAlgorithm::Sha512),
+            digits: Some(8),
+            period: Some(60),
+            ..empty_args()
+        };
+        let result = args.parse_password().unwrap();
         assert_eq!(result.otp_type, OneTimePasswordType::Totp);
         assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
     }
 
     #[test]
     fn url_with_lowercase_secret_is_uppercased() {
-        let url = String::from(
-            "otpauth://totp/Example:alice?secret=jbswy3dpehpk3pxp&algorithm=SHA1&digits=6&period=30",
+        let args = OtpAddArgs {
+            url: Some(String::from(
+                "otpauth://totp/Example:alice?secret=jbswy3dpehpk3pxp&algorithm=SHA1&digits=6&period=30",
+            )),
+            ..empty_args()
+        };
+        assert_eq!(
+            args.parse_password().unwrap().secret,
+            "JBSWY3DPEHPK3PXP"
         );
-        let result =
-            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
-        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
     }
 }
