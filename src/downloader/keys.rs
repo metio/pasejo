@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{environment_variables, i18n};
-use crate::downloader::username;
-use anyhow::Context;
 use std::env;
 use std::time::Duration;
+
+use anyhow::Context;
+
+use crate::cli::{environment_variables, i18n};
+use crate::downloader::username;
 
 // `.keys` files hold a handful of public keys (a few KB at most). Cap the
 // response so a hostile or compromised provider can't exhaust memory by

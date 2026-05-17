@@ -123,6 +123,7 @@ error-one-time-password-already-exists = La contraseña de un solo uso ya existe
 error-not-allowed-to-remove-one-time-password = No se permite eliminar la contraseña de un solo uso en { $password_path }. Use --force para sobrescribirla.
 error-no-one-time-password-found = No se encontró ninguna contraseña de un solo uso en '{ $password_path }'
 error-no-store-in-configuration = No se encontró ningún almacén en la configuración. Ejecute 'pasejo store add ...' primero para añadir uno
+error-decrypt-requires-yes-i-know = Descifrado rechazado: esto imprimirá todos los secretos en texto plano en stdout. Pase --yes-i-know para confirmar.
 error-no-store-or-global = No se encontró ningún almacén en la configuración y no se especificó la opción --global. Ejecute 'pasejo store add ...' primero para añadir uno
 error-store-name-already-exists = El nombre del almacén ya existe. Por favor use un nombre diferente.
 error-store-path-is-directory = No se puede usar un directorio como ruta del almacén. Por favor use una ruta de archivo.

@@ -20,4 +20,8 @@ $ pasejo config set ignore-missing-identities tru
 ? 1
 Error: Invalid boolean value 'tru'. Expected one of: true, false, 1, 0, yes, no, y, n
 
+$ pasejo store decrypt
+? 1
+Error: 拒绝解密:这会将每个密钥以明文形式打印到 stdout。请传递 --yes-i-know 以确认。
+
 ```

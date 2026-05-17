@@ -123,6 +123,7 @@ error-one-time-password-already-exists = One-time password already exists at { $
 error-not-allowed-to-remove-one-time-password = Not allowed to remove one-time password at { $password_path }. Use --force to overwrite.
 error-no-one-time-password-found = No one-time password found at '{ $password_path }'
 error-no-store-in-configuration = No store found in configuration. Run 'pasejo store add ...' first to add one
+error-decrypt-requires-yes-i-know = Refusing to decrypt: this prints every secret in plaintext to stdout. Pass --yes-i-know to confirm.
 error-no-store-or-global = No store found in configuration and no --global flag specified. Run 'pasejo store add ...' first to add one
 error-store-name-already-exists = Store name already exists. Please use a different name.
 error-store-path-is-directory = Cannot use directory as store path. Please use a file path.

@@ -20,4 +20,8 @@ $ pasejo config set ignore-missing-identities tru
 ? 1
 Error: Invalid boolean value 'tru'. Expected one of: true, false, 1, 0, yes, no, y, n
 
+$ pasejo store decrypt
+? 1
+Error: Descifrado rechazado: esto imprimirá todos los secretos en texto plano en stdout. Pase --yes-i-know para confirmar.
+
 ```

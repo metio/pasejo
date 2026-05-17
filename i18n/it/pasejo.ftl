@@ -123,6 +123,7 @@ error-one-time-password-already-exists = La password monouso esiste già a { $pa
 error-not-allowed-to-remove-one-time-password = Rimozione della password monouso a { $password_path } non consentita. Usare --force per sovrascriverla.
 error-no-one-time-password-found = Nessuna password monouso trovata a '{ $password_path }'
 error-no-store-in-configuration = Nessun archivio trovato nella configurazione. Eseguire prima 'pasejo store add ...' per aggiungerne uno
+error-decrypt-requires-yes-i-know = Decifratura rifiutata: stamperà ogni segreto in chiaro su stdout. Passa --yes-i-know per confermare.
 error-no-store-or-global = Nessun archivio trovato nella configurazione e nessun flag --global specificato. Eseguire prima 'pasejo store add ...' per aggiungerne uno
 error-store-name-already-exists = Il nome dell'archivio esiste già. Usare un nome diverso.
 error-store-path-is-directory = Impossibile usare una directory come percorso dell'archivio. Usare un percorso di file.

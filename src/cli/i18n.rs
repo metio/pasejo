@@ -557,6 +557,10 @@ fl_string!(
     error_no_store_in_configuration,
     "error-no-store-in-configuration"
 );
+fl_string!(
+    error_decrypt_requires_yes_i_know,
+    "error-decrypt-requires-yes-i-know"
+);
 fl_string!(error_no_store_or_global, "error-no-store-or-global");
 fl_string!(
     error_store_name_already_exists,

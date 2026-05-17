@@ -20,7 +20,7 @@ Recipient for 'age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd' a
 $ pasejo recipient add --public-key age1acvmq9pv8lwr60xa7va36vnz2wr78zutk3mpy3jzyw8pfpdeg45qjhfqp8 --store other
 Recipient for 'age1acvmq9pv8lwr60xa7va36vnz2wr78zutk3mpy3jzyw8pfpdeg45qjhfqp8' added
 
-$ pasejo store decrypt --store something
+$ pasejo store decrypt --store something --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"
@@ -32,7 +32,7 @@ public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"
 
 $ pasejo store merge --common-ancestor something --current-version something --other-version other
 
-$ pasejo store decrypt --store something
+$ pasejo store decrypt --store something --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"

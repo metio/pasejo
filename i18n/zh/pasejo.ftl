@@ -123,6 +123,7 @@ error-one-time-password-already-exists = 一次性密码已存在于 { $password
 error-not-allowed-to-remove-one-time-password = 不允许删除 { $password_path } 的一次性密码。使用 --force 覆盖。
 error-no-one-time-password-found = 在 '{ $password_path }' 找不到一次性密码
 error-no-store-in-configuration = 配置中找不到存储。请先运行 'pasejo store add ...' 添加一个
+error-decrypt-requires-yes-i-know = 拒绝解密:这会将每个密钥以明文形式打印到 stdout。请传递 --yes-i-know 以确认。
 error-no-store-or-global = 配置中找不到存储,且未指定 --global 标志。请先运行 'pasejo store add ...' 添加一个
 error-store-name-already-exists = 存储名称已存在。请使用其他名称。
 error-store-path-is-directory = 不能将目录用作存储路径。请使用文件路径。

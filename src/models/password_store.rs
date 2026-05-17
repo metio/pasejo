@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::collections::BTreeMap;
+
 use otp_std::{Algorithm, Base, Counter, Digits, Hotp, Period, Secret, Skew, Totp};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

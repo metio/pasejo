@@ -32,7 +32,7 @@ Added one-time password at 'some-name'
 $ pasejo otp add --type totp --secret JEQDYMZAN5YGK3RAONXXK4TDMU some-name --store other
 Added one-time password at 'some-name'
 
-$ pasejo store decrypt --store ancestor
+$ pasejo store decrypt --store ancestor --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"
@@ -47,7 +47,7 @@ $ pasejo store merge --common-ancestor ancestor --current-version current --othe
 Merge conflict for one-time password at 'some-name': values differ in the two versions
 Error: Merge conflict detected in one-time passwords. Please resolve manually.
 
-$ pasejo store decrypt --store ancestor
+$ pasejo store decrypt --store ancestor --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"

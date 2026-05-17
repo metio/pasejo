@@ -8,9 +8,8 @@ use std::path::Path;
 use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
 
-use crate::cli::i18n;
-
 use crate::cli::atomic_write;
+use crate::cli::i18n;
 
 pub fn encrypt(
     secret: &str,
@@ -44,9 +43,10 @@ pub fn decrypt(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use age::x25519;
     use assert_fs::TempDir;
+
+    use super::*;
 
     fn fresh_identity_pair() -> (x25519::Identity, x25519::Recipient) {
         let identity = x25519::Identity::generate();

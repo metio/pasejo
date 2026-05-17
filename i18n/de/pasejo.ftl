@@ -123,6 +123,7 @@ error-one-time-password-already-exists = Einmalpasswort existiert bereits bei { 
 error-not-allowed-to-remove-one-time-password = Entfernen des Einmalpassworts bei { $password_path } nicht erlaubt. Verwenden Sie --force zum Überschreiben.
 error-no-one-time-password-found = Kein Einmalpasswort bei '{ $password_path }' gefunden
 error-no-store-in-configuration = Kein Speicher in der Konfiguration gefunden. Führen Sie zuerst 'pasejo store add ...' aus, um einen hinzuzufügen
+error-decrypt-requires-yes-i-know = Entschlüsselung verweigert: Dadurch werden alle Geheimnisse im Klartext auf stdout ausgegeben. Übergeben Sie --yes-i-know zur Bestätigung.
 error-no-store-or-global = Kein Speicher in der Konfiguration gefunden und kein --global-Flag angegeben. Führen Sie zuerst 'pasejo store add ...' aus, um einen hinzuzufügen
 error-store-name-already-exists = Speichername existiert bereits. Bitte verwenden Sie einen anderen Namen.
 error-store-path-is-directory = Verzeichnis kann nicht als Speicherpfad verwendet werden. Bitte verwenden Sie einen Dateipfad.

@@ -20,4 +20,8 @@ $ pasejo config set ignore-missing-identities tru
 ? 1
 Error: Invalid boolean value 'tru'. Expected one of: true, false, 1, 0, yes, no, y, n
 
+$ pasejo store decrypt
+? 1
+Error: 복호화를 거부했습니다: 모든 비밀이 평문으로 stdout에 출력됩니다. 확인을 위해 --yes-i-know를 전달하세요.
+
 ```

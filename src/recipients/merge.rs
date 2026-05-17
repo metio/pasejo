@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use anyhow::Result;
+
 use crate::cli;
 use crate::models::password_store::Recipient;
-use anyhow::Result;
 
 pub fn merge_recipients(
     common_ancestor_recipients: &[Recipient],
@@ -84,7 +85,8 @@ pub fn merge_recipients(
             .iter()
             .any(|item| item.public_key == recipient.public_key)
         {
-            // If the recipient is not in the common ancestor, it was added in the current version
+            // If the recipient is not in the common ancestor, it was added in the current
+            // version
             resulting_recipients.push(recipient.clone());
         }
     }
@@ -94,15 +96,17 @@ pub fn merge_recipients(
             .iter()
             .any(|item| item.public_key == recipient.public_key)
         {
-            // If the recipient is not in the common ancestor, it was added in the other version
-            // Check if we already have this recipient in the resulting recipients
+            // If the recipient is not in the common ancestor, it was added in the other
+            // version Check if we already have this recipient in the resulting
+            // recipients
             let already_added_recipient = resulting_recipients
                 .iter()
                 .find(|item| item.public_key == recipient.public_key);
 
             if let Some(already_added_recipient) = already_added_recipient {
                 if already_added_recipient.name != recipient.name {
-                    // If the recipient is already added but with a different name, we have a conflict
+                    // If the recipient is already added but with a different name, we have a
+                    // conflict
                     merge_conflict = true;
                     cli::i18n::merge_conflict_recipient_names(
                         &recipient.public_key,

@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::collections::BTreeMap;
+
+use anyhow::Result;
+
 use crate::cli;
 use crate::models::password_store::OneTimePassword;
-use anyhow::Result;
-use std::collections::BTreeMap;
 
 pub fn merge_one_time_passwords(
     common_ancestor_one_time_passwords: &BTreeMap<String, OneTimePassword>,

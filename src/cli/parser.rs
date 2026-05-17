@@ -50,9 +50,10 @@ pub fn existing_file(input: &str) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_fs::TempDir;
     use assert_fs::prelude::*;
+
+    use super::*;
 
     #[test]
     fn existing_file_accepts_real_file() {

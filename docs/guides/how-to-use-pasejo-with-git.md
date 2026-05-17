@@ -42,7 +42,7 @@ $ echo '*.store diff=pasejo' >> /path/to/your/repo/.gitattributes
 $ git -C /path/to/your/repo config --local diff.pasejo.binary true
 
 # configure the text conversion command for pasejo files
-$ git -C /path/to/your/repo config --local diff.pasejo.textconv "pasejo store decrypt --store my-git-store --store-path"
+$ git -C /path/to/your/repo config --local diff.pasejo.textconv "pasejo store decrypt --yes-i-know --store my-git-store --store-path"
 ```
 
 ## Configuring Git Merge

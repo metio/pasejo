@@ -1,14 +1,16 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::time::Duration;
+
+use zeroize::Zeroizing;
+
 use crate::cli::{clipboard, i18n, prompts};
 use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::{Cli, OtpCommands};
 use crate::models::configuration::Configuration;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType, PasswordStore};
 use crate::secrets;
-use std::time::Duration;
-use zeroize::Zeroizing;
 
 pub fn dispatch(
     command: &OtpCommands,
