@@ -10,7 +10,8 @@ use crate::cli::i18n;
 use crate::models::configuration::Configuration;
 
 pub fn store_name(input: &str) -> Result<String> {
-    let configuration = Configuration::cached().context(i18n::error_could_not_load_configuration())?;
+    let configuration =
+        Configuration::cached().context(i18n::error_could_not_load_configuration())?;
     configuration
         .canonical_store_name(input)
         .ok_or_else(|| anyhow::anyhow!(i18n::error_store_does_not_exist(input)))

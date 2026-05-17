@@ -68,9 +68,9 @@ impl HookExecutor<'_> {
 
         let store_path = self.registration.path();
         let store_path_display = store_path.display().to_string();
-        let parent = store_path.parent().with_context(|| {
-            i18n::error_cannot_determine_store_parent_path(&store_path_display)
-        })?;
+        let parent = store_path
+            .parent()
+            .with_context(|| i18n::error_cannot_determine_store_parent_path(&store_path_display))?;
 
         for command in commands {
             let command_display = format!("{command:?}");
@@ -139,9 +139,9 @@ fn build_args(template: &[String], path: &Path) -> anyhow::Result<Vec<OsString>>
             out.push(path.as_os_str().to_os_string());
         } else if token.contains("%p") {
             let token_display = format!("{token:?}");
-            let path_str = path.to_str().with_context(|| {
-                i18n::error_store_path_not_utf8(&token_display, &path_display)
-            })?;
+            let path_str = path
+                .to_str()
+                .with_context(|| i18n::error_store_path_not_utf8(&token_display, &path_display))?;
             out.push(OsString::from(token.replace("%p", path_str)));
         } else {
             out.push(OsString::from(token));

@@ -280,7 +280,10 @@ mod tests {
 
         delete_store_file_if_requested(file.path(), false).unwrap();
 
-        assert!(file.path().exists(), "file must remain when remove_data=false");
+        assert!(
+            file.path().exists(),
+            "file must remain when remove_data=false"
+        );
     }
 
     #[test]

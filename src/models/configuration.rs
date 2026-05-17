@@ -152,8 +152,7 @@ impl Configuration {
         if let Some(parent) = new_path.parent() {
             fs::create_dir_all(parent).context(i18n::error_could_not_create_config_dir())?;
         }
-        move_file(&legacy_path, new_path)
-            .context(i18n::error_could_not_migrate_legacy_config())?;
+        move_file(&legacy_path, new_path).context(i18n::error_could_not_migrate_legacy_config())?;
         Ok(())
     }
 
@@ -205,9 +204,9 @@ impl Configuration {
     }
 
     pub fn set_default_store(&mut self, store_name: &str) -> Result<()> {
-        let canonical = self.canonical_store_name(store_name).ok_or_else(|| {
-            anyhow::anyhow!(i18n::error_store_does_not_exist(store_name))
-        })?;
+        let canonical = self
+            .canonical_store_name(store_name)
+            .ok_or_else(|| anyhow::anyhow!(i18n::error_store_does_not_exist(store_name)))?;
         self.default_store = Some(canonical);
         self.save_configuration()
     }
@@ -502,7 +501,10 @@ mod tests {
         let result = move_file(missing_src.path(), dst.path());
 
         assert!(result.is_err());
-        assert!(!dst.path().exists(), "no destination should be created on failure");
+        assert!(
+            !dst.path().exists(),
+            "no destination should be created on failure"
+        );
     }
 
     #[test]
@@ -581,7 +583,10 @@ mod tests {
         let result = cfg.set_default_store("missing");
 
         assert!(result.is_err());
-        assert!(cfg.default_store.is_none(), "default_store must not be set on failure");
+        assert!(
+            cfg.default_store.is_none(),
+            "default_store must not be set on failure"
+        );
     }
 
     #[test]

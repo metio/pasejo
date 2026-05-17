@@ -3,9 +3,7 @@
 
 use crate::cli::i18n;
 use crate::models::cli::OtpAddArgs;
-use crate::models::password_store::{
-    OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
-};
+use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 use anyhow::Context;
 use otp_std::Otp::{Hotp, Totp};
 use otp_std::auth::query::Query;
@@ -84,6 +82,7 @@ fn parse_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
 mod tests {
     use super::*;
     use crate::models::cli::StoreSelectionArgs;
+    use crate::models::password_store::OneTimePasswordAlgorithm;
 
     fn empty_args() -> OtpAddArgs {
         OtpAddArgs {
@@ -229,9 +228,6 @@ mod tests {
             )),
             ..empty_args()
         };
-        assert_eq!(
-            args.parse_password().unwrap().secret,
-            "JBSWY3DPEHPK3PXP"
-        );
+        assert_eq!(args.parse_password().unwrap().secret, "JBSWY3DPEHPK3PXP");
     }
 }

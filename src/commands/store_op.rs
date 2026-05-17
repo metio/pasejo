@@ -10,7 +10,6 @@ use std::fs::File;
 use std::io;
 use std::path::Path;
 
-
 /// Acquires an exclusive advisory lock on the store file at `path`. The
 /// returned `File` holds the lock; dropping it releases the lock. Returns
 /// `Ok(None)` when the store file does not yet exist — that is the
@@ -30,8 +29,9 @@ fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
             Ok(Some(file))
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error)
-            .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display)),
+        Err(error) => {
+            Err(error).with_context(|| i18n::error_could_not_open_store_for_lock(&path_display))
+        }
     }
 }
 

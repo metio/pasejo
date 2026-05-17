@@ -19,9 +19,8 @@ pub fn dispatch(
 ) -> Result<()> {
     match command {
         RecipientCommands::Add(args) => {
-            let download_timeout = Duration::from_secs(
-                configuration.key_download_timeout_seconds.unwrap_or(30),
-            );
+            let download_timeout =
+                Duration::from_secs(configuration.key_download_timeout_seconds.unwrap_or(30));
             add(
                 configuration,
                 args.store_selection.store.as_ref(),
