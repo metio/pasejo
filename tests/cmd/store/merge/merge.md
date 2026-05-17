@@ -43,7 +43,7 @@ otp_type = "Totp"
 algorithm = "Sha1"
 digits = 6
 period = 30
-counter = 1
+counter = 0
 skew = 0
 
 
@@ -63,7 +63,7 @@ otp_type = "Totp"
 algorithm = "Sha1"
 digits = 6
 period = 30
-counter = 1
+counter = 0
 skew = 0
 
 

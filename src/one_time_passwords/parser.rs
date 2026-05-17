@@ -46,7 +46,7 @@ pub fn parse_otp_args(
             algorithm: algorithm.cloned().unwrap_or_default(),
             digits: digits.unwrap_or(6),
             period: period.unwrap_or(30),
-            counter: counter.unwrap_or(1),
+            counter: counter.unwrap_or(0),
             skew: skew.unwrap_or(0),
         })
     }
@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha1);
         assert_eq!(result.digits, 6);
         assert_eq!(result.period, 30);
-        assert_eq!(result.counter, 1);
+        assert_eq!(result.counter, 0);
         assert_eq!(result.skew, 0);
     }
 
@@ -172,6 +172,21 @@ mod tests {
             parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
         assert_eq!(result.otp_type, OneTimePasswordType::Hotp);
         assert_eq!(result.counter, 5);
+    }
+
+    #[test]
+    fn hotp_url_counter_emits_first_code_at_that_counter_value() {
+        // RFC 4226 Appendix D: HOTP(ASCII "12345678901234567890", 5) = 254676.
+        // A URL importing counter=5 must produce that exact code on the first
+        // call, not the code at counter=6 (which is what a pre-increment
+        // implementation would emit).
+        let url = String::from(
+            "otpauth://hotp/Example:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=6&counter=5",
+        );
+        let mut otp =
+            parse_otp_args(None, None, None, None, None, None, None, Some(&url), None).unwrap();
+        assert_eq!(otp.generate().unwrap(), 254_676);
+        assert_eq!(otp.counter, 6);
     }
 
     #[test]
