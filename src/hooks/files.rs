@@ -148,10 +148,10 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let (dir, file) = paths_in(&temp);
         std::fs::create_dir_all(&dir).unwrap();
-        // Marker timestamp far in the future — simulates clock skew, NTP
-        // rollback, or a marker file copied from a machine with a fast clock.
-        // Before the fix, `epoch_seconds - last_seconds` would panic in debug
-        // and wrap to a huge value in release.
+        // A marker can legitimately sit ahead of `now` after clock skew, NTP
+        // rollback, or when the marker file is copied from a machine with a
+        // faster clock. The subtraction inside `should_execute` must not
+        // underflow in that case.
         let future = now_seconds() + 60 * 60 * 24 * 365;
         std::fs::write(&file, future.to_string()).unwrap();
 

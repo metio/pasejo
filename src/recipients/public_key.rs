@@ -223,9 +223,6 @@ mod tests {
 
     #[test]
     fn public_key_from_file_preserves_inner_hash_characters() {
-        // Bug #5(a): `line.replace('#', …)` was stripping every `#`, not just
-        // the leading marker. A comment like "# ticket #1234" was being
-        // mangled into "ticket 1234".
         let temp = TempDir::new().unwrap();
         let file = temp.child("recipients.txt");
         file.write_str("# ticket #1234\nage1abc\n").unwrap();
@@ -243,9 +240,6 @@ mod tests {
 
     #[test]
     fn public_key_from_file_joins_multi_line_comments_with_space() {
-        // Bug #5(b): consecutive comment lines were concatenated without a
-        // separator because `.trim()` ate the joining space. "# alice" then
-        // "# admin" produced "aliceadmin" instead of "alice admin".
         let temp = TempDir::new().unwrap();
         let file = temp.child("recipients.txt");
         file.write_str("# alice\n# admin\nage1abc\n").unwrap();
@@ -263,8 +257,6 @@ mod tests {
 
     #[test]
     fn public_key_from_file_resets_comment_buffer_between_keys() {
-        // Each key consumes its preceding comment block. A key with no leading
-        // comments should not inherit the previous key's comment.
         let temp = TempDir::new().unwrap();
         let file = temp.child("recipients.txt");
         file.write_str("# alice\nage1abc\nage1def\n# bob\n# admin\nage1ghi\n")
