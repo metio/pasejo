@@ -16,9 +16,9 @@ Options:
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -v, --verbose...                  Increase logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
+  -v, --verbose...                  Increase logging verbosity
   -q, --quiet...                    Decrease logging verbosity
   -t, --strict                      Whether the password rules are strict
   -h, --help                        Print help
@@ -43,9 +43,9 @@ Options:
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -v, --verbose...                  Increase logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
+  -v, --verbose...                  Increase logging verbosity
   -q, --quiet...                    Decrease logging verbosity
   -t, --strict                      Whether the password rules are strict
   -h, --help                        Print help
@@ -70,9 +70,9 @@ Options:
   -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
   -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
   -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -v, --verbose...                  Increase logging verbosity
   -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
+  -v, --verbose...                  Increase logging verbosity
   -q, --quiet...                    Decrease logging verbosity
   -t, --strict                      Whether the password rules are strict
   -h, --help                        Print help

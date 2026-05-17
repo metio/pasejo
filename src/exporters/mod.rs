@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: 0BSD
 
 pub mod bitwarden;
-mod parser;
+pub mod parser;

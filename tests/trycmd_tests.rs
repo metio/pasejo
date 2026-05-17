@@ -53,6 +53,12 @@ fn english_test_cases() -> trycmd::TestCases {
 
 #[test]
 #[cfg(not(windows))]
+fn cli_tests_browser() {
+    english_test_cases().case("tests/cmd/browser/*/*.md");
+}
+
+#[test]
+#[cfg(not(windows))]
 fn cli_tests_completion() {
     english_test_cases().case("tests/cmd/completion/*.md");
 }

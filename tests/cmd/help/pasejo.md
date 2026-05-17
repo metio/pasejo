@@ -5,6 +5,7 @@ age-backed password manager for teams
 Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
+  browser    Browser integration
   config     Manage pasejo configuration
   export     Export passwords
   hook       Manage hooks
@@ -31,6 +32,7 @@ age-backed password manager for teams
 Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
+  browser    Browser integration
   config     Manage pasejo configuration
   export     Export passwords
   hook       Manage hooks
@@ -57,6 +59,7 @@ age-backed password manager for teams
 Usage: pasejo [OPTIONS] <COMMAND>
 
 Commands:
+  browser    Browser integration
   config     Manage pasejo configuration
   export     Export passwords
   hook       Manage hooks

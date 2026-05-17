@@ -17,10 +17,10 @@ Options:
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
       --digits <DIGITS>        The digits of the one-time password
       --period <PERIOD>        The period of the one-time password
-  -v, --verbose...             Increase logging verbosity
-  -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
+  -v, --verbose...             Increase logging verbosity
       --counter <COUNTER>      The counter of the one-time password
+  -q, --quiet...               Decrease logging verbosity
   -h, --help                   Print help
 
 ```
@@ -44,10 +44,10 @@ Options:
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
       --digits <DIGITS>        The digits of the one-time password
       --period <PERIOD>        The period of the one-time password
-  -v, --verbose...             Increase logging verbosity
-  -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
+  -v, --verbose...             Increase logging verbosity
       --counter <COUNTER>      The counter of the one-time password
+  -q, --quiet...               Decrease logging verbosity
   -h, --help                   Print help
 
 ```
@@ -71,10 +71,10 @@ Options:
       --algorithm <ALGORITHM>  The algorithm of the one-time password [possible values: sha1, sha256, sha512]
       --digits <DIGITS>        The digits of the one-time password
       --period <PERIOD>        The period of the one-time password
-  -v, --verbose...             Increase logging verbosity
-  -q, --quiet...               Decrease logging verbosity
       --skew <SKEW>            The skew of the one-time password
+  -v, --verbose...             Increase logging verbosity
       --counter <COUNTER>      The counter of the one-time password
+  -q, --quiet...               Decrease logging verbosity
   -h, --help                   Print help
 
 ```

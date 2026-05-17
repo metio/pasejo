@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+mod browser;
 mod cli;
 mod commands;
 mod downloader;
@@ -47,6 +48,9 @@ fn main() -> Result<()> {
     let configuration = Configuration::cached()?;
 
     match &cli.command {
+        Commands::Browser { command } => {
+            commands::browser::dispatch(command, configuration, cli.offline)
+        }
         Commands::Config { command } => commands::config::dispatch(command, configuration),
         Commands::Export { command } => {
             commands::export::dispatch(command, configuration, cli.offline)

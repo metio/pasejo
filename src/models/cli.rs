@@ -30,6 +30,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Browser integration
+    Browser {
+        #[command(subcommand)]
+        command: BrowserCommands,
+    },
+
     /// Manage pasejo configuration
     Config {
         #[command(subcommand)]
@@ -111,6 +117,31 @@ pub enum ConfigurationOption {
     KeyDownloadTimeoutSeconds,
     PullIntervalSeconds,
     PushIntervalSeconds,
+}
+
+#[derive(Subcommand)]
+pub enum BrowserCommands {
+    /// Search a store for credentials matching a domain
+    Query(QueryArgs),
+}
+
+#[derive(Args)]
+pub struct QueryArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Domain to search for matching credentials
+    pub domain: String,
+
+    #[arg(long, default_values_t = default_username_keys())]
+    pub username_keys: Vec<String>,
+
+    #[arg(long, default_values_t = default_uri_keys())]
+    pub uri_keys: Vec<String>,
+
+    /// Toggle whether to print pretty JSON or not
+    #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
+    pub pretty: Option<bool>,
 }
 
 #[derive(Subcommand)]
