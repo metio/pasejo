@@ -3,13 +3,12 @@
 
 use std::borrow::Cow;
 
-use anyhow::Context;
 use otp_std::Otp::{Hotp, Totp};
 use otp_std::auth::query::Query;
 use otp_std::base::SECRET;
 use otp_std::{Otp, Type, auth};
 
-use crate::cli::i18n;
+use crate::cli::sandbox;
 use crate::models::cli::OtpAddArgs;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 
@@ -19,21 +18,17 @@ impl OtpAddArgs {
     /// individual `--type`/`--algorithm`/`--secret`/… flags; clap already
     /// enforces that `--url` and `--qrcode` are mutually exclusive and
     /// that neither coexists with the manual flags.
+    ///
+    /// QR-code input is decoded through [`sandbox::decode_qrcode_to_otpauth_url`],
+    /// which on Linux runs the `image` + `rqrr` parsers in a forked
+    /// child process restricted by Landlock so a memory-corruption bug
+    /// in either crate cannot exfiltrate identity files or the store.
     pub fn parse_password(&self) -> anyhow::Result<OneTimePassword> {
         if let Some(url) = &self.url {
             return parse_from_url(url);
         }
         if let Some(qrcode) = &self.qrcode {
-            let qrcode_display = qrcode.display().to_string();
-            let img = image::open(qrcode)?.to_luma8();
-            let mut img = rqrr::PreparedImage::prepare(img);
-            let grids = img.detect_grids();
-            let grid = grids
-                .first()
-                .ok_or_else(|| anyhow::anyhow!(i18n::error_no_qrcode_found(&qrcode_display)))?;
-            let (_, content) = grid
-                .decode()
-                .with_context(|| i18n::error_failed_to_decode_qrcode(&qrcode_display))?;
+            let content = sandbox::decode_qrcode_to_otpauth_url(qrcode)?;
             return parse_from_url(&content);
         }
         Ok(OneTimePassword {

@@ -11,3 +11,4 @@ pub mod i18n;
 pub mod merger;
 pub mod parser;
 pub mod prompts;
+pub mod sandbox;
