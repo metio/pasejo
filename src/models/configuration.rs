@@ -9,6 +9,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::env::var_os;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf, absolute};
 use std::sync::OnceLock;
 use toml::Table;
@@ -134,7 +135,7 @@ impl Configuration {
         if let Some(parent) = new_path.parent() {
             fs::create_dir_all(parent).context("Could not create configuration directory")?;
         }
-        fs::rename(&legacy_path, new_path)
+        move_file(&legacy_path, new_path)
             .context("Could not migrate legacy configuration file")?;
         Ok(())
     }
@@ -334,6 +335,24 @@ fn starts_with_ignore_ascii_case(haystack: &str, prefix: &str) -> bool {
         && haystack.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
 }
 
+/// Move a file from `src` to `dst`. Tries `rename` first (atomic when both
+/// paths live on the same filesystem); falls back to copy + remove when the
+/// kernel rejects the rename as cross-device (EXDEV on Linux), which happens
+/// whenever the source and destination straddle a mount point.
+fn move_file(src: &Path, dst: &Path) -> Result<()> {
+    match fs::rename(src, dst) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::CrossesDevices => move_via_copy(src, dst),
+        Err(error) => Err(error).context("Could not move file"),
+    }
+}
+
+fn move_via_copy(src: &Path, dst: &Path) -> Result<()> {
+    fs::copy(src, dst).context("Could not copy file")?;
+    fs::remove_file(src).context("Could not remove source file after copy")?;
+    Ok(())
+}
+
 impl StoreRegistration {
     pub fn path(&self) -> &Path {
         self.path.as_path()
@@ -435,6 +454,71 @@ fn migrate_store_table(table: &mut Table) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
+
+    #[test]
+    fn move_file_relocates_content_within_same_directory() {
+        let temp = TempDir::new().unwrap();
+        let src = temp.child("source.toml");
+        src.write_str("payload").unwrap();
+        let dst = temp.child("dest.toml");
+
+        move_file(src.path(), dst.path()).unwrap();
+
+        assert!(!src.path().exists(), "source must be gone after move");
+        assert_eq!(std::fs::read_to_string(dst.path()).unwrap(), "payload");
+    }
+
+    #[test]
+    fn move_file_propagates_errors_other_than_cross_device() {
+        let temp = TempDir::new().unwrap();
+        let missing_src = temp.child("never-existed");
+        let dst = temp.child("dest");
+
+        let result = move_file(missing_src.path(), dst.path());
+
+        assert!(result.is_err());
+        assert!(!dst.path().exists(), "no destination should be created on failure");
+    }
+
+    #[test]
+    fn move_via_copy_relocates_content_and_removes_source() {
+        let temp = TempDir::new().unwrap();
+        let src = temp.child("source.toml");
+        src.write_str("payload").unwrap();
+        let dst = temp.child("dest.toml");
+
+        move_via_copy(src.path(), dst.path()).unwrap();
+
+        assert!(!src.path().exists());
+        assert_eq!(std::fs::read_to_string(dst.path()).unwrap(), "payload");
+    }
+
+    #[test]
+    fn move_via_copy_fails_when_source_is_missing() {
+        let temp = TempDir::new().unwrap();
+        let missing = temp.child("never-existed");
+        let dst = temp.child("dest");
+
+        let result = move_via_copy(missing.path(), dst.path());
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn move_via_copy_fails_when_destination_directory_is_missing() {
+        let temp = TempDir::new().unwrap();
+        let src = temp.child("source.toml");
+        src.write_str("payload").unwrap();
+        let dst = temp.child("missing-dir").child("dest.toml");
+
+        let result = move_via_copy(src.path(), dst.path());
+
+        assert!(result.is_err());
+        // The fallback must not delete the source if the copy step failed.
+        assert!(src.path().exists(), "source must survive a failed copy");
+    }
 
     fn registration(name: &str, path: &str) -> StoreRegistration {
         StoreRegistration {
