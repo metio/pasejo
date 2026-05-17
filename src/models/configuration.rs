@@ -251,14 +251,6 @@ impl Configuration {
         files
     }
 
-    pub fn all_store_names(&self) -> Vec<String> {
-        let mut names = vec![];
-        for store in &self.stores {
-            names.push(store.name.clone());
-        }
-        names
-    }
-
     pub fn decrypt_store(&self, registration: &StoreRegistration) -> Result<PasswordStore> {
         self.decrypt_store_from_path(registration, registration.path())
     }
@@ -315,6 +307,28 @@ impl Configuration {
             .iter_mut()
             .find(|store| store.name.eq_ignore_ascii_case(store_name))
     }
+
+    /// Returns the registered store name that matches `input`
+    /// case-insensitively. The returned string uses the casing from the
+    /// registration, giving downstream code a stable canonical form.
+    pub fn canonical_store_name(&self, input: &str) -> Option<String> {
+        self.find_store(input).map(|store| store.name.clone())
+    }
+
+    /// Names of all registered stores whose name starts with `prefix`
+    /// case-insensitively. Used by shell completion.
+    pub fn store_names_with_prefix(&self, prefix: &str) -> Vec<String> {
+        self.stores
+            .iter()
+            .filter(|store| starts_with_ignore_ascii_case(&store.name, prefix))
+            .map(|store| store.name.clone())
+            .collect()
+    }
+}
+
+fn starts_with_ignore_ascii_case(haystack: &str, prefix: &str) -> bool {
+    haystack.len() >= prefix.len()
+        && haystack.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
 }
 
 impl StoreRegistration {
@@ -437,20 +451,6 @@ mod tests {
     }
 
     #[test]
-    fn all_store_names_returns_names_in_registration_order() {
-        let cfg = configuration_with_stores(vec![
-            registration("alpha", "/tmp/alpha"),
-            registration("beta", "/tmp/beta"),
-        ]);
-        assert_eq!(cfg.all_store_names(), vec!["alpha", "beta"]);
-    }
-
-    #[test]
-    fn all_store_names_is_empty_for_default_configuration() {
-        assert!(Configuration::default().all_store_names().is_empty());
-    }
-
-    #[test]
     fn find_store_is_case_insensitive() {
         let cfg = configuration_with_stores(vec![registration("Alpha", "/tmp/alpha")]);
         assert!(cfg.find_store("alpha").is_some());
@@ -462,6 +462,86 @@ mod tests {
     fn find_store_returns_none_for_unknown_name() {
         let cfg = configuration_with_stores(vec![registration("alpha", "/tmp/alpha")]);
         assert!(cfg.find_store("missing").is_none());
+    }
+
+    #[test]
+    fn canonical_store_name_returns_registered_casing() {
+        let cfg = configuration_with_stores(vec![registration("Personal", "/tmp/personal")]);
+        assert_eq!(
+            cfg.canonical_store_name("personal").as_deref(),
+            Some("Personal")
+        );
+        assert_eq!(
+            cfg.canonical_store_name("PERSONAL").as_deref(),
+            Some("Personal")
+        );
+        assert_eq!(
+            cfg.canonical_store_name("Personal").as_deref(),
+            Some("Personal")
+        );
+    }
+
+    #[test]
+    fn canonical_store_name_returns_none_for_unknown_name() {
+        let cfg = configuration_with_stores(vec![registration("Personal", "/tmp/personal")]);
+        assert!(cfg.canonical_store_name("work").is_none());
+    }
+
+    #[test]
+    fn canonical_store_name_on_empty_configuration_is_none() {
+        let cfg = Configuration::default();
+        assert!(cfg.canonical_store_name("anything").is_none());
+    }
+
+    #[test]
+    fn store_names_with_prefix_matches_case_insensitively() {
+        let cfg = configuration_with_stores(vec![
+            registration("Personal", "/tmp/personal"),
+            registration("Work", "/tmp/work"),
+            registration("personal-backup", "/tmp/backup"),
+        ]);
+        let mut matches = cfg.store_names_with_prefix("PER");
+        matches.sort();
+        assert_eq!(matches, vec!["Personal", "personal-backup"]);
+    }
+
+    #[test]
+    fn store_names_with_prefix_returns_all_for_empty_prefix() {
+        let cfg = configuration_with_stores(vec![
+            registration("alpha", "/tmp/a"),
+            registration("beta", "/tmp/b"),
+        ]);
+        assert_eq!(cfg.store_names_with_prefix(""), vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn store_names_with_prefix_returns_empty_for_no_matches() {
+        let cfg = configuration_with_stores(vec![registration("alpha", "/tmp/a")]);
+        assert!(cfg.store_names_with_prefix("zzz").is_empty());
+    }
+
+    #[test]
+    fn store_names_with_prefix_does_not_match_longer_prefix_than_name() {
+        let cfg = configuration_with_stores(vec![registration("ab", "/tmp/a")]);
+        assert!(cfg.store_names_with_prefix("abc").is_empty());
+    }
+
+    #[test]
+    fn starts_with_ignore_ascii_case_handles_basic_cases() {
+        assert!(starts_with_ignore_ascii_case("Personal", "per"));
+        assert!(starts_with_ignore_ascii_case("Personal", "PER"));
+        assert!(starts_with_ignore_ascii_case("Personal", "Personal"));
+        assert!(starts_with_ignore_ascii_case("Personal", ""));
+        assert!(!starts_with_ignore_ascii_case("Personal", "Work"));
+        assert!(!starts_with_ignore_ascii_case("ab", "abc"));
+    }
+
+    #[test]
+    fn starts_with_ignore_ascii_case_handles_non_ascii_safely() {
+        // Non-ASCII bytes should not panic and should not match an ASCII-folded
+        // prefix. Multi-byte chars in `haystack` are compared byte-for-byte.
+        assert!(!starts_with_ignore_ascii_case("Pérsonal", "PER"));
+        assert!(starts_with_ignore_ascii_case("Pérsonal", "P"));
     }
 
     #[test]

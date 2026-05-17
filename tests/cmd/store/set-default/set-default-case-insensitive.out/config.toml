@@ -1,0 +1,11 @@
+identities = []
+default_store = "Personal"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "[CWD]/store"
+name = "Personal"
+identities = []
+pull_commands = []
+push_commands = []

@@ -10,13 +10,9 @@ use crate::models::configuration::Configuration;
 
 pub fn store_name(input: &str) -> Result<String> {
     let configuration = Configuration::cached().context("Could not load configuration")?;
-    let names = configuration.all_store_names();
-
-    if names.contains(&input.to_owned()) {
-        Ok(input.to_owned())
-    } else {
-        anyhow::bail!("Store with name '{input}' does not exist in configuration")
-    }
+    configuration
+        .canonical_store_name(input)
+        .ok_or_else(|| anyhow::anyhow!("Store with name '{input}' does not exist in configuration"))
 }
 
 pub fn existing_file(input: &str) -> Result<PathBuf> {
