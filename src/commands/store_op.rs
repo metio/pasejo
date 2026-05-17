@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use crate::cli::i18n;
 use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::{Configuration, StoreRegistration, encrypt_store};
 use crate::models::password_store::PasswordStore;
@@ -9,8 +10,6 @@ use std::fs::File;
 use std::io;
 use std::path::Path;
 
-pub(super) const NO_STORE_FOUND_ERROR: &str =
-    "No store found in configuration. Run 'pasejo store add ...' first to add one";
 
 /// Acquires an exclusive advisory lock on the store file at `path`. The
 /// returned `File` holds the lock; dropping it releases the lock. Returns
@@ -23,17 +22,16 @@ pub(super) const NO_STORE_FOUND_ERROR: &str =
 /// both reading the same HOTP counter, both bumping it, and losing one of
 /// the increments when re-encrypting.
 fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
+    let path_display = path.display().to_string();
     match File::open(path) {
         Ok(file) => {
-            file.lock().with_context(|| {
-                format!("Could not acquire lock on store file: {}", path.display())
-            })?;
+            file.lock()
+                .with_context(|| i18n::error_could_not_acquire_store_lock(&path_display))?;
             Ok(Some(file))
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error).with_context(|| {
-            format!("Could not open store file for locking: {}", path.display())
-        }),
+        Err(error) => Err(error)
+            .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display)),
     }
 }
 
@@ -50,7 +48,7 @@ pub(super) enum StoreMutation {
 /// select store → pull hooks → decrypt → run `f` → (encrypt + push hooks if
 /// `f` returned [`StoreMutation::Modified`]). Returns the closure's value.
 ///
-/// Bails with [`NO_STORE_FOUND_ERROR`] when no store can be selected.
+/// Bails with the localized "no store" error when no store can be selected.
 pub(super) fn with_store<F, T>(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -84,7 +82,7 @@ where
 {
     let registration = configuration
         .select_store(store_name)
-        .context(NO_STORE_FOUND_ERROR)?;
+        .context(i18n::error_no_store_in_configuration())?;
     let hooks = HookExecutor {
         configuration,
         registration,
@@ -103,7 +101,7 @@ where
     let mut store = configuration.decrypt_store(registration)?;
     let (value, mutation) = f(registration, &mut store)?;
     if matches!(mutation, StoreMutation::Modified) {
-        encrypt_store(registration, &store).context("Cannot encrypt store")?;
+        encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
     }
     drop(lock);
     then(&value)?;

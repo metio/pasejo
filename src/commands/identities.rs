@@ -65,9 +65,7 @@ fn add(
             store.identities.push(identity);
             configuration.save_configuration()?;
         } else {
-            anyhow::bail!(
-                "Cannot identify store. Set a default store, use --store to specify a store or use --global to set the identity globally."
-            );
+            anyhow::bail!(i18n::error_cannot_identify_store());
         }
 
         i18n::identity_added(absolute_path.as_path());
@@ -125,8 +123,6 @@ fn list(
 
         Ok(())
     } else {
-        anyhow::bail!(
-            "No store found in configuration and no --global flag specified. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_or_global())
     }
 }

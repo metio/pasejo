@@ -74,7 +74,7 @@ fn add(
     with_store(configuration, store_name, offline, |_, store| {
         let allow_overwrite = !store.otp.contains_key(password_path)
             || force
-            || prompts::get_confirmation_from_user("Overwrite existing one-time password?")?;
+            || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
         let mutation = insert_one_time_password(store, password_path, password, allow_overwrite)?;
         i18n::one_time_password_added(password_path);
         Ok(((), mutation))
@@ -91,7 +91,7 @@ fn remove(
     with_store(configuration, store_name, offline, |_, store| {
         let allow_remove = !store.otp.contains_key(password_path)
             || force
-            || prompts::get_confirmation_from_user("Remove existing one-time password?")?;
+            || prompts::get_confirmation_from_user(&i18n::prompt_remove_one_time_password())?;
         let mutation = remove_one_time_password(store, password_path, allow_remove)?;
         i18n::one_time_password_removed(password_path);
         Ok(((), mutation))
@@ -132,7 +132,7 @@ fn show(
         offline,
         |_, store| {
             let Some(password) = store.otp.get_mut(password_path) else {
-                anyhow::bail!("No one-time password found at '{password_path}'")
+                anyhow::bail!(i18n::error_no_one_time_password_found(password_path))
             };
             let is_hotp = password.otp_type == OneTimePasswordType::Hotp;
             let code = password.generate()?;
@@ -171,7 +171,7 @@ fn mv(
     with_store(configuration, store_name, offline, |_, store| {
         let allow_overwrite = !store.otp.contains_key(new_path)
             || force
-            || prompts::get_confirmation_from_user("Overwrite existing one-time password?")?;
+            || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
         let mutation = move_one_time_password(store, current_path, new_path, allow_overwrite)?;
         i18n::one_time_password_moved(current_path, new_path);
         Ok(((), mutation))
@@ -189,7 +189,7 @@ fn copy(
     with_store(configuration, store_name, offline, |_, store| {
         let allow_overwrite = !store.otp.contains_key(target_path)
             || force
-            || prompts::get_confirmation_from_user("Overwrite existing one-time password?")?;
+            || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
         let mutation = copy_one_time_password(store, source_path, target_path, allow_overwrite)?;
         i18n::one_time_password_copied(source_path, target_path);
         Ok(((), mutation))
@@ -208,9 +208,7 @@ fn insert_one_time_password(
     allow_overwrite: bool,
 ) -> anyhow::Result<StoreMutation> {
     if store.otp.contains_key(password_path) && !allow_overwrite {
-        anyhow::bail!(
-            "One-time password already exists at {password_path}. Use --force to overwrite."
-        );
+        anyhow::bail!(i18n::error_one_time_password_already_exists(password_path));
     }
     store.otp.insert(password_path.to_owned(), password.clone());
     Ok(StoreMutation::Modified)
@@ -226,12 +224,12 @@ fn remove_one_time_password(
     allow_remove: bool,
 ) -> anyhow::Result<StoreMutation> {
     if !store.otp.contains_key(password_path) {
-        anyhow::bail!("No one-time password found at '{password_path}'");
+        anyhow::bail!(i18n::error_no_one_time_password_found(password_path));
     }
     if !allow_remove {
-        anyhow::bail!(
-            "Not allowed to remove one-time password at {password_path}. Use --force to overwrite."
-        );
+        anyhow::bail!(i18n::error_not_allowed_to_remove_one_time_password(
+            password_path
+        ));
     }
     store.otp.remove(password_path);
     Ok(StoreMutation::Modified)
@@ -248,12 +246,10 @@ fn move_one_time_password(
     allow_overwrite: bool,
 ) -> anyhow::Result<StoreMutation> {
     if store.otp.contains_key(new_path) && !allow_overwrite {
-        anyhow::bail!(
-            "One-time password already exists at {new_path}. Use --force to overwrite."
-        );
+        anyhow::bail!(i18n::error_one_time_password_already_exists(new_path));
     }
     let Some(password) = store.otp.remove(current_path) else {
-        anyhow::bail!("No one-time password found at '{current_path}'");
+        anyhow::bail!(i18n::error_no_one_time_password_found(current_path));
     };
     store.otp.insert(new_path.to_owned(), password);
     Ok(StoreMutation::Modified)
@@ -269,12 +265,10 @@ fn copy_one_time_password(
     allow_overwrite: bool,
 ) -> anyhow::Result<StoreMutation> {
     if store.otp.contains_key(target_path) && !allow_overwrite {
-        anyhow::bail!(
-            "One-time password already exists at {target_path}. Use --force to overwrite."
-        );
+        anyhow::bail!(i18n::error_one_time_password_already_exists(target_path));
     }
     let Some(password) = store.otp.get(source_path) else {
-        anyhow::bail!("No one-time password found at '{source_path}'");
+        anyhow::bail!(i18n::error_no_one_time_password_found(source_path));
     };
     let copy = password.clone();
     store.otp.insert(target_path.to_owned(), copy);
@@ -426,6 +420,7 @@ mod tests {
 
     #[test]
     fn remove_bails_when_entry_does_not_exist() {
+        i18n::init_for_tests();
         let mut store = PasswordStore::default();
 
         let result = remove_one_time_password(&mut store, "missing", true);
@@ -482,6 +477,7 @@ mod tests {
 
     #[test]
     fn move_bails_when_source_is_missing() {
+        i18n::init_for_tests();
         let mut store = PasswordStore::default();
 
         let result = move_one_time_password(&mut store, "missing", "new", true);
@@ -550,6 +546,7 @@ mod tests {
 
     #[test]
     fn copy_bails_when_source_is_missing() {
+        i18n::init_for_tests();
         let mut store = PasswordStore::default();
 
         let result = copy_one_time_password(&mut store, "missing", "target", true);

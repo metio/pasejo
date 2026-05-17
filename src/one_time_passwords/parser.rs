@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use crate::cli::i18n;
 use crate::models::cli::OtpAddArgs;
 use crate::models::password_store::{
     OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
@@ -23,15 +24,16 @@ impl OtpAddArgs {
             return parse_from_url(url);
         }
         if let Some(qrcode) = &self.qrcode {
+            let qrcode_display = qrcode.display().to_string();
             let img = image::open(qrcode)?.to_luma8();
             let mut img = rqrr::PreparedImage::prepare(img);
             let grids = img.detect_grids();
-            let grid = grids.first().ok_or_else(|| {
-                anyhow::anyhow!("No QR code found in '{}'", qrcode.display())
-            })?;
-            let (_, content) = grid.decode().with_context(|| {
-                format!("Failed to decode QR code in '{}'", qrcode.display())
-            })?;
+            let grid = grids
+                .first()
+                .ok_or_else(|| anyhow::anyhow!(i18n::error_no_qrcode_found(&qrcode_display)))?;
+            let (_, content) = grid
+                .decode()
+                .with_context(|| i18n::error_failed_to_decode_qrcode(&qrcode_display))?;
             return parse_from_url(&content);
         }
         Ok(OneTimePassword {

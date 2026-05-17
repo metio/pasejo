@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::cli::i18n;
+
 /// Write `contents` to `path` atomically. On Unix the resulting file is
 /// created with mode `0600` so secrets and configuration material are
 /// readable only by the current user.
@@ -18,25 +20,28 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// leaves the original file untouched. If anything fails after the temp
 /// file is created, the temp file is removed best-effort.
 pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
+    let path_display = path.display().to_string();
     let parent = path
         .parent()
-        .with_context(|| format!("Cannot determine parent directory of {}", path.display()))?;
+        .with_context(|| i18n::error_cannot_determine_parent_directory(&path_display))?;
 
     if !parent.as_os_str().is_empty() {
+        let parent_display = parent.display().to_string();
         fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
+            .with_context(|| i18n::error_failed_to_create_directory(&parent_display))?;
     }
 
     let tmp = temp_path(path);
+    let tmp_display = tmp.display().to_string();
     let result = (|| -> Result<()> {
         let mut file = open_temp(&tmp)?;
         file.write_all(contents)
-            .with_context(|| format!("Failed to write {}", tmp.display()))?;
+            .with_context(|| i18n::error_failed_to_write_file(&tmp_display))?;
         file.sync_all()
-            .with_context(|| format!("Failed to fsync {}", tmp.display()))?;
+            .with_context(|| i18n::error_failed_to_fsync_file(&tmp_display))?;
         drop(file);
         fs::rename(&tmp, path)
-            .with_context(|| format!("Failed to rename {} to {}", tmp.display(), path.display()))
+            .with_context(|| i18n::error_failed_to_rename_file(&tmp_display, &path_display))
     })();
 
     if result.is_err() {
@@ -83,7 +88,7 @@ fn open_temp(tmp: &Path) -> Result<fs::File> {
         .create_new(true)
         .mode(0o600)
         .open(tmp)
-        .with_context(|| format!("Failed to create {}", tmp.display()))
+        .with_context(|| i18n::error_failed_to_create_file(&tmp.display().to_string()))
 }
 
 #[cfg(not(unix))]
@@ -93,7 +98,7 @@ fn open_temp(tmp: &Path) -> Result<fs::File> {
         .write(true)
         .create_new(true)
         .open(tmp)
-        .with_context(|| format!("Failed to create {}", tmp.display()))
+        .with_context(|| i18n::error_failed_to_create_file(&tmp.display().to_string()))
 }
 
 #[cfg(test)]

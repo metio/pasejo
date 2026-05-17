@@ -93,3 +93,88 @@ clipboard-notification-failed = { $cancelled ->
     [true] Cancellazione degli appunti fallita! Cancellarli manualmente. (annullato)
    *[false] Cancellazione degli appunti fallita! Cancellarli manualmente.
   }
+
+## Richieste
+
+prompt-enter-secret = Inserire il segreto per { $secret_path }:
+prompt-could-not-read-secret = Impossibile leggere il segreto per { $secret_path }
+prompt-overwrite-secret = Sovrascrivere il segreto esistente?
+prompt-remove-secret = Rimuovere il segreto esistente?
+prompt-overwrite-one-time-password = Sovrascrivere la password monouso esistente?
+prompt-remove-one-time-password = Rimuovere la password monouso esistente?
+
+## Messaggi di errore
+
+error-cannot-get-user-confirmation = Impossibile ottenere la conferma dell'utente
+error-no-confirmation-from-non-terminal = Impossibile ottenere la conferma da input non terminale. Usare --force per saltare la conferma.
+error-could-not-load-configuration = Impossibile caricare la configurazione
+error-store-does-not-exist = L'archivio con nome '{ $store_name }' non esiste nella configurazione
+error-invalid-line-number = '{ $input }' non è un numero di riga valido
+error-line-number-must-not-be-zero = Il numero di riga non deve essere 0. Usare 1 per la prima riga, -1 per l'ultima
+error-invalid-count = '{ $input }' non è un conteggio valido
+error-count-must-not-be-zero = Il conteggio non deve essere 0. Usare 1 per saltare la prima riga
+error-file-does-not-exist = Il file '{ $input }' non esiste
+error-secret-already-exists = Il segreto esiste già a { $secret_path }. Usare --force per sovrascriverlo.
+error-secret-already-exists-overwrite-or-inplace = Il segreto esiste già a { $secret_path }. Usare --force per sovrascriverlo completamente o --inplace per modificarne solo la prima riga.
+error-no-secret-found = Nessun segreto trovato a '{ $secret_path }'
+error-not-allowed-to-remove-secret = Rimozione del segreto a { $secret_path } non consentita. Usare --force per sovrascriverlo.
+error-secret-does-not-exist-for-edit = Il segreto a { $secret_path } non esiste. Usare 'pasejo secret add' per crearlo.
+error-one-time-password-already-exists = La password monouso esiste già a { $password_path }. Usare --force per sovrascriverla.
+error-not-allowed-to-remove-one-time-password = Rimozione della password monouso a { $password_path } non consentita. Usare --force per sovrascriverla.
+error-no-one-time-password-found = Nessuna password monouso trovata a '{ $password_path }'
+error-no-store-in-configuration = Nessun archivio trovato nella configurazione. Eseguire prima 'pasejo store add ...' per aggiungerne uno
+error-no-store-or-global = Nessun archivio trovato nella configurazione e nessun flag --global specificato. Eseguire prima 'pasejo store add ...' per aggiungerne uno
+error-store-name-already-exists = Il nome dell'archivio esiste già. Usare un nome diverso.
+error-store-path-is-directory = Impossibile usare una directory come percorso dell'archivio. Usare un percorso di file.
+error-cannot-create-store-path = Impossibile creare il percorso dell'archivio. Verificare il percorso e riprovare.
+error-cannot-get-store-parent = Impossibile ottenere la directory padre del percorso dell'archivio. Verificare il percorso e riprovare.
+error-cannot-identify-store = Impossibile identificare l'archivio. Impostare un archivio predefinito, usare --store per specificare un archivio o --global per impostare l'identità globalmente.
+error-no-identity-files-to-decrypt = Nessun file di identità da decifrare. Aggiungere almeno un'identità per completare l'inizializzazione dell'archivio.
+error-invalid-ssh-public-key-format = Formato di chiave pubblica SSH non valido
+error-username-empty = Il nome utente non deve essere vuoto
+error-username-contains-dotdot = Nome utente non valido '{ $username }': non deve contenere '..'
+error-username-invalid-character = Nome utente non valido '{ $username }': deve iniziare con una lettera o cifra ASCII e contenere solo lettere ASCII, cifre, '-', '_' e '.'
+error-no-public-key-found-in-file = Nessuna chiave pubblica trovata in '{ $filename }'
+error-no-public-key-source = Specificare almeno una fonte per una chiave pubblica
+error-no-qrcode-found = Nessun codice QR trovato in '{ $qrcode }'
+error-failed-to-decode-qrcode = Decodifica del codice QR in '{ $qrcode }' fallita
+error-cannot-determine-store-name = Impossibile determinare il nome dell'archivio
+error-cannot-parse-hook-command = Impossibile analizzare il comando: { $command }
+error-empty-hook-command = Comando hook vuoto: { $command }
+error-failed-to-run-hook = Esecuzione del hook { $command } fallita
+error-hook-failed-no-detail = il hook { $command } è fallito (uscita { $exit })
+error-hook-failed-with-detail = il hook { $command } è fallito (uscita { $exit }): { $detail }
+error-cannot-determine-store-parent-path = Impossibile determinare il padre del percorso dell'archivio { $path }
+error-store-path-not-utf8 = Impossibile sostituire %p nel token { $token }: il percorso dell'archivio { $path } non è UTF-8 valido
+error-merge-conflict-recipients = Conflitto di unione rilevato nei destinatari. Risolvere manualmente.
+error-recipient-not-found-in-store = Destinatario non trovato nell'archivio
+error-cannot-decrypt-common-ancestor-store = Impossibile decifrare l'archivio dell'antenato comune
+error-cannot-decrypt-current-version-store = Impossibile decifrare l'archivio della versione corrente
+error-cannot-decrypt-other-version-store = Impossibile decifrare l'archivio dell'altra versione
+error-cannot-read-file = Impossibile leggere il file a '{ $path }'
+error-downloading-public-key-failed = Download della chiave pubblica da { $provider } fallito
+error-cannot-determine-parent-directory = Impossibile determinare la directory padre di { $path }
+error-failed-to-create-directory = Creazione della directory { $path } fallita
+error-failed-to-write-file = Scrittura di { $path } fallita
+error-failed-to-fsync-file = fsync su { $path } fallito
+error-failed-to-rename-file = Rinomina di { $from } in { $to } fallita
+error-failed-to-create-file = Creazione di { $path } fallita
+error-could-not-resolve-config-path = Impossibile risolvere il percorso assoluto della configurazione
+error-could-not-determine-config-path = Impossibile determinare il percorso della configurazione
+error-could-not-resolve-store-path = Impossibile risolvere il percorso assoluto dell'archivio
+error-could-not-create-config-dir = Impossibile creare la directory di configurazione
+error-could-not-migrate-legacy-config = Impossibile migrare il file di configurazione legacy
+error-could-not-move-file = Impossibile spostare il file
+error-could-not-copy-file = Impossibile copiare il file
+error-could-not-remove-source-after-copy = Impossibile rimuovere il file sorgente dopo la copia
+error-could-not-read-configuration = Impossibile leggere la configurazione
+error-could-not-serialize-migrated-config = Impossibile serializzare la configurazione migrata
+error-could-not-store-configuration = Impossibile salvare la configurazione
+error-could-not-load-migrated-config = Impossibile caricare la configurazione migrata
+error-could-not-serialize-configuration = Impossibile serializzare la configurazione
+error-config-not-valid-toml = Il file di configurazione a { $path } non è TOML valido
+error-could-not-open-store-for-lock = Impossibile aprire il file dell'archivio per il blocco: { $path }
+error-could-not-acquire-store-lock = Impossibile acquisire il blocco sul file dell'archivio: { $path }
+error-cannot-encrypt-store = Impossibile cifrare l'archivio
+error-failed-to-run-command = Esecuzione del comando { $binary } fallita
+error-command-exited-with = Il comando { $binary } è terminato con { $exit }

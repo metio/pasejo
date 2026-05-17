@@ -62,13 +62,13 @@ fn add(
     default: bool,
 ) -> anyhow::Result<()> {
     if configuration.find_store(store_name).is_some() {
-        anyhow::bail!("Store name already exists. Please use a different name.");
+        anyhow::bail!(i18n::error_store_name_already_exists());
     }
 
     let absolute_path = path::absolute(store_path)?;
 
     if absolute_path.is_dir() {
-        anyhow::bail!("Cannot use directory as store path. Please use a file path.");
+        anyhow::bail!(i18n::error_store_path_is_directory());
     }
 
     if let Some(parent) = absolute_path.parent() {
@@ -80,7 +80,7 @@ fn add(
         }
         Ok(())
     } else {
-        anyhow::bail!("Cannot create store path. Please check the path and try again.");
+        anyhow::bail!(i18n::error_cannot_create_store_path());
     }
 }
 
@@ -92,9 +92,7 @@ fn remove(
     let (name, path) = if let Some(registration) = configuration.select_store(store_name) {
         (registration.name.clone(), registration.path.clone())
     } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_in_configuration())
     };
 
     // The configuration holds the only reference to the store's path, so
@@ -149,9 +147,7 @@ fn decrypt(
 
         Ok(())
     } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_in_configuration())
     }
 }
 
@@ -175,13 +171,13 @@ fn merge(
     if let Some(registration) = configuration.select_store(store_name) {
         let common_ancestor_store = configuration
             .decrypt_store_from_path(registration, common_ancestor)
-            .context("Cannot decrypt common ancestor store")?;
+            .context(i18n::error_cannot_decrypt_common_ancestor_store())?;
         let mut current_version_store = configuration
             .decrypt_store_from_path(registration, current_version)
-            .context("Cannot decrypt current version store")?;
+            .context(i18n::error_cannot_decrypt_current_version_store())?;
         let other_version_store = configuration
             .decrypt_store_from_path(registration, other_version)
-            .context("Cannot decrypt other version store")?;
+            .context(i18n::error_cannot_decrypt_other_version_store())?;
 
         let mut errors = vec![];
 
@@ -232,9 +228,7 @@ fn merge(
             anyhow::bail!(error_messages.join("\n       "))
         }
     } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_in_configuration())
     }
 }
 
@@ -254,25 +248,21 @@ fn exec(
                     .env("PASEJO_EXEC_COMMAND", binary)
                     .current_dir(parent)
                     .status()
-                    .with_context(|| format!("Failed to run command {binary}"))?;
+                    .with_context(|| i18n::error_failed_to_run_command(binary))?;
                 if !status.success() {
                     let exit = status
                         .code()
                         .map_or_else(|| String::from("signal"), |c| c.to_string());
-                    anyhow::bail!("Command {binary} exited with {exit}");
+                    anyhow::bail!(i18n::error_command_exited_with(binary, &exit));
                 }
             }
         } else {
-            anyhow::bail!(
-                "Cannot get parent directory of store path. Please check the path and try again."
-            )
+            anyhow::bail!(i18n::error_cannot_get_store_parent())
         }
 
         Ok(())
     } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_in_configuration())
     }
 }
 
