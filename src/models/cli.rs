@@ -629,6 +629,10 @@ pub struct SecretGrepArgs {
     #[arg(short, long)]
     pub regex: bool,
 
+    /// Also print matching secret values, not just their keys
+    #[arg(short = 'V', long)]
+    pub show_values: bool,
+
     /// The string to search in all secrets
     pub search_string: String,
 }

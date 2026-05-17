@@ -105,6 +105,14 @@ mod interactive_tests {
     where
         T: FnOnce(PtySession, TempDir) -> anyhow::Result<()>,
     {
+        let temp = prepare_environment(public_key, private_key)?;
+        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
+        let process = spawn(&format!("{cmd_path:?} {command}"), Some(30_000))?;
+        test_case(process, temp)?;
+        Ok(())
+    }
+
+    fn prepare_environment(public_key: &str, private_key: &str) -> anyhow::Result<TempDir> {
         // Pin the locale so every child process picks up English from the
         // i18n loader, regardless of the developer's shell locale. These
         // tests are #[serial] so the global env mutation is race-free.
@@ -157,13 +165,182 @@ mod interactive_tests {
             .success()
             .code(0);
 
-        let cmd_path = cargo_bin(cargo_package_name).into_os_string();
         unsafe {
             env::set_var("PASEJO_CONFIG", temp.path().join("config.toml"));
         }
 
-        let process = spawn(&format!("{cmd_path:?} {command}"), Some(30_000))?;
-        test_case(process, temp)?;
+        Ok(temp)
+    }
+
+    fn add_secret_via_pty(
+        cmd_path: &std::ffi::OsString,
+        name: &str,
+        value: &str,
+    ) -> anyhow::Result<()> {
+        let mut process = spawn(&format!("{cmd_path:?} secret add {name}"), Some(30_000))?;
+        process.exp_string(&format!("Enter secret for {name}:"))?;
+        process.send_line(value)?;
+        process.exp_string("Confirmation:")?;
+        process.send_line(value)?;
+        process.exp_eof()?;
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn grep_prints_only_matching_keys_by_default() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
+
+        add_secret_via_pty(&cmd_path, "bar", "alpha-charlie")?;
+        add_secret_via_pty(&cmd_path, "baz", "delta")?;
+        add_secret_via_pty(&cmd_path, "foo", "alpha-bravo")?;
+
+        // BTreeMap iteration order is lexicographic — bar then foo match.
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("alpha")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(predicate::eq("bar\nfoo\n"))
+            .success()
+            .code(0);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn grep_with_show_values_prints_keys_and_values() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
+
+        add_secret_via_pty(&cmd_path, "bar", "alpha-charlie")?;
+        add_secret_via_pty(&cmd_path, "baz", "delta")?;
+        add_secret_via_pty(&cmd_path, "foo", "alpha-bravo")?;
+
+        let expected = "bar:\nalpha-charlie\nfoo:\nalpha-bravo\n";
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("--show-values")
+            .arg("alpha")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(predicate::eq(expected))
+            .success()
+            .code(0);
+
+        // -V is the short form of --show-values.
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("-V")
+            .arg("alpha")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(predicate::eq(expected))
+            .success()
+            .code(0);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn grep_regex_mode_respects_show_values() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
+
+        add_secret_via_pty(&cmd_path, "bar", "alpha-charlie")?;
+        add_secret_via_pty(&cmd_path, "baz", "delta")?;
+        add_secret_via_pty(&cmd_path, "foo", "alpha-bravo")?;
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("--regex")
+            .arg(r"^alpha-.+$")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(predicate::eq("bar\nfoo\n"))
+            .success()
+            .code(0);
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("--regex")
+            .arg("--show-values")
+            .arg(r"^alpha-.+$")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(predicate::eq("bar:\nalpha-charlie\nfoo:\nalpha-bravo\n"))
+            .success()
+            .code(0);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn grep_with_no_matches_prints_nothing() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
+
+        add_secret_via_pty(&cmd_path, "foo", "alpha-bravo")?;
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("nothing-here")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(predicate::eq(""))
+            .success()
+            .code(0);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn grep_with_invalid_regex_returns_error() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+        let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
+
+        add_secret_via_pty(&cmd_path, "foo", "alpha")?;
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("grep")
+            .arg("--regex")
+            .arg("[unclosed")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .failure();
 
         Ok(())
     }

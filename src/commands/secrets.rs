@@ -96,6 +96,7 @@ pub fn dispatch(
             args.store_selection.store.as_ref(),
             &args.search_string,
             args.regex,
+            args.show_values,
             offline,
         ),
     }
@@ -405,25 +406,44 @@ fn edit(
     })
 }
 
+enum Pattern<'a> {
+    Substring(&'a str),
+    Regex(regex::Regex),
+}
+
+impl<'a> Pattern<'a> {
+    fn new(needle: &'a str, use_regex: bool) -> anyhow::Result<Self> {
+        if use_regex {
+            Ok(Self::Regex(regex::Regex::new(needle)?))
+        } else {
+            Ok(Self::Substring(needle))
+        }
+    }
+
+    fn matches(&self, value: &str) -> bool {
+        match self {
+            Self::Substring(needle) => value.contains(needle),
+            Self::Regex(re) => re.is_match(value),
+        }
+    }
+}
+
 fn grep(
     configuration: &Configuration,
     store_name: Option<&String>,
-    search_string: &String,
+    search_string: &str,
     regex: bool,
+    show_values: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
     with_store(configuration, store_name, offline, |_, store| {
-        if regex {
-            let re = regex::Regex::new(search_string)?;
-            for (key, value) in &store.secrets {
-                if re.is_match(value) {
+        let pattern = Pattern::new(search_string, regex)?;
+        for (key, value) in &store.secrets {
+            if pattern.matches(value) {
+                if show_values {
                     i18n::secret_search_match(key, value);
-                }
-            }
-        } else {
-            for (key, value) in &store.secrets {
-                if value.contains(search_string) {
-                    i18n::secret_search_match(key, value);
+                } else {
+                    println!("{key}");
                 }
             }
         }
@@ -433,7 +453,7 @@ fn grep(
 
 #[cfg(test)]
 mod tests {
-    use super::{LineSelector, extract_line};
+    use super::{LineSelector, Pattern, extract_line};
 
     const THREE_LINE_SECRET: &str = "password\nuser: alice\nurl: https://example.com";
 
@@ -614,5 +634,85 @@ mod tests {
     fn trailing_newline_does_not_count_as_extra_line() {
         let result = extract_line("a\nb\n", LineSelector::Line(3));
         assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn pattern_substring_matches_when_value_contains_needle() {
+        let pattern = Pattern::new("foo", false).unwrap();
+        assert!(pattern.matches("hello foo world"));
+        assert!(pattern.matches("foo"));
+        assert!(pattern.matches("foobar"));
+    }
+
+    #[test]
+    fn pattern_substring_does_not_match_when_value_lacks_needle() {
+        let pattern = Pattern::new("foo", false).unwrap();
+        assert!(!pattern.matches("bar"));
+        assert!(!pattern.matches(""));
+    }
+
+    #[test]
+    fn pattern_substring_is_case_sensitive() {
+        let pattern = Pattern::new("Foo", false).unwrap();
+        assert!(pattern.matches("Foobar"));
+        assert!(!pattern.matches("foobar"));
+    }
+
+    #[test]
+    fn pattern_substring_treats_regex_metacharacters_as_literal() {
+        let pattern = Pattern::new("[abc].*", false).unwrap();
+        assert!(pattern.matches("prefix [abc].* suffix"));
+        assert!(!pattern.matches("a"));
+    }
+
+    #[test]
+    fn pattern_substring_with_empty_needle_matches_everything() {
+        let pattern = Pattern::new("", false).unwrap();
+        assert!(pattern.matches("anything"));
+        assert!(pattern.matches(""));
+    }
+
+    #[test]
+    fn pattern_regex_matches_when_value_matches() {
+        let pattern = Pattern::new(r"^foo\d+$", true).unwrap();
+        assert!(pattern.matches("foo123"));
+        assert!(pattern.matches("foo0"));
+    }
+
+    #[test]
+    fn pattern_regex_does_not_match_when_value_does_not_match() {
+        let pattern = Pattern::new(r"^foo\d+$", true).unwrap();
+        assert!(!pattern.matches("foo"));
+        assert!(!pattern.matches("foobar"));
+        assert!(!pattern.matches("123foo"));
+    }
+
+    #[test]
+    fn pattern_regex_is_case_sensitive_by_default() {
+        let pattern = Pattern::new("foo", true).unwrap();
+        assert!(pattern.matches("foobar"));
+        assert!(!pattern.matches("FOOBAR"));
+    }
+
+    #[test]
+    fn pattern_regex_dot_matches_any_char() {
+        let pattern = Pattern::new("f.o", true).unwrap();
+        assert!(pattern.matches("foo"));
+        assert!(pattern.matches("fXo"));
+        assert!(!pattern.matches("fo"));
+    }
+
+    #[test]
+    fn pattern_regex_invalid_returns_error() {
+        assert!(Pattern::new("[unclosed", true).is_err());
+        assert!(Pattern::new("(", true).is_err());
+    }
+
+    #[test]
+    fn pattern_substring_with_invalid_regex_chars_does_not_error() {
+        // In substring mode regex syntax is irrelevant — every input is a
+        // literal needle.
+        assert!(Pattern::new("[unclosed", false).is_ok());
+        assert!(Pattern::new("(", false).is_ok());
     }
 }
