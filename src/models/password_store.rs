@@ -59,6 +59,9 @@ pub struct OneTimePassword {
     pub algorithm: OneTimePasswordAlgorithm,
     pub digits: u8,
     pub period: u64,
+    /// HOTP counter for the next code to emit. `generate_hotp` emits the
+    /// code at this value and then increments it, matching the RFC 4226
+    /// convention. Ignored for TOTP.
     pub counter: u64,
     pub skew: u64,
 }
@@ -83,14 +86,12 @@ impl OneTimePassword {
     }
 
     fn generate_hotp(&mut self) -> anyhow::Result<u32> {
-        self.counter += 1;
-
         let code = Hotp::builder()
             .base(self.base()?)
             .counter(Counter::new(self.counter))
             .build()
             .generate();
-
+        self.counter += 1;
         Ok(code)
     }
 
@@ -219,21 +220,46 @@ mod tests {
         }
     }
 
-    #[test]
-    fn generate_hotp_increments_counter_each_call() {
-        let mut otp = OneTimePassword {
-            secret: String::from("JBSWY3DPEHPK3PXP"),
+    fn rfc4226_hotp(counter: u64) -> OneTimePassword {
+        // RFC 4226 Appendix D test vectors use the ASCII secret
+        // "12345678901234567890", which is the base32 string below.
+        OneTimePassword {
+            secret: String::from("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"),
             otp_type: OneTimePasswordType::Hotp,
             algorithm: OneTimePasswordAlgorithm::Sha1,
             digits: 6,
             period: 30,
-            counter: 0,
+            counter,
             skew: 0,
-        };
+        }
+    }
+
+    #[test]
+    fn generate_hotp_increments_counter_each_call() {
+        let mut otp = rfc4226_hotp(0);
         otp.generate().unwrap();
         assert_eq!(otp.counter, 1);
         otp.generate().unwrap();
         assert_eq!(otp.counter, 2);
+    }
+
+    #[test]
+    fn generate_hotp_emits_code_at_current_counter_then_increments() {
+        let mut otp = rfc4226_hotp(0);
+        // RFC 4226 Appendix D: HOTP(secret, 0) = 755224
+        assert_eq!(otp.generate().unwrap(), 755_224);
+        assert_eq!(otp.counter, 1);
+        // RFC 4226 Appendix D: HOTP(secret, 1) = 287082
+        assert_eq!(otp.generate().unwrap(), 287_082);
+        assert_eq!(otp.counter, 2);
+    }
+
+    #[test]
+    fn generate_hotp_starting_from_non_zero_counter_uses_that_counter() {
+        let mut otp = rfc4226_hotp(5);
+        // RFC 4226 Appendix D: HOTP(secret, 5) = 254676
+        assert_eq!(otp.generate().unwrap(), 254_676);
+        assert_eq!(otp.counter, 6);
     }
 
     #[test]
