@@ -6,33 +6,36 @@ use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HookCommands;
 use crate::models::configuration::Configuration;
 
-pub fn dispatch(command: &HookCommands, configuration: Configuration) -> anyhow::Result<()> {
+pub fn dispatch(command: &HookCommands, configuration: &Configuration) -> anyhow::Result<()> {
     match command {
         HookCommands::Get(args) => get(
-            &configuration,
-            args.store_selection.store.as_ref(),
-            args.global,
-        ),
-        HookCommands::Set(args) => set(
             configuration,
             args.store_selection.store.as_ref(),
             args.global,
-            &args.pull,
-            &args.push,
-            args.prepend,
-            args.append,
         ),
+        HookCommands::Set(args) => {
+            let mut owned = configuration.clone();
+            set(
+                &mut owned,
+                args.store_selection.store.as_ref(),
+                args.global,
+                &args.pull,
+                &args.push,
+                args.prepend,
+                args.append,
+            )
+        }
         HookCommands::Run(args) => {
             if let Some(all) = args.all
                 && all
             {
                 for store in &configuration.stores {
-                    run(&configuration, Some(&store.name), args.pull, args.push)?;
+                    run(configuration, Some(&store.name), args.pull, args.push)?;
                 }
                 Ok(())
             } else {
                 run(
-                    &configuration,
+                    configuration,
                     args.store_selection.store.as_ref(),
                     args.pull,
                     args.push,
@@ -78,7 +81,7 @@ fn get(
 }
 
 fn set(
-    mut configuration: Configuration,
+    configuration: &mut Configuration,
     store_name: Option<&String>,
     global: bool,
     pull: &[String],

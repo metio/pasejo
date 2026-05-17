@@ -46,14 +46,12 @@ fn main() -> Result<()> {
     let configuration = Configuration::cached()?;
 
     match &cli.command {
-        Commands::Config { command } => commands::config::dispatch(command, configuration.clone()),
+        Commands::Config { command } => commands::config::dispatch(command, configuration),
         Commands::Export { command } => {
             commands::export::dispatch(command, configuration, cli.offline)
         }
-        Commands::Hook { command } => commands::hooks::dispatch(command, configuration.clone()),
-        Commands::Identity { command } => {
-            commands::identities::dispatch(command, configuration.clone())
-        }
+        Commands::Hook { command } => commands::hooks::dispatch(command, configuration),
+        Commands::Identity { command } => commands::identities::dispatch(command, configuration),
         Commands::Otp { command } => {
             commands::one_time_passwords::dispatch(command, &cli, configuration)
         }
@@ -63,8 +61,6 @@ fn main() -> Result<()> {
         Commands::Secret { command } => {
             commands::secrets::dispatch(command, configuration, cli.offline)
         }
-        Commands::Store { command } => {
-            stores::dispatch(command, configuration.clone(), cli.offline)
-        }
+        Commands::Store { command } => stores::dispatch(command, configuration, cli.offline),
     }
 }

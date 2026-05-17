@@ -4,13 +4,16 @@
 use crate::models::cli::{ConfigCommands, ConfigurationOption};
 use crate::models::configuration::Configuration;
 
-pub fn dispatch(command: &ConfigCommands, configuration: Configuration) -> anyhow::Result<()> {
+pub fn dispatch(command: &ConfigCommands, configuration: &Configuration) -> anyhow::Result<()> {
     match command {
         ConfigCommands::Get(args) => {
-            get(&configuration, &args.option);
+            get(configuration, &args.option);
             Ok(())
         }
-        ConfigCommands::Set(args) => set(configuration, &args.option, &args.value),
+        ConfigCommands::Set(args) => {
+            let mut owned = configuration.clone();
+            set(&mut owned, &args.option, &args.value)
+        }
     }
 }
 
@@ -50,7 +53,7 @@ fn get(configuration: &Configuration, option: &ConfigurationOption) {
 }
 
 fn set(
-    mut configuration: Configuration,
+    configuration: &mut Configuration,
     option: &ConfigurationOption,
     value: &str,
 ) -> anyhow::Result<()> {

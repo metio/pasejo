@@ -14,34 +14,41 @@ use anyhow::Context;
 
 pub fn dispatch(
     command: &StoreCommands,
-    configuration: Configuration,
+    configuration: &Configuration,
     offline: bool,
 ) -> anyhow::Result<()> {
     match command {
         StoreCommands::Add(args) => {
-            add(configuration, args.path.as_path(), &args.name, args.default)
+            let mut owned = configuration.clone();
+            add(&mut owned, args.path.as_path(), &args.name, args.default)
         }
         StoreCommands::Decrypt(args) => decrypt(
-            &configuration,
+            configuration,
             args.store_selection.store.as_ref(),
             args.store_path.as_ref(),
             offline,
         ),
         StoreCommands::List(_) => {
-            list(&configuration);
+            list(configuration);
             Ok(())
         }
         StoreCommands::Merge(args) => merge(
-            &configuration,
+            configuration,
             args.store_selection.store.as_ref(),
             &args.common_ancestor,
             &args.current_version,
             &args.other_version,
         ),
-        StoreCommands::Remove(args) => remove(configuration, args.store.as_ref(), args.remove_data),
-        StoreCommands::SetDefault(args) => set_default(configuration, &args.name),
+        StoreCommands::Remove(args) => {
+            let mut owned = configuration.clone();
+            remove(&mut owned, args.store.as_ref(), args.remove_data)
+        }
+        StoreCommands::SetDefault(args) => {
+            let mut owned = configuration.clone();
+            set_default(&mut owned, &args.name)
+        }
         StoreCommands::Exec(args) => exec(
-            &configuration,
+            configuration,
             args.store_selection.store.as_ref(),
             &args.command,
         ),
@@ -49,7 +56,7 @@ pub fn dispatch(
 }
 
 fn add(
-    mut configuration: Configuration,
+    configuration: &mut Configuration,
     store_path: &Path,
     store_name: &str,
     default: bool,
@@ -78,7 +85,7 @@ fn add(
 }
 
 fn remove(
-    mut configuration: Configuration,
+    configuration: &mut Configuration,
     store_name: Option<&String>,
     remove_data: bool,
 ) -> anyhow::Result<()> {
@@ -107,7 +114,7 @@ fn delete_store_file_if_requested(path: &Path, remove_data: bool) -> anyhow::Res
     Ok(())
 }
 
-fn set_default(mut configuration: Configuration, store_name: &str) -> anyhow::Result<()> {
+fn set_default(configuration: &mut Configuration, store_name: &str) -> anyhow::Result<()> {
     configuration.set_default_store(store_name)?;
     i18n::store_set_default(store_name);
     Ok(())
