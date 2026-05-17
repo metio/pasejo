@@ -240,6 +240,27 @@ fn remove(
     })
 }
 
+fn extract_line(decrypted_text: &str, line: Option<isize>) -> Zeroizing<String> {
+    Zeroizing::new(line.map_or_else(
+        || decrypted_text.to_owned(),
+        |line| {
+            if line >= 0 {
+                decrypted_text
+                    .lines()
+                    .nth(line.unsigned_abs())
+                    .unwrap_or("")
+                    .to_owned()
+            } else {
+                decrypted_text
+                    .lines()
+                    .skip(line.unsigned_abs())
+                    .collect::<Vec<&str>>()
+                    .join("\n")
+            }
+        },
+    ))
+}
+
 fn show(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -257,25 +278,7 @@ fn show(
             let Some(decrypted_text) = store.secrets.get(secret_path) else {
                 anyhow::bail!("No secret found at '{secret_path}'")
             };
-            let extracted = line.map_or_else(
-                || decrypted_text.to_owned(),
-                |line| {
-                    if line >= 0 {
-                        decrypted_text
-                            .lines()
-                            .nth(line.unsigned_abs())
-                            .unwrap_or(decrypted_text)
-                            .to_owned()
-                    } else {
-                        decrypted_text
-                            .lines()
-                            .skip(line.unsigned_abs())
-                            .collect::<Vec<&str>>()
-                            .join("\n")
-                    }
-                },
-            );
-            Ok((Zeroizing::new(extracted), StoreMutation::Unchanged))
+            Ok((extract_line(decrypted_text, line), StoreMutation::Unchanged))
         },
         |text_to_show: &Zeroizing<String>| {
             if qrcode {
@@ -400,4 +403,115 @@ fn grep(
         }
         Ok(((), StoreMutation::Unchanged))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_line;
+
+    const THREE_LINE_SECRET: &str = "password\nuser: alice\nurl: https://example.com";
+
+    #[test]
+    fn none_returns_full_secret() {
+        let result = extract_line(THREE_LINE_SECRET, None);
+        assert_eq!(result.as_str(), THREE_LINE_SECRET);
+    }
+
+    #[test]
+    fn zero_returns_first_line() {
+        let result = extract_line(THREE_LINE_SECRET, Some(0));
+        assert_eq!(result.as_str(), "password");
+    }
+
+    #[test]
+    fn positive_in_range_returns_that_line() {
+        let result = extract_line(THREE_LINE_SECRET, Some(1));
+        assert_eq!(result.as_str(), "user: alice");
+    }
+
+    #[test]
+    fn positive_last_line_returns_that_line() {
+        let result = extract_line(THREE_LINE_SECRET, Some(2));
+        assert_eq!(result.as_str(), "url: https://example.com");
+    }
+
+    #[test]
+    fn positive_just_past_end_returns_empty() {
+        let result = extract_line(THREE_LINE_SECRET, Some(3));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn positive_far_past_end_returns_empty_not_full_secret() {
+        let result = extract_line(THREE_LINE_SECRET, Some(11));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn positive_isize_max_returns_empty_not_full_secret() {
+        let result = extract_line(THREE_LINE_SECRET, Some(isize::MAX));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn negative_one_skips_first_line() {
+        let result = extract_line(THREE_LINE_SECRET, Some(-1));
+        assert_eq!(result.as_str(), "user: alice\nurl: https://example.com");
+    }
+
+    #[test]
+    fn negative_skip_equal_to_line_count_returns_empty() {
+        let result = extract_line(THREE_LINE_SECRET, Some(-3));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn negative_skip_past_end_returns_empty() {
+        let result = extract_line(THREE_LINE_SECRET, Some(-99));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn negative_isize_min_returns_empty_not_full_secret() {
+        let result = extract_line(THREE_LINE_SECRET, Some(isize::MIN));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn empty_secret_with_no_line_returns_empty() {
+        let result = extract_line("", None);
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn empty_secret_with_any_positive_line_returns_empty() {
+        let result = extract_line("", Some(0));
+        assert_eq!(result.as_str(), "");
+        let result = extract_line("", Some(5));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn empty_secret_with_negative_line_returns_empty() {
+        let result = extract_line("", Some(-1));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn single_line_secret_with_positive_zero_returns_that_line() {
+        let result = extract_line("only-line", Some(0));
+        assert_eq!(result.as_str(), "only-line");
+    }
+
+    #[test]
+    fn single_line_secret_with_positive_one_returns_empty() {
+        let result = extract_line("only-line", Some(1));
+        assert_eq!(result.as_str(), "");
+    }
+
+    #[test]
+    fn trailing_newline_does_not_count_as_extra_line() {
+        let result = extract_line("a\nb\n", Some(2));
+        assert_eq!(result.as_str(), "");
+    }
 }
