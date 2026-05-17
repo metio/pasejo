@@ -20,7 +20,7 @@ pub fn should_execute(
             let epoch_seconds = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)?
                 .as_secs();
-            let seconds_since_last_execution = epoch_seconds - last_seconds;
+            let seconds_since_last_execution = epoch_seconds.saturating_sub(last_seconds);
             let interval = interval_seconds.unwrap_or(60 * 60 * 24);
             let should_execute = seconds_since_last_execution > interval;
 
@@ -141,6 +141,40 @@ mod tests {
             written >= now_seconds() - 5,
             "marker should be refreshed to current time, got {written}"
         );
+    }
+
+    #[test]
+    fn should_execute_with_future_dated_marker_does_not_panic_and_returns_false() {
+        let temp = TempDir::new().unwrap();
+        let (dir, file) = paths_in(&temp);
+        std::fs::create_dir_all(&dir).unwrap();
+        // Marker timestamp far in the future — simulates clock skew, NTP
+        // rollback, or a marker file copied from a machine with a fast clock.
+        // Before the fix, `epoch_seconds - last_seconds` would panic in debug
+        // and wrap to a huge value in release.
+        let future = now_seconds() + 60 * 60 * 24 * 365;
+        std::fs::write(&file, future.to_string()).unwrap();
+
+        let executed = should_execute(Some(60), Some((dir, file.clone()))).unwrap();
+
+        assert!(!executed, "future-dated marker should not trigger execution");
+        // The marker is left untouched — we did not refresh it.
+        let written: u64 = std::fs::read_to_string(&file).unwrap().parse().unwrap();
+        assert_eq!(written, future);
+    }
+
+    #[test]
+    fn should_execute_with_marker_equal_to_now_returns_false() {
+        let temp = TempDir::new().unwrap();
+        let (dir, file) = paths_in(&temp);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&file, now_seconds().to_string()).unwrap();
+
+        // Zero seconds since last execution, regardless of interval — should
+        // never trip the `> interval` check (interval=0 is also not strictly
+        // greater).
+        let executed = should_execute(Some(0), Some((dir, file))).unwrap();
+        assert!(!executed);
     }
 
     #[test]
