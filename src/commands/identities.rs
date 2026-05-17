@@ -10,31 +10,35 @@ use crate::cli::i18n;
 use crate::models::cli::IdentityCommands;
 use crate::models::configuration::{Configuration, Identity};
 
-pub fn dispatch(command: &IdentityCommands, configuration: Configuration) -> anyhow::Result<()> {
+pub fn dispatch(command: &IdentityCommands, configuration: &Configuration) -> anyhow::Result<()> {
     match command {
-        IdentityCommands::Add(args) => add(
-            configuration,
-            args.store_selection.store.as_ref(),
-            args.file.as_path(),
-            args.global,
-        ),
-        IdentityCommands::Remove(args) => remove(
-            configuration,
-            args.store_selection.store.as_ref(),
-            args.file.as_path(),
-            args.global,
-            args.ignore_unknown,
-        ),
-        IdentityCommands::List(args) => list(
-            &configuration,
-            args.store_selection.store.as_ref(),
-            args.global,
-        ),
+        IdentityCommands::Add(args) => {
+            let mut owned = configuration.clone();
+            add(
+                &mut owned,
+                args.store_selection.store.as_ref(),
+                args.file.as_path(),
+                args.global,
+            )
+        }
+        IdentityCommands::Remove(args) => {
+            let mut owned = configuration.clone();
+            remove(
+                &mut owned,
+                args.store_selection.store.as_ref(),
+                args.file.as_path(),
+                args.global,
+                args.ignore_unknown,
+            )
+        }
+        IdentityCommands::List(args) => {
+            list(configuration, args.store_selection.store.as_ref(), args.global)
+        }
     }
 }
 
 fn add(
-    mut configuration: Configuration,
+    configuration: &mut Configuration,
     store_name: Option<&String>,
     identity_file: &Path,
     global: bool,
@@ -72,7 +76,7 @@ fn add(
 }
 
 fn remove(
-    mut configuration: Configuration,
+    configuration: &mut Configuration,
     store_name: Option<&String>,
     identity_file: &Path,
     global: bool,
