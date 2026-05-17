@@ -123,6 +123,7 @@ error-one-time-password-already-exists = Un mot de passe à usage unique existe 
 error-not-allowed-to-remove-one-time-password = Suppression du mot de passe à usage unique à { $password_path } interdite. Utilisez --force pour l'écraser.
 error-no-one-time-password-found = Aucun mot de passe à usage unique trouvé à '{ $password_path }'
 error-no-store-in-configuration = Aucun coffre trouvé dans la configuration. Exécutez d'abord 'pasejo store add ...' pour en ajouter un
+error-decrypt-requires-yes-i-know = Déchiffrement refusé : cela affichera tous les secrets en clair sur stdout. Passez --yes-i-know pour confirmer.
 error-no-store-or-global = Aucun coffre trouvé dans la configuration et aucune option --global spécifiée. Exécutez d'abord 'pasejo store add ...' pour en ajouter un
 error-store-name-already-exists = Le nom du coffre existe déjà. Veuillez utiliser un autre nom.
 error-store-path-is-directory = Impossible d'utiliser un répertoire comme chemin de coffre. Veuillez utiliser un chemin de fichier.

@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli;
-use anyhow::Result;
 use std::collections::BTreeMap;
+
+use anyhow::Result;
+
+use crate::cli;
 
 pub fn merge_secrets(
     common_ancestor_secrets: &BTreeMap<String, String>,

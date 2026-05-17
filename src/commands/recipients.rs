@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::time::Duration;
+
+use anyhow::{Context, Result};
+
 use crate::cli::i18n;
 use crate::commands::store_op::{StoreMutation, with_store};
 use crate::hooks::executor::HookExecutor;
@@ -9,8 +13,6 @@ use crate::models::configuration::{Configuration, encrypt_store};
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
 use crate::recipients::public_key;
-use anyhow::{Context, Result};
-use std::time::Duration;
 
 pub fn dispatch(
     command: &RecipientCommands,

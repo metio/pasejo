@@ -5,12 +5,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fs, path};
 
+use anyhow::Context;
+
 use crate::cli::i18n;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::StoreCommands;
 use crate::models::configuration::{Configuration, encrypt_store_to_path};
 use crate::{one_time_passwords, recipients, secrets};
-use anyhow::Context;
 
 pub fn dispatch(
     command: &StoreCommands,
@@ -26,6 +27,7 @@ pub fn dispatch(
             configuration,
             args.store_selection.store.as_ref(),
             args.store_path.as_ref(),
+            args.yes_i_know,
             offline,
         ),
         StoreCommands::List(_) => {
@@ -122,9 +124,13 @@ fn decrypt(
     configuration: &Configuration,
     store_name: Option<&String>,
     store_path: Option<&PathBuf>,
+    yes_i_know: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
+        if !yes_i_know {
+            anyhow::bail!(i18n::error_decrypt_requires_yes_i_know());
+        }
         if store_path.is_none() {
             let hooks = HookExecutor {
                 configuration,
@@ -268,9 +274,10 @@ fn exec(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_fs::TempDir;
     use assert_fs::prelude::*;
+
+    use super::*;
 
     #[test]
     fn delete_store_file_if_requested_does_nothing_when_remove_data_is_false() {

@@ -1,14 +1,16 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::fs::File;
+use std::io;
+use std::path::Path;
+
+use anyhow::{Context, Result};
+
 use crate::cli::i18n;
 use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::{Configuration, StoreRegistration, encrypt_store};
 use crate::models::password_store::PasswordStore;
-use anyhow::{Context, Result};
-use std::fs::File;
-use std::io;
-use std::path::Path;
 
 /// Acquires an exclusive advisory lock on the store file at `path`. The
 /// returned `File` holds the lock; dropping it releases the lock. Returns
@@ -113,11 +115,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use assert_fs::TempDir;
-    use assert_fs::prelude::*;
     use std::sync::mpsc;
     use std::time::Duration;
+
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
+
+    use super::*;
 
     #[test]
     fn acquire_store_lock_returns_some_for_existing_file() {

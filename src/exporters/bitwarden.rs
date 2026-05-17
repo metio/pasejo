@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
 use crate::cli::constants::APPLICATION_NAME;
 use crate::exporters::parser::{ParsedSecret, parse_secret};
 use crate::models::password_store::PasswordStore;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use uuid::Uuid;
 
 const LOGIN_ITEM_TYPE: u8 = 1;
 const TEXT_FIELD_TYPE: u8 = 0;
@@ -238,8 +240,9 @@ pub struct BitwardenUri {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::Value;
+
+    use super::*;
 
     fn store_with(secrets: &[(&str, &str)]) -> PasswordStore {
         let mut store = PasswordStore::default();

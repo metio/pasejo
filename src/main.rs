@@ -12,15 +12,16 @@ mod one_time_passwords;
 mod recipients;
 mod secrets;
 
-use crate::cli::i18n;
-use crate::commands::stores;
-use crate::models::cli::Commands;
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
 use human_panic::{Metadata, setup_panic};
 use models::cli::Cli;
 use models::configuration::Configuration;
+
+use crate::cli::i18n;
+use crate::commands::stores;
+use crate::models::cli::Commands;
 
 fn main() -> Result<()> {
     setup_panic!(

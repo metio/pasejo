@@ -29,7 +29,7 @@ Added one-time password at 'some-name'
 $ pasejo otp add --type totp --secret JEQDYMZAN5YGK3RAONXXK4TDMU some-name --store other
 Added one-time password at 'some-name'
 
-$ pasejo store decrypt --store something
+$ pasejo store decrypt --store something --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"
@@ -49,7 +49,7 @@ skew = 0
 
 $ pasejo store merge --common-ancestor something --current-version something --other-version other
 
-$ pasejo store decrypt --store something
+$ pasejo store decrypt --store something --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"

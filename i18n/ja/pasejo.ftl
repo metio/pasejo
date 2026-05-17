@@ -123,6 +123,7 @@ error-one-time-password-already-exists = ワンタイムパスワードは既に
 error-not-allowed-to-remove-one-time-password = { $password_path } のワンタイムパスワードの削除は許可されていません。上書きするには --force を使用してください。
 error-no-one-time-password-found = '{ $password_path }' にワンタイムパスワードが見つかりません
 error-no-store-in-configuration = 設定にストアが見つかりません。最初に 'pasejo store add ...' を実行して追加してください
+error-decrypt-requires-yes-i-know = 復号を拒否しました: すべてのシークレットが平文で stdout に出力されます。確認のため --yes-i-know を指定してください。
 error-no-store-or-global = 設定にストアが見つからず、--global フラグも指定されていません。最初に 'pasejo store add ...' を実行して追加してください
 error-store-name-already-exists = ストア名は既に存在します。別の名前を使用してください。
 error-store-path-is-directory = ディレクトリをストアパスとして使用できません。ファイルパスを使用してください。

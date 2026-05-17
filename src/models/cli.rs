@@ -3,13 +3,14 @@
 
 use std::path::PathBuf;
 
-use crate::cli::completer;
-use crate::cli::parser;
-use crate::models::password_store::{OneTimePasswordAlgorithm, OneTimePasswordType};
 use clap::ValueHint::{DirPath, FilePath};
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::InfoLevel;
 use serde::{Deserialize, Serialize};
+
+use crate::cli::completer;
+use crate::cli::parser;
+use crate::models::password_store::{OneTimePasswordAlgorithm, OneTimePasswordType};
 
 /// age-backed password manager for teams
 #[derive(Parser)]
@@ -585,23 +586,28 @@ pub struct SecretGenerateArgs {
     #[arg(short, long, default_value_t = 25)]
     pub length: usize,
 
-    /// Passwords are allowed to, or must if the strict is true, contain a number.
+    /// Passwords are allowed to, or must if the strict is true, contain a
+    /// number.
     #[arg(short, long, default_value_t = true)]
     pub numbers: bool,
 
-    /// Passwords are allowed to, or must if the strict is true, contain a lowercase letter.
+    /// Passwords are allowed to, or must if the strict is true, contain a
+    /// lowercase letter.
     #[arg(short = 'j', long, default_value_t = true)]
     pub lowercase_letters: bool,
 
-    /// Passwords are allowed to, or must if the strict is true, contain an uppercase letter.
+    /// Passwords are allowed to, or must if the strict is true, contain an
+    /// uppercase letter.
     #[arg(short, long, default_value_t = true)]
     pub uppercase_letters: bool,
 
-    /// Passwords are allowed to, or must if the strict is true, contain a symbol.
+    /// Passwords are allowed to, or must if the strict is true, contain a
+    /// symbol.
     #[arg(short = 'y', long, default_value_t = false)]
     pub symbols: bool,
 
-    /// Passwords are allowed to, or must if the strict is true, contain a space.
+    /// Passwords are allowed to, or must if the strict is true, contain a
+    /// space.
     #[arg(short = 'w', long, default_value_t = false)]
     pub spaces: bool,
 
@@ -770,6 +776,10 @@ pub struct StoreDecryptArgs {
     /// Overwrite the path to the store
     #[arg(long, value_hint = FilePath)]
     pub store_path: Option<PathBuf>,
+
+    /// Acknowledge that every secret will be printed in plaintext to stdout
+    #[arg(long)]
+    pub yes_i_know: bool,
 }
 
 #[derive(Args)]

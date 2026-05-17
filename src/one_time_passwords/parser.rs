@@ -1,15 +1,17 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::i18n;
-use crate::models::cli::OtpAddArgs;
-use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
+use std::borrow::Cow;
+
 use anyhow::Context;
 use otp_std::Otp::{Hotp, Totp};
 use otp_std::auth::query::Query;
 use otp_std::base::SECRET;
 use otp_std::{Otp, Type, auth};
-use std::borrow::Cow;
+
+use crate::cli::i18n;
+use crate::models::cli::OtpAddArgs;
+use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 
 impl OtpAddArgs {
     /// Resolve the user-supplied OTP arguments into a concrete

@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::environment_variables;
-use directories::BaseDirs;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
+
+use directories::BaseDirs;
+
+use crate::cli::environment_variables;
 
 pub fn should_execute(
     interval_seconds: Option<u64>,
@@ -80,9 +82,10 @@ fn last_paths(store_name: &OsStr, directory: &str) -> Option<(PathBuf, PathBuf)>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_fs::TempDir;
     use assert_fs::prelude::*;
+
+    use super::*;
 
     fn now_seconds() -> u64 {
         SystemTime::now()

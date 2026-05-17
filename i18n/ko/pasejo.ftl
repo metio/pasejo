@@ -123,6 +123,7 @@ error-one-time-password-already-exists = 일회용 비밀번호가 이미 { $pas
 error-not-allowed-to-remove-one-time-password = { $password_path }의 일회용 비밀번호 제거가 허용되지 않습니다. 덮어쓰려면 --force를 사용하세요.
 error-no-one-time-password-found = '{ $password_path }'에서 일회용 비밀번호를 찾을 수 없습니다
 error-no-store-in-configuration = 구성에서 저장소를 찾을 수 없습니다. 먼저 'pasejo store add ...'를 실행하여 추가하세요
+error-decrypt-requires-yes-i-know = 복호화를 거부했습니다: 모든 비밀이 평문으로 stdout에 출력됩니다. 확인을 위해 --yes-i-know를 전달하세요.
 error-no-store-or-global = 구성에서 저장소를 찾을 수 없고 --global 플래그도 지정되지 않았습니다. 먼저 'pasejo store add ...'를 실행하여 추가하세요
 error-store-name-already-exists = 저장소 이름이 이미 존재합니다. 다른 이름을 사용하세요.
 error-store-path-is-directory = 디렉터리를 저장소 경로로 사용할 수 없습니다. 파일 경로를 사용하세요.

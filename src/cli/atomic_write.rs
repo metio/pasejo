@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use anyhow::{Context, Result};
 use std::ffi::OsString;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use anyhow::{Context, Result};
 
 use crate::cli::i18n;
 
@@ -52,14 +53,14 @@ pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
 
 fn temp_path(path: &Path) -> PathBuf {
     // Uniqueness comes from three independent sources, layered defensively:
-    //   * `process::id()` disambiguates concurrent pasejo invocations
-    //     writing to the same directory.
-    //   * `SystemTime::now()` (nanos since the epoch) disambiguates
-    //     sequential calls in different moments. Falls back to 0 if the
-    //     clock is before the epoch — implausible on a real system, but
-    //     the counter below still keeps things unique if it happens.
-    //   * An atomic counter disambiguates rapid calls within a single
-    //     process where the clock hasn't ticked.
+    //   * `process::id()` disambiguates concurrent pasejo invocations writing to
+    //     the same directory.
+    //   * `SystemTime::now()` (nanos since the epoch) disambiguates sequential
+    //     calls in different moments. Falls back to 0 if the clock is before the
+    //     epoch — implausible on a real system, but the counter below still keeps
+    //     things unique if it happens.
+    //   * An atomic counter disambiguates rapid calls within a single process where
+    //     the clock hasn't ticked.
     // `OpenOptions::create_new(true)` in `open_temp` is the actual
     // safety net: if the temp path *did* collide, the open fails rather
     // than overwriting. The pieces above just keep that path unlikely.
@@ -103,8 +104,9 @@ fn open_temp(tmp: &Path) -> Result<fs::File> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_fs::TempDir;
+
+    use super::*;
 
     #[test]
     fn write_creates_file_with_contents() {

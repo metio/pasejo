@@ -44,7 +44,7 @@ Recipient for 'age15nh49vntjcaqcuqk604sg9fd568zazqhedx7mz4mled245wy9u5sl3dlvl' a
 $ pasejo recipient add --public-key age15nh49vntjcaqcuqk604sg9fd568zazqhedx7mz4mled245wy9u5sl3dlvl --name different --store other
 Recipient for 'age15nh49vntjcaqcuqk604sg9fd568zazqhedx7mz4mled245wy9u5sl3dlvl' added
 
-$ pasejo store decrypt --store ancestor
+$ pasejo store decrypt --store ancestor --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"
@@ -63,7 +63,7 @@ Error: Merge conflict detected in recipients. Please resolve manually.
        Merge conflict detected in secrets. Please resolve manually.
        Merge conflict detected in one-time passwords. Please resolve manually.
 
-$ pasejo store decrypt --store ancestor
+$ pasejo store decrypt --store ancestor --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"

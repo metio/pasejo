@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use age::cli_common::{StdinGuard, read_identities};
 use std::cell::LazyCell;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+
+use age::cli_common::{StdinGuard, read_identities};
 
 pub fn read(
     identity_files: Vec<PathBuf>,
@@ -112,8 +113,7 @@ fn find_in_path(name: &str) -> Option<PathBuf> {
 fn is_executable_file(path: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
     std::fs::metadata(path)
-        .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
 }
 
 #[cfg(not(unix))]

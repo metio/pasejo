@@ -1,18 +1,20 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{atomic_write, constants, environment_variables, i18n};
-use crate::models::password_store::PasswordStore;
-use crate::{identities, recipients, secrets};
-use anyhow::{Context, Result};
-use directories::ProjectDirs;
-use serde::{Deserialize, Serialize};
 use std::env::var_os;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf, absolute};
 use std::sync::OnceLock;
+
+use anyhow::{Context, Result};
+use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
 use toml::Table;
+
+use crate::cli::{atomic_write, constants, environment_variables, i18n};
+use crate::models::password_store::PasswordStore;
+use crate::{identities, recipients, secrets};
 
 static CACHED_CONFIGURATION: OnceLock<Configuration> = OnceLock::new();
 
@@ -117,10 +119,11 @@ impl Configuration {
         }
     }
 
-    /// Process-wide cached load. The first caller (clap value parser, completer,
-    /// or `main`) reads the file from disk; subsequent callers within the same
-    /// process get the same `Configuration` reference back. Errors are not
-    /// cached — if the first call fails, the next call retries.
+    /// Process-wide cached load. The first caller (clap value parser,
+    /// completer, or `main`) reads the file from disk; subsequent callers
+    /// within the same process get the same `Configuration` reference back.
+    /// Errors are not cached — if the first call fails, the next call
+    /// retries.
     pub fn cached() -> Result<&'static Self> {
         if let Some(cached) = CACHED_CONFIGURATION.get() {
             return Ok(cached);
@@ -475,9 +478,10 @@ fn migrate_store_table(table: &mut Table) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_fs::TempDir;
     use assert_fs::prelude::*;
+
+    use super::*;
 
     #[test]
     fn move_file_relocates_content_within_same_directory() {
@@ -1011,7 +1015,8 @@ mod tests {
         );
         migrate_table(&mut table);
         let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
-        // The non-string synchronizer is still removed, but no command keys are inserted.
+        // The non-string synchronizer is still removed, but no command keys are
+        // inserted.
         assert!(!store.contains_key("synchronizer"));
         assert!(!store.contains_key("pull_commands"));
         assert!(!store.contains_key("push_commands"));

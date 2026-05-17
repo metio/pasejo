@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli;
-use anyhow::Result;
 use std::collections::BTreeMap;
+
+use anyhow::Result;
+
+use crate::cli;
 
 pub fn three_way_merge_map<T>(
     common_ancestor: &BTreeMap<String, T>,

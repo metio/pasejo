@@ -91,9 +91,10 @@ fn split_ssh_key(key: &str) -> anyhow::Result<(String, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use assert_fs::TempDir;
     use assert_fs::prelude::*;
+
+    use super::*;
 
     #[test]
     fn public_key_from_args() {

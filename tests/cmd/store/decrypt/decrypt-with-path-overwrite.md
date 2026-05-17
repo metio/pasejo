@@ -20,7 +20,7 @@ Added secret at 'secretC'
 $ pasejo secret add secretD
 Added secret at 'secretD'
 
-$ pasejo store decrypt --store-path store
+$ pasejo store decrypt --store-path store --yes-i-know
 [[recipients]]
 name = ""
 public_key = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd"

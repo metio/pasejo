@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::i18n;
-use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, write_last_execution};
-use crate::models::configuration::{Configuration, StoreRegistration};
-use anyhow::Context;
 use std::ffi::{OsStr, OsString};
 use std::path::Path;
 use std::process::{Command, Stdio};
+
+use anyhow::Context;
+
+use crate::cli::i18n;
+use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, write_last_execution};
+use crate::models::configuration::{Configuration, StoreRegistration};
 
 pub struct HookExecutor<'a> {
     pub configuration: &'a Configuration,
@@ -152,8 +154,9 @@ fn build_args(template: &[String], path: &Path) -> anyhow::Result<Vec<OsString>>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
+    use super::*;
 
     #[test]
     fn build_args_passes_path_with_metacharacters_as_single_arg() {
