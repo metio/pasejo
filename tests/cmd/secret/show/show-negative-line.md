@@ -12,6 +12,6 @@ $ pasejo secret generate some-secret
 Generated secret at 'some-secret'
 
 $ pasejo secret show some-secret --line=-1
-
+[..]
 
 ```

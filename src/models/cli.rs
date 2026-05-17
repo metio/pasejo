@@ -679,9 +679,16 @@ pub struct SecretShowArgs {
     #[arg(short, long, conflicts_with = "qrcode")]
     pub clip: bool,
 
-    /// Show only the specified line, or skip lines when given a negative number
-    #[arg(short, long)]
+    /// Show only the specified line (1-indexed). A negative value counts
+    /// from the end: -1 is the last line, -2 the second-to-last.
+    #[arg(short, long, conflicts_with = "skip_lines", value_parser = parser::nonzero_isize)]
     pub line: Option<isize>,
+
+    /// Show everything except the first N lines. Useful with the convention
+    /// that the password lives on the first line: `--skip-lines 1` returns
+    /// just the metadata.
+    #[arg(long, value_parser = parser::positive_u64)]
+    pub skip_lines: Option<u64>,
 
     /// The path of the secret within the selected store
     pub secret_path: String,

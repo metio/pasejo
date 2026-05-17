@@ -18,7 +18,7 @@ Executing pull hooks for store 'something'
 Showing secret at 'some-secret' as text
 
 
-$ pasejo secret show some-secret --line 0
+$ pasejo secret show some-secret --line 1
 
 
 ```
