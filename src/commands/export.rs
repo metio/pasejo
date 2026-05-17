@@ -42,7 +42,7 @@ fn export_as_json(
                 args.collection_name.as_ref(),
                 args.username_keys.as_ref(),
                 args.uri_keys.as_ref(),
-                args.pretty,
+                args.pretty.unwrap_or(false),
             )?
         );
 
