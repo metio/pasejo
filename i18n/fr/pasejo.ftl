@@ -182,3 +182,4 @@ error-could-not-acquire-store-lock = Impossible d'acquérir le verrou sur le fic
 error-cannot-encrypt-store = Impossible de chiffrer le coffre
 error-failed-to-run-command = Échec de l'exécution de la commande { $binary }
 error-command-exited-with = La commande { $binary } s'est terminée avec { $exit }
+error-browser-host-requires-pipe = L'hôte du navigateur nécessite une entrée standard redirigée depuis l'extension du navigateur connectée. Exécutez cette commande via le manifeste de messagerie native de votre navigateur, et non directement depuis un terminal.

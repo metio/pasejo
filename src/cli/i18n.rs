@@ -797,18 +797,3 @@ fl_string!(
     error_browser_host_requires_pipe,
     "error-browser-host-requires-pipe"
 );
-fl_string!(
-    error_browser_host_unknown_only_store,
-    "error-browser-host-unknown-only-store",
-    name
-);
-fl_string!(
-    error_browser_host_unknown_default_store,
-    "error-browser-host-unknown-default-store",
-    name
-);
-fl_string!(
-    error_browser_host_default_store_not_in_only,
-    "error-browser-host-default-store-not-in-only",
-    name
-);

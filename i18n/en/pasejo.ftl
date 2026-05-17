@@ -183,6 +183,3 @@ error-cannot-encrypt-store = Cannot encrypt store
 error-failed-to-run-command = Failed to run command { $binary }
 error-command-exited-with = Command { $binary } exited with { $exit }
 error-browser-host-requires-pipe = Browser host requires a piped stdin from the connecting browser extension. Run this command via your browser's native-messaging manifest, not directly from a terminal.
-error-browser-host-unknown-only-store = --only-store '{ $name }' does not match any configured store
-error-browser-host-unknown-default-store = --default-store '{ $name }' does not match any configured store
-error-browser-host-default-store-not-in-only = --default-store '{ $name }' must also be listed in --only-store

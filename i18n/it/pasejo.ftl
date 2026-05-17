@@ -182,3 +182,4 @@ error-could-not-acquire-store-lock = Impossibile acquisire il blocco sul file de
 error-cannot-encrypt-store = Impossibile cifrare l'archivio
 error-failed-to-run-command = Esecuzione del comando { $binary } fallita
 error-command-exited-with = Il comando { $binary } è terminato con { $exit }
+error-browser-host-requires-pipe = L'host del browser richiede uno stdin reindirizzato dall'estensione del browser connessa. Eseguire questo comando tramite il manifest di messaggistica nativa del browser, non direttamente da un terminale.

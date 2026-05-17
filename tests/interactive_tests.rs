@@ -405,6 +405,28 @@ mod interactive_tests {
 
     #[test]
     #[serial]
+    fn browser_host_refuses_to_start_with_tty_stdin() -> anyhow::Result<()> {
+        // `rexpect::session::spawn_command` attaches a PTY, so the host
+        // child sees `stdin().is_terminal() == true` and must refuse to
+        // start. The trycmd suite cannot exercise this because trycmd
+        // always pipes stdin.
+        let temp = assert_fs::TempDir::new()?;
+        let config = temp.path().join("config.toml");
+
+        let mut spawn_cmd = std::process::Command::new(cargo_bin(env!("CARGO_PKG_NAME")));
+        spawn_cmd
+            .args(["browser", "host"])
+            .env("PASEJO_CONFIG", &config)
+            .env("LANG", "en")
+            .env("LC_ALL", "en");
+        let mut process = rexpect::session::spawn_command(spawn_cmd, Some(5_000))?;
+        process.exp_string("Browser host requires a piped stdin")?;
+        process.exp_eof()?;
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
     fn grep_with_invalid_regex_returns_error() -> anyhow::Result<()> {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(

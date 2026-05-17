@@ -149,16 +149,6 @@ pub struct QueryArgs {
 
 #[derive(Args, Default)]
 pub struct HostArgs {
-    /// Restrict the host to these stores. Stores outside the list are
-    /// invisible to the connecting extension. Repeatable.
-    #[arg(long, add = completer::store_name(), value_parser = parser::store_name)]
-    pub only_store: Vec<String>,
-
-    /// Use this store when a request omits the store field. Defaults to
-    /// the usual default-store / first-store fallback chain.
-    #[arg(long, add = completer::store_name(), value_parser = parser::store_name)]
-    pub default_store: Option<String>,
-
     #[arg(long, default_values_t = default_username_keys())]
     pub username_keys: Vec<String>,
 

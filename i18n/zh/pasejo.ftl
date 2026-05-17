@@ -182,3 +182,4 @@ error-could-not-acquire-store-lock = 无法获取存储文件的锁:{ $path }
 error-cannot-encrypt-store = 无法加密存储
 error-failed-to-run-command = 无法运行命令 { $binary }
 error-command-exited-with = 命令 { $binary } 以 { $exit } 退出
+error-browser-host-requires-pipe = 浏览器主机需要来自连接的浏览器扩展的管道标准输入。请通过浏览器的原生消息传递清单运行此命令，而不是直接从终端运行。

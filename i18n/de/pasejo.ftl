@@ -182,3 +182,4 @@ error-could-not-acquire-store-lock = Sperre auf Speicherdatei konnte nicht erwor
 error-cannot-encrypt-store = Speicher konnte nicht verschlüsselt werden
 error-failed-to-run-command = Befehl { $binary } konnte nicht ausgeführt werden
 error-command-exited-with = Befehl { $binary } beendet mit { $exit }
+error-browser-host-requires-pipe = Der Browser-Host benötigt eine weitergeleitete Standardeingabe von der verbundenen Browser-Erweiterung. Führen Sie diesen Befehl über das Native-Messaging-Manifest Ihres Browsers aus, nicht direkt in einem Terminal.

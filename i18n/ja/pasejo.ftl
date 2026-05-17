@@ -182,3 +182,4 @@ error-could-not-acquire-store-lock = ストアファイルのロックを取得�
 error-cannot-encrypt-store = ストアを暗号化できません
 error-failed-to-run-command = コマンド { $binary } の実行に失敗しました
 error-command-exited-with = コマンド { $binary } は { $exit } で終了しました
+error-browser-host-requires-pipe = ブラウザホストには、接続中のブラウザ拡張機能からのパイプ標準入力が必要です。このコマンドはブラウザのネイティブメッセージングマニフェスト経由で実行してください。ターミナルから直接実行しないでください。
