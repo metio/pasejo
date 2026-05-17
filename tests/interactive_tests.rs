@@ -323,6 +323,86 @@ mod interactive_tests {
 
     #[test]
     #[serial]
+    fn browser_query_finds_url_field_match() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+
+        // The non-TTY path of `secret add` reads the entire stdin verbatim
+        // as the secret value, which is the only way to inject a multi-line
+        // secret with a `url:` field through the CLI — the trycmd suite
+        // cannot do this because its `$ command` syntax has no stdin
+        // mechanism, and `--multiline` opens an editor that would require
+        // PTY scripting.
+        assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("add")
+            .arg("alice")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .write_stdin("hunter2\nurl: https://example.com\nlogin: alice@example.com\n")
+            .assert()
+            .success()
+            .code(0);
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("browser")
+            .arg("query")
+            .arg("example.com")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(
+                predicate::str::contains(r#""name":"alice""#)
+                    .and(predicate::str::contains(r#""url":"https://example.com""#))
+                    .and(predicate::str::contains(
+                        r#""username":"alice@example.com""#,
+                    ))
+                    .and(predicate::str::contains(r#""password":"hunter2""#))
+                    .and(predicate::str::contains(r#""match_kind":"url_field""#))
+                    .and(predicate::str::contains(r#""score":1.0"#)),
+            )
+            .success()
+            .code(0);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn browser_query_matches_subdomain_via_registrable_domain() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            &key.to_string().expose_secret(),
+        )?;
+
+        assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("secret")
+            .arg("add")
+            .arg("alice")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .write_stdin("hunter2\nurl: https://www.example.com\n")
+            .assert()
+            .success();
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .arg("browser")
+            .arg("query")
+            .arg("mail.example.com")
+            .env("PASEJO_CONFIG", temp.path().join("config.toml"))
+            .assert()
+            .stdout(
+                predicate::str::contains(r#""match_kind":"url_field""#)
+                    .and(predicate::str::contains(r#""score":0.9"#)),
+            )
+            .success();
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
     fn grep_with_invalid_regex_returns_error() -> anyhow::Result<()> {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
