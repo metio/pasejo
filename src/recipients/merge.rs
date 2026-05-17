@@ -118,7 +118,7 @@ pub fn merge_recipients(
     }
 
     if merge_conflict {
-        anyhow::bail!("Merge conflict detected in recipients. Please resolve manually.")
+        anyhow::bail!(cli::i18n::error_merge_conflict_recipients())
     }
     Ok(resulting_recipients)
 }

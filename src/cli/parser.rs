@@ -6,21 +6,22 @@ use std::path::{Path, PathBuf, absolute};
 use anyhow::Context;
 use anyhow::Result;
 
+use crate::cli::i18n;
 use crate::models::configuration::Configuration;
 
 pub fn store_name(input: &str) -> Result<String> {
-    let configuration = Configuration::cached().context("Could not load configuration")?;
+    let configuration = Configuration::cached().context(i18n::error_could_not_load_configuration())?;
     configuration
         .canonical_store_name(input)
-        .ok_or_else(|| anyhow::anyhow!("Store with name '{input}' does not exist in configuration"))
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_store_does_not_exist(input)))
 }
 
 pub fn nonzero_isize(input: &str) -> Result<isize> {
     let value: isize = input
         .parse()
-        .with_context(|| format!("'{input}' is not a valid line number"))?;
+        .with_context(|| i18n::error_invalid_line_number(input))?;
     if value == 0 {
-        anyhow::bail!("Line number must not be 0. Use 1 for the first line, -1 for the last")
+        anyhow::bail!(i18n::error_line_number_must_not_be_zero())
     }
     Ok(value)
 }
@@ -28,9 +29,9 @@ pub fn nonzero_isize(input: &str) -> Result<isize> {
 pub fn positive_u64(input: &str) -> Result<u64> {
     let value: u64 = input
         .parse()
-        .with_context(|| format!("'{input}' is not a valid count"))?;
+        .with_context(|| i18n::error_invalid_count(input))?;
     if value == 0 {
-        anyhow::bail!("Count must not be 0. Use 1 to skip the first line")
+        anyhow::bail!(i18n::error_count_must_not_be_zero())
     }
     Ok(value)
 }
@@ -42,7 +43,7 @@ pub fn existing_file(input: &str) -> Result<PathBuf> {
     if absolute_path.is_file() {
         Ok(path.to_path_buf())
     } else {
-        anyhow::bail!("The file '{input}' does not exist")
+        anyhow::bail!(i18n::error_file_does_not_exist(input))
     }
 }
 
@@ -82,6 +83,7 @@ mod tests {
 
     #[test]
     fn nonzero_isize_rejects_zero() {
+        i18n::init_for_tests();
         let err = nonzero_isize("0").unwrap_err().to_string();
         assert!(err.contains("must not be 0"));
     }

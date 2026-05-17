@@ -74,9 +74,7 @@ fn get(
 
         Ok(())
     } else {
-        anyhow::bail!(
-            "No store found in configuration and no --global flag specified. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_or_global())
     }
 }
 
@@ -120,9 +118,7 @@ fn set(
             push.clone_into(&mut registration.push_commands);
         }
     } else {
-        anyhow::bail!(
-            "No store found in configuration and no --global flag specified. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_or_global())
     }
 
     configuration.save_configuration()
@@ -149,8 +145,6 @@ pub fn run(
         }
         Ok(())
     } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_in_configuration())
     }
 }

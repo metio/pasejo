@@ -6,14 +6,16 @@ use std::io::{BufReader, IsTerminal, Read, stdin};
 use anyhow::Context;
 use inquire::{Confirm, Editor, Password};
 
+use crate::cli::i18n;
+
 pub fn read_secret_from_user_input(secret_path: &str, multiline: bool) -> anyhow::Result<String> {
     let secret = if stdin().is_terminal() {
-        let message = &format!("Enter secret for {secret_path}:");
-        let failure = format!("Could not read secret for {secret_path}:");
+        let message = i18n::prompt_enter_secret(secret_path);
+        let failure = i18n::prompt_could_not_read_secret(secret_path);
         if multiline {
-            Editor::new(message).prompt().context(failure)?
+            Editor::new(&message).prompt().context(failure)?
         } else {
-            Password::new(message).prompt().context(failure)?
+            Password::new(&message).prompt().context(failure)?
         }
     } else {
         let mut str = String::new();
@@ -24,10 +26,10 @@ pub fn read_secret_from_user_input(secret_path: &str, multiline: bool) -> anyhow
 }
 
 pub fn edit_secret(secret_path: &str, current_value: &str) -> anyhow::Result<String> {
-    Editor::new(&format!("Enter secret for {secret_path}:"))
+    Editor::new(&i18n::prompt_enter_secret(secret_path))
         .with_predefined_text(current_value)
         .prompt()
-        .context(format!("Could not read secret for {secret_path}:"))
+        .context(i18n::prompt_could_not_read_secret(secret_path))
 }
 
 pub fn get_confirmation_from_user(message: &str) -> anyhow::Result<bool> {
@@ -35,11 +37,9 @@ pub fn get_confirmation_from_user(message: &str) -> anyhow::Result<bool> {
         let confirmation = Confirm::new(message)
             .with_default(false)
             .prompt()
-            .context("Cannot get user confirmation")?;
+            .context(i18n::error_cannot_get_user_confirmation())?;
         Ok(confirmation)
     } else {
-        anyhow::bail!(
-            "Cannot get user confirmation from non-terminal input. Use --force to skip confirmation."
-        )
+        anyhow::bail!(i18n::error_no_confirmation_from_non_terminal())
     }
 }

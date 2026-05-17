@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::environment_variables;
+use crate::cli::{environment_variables, i18n};
 use crate::downloader::username;
 use anyhow::Context;
 use std::env;
@@ -59,7 +59,7 @@ pub fn download_public_key(
     let key = agent
         .get(format!("https://{host}/{username}.keys"))
         .call()
-        .with_context(|| format!("Downloading public key from {} failed", provider.name()))?
+        .with_context(|| i18n::error_downloading_public_key_failed(provider.name()))?
         .body_mut()
         .read_to_string()?;
     Ok(String::from(key.trim()))

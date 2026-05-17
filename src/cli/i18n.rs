@@ -143,83 +143,194 @@ fn duration_string(duration: &Duration) -> String {
     format!("{duration:?}")
 }
 
-pub fn recipient_added(public_key: &str) {
-    info!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "recipient-added", public_key = public_key)
-    );
+/// Generates a wrapper function that resolves a Fluent message with the
+/// given positional `&str` arguments and emits it through one of the `log`
+/// macros (`info!`, `debug!`, `warn!`, `error!`). Each argument name is
+/// used both as the function parameter and as the Fluent variable name.
+macro_rules! fl_log {
+    ($level:ident, $fn:ident, $key:literal $(, $arg:ident)* $(,)?) => {
+        pub fn $fn($($arg: &str),*) {
+            $level!("{}", fl!(LANGUAGE_LOADER, $key $(, $arg = $arg)*));
+        }
+    };
 }
 
-pub fn recipient_removed(public_key: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "recipient-removed",
-            public_key = public_key
-        )
-    );
+/// Generates a wrapper function that resolves a Fluent message with the
+/// given positional `&str` arguments and writes it to stdout. Used for
+/// content the user pipes or visually inspects (list output, search hits)
+/// rather than for status logs.
+macro_rules! fl_println {
+    ($fn:ident, $key:literal $(, $arg:ident)* $(,)?) => {
+        pub fn $fn($($arg: &str),*) {
+            println!("{}", fl!(LANGUAGE_LOADER, $key $(, $arg = $arg)*));
+        }
+    };
 }
 
-pub fn secret_added(secret_path: &str) {
-    info!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "secret-added", secret_path = secret_path)
-    );
+/// Generates a clipboard-notification helper: takes a `cancelled: bool`,
+/// returns the resolved Fluent string for the notification body (which
+/// `notify-rust` then renders as a desktop popup).
+macro_rules! fl_notification {
+    ($fn:ident, $key:literal) => {
+        pub fn $fn(cancelled: bool) -> String {
+            fl!(LANGUAGE_LOADER, $key, cancelled = bool_key(cancelled))
+        }
+    };
 }
 
-pub fn secret_edited(secret_path: &str) {
-    info!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "secret-edited", secret_path = secret_path)
-    );
+/// Generates a wrapper that takes a `&Path`, renders it via `path_string`,
+/// and emits a Fluent message through one of the `log` macros.
+macro_rules! fl_log_path {
+    ($level:ident, $fn:ident, $key:literal, $arg:ident) => {
+        pub fn $fn($arg: &Path) {
+            let $arg = path_string($arg);
+            $level!("{}", fl!(LANGUAGE_LOADER, $key, $arg = $arg.as_str()));
+        }
+    };
 }
 
-pub fn one_time_password_added(password_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "one-time-password-added",
-            password_path = password_path
-        )
-    );
+/// Like [`fl_log_path`] but writes to stdout. Used by list commands that
+/// display path entries.
+macro_rules! fl_println_path {
+    ($fn:ident, $key:literal, $arg:ident) => {
+        pub fn $fn($arg: &Path) {
+            let $arg = path_string($arg);
+            println!("{}", fl!(LANGUAGE_LOADER, $key, $arg = $arg.as_str()));
+        }
+    };
 }
 
-pub fn one_time_password_copied(source_path: &str, target_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "one-time-password-copied",
-            source_path = source_path,
-            target_path = target_path
-        )
-    );
+/// Generates a wrapper that takes any `Display` error, converts it to a
+/// `String`, and emits a Fluent message through one of the `log` macros.
+/// The Fluent variable is always named `error`.
+macro_rules! fl_log_error {
+    ($level:ident, $fn:ident, $key:literal) => {
+        pub fn $fn(error: &impl std::fmt::Display) {
+            let error = error.to_string();
+            $level!("{}", fl!(LANGUAGE_LOADER, $key, error = error.as_str()));
+        }
+    };
 }
 
-pub fn one_time_password_moved(source_path: &str, target_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "one-time-password-moved",
-            source_path = source_path,
-            target_path = target_path
-        )
-    );
+/// Generates a wrapper that resolves a Fluent message with the given
+/// positional `&str` arguments and returns the rendered `String`. Used
+/// for content the caller embeds in a `Result` / `anyhow` context, or
+/// passes as a prompt string to `inquire`.
+macro_rules! fl_string {
+    ($fn:ident, $key:literal $(, $arg:ident)* $(,)?) => {
+        pub fn $fn($($arg: &str),*) -> String {
+            fl!(LANGUAGE_LOADER, $key $(, $arg = $arg)*)
+        }
+    };
 }
 
-pub fn one_time_password_removed(password_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "one-time-password-removed",
-            password_path = password_path
-        )
-    );
-}
+// Status logs — info level
+fl_log!(info, recipient_added, "recipient-added", public_key);
+fl_log!(info, recipient_removed, "recipient-removed", public_key);
+fl_log!(info, secret_added, "secret-added", secret_path);
+fl_log!(info, secret_edited, "secret-edited", secret_path);
+fl_log!(info, secret_generated, "secret-generated", secret_path);
+fl_log!(info, secret_removed, "secret-removed", secret_path);
+fl_log!(info, secret_copied, "secret-copied", source_path, target_path);
+fl_log!(info, secret_moved, "secret-moved", source_path, target_path);
+fl_log!(info, one_time_password_added, "one-time-password-added", password_path);
+fl_log!(info, one_time_password_removed, "one-time-password-removed", password_path);
+fl_log!(
+    info,
+    one_time_password_copied,
+    "one-time-password-copied",
+    source_path,
+    target_path
+);
+fl_log!(
+    info,
+    one_time_password_moved,
+    "one-time-password-moved",
+    source_path,
+    target_path
+);
+fl_log!(info, store_add_success, "store-add-success", store_name, store_path);
+fl_log!(info, store_set_default, "store-set-default", store_name);
+fl_log!(info, store_remove_success, "store-remove-success", store_name);
+fl_log!(
+    info,
+    recipient_does_not_exist_ignored,
+    "recipient-does-not-exist-ignored",
+    public_key
+);
+
+// Status logs — debug level
+fl_log!(debug, secret_show_as_qrcode, "secret-show-as-qrcode", secret_path);
+fl_log!(debug, secret_show_as_text, "secret-show-as-text", secret_path);
+fl_log!(debug, one_time_password_show, "one-time-password-show", password_path);
+fl_log!(debug, execute_pull_hooks, "execute-pull-hooks", store_name);
+fl_log!(debug, execute_push_hooks, "execute-push-hooks", store_name);
+
+// Status logs — warn / error levels
+fl_log!(warn, no_identities_exist_yet, "no-identities-exist-yet", store_name);
+fl_log!(
+    error,
+    merge_conflict_recipient_names,
+    "merge-conflict-recipient-names",
+    public_key,
+    first_name,
+    second_name
+);
+fl_log!(
+    error,
+    merge_conflict_recipient_removed_and_renamed,
+    "merge-conflict-recipient-removed-and-renamed",
+    public_key,
+    new_name
+);
+fl_log!(error, merge_conflict_values, "merge-conflict-values", value_type, secret_path);
+fl_log!(
+    error,
+    merge_conflict_removed_and_modified,
+    "merge-conflict-removed-and-modified",
+    value_type,
+    secret_path
+);
+
+// stdout output — used for content the user pipes or reads.
+fl_println!(list_global_pull_hook, "list-global-pull-hook", command);
+fl_println!(list_global_push_hook, "list-global-push-hook", command);
+fl_println!(list_store_pull_hook, "list-store-pull-hook", command);
+fl_println!(list_store_push_hook, "list-store-push-hook", command);
+fl_println!(secret_search_match, "secret-search-match", key, value);
+
+// Clipboard desktop notifications — return rendered String for notify-rust.
+fl_notification!(clipboard_notification_cleared, "clipboard-notification-cleared");
+fl_notification!(clipboard_notification_unchanged, "clipboard-notification-unchanged");
+fl_notification!(
+    clipboard_notification_forcibly_cleared,
+    "clipboard-notification-forcibly-cleared"
+);
+fl_notification!(clipboard_notification_failed, "clipboard-notification-failed");
+
+// Path wrappers
+fl_log_path!(info, identity_added, "identity-added", identity_file);
+fl_log_path!(info, identity_removed, "identity-removed", identity_file);
+fl_println_path!(list_global_identity, "list-global-identity", identity_file);
+fl_println_path!(list_store_identity, "list-store-identity", identity_file);
+
+// Error-display wrappers
+fl_log_error!(debug, clipboard_read_for_compare_failed, "clipboard-read-for-compare-failed");
+fl_log_error!(
+    warn,
+    clipboard_ctrlc_handler_install_failed,
+    "clipboard-ctrlc-handler-install-failed"
+);
+fl_log_error!(warn, clipboard_clear_failed, "clipboard-clear-failed");
+fl_log_error!(
+    debug,
+    clipboard_notification_dispatch_failed,
+    "clipboard-notification-dispatch-failed"
+);
+fl_log_error!(debug, clipboard_drop_clear_failed, "clipboard-drop-clear-failed");
+
+// Remaining hand-written wrappers: mixed argument types that don't fit a
+// single-shape macro.
 
 pub fn one_time_password_copy_into_clipboard(password_path: &str, duration: &Duration) {
     let duration = duration_string(duration);
@@ -234,39 +345,6 @@ pub fn one_time_password_copy_into_clipboard(password_path: &str, duration: &Dur
     );
 }
 
-pub fn secret_generated(secret_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "secret-generated",
-            secret_path = secret_path
-        )
-    );
-}
-
-pub fn secret_show_as_qrcode(secret_path: &str) {
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "secret-show-as-qrcode",
-            secret_path = secret_path
-        )
-    );
-}
-
-pub fn secret_show_as_text(secret_path: &str) {
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "secret-show-as-text",
-            secret_path = secret_path
-        )
-    );
-}
-
 pub fn secret_copy_into_clipboard(secret_path: &str, duration: &Duration) {
     let duration = duration_string(duration);
     info!(
@@ -277,251 +355,6 @@ pub fn secret_copy_into_clipboard(secret_path: &str, duration: &Duration) {
             secret_path = secret_path,
             duration = duration.as_str()
         )
-    );
-}
-
-pub fn one_time_password_show(password_path: &str) {
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "one-time-password-show",
-            password_path = password_path
-        )
-    );
-}
-
-pub fn identity_added(identity_file: &Path) {
-    let identity_file = path_string(identity_file);
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "identity-added",
-            identity_file = identity_file.as_str()
-        )
-    );
-}
-
-pub fn identity_removed(identity_file: &Path) {
-    let identity_file = path_string(identity_file);
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "identity-removed",
-            identity_file = identity_file.as_str()
-        )
-    );
-}
-
-pub fn store_add_success(store_name: &str, store_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "store-add-success",
-            store_name = store_name,
-            store_path = store_path
-        )
-    );
-}
-
-pub fn store_set_default(store_name: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "store-set-default",
-            store_name = store_name
-        )
-    );
-}
-
-pub fn store_remove_success(store_name: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "store-remove-success",
-            store_name = store_name
-        )
-    );
-}
-
-pub fn execute_pull_hooks(store_name: &str) {
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "execute-pull-hooks",
-            store_name = store_name
-        )
-    );
-}
-
-pub fn execute_push_hooks(store_name: &str) {
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "execute-push-hooks",
-            store_name = store_name
-        )
-    );
-}
-
-pub fn recipient_does_not_exist_ignored(public_key: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "recipient-does-not-exist-ignored",
-            public_key = public_key
-        )
-    );
-}
-
-pub fn no_identities_exist_yet(store_name: &str) {
-    warn!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "no-identities-exist-yet",
-            store_name = store_name
-        )
-    );
-}
-
-pub fn merge_conflict_recipient_names(public_key: &str, first_name: &str, second_name: &str) {
-    error!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "merge-conflict-recipient-names",
-            public_key = public_key,
-            first_name = first_name,
-            second_name = second_name
-        )
-    );
-}
-
-pub fn merge_conflict_recipient_removed_and_renamed(public_key: &str, new_name: &str) {
-    error!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "merge-conflict-recipient-removed-and-renamed",
-            public_key = public_key,
-            new_name = new_name
-        )
-    );
-}
-
-pub fn merge_conflict_values(value_type: &str, secret_path: &str) {
-    error!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "merge-conflict-values",
-            value_type = value_type,
-            secret_path = secret_path
-        )
-    );
-}
-
-pub fn merge_conflict_removed_and_modified(value_type: &str, secret_path: &str) {
-    error!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "merge-conflict-removed-and-modified",
-            value_type = value_type,
-            secret_path = secret_path
-        )
-    );
-}
-
-pub fn secret_copied(source_path: &str, target_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "secret-copied",
-            source_path = source_path,
-            target_path = target_path
-        )
-    );
-}
-
-pub fn secret_moved(source_path: &str, target_path: &str) {
-    info!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "secret-moved",
-            source_path = source_path,
-            target_path = target_path
-        )
-    );
-}
-
-pub fn secret_removed(secret_path: &str) {
-    info!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "secret-removed", secret_path = secret_path)
-    );
-}
-
-pub fn list_global_identity(identity_file: &Path) {
-    let identity_file = path_string(identity_file);
-    println!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "list-global-identity",
-            identity_file = identity_file.as_str()
-        )
-    );
-}
-
-pub fn list_store_identity(identity_file: &Path) {
-    let identity_file = path_string(identity_file);
-    println!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "list-store-identity",
-            identity_file = identity_file.as_str()
-        )
-    );
-}
-
-pub fn list_global_pull_hook(command: &str) {
-    println!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "list-global-pull-hook", command = command)
-    );
-}
-
-pub fn list_global_push_hook(command: &str) {
-    println!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "list-global-push-hook", command = command)
-    );
-}
-
-pub fn list_store_pull_hook(command: &str) {
-    println!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "list-store-pull-hook", command = command)
-    );
-}
-
-pub fn list_store_push_hook(command: &str) {
-    println!(
-        "{}",
-        fl!(LANGUAGE_LOADER, "list-store-push-hook", command = command)
     );
 }
 
@@ -551,54 +384,6 @@ pub fn password_strength(secret_path: &str, score: f64) {
     );
 }
 
-pub fn secret_search_match(key: &str, value: &str) {
-    println!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "secret-search-match",
-            key = key,
-            value = value
-        )
-    );
-}
-
-pub fn clipboard_read_for_compare_failed(error: &impl std::fmt::Display) {
-    let error = error.to_string();
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "clipboard-read-for-compare-failed",
-            error = error.as_str()
-        )
-    );
-}
-
-pub fn clipboard_ctrlc_handler_install_failed(error: &impl std::fmt::Display) {
-    let error = error.to_string();
-    warn!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "clipboard-ctrlc-handler-install-failed",
-            error = error.as_str()
-        )
-    );
-}
-
-pub fn clipboard_clear_failed(error: &impl std::fmt::Display) {
-    let error = error.to_string();
-    warn!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "clipboard-clear-failed",
-            error = error.as_str()
-        )
-    );
-}
-
 pub fn clipboard_manual_clear_required() {
     error!(
         "{}",
@@ -606,58 +391,179 @@ pub fn clipboard_manual_clear_required() {
     );
 }
 
-pub fn clipboard_notification_dispatch_failed(error: &impl std::fmt::Display) {
-    let error = error.to_string();
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "clipboard-notification-dispatch-failed",
-            error = error.as_str()
-        )
-    );
-}
+// String-returning helpers — used for anyhow context messages and prompt
+// labels. Each renders a Fluent message and returns the result so the
+// caller can embed it in a `Result` chain or pass it to `inquire`.
 
-pub fn clipboard_drop_clear_failed(error: &impl std::fmt::Display) {
-    let error = error.to_string();
-    debug!(
-        "{}",
-        fl!(
-            LANGUAGE_LOADER,
-            "clipboard-drop-clear-failed",
-            error = error.as_str()
-        )
-    );
-}
+// Prompts
+fl_string!(prompt_enter_secret, "prompt-enter-secret", secret_path);
+fl_string!(prompt_could_not_read_secret, "prompt-could-not-read-secret", secret_path);
+fl_string!(prompt_overwrite_secret, "prompt-overwrite-secret");
+fl_string!(prompt_remove_secret, "prompt-remove-secret");
+fl_string!(prompt_overwrite_one_time_password, "prompt-overwrite-one-time-password");
+fl_string!(prompt_remove_one_time_password, "prompt-remove-one-time-password");
 
-pub fn clipboard_notification_cleared(cancelled: bool) -> String {
-    fl!(
-        LANGUAGE_LOADER,
-        "clipboard-notification-cleared",
-        cancelled = bool_key(cancelled)
-    )
-}
-
-pub fn clipboard_notification_unchanged(cancelled: bool) -> String {
-    fl!(
-        LANGUAGE_LOADER,
-        "clipboard-notification-unchanged",
-        cancelled = bool_key(cancelled)
-    )
-}
-
-pub fn clipboard_notification_forcibly_cleared(cancelled: bool) -> String {
-    fl!(
-        LANGUAGE_LOADER,
-        "clipboard-notification-forcibly-cleared",
-        cancelled = bool_key(cancelled)
-    )
-}
-
-pub fn clipboard_notification_failed(cancelled: bool) -> String {
-    fl!(
-        LANGUAGE_LOADER,
-        "clipboard-notification-failed",
-        cancelled = bool_key(cancelled)
-    )
-}
+// Error messages
+fl_string!(error_cannot_get_user_confirmation, "error-cannot-get-user-confirmation");
+fl_string!(
+    error_no_confirmation_from_non_terminal,
+    "error-no-confirmation-from-non-terminal"
+);
+fl_string!(error_could_not_load_configuration, "error-could-not-load-configuration");
+fl_string!(error_store_does_not_exist, "error-store-does-not-exist", store_name);
+fl_string!(error_invalid_line_number, "error-invalid-line-number", input);
+fl_string!(
+    error_line_number_must_not_be_zero,
+    "error-line-number-must-not-be-zero"
+);
+fl_string!(error_invalid_count, "error-invalid-count", input);
+fl_string!(error_count_must_not_be_zero, "error-count-must-not-be-zero");
+fl_string!(error_file_does_not_exist, "error-file-does-not-exist", input);
+fl_string!(error_secret_already_exists, "error-secret-already-exists", secret_path);
+fl_string!(
+    error_secret_already_exists_overwrite_or_inplace,
+    "error-secret-already-exists-overwrite-or-inplace",
+    secret_path
+);
+fl_string!(error_no_secret_found, "error-no-secret-found", secret_path);
+fl_string!(
+    error_not_allowed_to_remove_secret,
+    "error-not-allowed-to-remove-secret",
+    secret_path
+);
+fl_string!(
+    error_secret_does_not_exist_for_edit,
+    "error-secret-does-not-exist-for-edit",
+    secret_path
+);
+fl_string!(
+    error_one_time_password_already_exists,
+    "error-one-time-password-already-exists",
+    password_path
+);
+fl_string!(
+    error_not_allowed_to_remove_one_time_password,
+    "error-not-allowed-to-remove-one-time-password",
+    password_path
+);
+fl_string!(
+    error_no_one_time_password_found,
+    "error-no-one-time-password-found",
+    password_path
+);
+fl_string!(error_no_store_in_configuration, "error-no-store-in-configuration");
+fl_string!(error_no_store_or_global, "error-no-store-or-global");
+fl_string!(error_store_name_already_exists, "error-store-name-already-exists");
+fl_string!(error_store_path_is_directory, "error-store-path-is-directory");
+fl_string!(error_cannot_create_store_path, "error-cannot-create-store-path");
+fl_string!(error_cannot_get_store_parent, "error-cannot-get-store-parent");
+fl_string!(error_cannot_identify_store, "error-cannot-identify-store");
+fl_string!(
+    error_no_identity_files_to_decrypt,
+    "error-no-identity-files-to-decrypt"
+);
+fl_string!(error_invalid_ssh_public_key_format, "error-invalid-ssh-public-key-format");
+fl_string!(error_username_empty, "error-username-empty");
+fl_string!(error_username_contains_dotdot, "error-username-contains-dotdot", username);
+fl_string!(
+    error_username_invalid_character,
+    "error-username-invalid-character",
+    username
+);
+fl_string!(
+    error_no_public_key_found_in_file,
+    "error-no-public-key-found-in-file",
+    filename
+);
+fl_string!(error_no_public_key_source, "error-no-public-key-source");
+fl_string!(error_no_qrcode_found, "error-no-qrcode-found", qrcode);
+fl_string!(error_failed_to_decode_qrcode, "error-failed-to-decode-qrcode", qrcode);
+fl_string!(error_cannot_determine_store_name, "error-cannot-determine-store-name");
+fl_string!(error_cannot_parse_hook_command, "error-cannot-parse-hook-command", command);
+fl_string!(error_empty_hook_command, "error-empty-hook-command", command);
+fl_string!(error_failed_to_run_hook, "error-failed-to-run-hook", command);
+fl_string!(error_hook_failed_no_detail, "error-hook-failed-no-detail", command, exit);
+fl_string!(
+    error_hook_failed_with_detail,
+    "error-hook-failed-with-detail",
+    command,
+    exit,
+    detail
+);
+fl_string!(
+    error_cannot_determine_store_parent_path,
+    "error-cannot-determine-store-parent-path",
+    path
+);
+fl_string!(error_store_path_not_utf8, "error-store-path-not-utf8", token, path);
+fl_string!(error_merge_conflict_recipients, "error-merge-conflict-recipients");
+fl_string!(error_recipient_not_found_in_store, "error-recipient-not-found-in-store");
+fl_string!(
+    error_cannot_decrypt_common_ancestor_store,
+    "error-cannot-decrypt-common-ancestor-store"
+);
+fl_string!(
+    error_cannot_decrypt_current_version_store,
+    "error-cannot-decrypt-current-version-store"
+);
+fl_string!(
+    error_cannot_decrypt_other_version_store,
+    "error-cannot-decrypt-other-version-store"
+);
+fl_string!(error_cannot_read_file, "error-cannot-read-file", path);
+fl_string!(error_downloading_public_key_failed, "error-downloading-public-key-failed", provider);
+fl_string!(
+    error_cannot_determine_parent_directory,
+    "error-cannot-determine-parent-directory",
+    path
+);
+fl_string!(error_failed_to_create_directory, "error-failed-to-create-directory", path);
+fl_string!(error_failed_to_write_file, "error-failed-to-write-file", path);
+fl_string!(error_failed_to_fsync_file, "error-failed-to-fsync-file", path);
+fl_string!(error_failed_to_rename_file, "error-failed-to-rename-file", from, to);
+fl_string!(error_failed_to_create_file, "error-failed-to-create-file", path);
+fl_string!(error_could_not_resolve_config_path, "error-could-not-resolve-config-path");
+fl_string!(
+    error_could_not_determine_config_path,
+    "error-could-not-determine-config-path"
+);
+fl_string!(error_could_not_resolve_store_path, "error-could-not-resolve-store-path");
+fl_string!(error_could_not_create_config_dir, "error-could-not-create-config-dir");
+fl_string!(
+    error_could_not_migrate_legacy_config,
+    "error-could-not-migrate-legacy-config"
+);
+fl_string!(error_could_not_move_file, "error-could-not-move-file");
+fl_string!(error_could_not_copy_file, "error-could-not-copy-file");
+fl_string!(
+    error_could_not_remove_source_after_copy,
+    "error-could-not-remove-source-after-copy"
+);
+fl_string!(error_could_not_read_configuration, "error-could-not-read-configuration");
+fl_string!(
+    error_could_not_serialize_migrated_config,
+    "error-could-not-serialize-migrated-config"
+);
+fl_string!(error_could_not_store_configuration, "error-could-not-store-configuration");
+fl_string!(
+    error_could_not_load_migrated_config,
+    "error-could-not-load-migrated-config"
+);
+fl_string!(
+    error_could_not_serialize_configuration,
+    "error-could-not-serialize-configuration"
+);
+fl_string!(error_config_not_valid_toml, "error-config-not-valid-toml", path);
+fl_string!(
+    error_could_not_open_store_for_lock,
+    "error-could-not-open-store-for-lock",
+    path
+);
+fl_string!(
+    error_could_not_acquire_store_lock,
+    "error-could-not-acquire-store-lock",
+    path
+);
+fl_string!(error_cannot_encrypt_store, "error-cannot-encrypt-store");
+fl_string!(error_failed_to_run_command, "error-failed-to-run-command", binary);
+fl_string!(error_command_exited_with, "error-command-exited-with", binary, exit);

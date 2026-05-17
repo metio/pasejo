@@ -110,9 +110,9 @@ fn add(
     with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(secret_path)
             && !force
-            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
         {
-            anyhow::bail!("Secret already exists at {secret_path}. Use --force to overwrite.");
+            anyhow::bail!(i18n::error_secret_already_exists(secret_path));
         }
         let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
         store.secrets.insert(secret_path.to_owned(), secret);
@@ -133,7 +133,7 @@ fn audit(
             let value = store
                 .secrets
                 .get(secret_path)
-                .ok_or_else(|| anyhow::anyhow!("No secret found at '{secret_path}'"))?;
+                .ok_or_else(|| anyhow::anyhow!(i18n::error_no_secret_found(secret_path)))?;
             i18n::password_strength(secret_path, scorer::score(&analyzer::analyze(value)));
         } else {
             for (key, value) in &store.secrets {
@@ -155,12 +155,12 @@ fn copy(
     with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(target_path)
             && !force
-            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
         {
-            anyhow::bail!("Secret already exists at {target_path}. Use --force to overwrite.");
+            anyhow::bail!(i18n::error_secret_already_exists(target_path));
         }
         let Some(secret) = store.secrets.get(source_path) else {
-            anyhow::bail!("No secret found at '{source_path}'")
+            anyhow::bail!(i18n::error_no_secret_found(source_path))
         };
         store
             .secrets
@@ -181,12 +181,12 @@ fn mv(
     with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(new_path)
             && !force
-            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
         {
-            anyhow::bail!("Secret already exists at {new_path}. Use --force to overwrite.");
+            anyhow::bail!(i18n::error_secret_already_exists(new_path));
         }
         let Some(secret) = store.secrets.remove(current_path) else {
-            anyhow::bail!("No secret found at '{current_path}'")
+            anyhow::bail!(i18n::error_no_secret_found(current_path))
         };
         store.secrets.insert(new_path.to_owned(), secret);
         i18n::secret_moved(current_path, new_path);
@@ -225,14 +225,12 @@ fn remove(
     with_store(configuration, store_name, offline, |_, store| {
         if store.secrets.contains_key(secret_path)
             && !force
-            && !prompts::get_confirmation_from_user("Remove existing secret?")?
+            && !prompts::get_confirmation_from_user(&i18n::prompt_remove_secret())?
         {
-            anyhow::bail!(
-                "Not allowed to remove secret at {secret_path}. Use --force to overwrite."
-            );
+            anyhow::bail!(i18n::error_not_allowed_to_remove_secret(secret_path));
         }
         let Some(removed) = store.secrets.remove(secret_path) else {
-            anyhow::bail!("No secret found at '{secret_path}'")
+            anyhow::bail!(i18n::error_no_secret_found(secret_path))
         };
         drop(Zeroizing::new(removed));
         i18n::secret_removed(secret_path);
@@ -305,7 +303,7 @@ fn show(
         offline,
         |_, store| {
             let Some(decrypted_text) = store.secrets.get(secret_path) else {
-                anyhow::bail!("No secret found at '{secret_path}'")
+                anyhow::bail!(i18n::error_no_secret_found(secret_path))
             };
             Ok((extract_line(decrypted_text, selector), StoreMutation::Unchanged))
         },
@@ -350,11 +348,11 @@ fn generate(
         if store.secrets.contains_key(secret_path)
             && !force
             && !inplace
-            && !prompts::get_confirmation_from_user("Overwrite existing secret?")?
+            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
         {
-            anyhow::bail!(
-                "Secret already exists at {secret_path}. Use --force to overwrite entirely or --inplace to modify its first line in-place."
-            );
+            anyhow::bail!(i18n::error_secret_already_exists_overwrite_or_inplace(
+                secret_path
+            ));
         }
 
         let generator = passwords::PasswordGenerator {
@@ -397,9 +395,7 @@ fn edit(
 ) -> anyhow::Result<()> {
     with_store(configuration, store_name, offline, |_, store| {
         let Some(current_value) = store.secrets.get(secret_path) else {
-            anyhow::bail!(
-                "Secret does not exist at {secret_path}. Use 'pasejo secret add' to create it."
-            );
+            anyhow::bail!(i18n::error_secret_does_not_exist_for_edit(secret_path));
         };
         let secret = prompts::edit_secret(secret_path, current_value)?;
         store.secrets.insert(secret_path.to_owned(), secret);

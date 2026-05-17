@@ -4,6 +4,7 @@
 use std::fs;
 use std::time::Duration;
 
+use crate::cli::i18n;
 use crate::downloader::{Provider, download_public_key};
 use crate::models::cli::RecipientKeysArgs;
 
@@ -51,11 +52,11 @@ pub fn get(
             }
         }
         if public_keys.is_empty() {
-            anyhow::bail!("No public key found in '{filename}'")
+            anyhow::bail!(i18n::error_no_public_key_found_in_file(filename))
         }
         Ok(public_keys)
     } else {
-        anyhow::bail!("You must specify at least one source for a public key")
+        anyhow::bail!(i18n::error_no_public_key_source())
     }
 }
 
@@ -74,7 +75,7 @@ fn split_ssh_key(key: &str) -> anyhow::Result<(String, String)> {
     let (key, comment) = if key.starts_with("ssh") {
         let parts: Vec<&str> = key.split_whitespace().collect();
         if parts.len() < 2 {
-            anyhow::bail!("Invalid SSH public key format")
+            anyhow::bail!(i18n::error_invalid_ssh_public_key_format())
         }
         if parts.len() > 2 {
             (parts[0..2].join(" "), parts[2..].join(" "))

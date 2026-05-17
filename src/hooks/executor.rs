@@ -32,7 +32,7 @@ impl HookExecutor<'_> {
                 }
                 Ok(())
             } else {
-                anyhow::bail!("Cannot determine store name")
+                anyhow::bail!(i18n::error_cannot_determine_store_name())
             }
         } else {
             Ok(())
@@ -54,7 +54,7 @@ impl HookExecutor<'_> {
                 }
                 Ok(())
             } else {
-                anyhow::bail!("Cannot determine store name")
+                anyhow::bail!(i18n::error_cannot_determine_store_name())
             }
         } else {
             Ok(())
@@ -67,28 +67,27 @@ impl HookExecutor<'_> {
         }
 
         let store_path = self.registration.path();
+        let store_path_display = store_path.display().to_string();
         let parent = store_path.parent().with_context(|| {
-            format!(
-                "Cannot determine parent of store path {}",
-                store_path.display()
-            )
+            i18n::error_cannot_determine_store_parent_path(&store_path_display)
         })?;
 
         for command in commands {
+            let command_display = format!("{command:?}");
             let Some(template) = shlex::split(command) else {
-                anyhow::bail!("Cannot parse command: {command:?}");
+                anyhow::bail!(i18n::error_cannot_parse_hook_command(&command_display));
             };
             let args = build_args(&template, store_path)?;
             let (binary, rest) = args
                 .split_first()
-                .with_context(|| format!("Empty hook command: {command:?}"))?;
+                .with_context(|| i18n::error_empty_hook_command(&command_display))?;
 
             let output = Command::new(binary)
                 .args(rest)
                 .stdout(Stdio::null())
                 .current_dir(parent)
                 .output()
-                .with_context(|| format!("Failed to run hook {command:?}"))?;
+                .with_context(|| i18n::error_failed_to_run_hook(&command_display))?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
@@ -98,9 +97,13 @@ impl HookExecutor<'_> {
                     .code()
                     .map_or_else(|| String::from("signal"), |c| c.to_string());
                 if detail.is_empty() {
-                    anyhow::bail!("hook {command:?} failed (exit {exit})");
+                    anyhow::bail!(i18n::error_hook_failed_no_detail(&command_display, &exit));
                 }
-                anyhow::bail!("hook {command:?} failed (exit {exit}): {detail}");
+                anyhow::bail!(i18n::error_hook_failed_with_detail(
+                    &command_display,
+                    &exit,
+                    detail
+                ));
             }
         }
 
@@ -129,16 +132,15 @@ impl HookExecutor<'_> {
 /// `%p` (e.g. `--git-dir=%p/.git`) get string substitution and require the
 /// store path to be valid UTF-8.
 fn build_args(template: &[String], path: &Path) -> anyhow::Result<Vec<OsString>> {
+    let path_display = path.display().to_string();
     let mut out = Vec::with_capacity(template.len());
     for token in template {
         if token == "%p" {
             out.push(path.as_os_str().to_os_string());
         } else if token.contains("%p") {
+            let token_display = format!("{token:?}");
             let path_str = path.to_str().with_context(|| {
-                format!(
-                    "Cannot substitute %p in token {token:?}: store path {} is not valid UTF-8",
-                    path.display()
-                )
+                i18n::error_store_path_not_utf8(&token_display, &path_display)
             })?;
             out.push(OsString::from(token.replace("%p", path_str)));
         } else {

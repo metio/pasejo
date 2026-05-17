@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use crate::cli::i18n;
 use crate::exporters;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::{BitwardenArgs, ExportCommands};
@@ -48,8 +49,6 @@ fn export_as_json(
 
         Ok(())
     } else {
-        anyhow::bail!(
-            "No store found in configuration. Run 'pasejo store add ...' first to add one"
-        )
+        anyhow::bail!(i18n::error_no_store_in_configuration())
     }
 }

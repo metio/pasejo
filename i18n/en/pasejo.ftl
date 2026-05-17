@@ -93,3 +93,88 @@ clipboard-notification-failed = { $cancelled ->
     [true] Failed to clear clipboard! Please clear it manually. (cancelled)
    *[false] Failed to clear clipboard! Please clear it manually.
   }
+
+## Prompts
+
+prompt-enter-secret = Enter secret for { $secret_path }:
+prompt-could-not-read-secret = Could not read secret for { $secret_path }
+prompt-overwrite-secret = Overwrite existing secret?
+prompt-remove-secret = Remove existing secret?
+prompt-overwrite-one-time-password = Overwrite existing one-time password?
+prompt-remove-one-time-password = Remove existing one-time password?
+
+## Error messages
+
+error-cannot-get-user-confirmation = Cannot get user confirmation
+error-no-confirmation-from-non-terminal = Cannot get user confirmation from non-terminal input. Use --force to skip confirmation.
+error-could-not-load-configuration = Could not load configuration
+error-store-does-not-exist = Store with name '{ $store_name }' does not exist in configuration
+error-invalid-line-number = '{ $input }' is not a valid line number
+error-line-number-must-not-be-zero = Line number must not be 0. Use 1 for the first line, -1 for the last
+error-invalid-count = '{ $input }' is not a valid count
+error-count-must-not-be-zero = Count must not be 0. Use 1 to skip the first line
+error-file-does-not-exist = The file '{ $input }' does not exist
+error-secret-already-exists = Secret already exists at { $secret_path }. Use --force to overwrite.
+error-secret-already-exists-overwrite-or-inplace = Secret already exists at { $secret_path }. Use --force to overwrite entirely or --inplace to modify its first line in-place.
+error-no-secret-found = No secret found at '{ $secret_path }'
+error-not-allowed-to-remove-secret = Not allowed to remove secret at { $secret_path }. Use --force to overwrite.
+error-secret-does-not-exist-for-edit = Secret does not exist at { $secret_path }. Use 'pasejo secret add' to create it.
+error-one-time-password-already-exists = One-time password already exists at { $password_path }. Use --force to overwrite.
+error-not-allowed-to-remove-one-time-password = Not allowed to remove one-time password at { $password_path }. Use --force to overwrite.
+error-no-one-time-password-found = No one-time password found at '{ $password_path }'
+error-no-store-in-configuration = No store found in configuration. Run 'pasejo store add ...' first to add one
+error-no-store-or-global = No store found in configuration and no --global flag specified. Run 'pasejo store add ...' first to add one
+error-store-name-already-exists = Store name already exists. Please use a different name.
+error-store-path-is-directory = Cannot use directory as store path. Please use a file path.
+error-cannot-create-store-path = Cannot create store path. Please check the path and try again.
+error-cannot-get-store-parent = Cannot get parent directory of store path. Please check the path and try again.
+error-cannot-identify-store = Cannot identify store. Set a default store, use --store to specify a store or use --global to set the identity globally.
+error-no-identity-files-to-decrypt = No identity files to decrypt. Add at least one identity to complete store initialization.
+error-invalid-ssh-public-key-format = Invalid SSH public key format
+error-username-empty = Username must not be empty
+error-username-contains-dotdot = Invalid username '{ $username }': must not contain '..'
+error-username-invalid-character = Invalid username '{ $username }': must start with an ASCII letter or digit and contain only ASCII letters, digits, '-', '_' and '.'
+error-no-public-key-found-in-file = No public key found in '{ $filename }'
+error-no-public-key-source = You must specify at least one source for a public key
+error-no-qrcode-found = No QR code found in '{ $qrcode }'
+error-failed-to-decode-qrcode = Failed to decode QR code in '{ $qrcode }'
+error-cannot-determine-store-name = Cannot determine store name
+error-cannot-parse-hook-command = Cannot parse command: { $command }
+error-empty-hook-command = Empty hook command: { $command }
+error-failed-to-run-hook = Failed to run hook { $command }
+error-hook-failed-no-detail = hook { $command } failed (exit { $exit })
+error-hook-failed-with-detail = hook { $command } failed (exit { $exit }): { $detail }
+error-cannot-determine-store-parent-path = Cannot determine parent of store path { $path }
+error-store-path-not-utf8 = Cannot substitute %p in token { $token }: store path { $path } is not valid UTF-8
+error-merge-conflict-recipients = Merge conflict detected in recipients. Please resolve manually.
+error-recipient-not-found-in-store = Recipient not found in the store
+error-cannot-decrypt-common-ancestor-store = Cannot decrypt common ancestor store
+error-cannot-decrypt-current-version-store = Cannot decrypt current version store
+error-cannot-decrypt-other-version-store = Cannot decrypt other version store
+error-cannot-read-file = Cannot read file at '{ $path }'
+error-downloading-public-key-failed = Downloading public key from { $provider } failed
+error-cannot-determine-parent-directory = Cannot determine parent directory of { $path }
+error-failed-to-create-directory = Failed to create directory { $path }
+error-failed-to-write-file = Failed to write { $path }
+error-failed-to-fsync-file = Failed to fsync { $path }
+error-failed-to-rename-file = Failed to rename { $from } to { $to }
+error-failed-to-create-file = Failed to create { $path }
+error-could-not-resolve-config-path = Could not resolve absolute path to configuration
+error-could-not-determine-config-path = Could not determine configuration path
+error-could-not-resolve-store-path = Could not resolve absolute store path
+error-could-not-create-config-dir = Could not create configuration directory
+error-could-not-migrate-legacy-config = Could not migrate legacy configuration file
+error-could-not-move-file = Could not move file
+error-could-not-copy-file = Could not copy file
+error-could-not-remove-source-after-copy = Could not remove source file after copy
+error-could-not-read-configuration = Could not read configuration
+error-could-not-serialize-migrated-config = Could not serialize migrated configuration
+error-could-not-store-configuration = Could not store configuration
+error-could-not-load-migrated-config = Could not load migrated configuration
+error-could-not-serialize-configuration = Could not serialize configuration
+error-config-not-valid-toml = Configuration file at { $path } is not valid TOML
+error-could-not-open-store-for-lock = Could not open store file for locking: { $path }
+error-could-not-acquire-store-lock = Could not acquire lock on store file: { $path }
+error-cannot-encrypt-store = Cannot encrypt store
+error-failed-to-run-command = Failed to run command { $binary }
+error-command-exited-with = Command { $binary } exited with { $exit }

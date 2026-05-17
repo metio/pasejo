@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use crate::cli::{atomic_write, constants, environment_variables};
+use crate::cli::{atomic_write, constants, environment_variables, i18n};
 use crate::models::password_store::PasswordStore;
 use crate::{identities, recipients, secrets};
 use anyhow::{Context, Result};
@@ -100,22 +100,20 @@ impl Configuration {
             return Ok(Self::default());
         }
         let content =
-            fs::read_to_string(config_path).context("Could not read configuration")?;
-        let mut table = content.parse::<Table>().with_context(|| {
-            format!(
-                "Configuration file at {} is not valid TOML",
-                config_path.display()
-            )
-        })?;
+            fs::read_to_string(config_path).context(i18n::error_could_not_read_configuration())?;
+        let path_display = config_path.display().to_string();
+        let mut table = content
+            .parse::<Table>()
+            .with_context(|| i18n::error_config_not_valid_toml(&path_display))?;
         if needs_migration(&table) {
             migrate_table(&mut table);
             let serialized = toml::to_string_pretty(&table)
-                .context("Could not serialize migrated configuration")?;
+                .context(i18n::error_could_not_serialize_migrated_config())?;
             atomic_write::write(config_path, serialized.as_bytes())
-                .context("Could not store configuration")?;
-            toml::from_str(&serialized).context("Could not load migrated configuration")
+                .context(i18n::error_could_not_store_configuration())?;
+            toml::from_str(&serialized).context(i18n::error_could_not_load_migrated_config())
         } else {
-            toml::from_str(&content).context("Could not load configuration")
+            toml::from_str(&content).context(i18n::error_could_not_load_configuration())
         }
     }
 
@@ -152,33 +150,34 @@ impl Configuration {
             return Ok(());
         }
         if let Some(parent) = new_path.parent() {
-            fs::create_dir_all(parent).context("Could not create configuration directory")?;
+            fs::create_dir_all(parent).context(i18n::error_could_not_create_config_dir())?;
         }
         move_file(&legacy_path, new_path)
-            .context("Could not migrate legacy configuration file")?;
+            .context(i18n::error_could_not_migrate_legacy_config())?;
         Ok(())
     }
 
     pub fn save_configuration(&self) -> Result<()> {
         let path = Self::config_path()?;
         let serialized =
-            toml::to_string_pretty(self).context("Could not serialize configuration")?;
-        atomic_write::write(&path, serialized.as_bytes()).context("Could not store configuration")
+            toml::to_string_pretty(self).context(i18n::error_could_not_serialize_configuration())?;
+        atomic_write::write(&path, serialized.as_bytes())
+            .context(i18n::error_could_not_store_configuration())
     }
 
     fn config_path() -> Result<PathBuf> {
         if let Some(path) = var_os(environment_variables::PASEJO_CONFIG) {
             return absolute(PathBuf::from(path))
-                .context("Could not resolve absolute path to configuration");
+                .context(i18n::error_could_not_resolve_config_path());
         }
         let project_dirs = ProjectDirs::from("wtf", "metio", constants::APPLICATION_NAME)
-            .context("Could not determine configuration path")?;
+            .context(i18n::error_could_not_determine_config_path())?;
         Ok(project_dirs.config_dir().join("config.toml"))
     }
 
     pub fn add_store(&mut self, store_root_path: &str, store_name: &str) -> Result<()> {
         let canonical_path = absolute(PathBuf::from(store_root_path))
-            .context("Could not resolve absolute store path")?;
+            .context(i18n::error_could_not_resolve_store_path())?;
         let registration = StoreRegistration {
             path: canonical_path,
             name: store_name.to_owned(),
@@ -207,7 +206,7 @@ impl Configuration {
 
     pub fn set_default_store(&mut self, store_name: &str) -> Result<()> {
         let canonical = self.canonical_store_name(store_name).ok_or_else(|| {
-            anyhow::anyhow!("Store with name '{store_name}' does not exist in configuration")
+            anyhow::anyhow!(i18n::error_store_does_not_exist(store_name))
         })?;
         self.default_store = Some(canonical);
         self.save_configuration()
@@ -266,9 +265,7 @@ impl Configuration {
     ) -> Result<PasswordStore> {
         let identity_files = self.all_identity_files(registration);
         if identity_files.is_empty() {
-            anyhow::bail!(
-                "No identity files to decrypt. Add at least one identity to complete store initialization."
-            );
+            anyhow::bail!(i18n::error_no_identity_files_to_decrypt());
         }
         let identities = identities::read(
             identity_files,
@@ -343,13 +340,13 @@ fn move_file(src: &Path, dst: &Path) -> Result<()> {
     match fs::rename(src, dst) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == io::ErrorKind::CrossesDevices => move_via_copy(src, dst),
-        Err(error) => Err(error).context("Could not move file"),
+        Err(error) => Err(error).context(i18n::error_could_not_move_file()),
     }
 }
 
 fn move_via_copy(src: &Path, dst: &Path) -> Result<()> {
-    fs::copy(src, dst).context("Could not copy file")?;
-    fs::remove_file(src).context("Could not remove source file after copy")?;
+    fs::copy(src, dst).context(i18n::error_could_not_copy_file())?;
+    fs::remove_file(src).context(i18n::error_could_not_remove_source_after_copy())?;
     Ok(())
 }
 

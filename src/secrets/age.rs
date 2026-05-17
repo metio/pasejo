@@ -8,6 +8,8 @@ use std::path::Path;
 use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
 
+use crate::cli::i18n;
+
 use crate::cli::atomic_write;
 
 pub fn encrypt(
@@ -29,8 +31,9 @@ pub fn decrypt(
     path_to_decrypt: &Path,
     identities: &[Box<dyn age::Identity>],
 ) -> anyhow::Result<String> {
+    let path_display = path_to_decrypt.display().to_string();
     let encrypted = fs::read(path_to_decrypt)
-        .with_context(|| format!("Cannot read file at '{}'", path_to_decrypt.display()))?;
+        .with_context(|| i18n::error_cannot_read_file(&path_display))?;
     let decryptor = Decryptor::new_buffered(&encrypted[..])?;
     let mut reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
     let mut decrypted = vec![];

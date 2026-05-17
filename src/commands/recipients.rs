@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::i18n;
-use crate::commands::store_op::{NO_STORE_FOUND_ERROR, StoreMutation, with_store};
+use crate::commands::store_op::{StoreMutation, with_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::RecipientCommands;
 use crate::models::configuration::{Configuration, encrypt_store};
@@ -56,7 +56,7 @@ fn add(
 ) -> Result<()> {
     let registration = configuration
         .select_store(store_name)
-        .context(NO_STORE_FOUND_ERROR)?;
+        .context(i18n::error_no_store_in_configuration())?;
     let store_path = registration.path();
     let hooks = HookExecutor {
         configuration,
@@ -89,7 +89,7 @@ fn add(
         }
     }
 
-    encrypt_store(registration, &store).context("Cannot encrypt store")?;
+    encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
 
     for public_key in public_keys {
         i18n::recipient_added(&public_key.0);
@@ -125,7 +125,7 @@ fn remove(
                 i18n::recipient_does_not_exist_ignored(public_key);
                 return Ok(((), StoreMutation::Unchanged));
             }
-            anyhow::bail!("Recipient not found in the store");
+            anyhow::bail!(i18n::error_recipient_not_found_in_store());
         }
         store
             .recipients
