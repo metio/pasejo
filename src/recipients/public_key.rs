@@ -37,8 +37,7 @@ pub fn get(
         let mut comment: String = String::new();
         for line in file_content.lines() {
             if line.starts_with('#') {
-                let replacement = if comment.is_empty() { "" } else { " " };
-                comment.push_str(line.replace('#', replacement).trim());
+                append_comment_line(&mut comment, line);
             } else {
                 let split = split_ssh_key(line)?;
 
@@ -58,6 +57,17 @@ pub fn get(
     } else {
         anyhow::bail!("You must specify at least one source for a public key")
     }
+}
+
+fn append_comment_line(buffer: &mut String, line: &str) {
+    let stripped = line.trim_start_matches('#').trim();
+    if stripped.is_empty() {
+        return;
+    }
+    if !buffer.is_empty() {
+        buffer.push(' ');
+    }
+    buffer.push_str(stripped);
 }
 
 fn split_ssh_key(key: &str) -> anyhow::Result<(String, String)> {
@@ -209,6 +219,128 @@ mod tests {
         };
 
         assert!(get(&args, Duration::from_secs(30)).is_err());
+    }
+
+    #[test]
+    fn public_key_from_file_preserves_inner_hash_characters() {
+        // Bug #5(a): `line.replace('#', …)` was stripping every `#`, not just
+        // the leading marker. A comment like "# ticket #1234" was being
+        // mangled into "ticket 1234".
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("recipients.txt");
+        file.write_str("# ticket #1234\nage1abc\n").unwrap();
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(file.path().to_string_lossy().into_owned()),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        let result = get(&args, Duration::from_secs(30)).unwrap();
+        assert_eq!(result[0].1, "ticket #1234");
+    }
+
+    #[test]
+    fn public_key_from_file_joins_multi_line_comments_with_space() {
+        // Bug #5(b): consecutive comment lines were concatenated without a
+        // separator because `.trim()` ate the joining space. "# alice" then
+        // "# admin" produced "aliceadmin" instead of "alice admin".
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("recipients.txt");
+        file.write_str("# alice\n# admin\nage1abc\n").unwrap();
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(file.path().to_string_lossy().into_owned()),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        let result = get(&args, Duration::from_secs(30)).unwrap();
+        assert_eq!(result[0].1, "alice admin");
+    }
+
+    #[test]
+    fn public_key_from_file_resets_comment_buffer_between_keys() {
+        // Each key consumes its preceding comment block. A key with no leading
+        // comments should not inherit the previous key's comment.
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("recipients.txt");
+        file.write_str("# alice\nage1abc\nage1def\n# bob\n# admin\nage1ghi\n")
+            .unwrap();
+        let args = RecipientKeysArgs {
+            public_key: None,
+            file: Some(file.path().to_string_lossy().into_owned()),
+            codeberg: None,
+            github: None,
+            gitlab: None,
+        };
+
+        let result = get(&args, Duration::from_secs(30)).unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], (String::from("age1abc"), String::from("alice")));
+        assert_eq!(result[1], (String::from("age1def"), String::new()));
+        assert_eq!(
+            result[2],
+            (String::from("age1ghi"), String::from("bob admin"))
+        );
+    }
+
+    #[test]
+    fn append_comment_line_strips_leading_hash_and_whitespace() {
+        let mut buf = String::new();
+        append_comment_line(&mut buf, "# alice");
+        assert_eq!(buf, "alice");
+    }
+
+    #[test]
+    fn append_comment_line_preserves_inner_hash() {
+        let mut buf = String::new();
+        append_comment_line(&mut buf, "# ticket #1234");
+        assert_eq!(buf, "ticket #1234");
+    }
+
+    #[test]
+    fn append_comment_line_joins_with_single_space() {
+        let mut buf = String::from("alice");
+        append_comment_line(&mut buf, "# admin");
+        assert_eq!(buf, "alice admin");
+    }
+
+    #[test]
+    fn append_comment_line_handles_no_space_after_hash() {
+        let mut buf = String::new();
+        append_comment_line(&mut buf, "#alice");
+        assert_eq!(buf, "alice");
+    }
+
+    #[test]
+    fn append_comment_line_strips_multiple_leading_hashes() {
+        let mut buf = String::new();
+        append_comment_line(&mut buf, "## double");
+        assert_eq!(buf, "double");
+    }
+
+    #[test]
+    fn append_comment_line_ignores_empty_comment() {
+        let mut buf = String::from("alice");
+        append_comment_line(&mut buf, "#");
+        assert_eq!(buf, "alice", "buffer must not gain a trailing space");
+    }
+
+    #[test]
+    fn append_comment_line_ignores_whitespace_only_comment() {
+        let mut buf = String::from("alice");
+        append_comment_line(&mut buf, "#   ");
+        assert_eq!(buf, "alice");
+    }
+
+    #[test]
+    fn append_comment_line_trims_trailing_whitespace() {
+        let mut buf = String::new();
+        append_comment_line(&mut buf, "# alice   ");
+        assert_eq!(buf, "alice");
     }
 
     #[test]
