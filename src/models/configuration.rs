@@ -92,11 +92,30 @@ impl Configuration {
     pub fn load_configuration() -> Result<Self> {
         let config_path = Self::config_path()?;
         Self::migrate_legacy_config_path(&config_path)?;
-        if let Ok(config) = Self::read_from_path(&config_path) {
-            Ok(config)
+        Self::load_from_path(&config_path)
+    }
+
+    fn load_from_path(config_path: &Path) -> Result<Self> {
+        if !config_path.exists() {
+            return Ok(Self::default());
+        }
+        let content =
+            fs::read_to_string(config_path).context("Could not read configuration")?;
+        let mut table = content.parse::<Table>().with_context(|| {
+            format!(
+                "Configuration file at {} is not valid TOML",
+                config_path.display()
+            )
+        })?;
+        if needs_migration(&table) {
+            migrate_table(&mut table);
+            let serialized = toml::to_string_pretty(&table)
+                .context("Could not serialize migrated configuration")?;
+            atomic_write::write(config_path, serialized.as_bytes())
+                .context("Could not store configuration")?;
+            toml::from_str(&serialized).context("Could not load migrated configuration")
         } else {
-            Self::migrate_configuration(&config_path).context("Could not migrate configuration")?;
-            Self::read_from_path(&config_path).context("Could not load configuration")
+            toml::from_str(&content).context("Could not load configuration")
         }
     }
 
@@ -137,25 +156,6 @@ impl Configuration {
         }
         move_file(&legacy_path, new_path)
             .context("Could not migrate legacy configuration file")?;
-        Ok(())
-    }
-
-    fn read_from_path(path: &Path) -> Result<Self> {
-        if !path.exists() {
-            return Ok(Self::default());
-        }
-        let content = fs::read_to_string(path)?;
-        Ok(toml::from_str(&content)?)
-    }
-
-    fn migrate_configuration(config_path: &Path) -> Result<()> {
-        let config_content = fs::read_to_string(config_path)?;
-        let mut migrated_config = config_content.parse::<Table>()?;
-        migrate_table(&mut migrated_config);
-        let serialized = toml::to_string_pretty(&migrated_config)
-            .context("Could not serialize migrated configuration")?;
-        atomic_write::write(config_path, serialized.as_bytes())
-            .context("Could not store configuration")?;
         Ok(())
     }
 
@@ -398,6 +398,32 @@ fn default_hook_commands(synchronizer: &str) -> Option<(Vec<String>, Vec<String>
         )),
         _ => None,
     }
+}
+
+/// Returns `true` when the on-disk schema carries a marker that
+/// [`migrate_table`] would act on: missing top-level command arrays, a
+/// per-store `synchronizer` field from the previous schema, or per-store
+/// command arrays that haven't been initialized yet. Returning `false`
+/// guarantees [`migrate_table`] would be a no-op, so the configuration can
+/// be deserialized straight from disk without a rewrite round-trip.
+///
+/// This is the gate that keeps unrelated parse failures (TOML syntax
+/// errors, type mismatches, IO errors) from triggering a spurious
+/// migration write.
+fn needs_migration(table: &Table) -> bool {
+    if !table.contains_key("pull_commands") || !table.contains_key("push_commands") {
+        return true;
+    }
+    let Some(stores) = table.get("stores").and_then(toml::Value::as_array) else {
+        return false;
+    };
+    stores.iter().any(|store| {
+        store.as_table().is_some_and(|store_table| {
+            store_table.contains_key("synchronizer")
+                || !store_table.contains_key("pull_commands")
+                || !store_table.contains_key("push_commands")
+        })
+    })
 }
 
 fn migrate_table(table: &mut Table) {
@@ -997,5 +1023,211 @@ mod tests {
         assert!(table.contains_key("pull_commands"));
         assert!(table.contains_key("push_commands"));
         assert!(!table.contains_key("stores"));
+    }
+
+    #[test]
+    fn needs_migration_returns_false_for_complete_modern_schema() {
+        let table = parse_table(
+            r#"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "/tmp/x"
+name = "primary"
+identities = []
+pull_commands = []
+push_commands = []
+"#,
+        );
+        assert!(!needs_migration(&table));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_when_top_level_pull_commands_missing() {
+        let table = parse_table(r#"push_commands = []"#);
+        assert!(needs_migration(&table));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_when_top_level_push_commands_missing() {
+        let table = parse_table(r#"pull_commands = []"#);
+        assert!(needs_migration(&table));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_when_store_has_synchronizer() {
+        let table = parse_table(
+            r#"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "/tmp/x"
+name = "primary"
+identities = []
+synchronizer = "git"
+pull_commands = []
+push_commands = []
+"#,
+        );
+        assert!(needs_migration(&table));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_when_store_missing_pull_commands() {
+        let table = parse_table(
+            r#"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "/tmp/x"
+name = "primary"
+identities = []
+push_commands = []
+"#,
+        );
+        assert!(needs_migration(&table));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_when_store_missing_push_commands() {
+        let table = parse_table(
+            r#"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "/tmp/x"
+name = "primary"
+identities = []
+pull_commands = []
+"#,
+        );
+        assert!(needs_migration(&table));
+    }
+
+    #[test]
+    fn needs_migration_returns_false_with_no_stores_array() {
+        let table = parse_table(
+            r#"
+pull_commands = []
+push_commands = []
+"#,
+        );
+        assert!(!needs_migration(&table));
+    }
+
+    #[test]
+    fn load_from_path_returns_default_for_missing_file() {
+        let temp = TempDir::new().unwrap();
+        let missing = temp.child("config.toml");
+
+        let cfg = Configuration::load_from_path(missing.path()).unwrap();
+
+        assert!(cfg.stores.is_empty());
+        assert!(cfg.identities.is_empty());
+    }
+
+    #[test]
+    fn load_from_path_returns_modern_config_without_rewriting_file() {
+        let temp = TempDir::new().unwrap();
+        let config = temp.child("config.toml");
+        let original = r#"default_store = "primary"
+pull_commands = []
+push_commands = []
+identities = []
+
+[[stores]]
+path = "/tmp/x"
+name = "primary"
+identities = []
+pull_commands = []
+push_commands = []
+"#;
+        config.write_str(original).unwrap();
+
+        let cfg = Configuration::load_from_path(config.path()).unwrap();
+
+        assert_eq!(cfg.default_store.as_deref(), Some("primary"));
+        assert_eq!(cfg.stores.len(), 1);
+        // No migration marker → no rewrite. The on-disk bytes must match
+        // exactly what the user wrote.
+        let on_disk = std::fs::read_to_string(config.path()).unwrap();
+        assert_eq!(on_disk, original);
+    }
+
+    #[test]
+    fn load_from_path_migrates_legacy_synchronizer_and_rewrites_file() {
+        let temp = TempDir::new().unwrap();
+        let config = temp.child("config.toml");
+        let legacy = r#"pull_commands = []
+push_commands = []
+identities = []
+
+[[stores]]
+path = "/tmp/x"
+name = "primary"
+identities = []
+synchronizer = "Git"
+"#;
+        config.write_str(legacy).unwrap();
+
+        let cfg = Configuration::load_from_path(config.path()).unwrap();
+
+        // The store now carries the derived command arrays.
+        assert_eq!(cfg.stores.len(), 1);
+        assert!(!cfg.stores[0].pull_commands.is_empty());
+        assert!(!cfg.stores[0].push_commands.is_empty());
+        // The file was rewritten without the legacy `synchronizer` key.
+        let on_disk = std::fs::read_to_string(config.path()).unwrap();
+        assert!(!on_disk.contains("synchronizer"));
+        assert!(on_disk.contains("pull_commands"));
+        assert!(on_disk.contains("push_commands"));
+    }
+
+    #[test]
+    fn load_from_path_returns_error_for_toml_syntax_failure_and_leaves_file_unchanged() {
+        // The earlier load path would route a TOML syntax error through
+        // `migrate_configuration` and report a misleading "could not
+        // migrate" message. The current path surfaces the syntax error
+        // directly and does not rewrite the user's file.
+        let temp = TempDir::new().unwrap();
+        let config = temp.child("config.toml");
+        let broken = "default_store = [oops missing quotes";
+        config.write_str(broken).unwrap();
+
+        let result = Configuration::load_from_path(config.path());
+
+        assert!(result.is_err());
+        let error_chain = format!("{:#}", result.unwrap_err());
+        assert!(
+            error_chain.contains("not valid TOML"),
+            "expected 'not valid TOML' in error chain, got: {error_chain}"
+        );
+        let on_disk = std::fs::read_to_string(config.path()).unwrap();
+        assert_eq!(on_disk, broken, "the broken file must not be rewritten");
+    }
+
+    #[test]
+    fn load_from_path_returns_error_for_type_failure_and_leaves_file_unchanged() {
+        // Wrong type on a typed field (here: a string where a u64 is
+        // expected) must surface as a deserialization error, not trigger a
+        // spurious migration write.
+        let temp = TempDir::new().unwrap();
+        let config = temp.child("config.toml");
+        let bad_type = r#"pull_interval_seconds = "not-a-number"
+pull_commands = []
+push_commands = []
+identities = []
+"#;
+        config.write_str(bad_type).unwrap();
+
+        let result = Configuration::load_from_path(config.path());
+
+        assert!(result.is_err());
+        let on_disk = std::fs::read_to_string(config.path()).unwrap();
+        assert_eq!(on_disk, bad_type, "the file must not be rewritten");
     }
 }
