@@ -7,7 +7,6 @@ use crate::browser::matcher::Match;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
-#[allow(dead_code)]
 pub enum Request {
     Query {
         domain: String,
@@ -23,20 +22,17 @@ pub struct QueryResponse {
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 pub struct ListStoresResponse {
     pub stores: Vec<StoreEntry>,
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 pub struct StoreEntry {
     pub name: String,
     pub default: bool,
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 pub struct ErrorResponse {
     pub error: ErrorKind,
     #[serde(skip_serializing_if = "Option::is_none")]
