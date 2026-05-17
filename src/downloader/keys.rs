@@ -7,6 +7,11 @@ use anyhow::Context;
 use std::env;
 use std::time::Duration;
 
+// `.keys` files hold a handful of public keys (a few KB at most). Cap the
+// response so a hostile or compromised provider can't exhaust memory by
+// streaming an arbitrarily large body — ureq's default limit is `u64::MAX`.
+const MAX_RESPONSE_BYTES: u64 = 1 << 20;
+
 #[derive(Clone, Copy)]
 pub enum Provider {
     Codeberg,
@@ -61,6 +66,8 @@ pub fn download_public_key(
         .call()
         .with_context(|| i18n::error_downloading_public_key_failed(provider.name()))?
         .body_mut()
+        .with_config()
+        .limit(MAX_RESPONSE_BYTES)
         .read_to_string()?;
     Ok(String::from(key.trim()))
 }
