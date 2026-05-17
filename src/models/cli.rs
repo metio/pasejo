@@ -9,6 +9,7 @@ use clap_verbosity_flag::InfoLevel;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::completer;
+use crate::cli::constants::{default_uri_keys, default_username_keys};
 use crate::cli::parser;
 use crate::models::password_store::{OneTimePasswordAlgorithm, OneTimePasswordType};
 
@@ -135,10 +136,10 @@ pub struct BitwardenArgs {
     #[arg(long, requires = "organization_id")]
     pub collection_name: Option<String>,
 
-    #[arg(long, default_values_t = [String::from("login"), String::from("email"), String::from("username")])]
+    #[arg(long, default_values_t = default_username_keys())]
     pub username_keys: Vec<String>,
 
-    #[arg(long, default_values_t = [String::from("uri"), String::from("url"), String::from("link"), String::from("site")])]
+    #[arg(long, default_values_t = default_uri_keys())]
     pub uri_keys: Vec<String>,
 
     /// Toggle whether to print pretty JSON or not
