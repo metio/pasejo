@@ -78,5 +78,14 @@ trycmd = { version = "1.2.0" }
 [target.'cfg(unix)'.dev-dependencies]
 rexpect = { version = "0.7.1" }
 
+# Landlock is a Linux-only Linux Security Module (kernel 5.13+). It is used
+# in the QR-code import path to fork a child process that restricts itself
+# to deny all filesystem access before running the `image` + `rqrr` parser
+# stack on attacker-controlled bytes. `libc` is needed for the `fork`,
+# `pipe`, `waitpid`, and `_exit` syscalls the sandbox driver uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+landlock = { version = "0.4.4" }
+libc = { version = "0.2.177" }
+
 [build-dependencies]
 cc = "1.2.62"

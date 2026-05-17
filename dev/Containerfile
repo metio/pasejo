@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: The pasejo Authors
 # SPDX-License-Identifier: 0BSD
 
-FROM docker.io/metio/devcontainers-rust:latest
+FROM docker.io/library/rust:latest
 
 RUN apt-get update && apt-get install -y mercurial age
+
+# The `rust:latest` base image keeps a pinned version (e.g. 1.94.1) as
+# the default toolchain, while the project's `rust-toolchain.toml =
+# "stable"` triggers rustup to install whatever the channel resolves to
+# *now* (e.g. 1.95.0). Running `rustup component add` without an
+# explicit target installs against the default toolchain — the wrong
+# one — and components silently disappear at runtime. Pin the update
+# and the component install to the `stable` channel so they land where
+# the project will actually look.
+RUN rustup update stable \
+    && rustup component add --toolchain stable clippy rustfmt

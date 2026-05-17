@@ -610,6 +610,16 @@ fl_string!(
     "error-failed-to-decode-qrcode",
     qrcode
 );
+fl_string!(error_qr_sandbox_failed, "error-qr-sandbox-failed");
+fl_string!(
+    error_qr_sandbox_child_signal,
+    "error-qr-sandbox-child-signal",
+    signal
+);
+fl_string!(
+    error_qr_sandbox_not_enforced,
+    "error-qr-sandbox-not-enforced"
+);
 fl_string!(
     error_cannot_determine_store_name,
     "error-cannot-determine-store-name"
