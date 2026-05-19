@@ -85,7 +85,7 @@ rexpect = { version = "0.7.1" }
 # `pipe`, `waitpid`, and `_exit` syscalls the sandbox driver uses.
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4" }
-libc = { version = "0.2.177" }
+libc = { version = "0.2.186" }
 
 [build-dependencies]
 cc = "1.2.62"
