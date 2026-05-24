@@ -2,27 +2,21 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::io::{IsTerminal, Read, Write};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
-use std::time::Duration;
 
 use anyhow::{Result, bail};
 use serde::Serialize;
-use zeroize::Zeroizing;
 
 use crate::browser::matcher::find_matches;
 use crate::browser::protocol::{
-    CopyResponse, CopyWhat, ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION,
-    QueryResponse, Request, StoreEntry,
+    ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
+    StoreEntry,
 };
-use crate::cli::{clipboard, i18n};
+use crate::cli::i18n;
 use crate::commands::store_op::acquire_store_lock;
-use crate::exporters::parser::parse_secret;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration};
-use crate::models::password_store::{OneTimePasswordType, PasswordStore};
+use crate::models::password_store::PasswordStore;
 
 // Chrome's documented native-messaging maximum is 1 MiB per direction.
 // Rejecting larger length prefixes prevents a malformed peer from driving
@@ -32,13 +26,6 @@ pub const MAX_MESSAGE_LEN: usize = 1024 * 1024;
 pub struct HostContext<'a> {
     pub uri_keys: &'a [String],
     pub username_keys: &'a [String],
-    /// Counts copy operations whose clipboard-clear thread is still
-    /// running. The browser disconnects immediately after the response
-    /// is written, which closes our stdin and would normally make the
-    /// main loop return — taking the detached clipboard thread (and
-    /// its pending auto-clear) with the process. `run` drains this
-    /// counter to zero after stdin EOF so the timer actually fires.
-    pub pending_copies: Arc<AtomicUsize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,7 +33,6 @@ pub struct HostContext<'a> {
 pub enum ResponsePayload {
     Query(QueryResponse),
     ListStores(ListStoresResponse),
-    Copy(CopyResponse),
     Error(ErrorResponse),
 }
 
@@ -61,14 +47,6 @@ pub fn handle_request(
             handle_query(configuration, context, store.as_deref(), domain, offline)
         }
         Request::ListStores => ResponsePayload::ListStores(list_stores_response(configuration)),
-        Request::Copy { store, path, what } => handle_copy(
-            configuration,
-            context,
-            store.as_deref(),
-            path,
-            *what,
-            offline,
-        ),
     }
 }
 
@@ -98,80 +76,6 @@ fn handle_query(
         context.username_keys,
     );
     ResponsePayload::Query(QueryResponse { results })
-}
-
-fn handle_copy(
-    configuration: &Configuration,
-    context: &HostContext<'_>,
-    requested_store: Option<&str>,
-    path: &str,
-    what: CopyWhat,
-    offline: bool,
-) -> ResponsePayload {
-    let registration = match resolve_store(configuration, requested_store) {
-        Ok(reg) => reg,
-        Err(err) => return ResponsePayload::Error(err),
-    };
-    let store_name = registration.name.clone();
-
-    let store = match open_store_for_read(configuration, registration, offline) {
-        Ok(store) => store,
-        Err((kind, err)) => return error_response(kind, &store_name, &err),
-    };
-
-    let value = match resolve_copy_value(&store, path, what, context.username_keys) {
-        Ok(value) => value,
-        Err((kind, hint)) => {
-            return ResponsePayload::Error(ErrorResponse {
-                error: kind,
-                store: Some(store_name),
-                hint: Some(hint),
-            });
-        }
-    };
-
-    // Sync precheck so the popup gets an immediate, structured error
-    // (and can fall back to navigator.clipboard) when the host can't
-    // reach the system clipboard at all — typically a missing
-    // `$DISPLAY`/`$WAYLAND_DISPLAY` in the browser-spawned environment.
-    // The thread we spawn below assumes a working clipboard handle.
-    if let Err(err) = arboard::Clipboard::new() {
-        return error_response(
-            ErrorKind::ClipboardUnavailable,
-            &store_name,
-            &anyhow::Error::from(err),
-        );
-    }
-
-    let timeout_secs = configuration.clipboard_timeout.unwrap_or(45);
-    let notify = configuration.clipboard_notify.unwrap_or(true);
-    let duration = Duration::from_secs(timeout_secs);
-    let pending = Arc::clone(&context.pending_copies);
-    pending.fetch_add(1, Ordering::SeqCst);
-    thread::spawn(move || {
-        // copy_text_to_clipboard blocks until the clear-timer fires or
-        // SIGINT arrives. Running it on a detached thread keeps the
-        // host's request loop responsive while the clipboard timer is
-        // counting down. Concurrent Copy requests each spawn their own
-        // thread; the ClipboardGuard's "expected" snapshot means a
-        // newer copy naturally cancels an older timer (the older
-        // thread sees the clipboard has changed and leaves it alone).
-        // The Zeroizing wrapper wipes our resolved value when the
-        // thread exits, so the heap copy doesn't outlive the thread.
-        // The pending counter prevents `run` from returning before this
-        // thread's auto-clear has had a chance to fire — the browser
-        // disconnects the pipes right after our response, and a naive
-        // `main` would exit milliseconds later, killing the timer.
-        if let Err(err) = clipboard::copy_text_to_clipboard(value.as_str(), duration, notify) {
-            log::warn!("browser host clipboard pipeline failed: {err:#}");
-        }
-        pending.fetch_sub(1, Ordering::SeqCst);
-    });
-
-    ResponsePayload::Copy(CopyResponse {
-        duration_seconds: timeout_secs,
-        notify,
-    })
 }
 
 /// Hand-rolled equivalent of the read-only prefix of `store_op::with_store`
@@ -222,77 +126,6 @@ fn open_store_for_read(
         .map_err(|err| (ErrorKind::IdentityLocked, err))?;
     drop(lock);
     Ok(store)
-}
-
-/// Resolve the value to copy from a freshly decrypted store. Returns
-/// the value as a `Zeroizing<String>` so the heap copy is wiped when
-/// the spawned clipboard thread exits.
-fn resolve_copy_value(
-    store: &PasswordStore,
-    path: &str,
-    what: CopyWhat,
-    username_keys: &[String],
-) -> std::result::Result<Zeroizing<String>, (ErrorKind, String)> {
-    match what {
-        CopyWhat::Password => {
-            let secret = store
-                .secrets
-                .get(path)
-                .ok_or_else(|| (ErrorKind::SecretNotFound, format!("no secret at '{path}'")))?;
-            let parsed = parse_secret(secret);
-            let password = parsed.password.ok_or_else(|| {
-                (
-                    ErrorKind::FieldNotFound,
-                    format!("secret '{path}' has no password line"),
-                )
-            })?;
-            Ok(Zeroizing::new(password))
-        }
-        CopyWhat::Username => {
-            let secret = store
-                .secrets
-                .get(path)
-                .ok_or_else(|| (ErrorKind::SecretNotFound, format!("no secret at '{path}'")))?;
-            let parsed = parse_secret(secret);
-            for key in username_keys {
-                if let Some(value) = parsed.fields.get(key) {
-                    return Ok(Zeroizing::new(value.clone()));
-                }
-            }
-            Err((
-                ErrorKind::FieldNotFound,
-                format!("secret '{path}' has no username field matching any of {username_keys:?}"),
-            ))
-        }
-        CopyWhat::Otp => {
-            let entry = store.otp.get(path).ok_or_else(|| {
-                (
-                    ErrorKind::SecretNotFound,
-                    format!("no OTP entry at '{path}'"),
-                )
-            })?;
-            if entry.otp_type != OneTimePasswordType::Totp {
-                return Err((
-                    ErrorKind::FieldNotFound,
-                    format!(
-                        "OTP entry '{path}' is HOTP — browser host only emits TOTP codes \
-                         to keep the query path read-only"
-                    ),
-                ));
-            }
-            let mut clone = entry.clone();
-            let code = clone.generate().map_err(|err| {
-                (
-                    ErrorKind::FieldNotFound,
-                    format!("failed to generate TOTP for '{path}': {err:#}"),
-                )
-            })?;
-            Ok(Zeroizing::new(format!(
-                "{code:0width$}",
-                width = entry.digits as usize
-            )))
-        }
-    }
 }
 
 fn error_response(kind: ErrorKind, store: &str, err: &anyhow::Error) -> ResponsePayload {
@@ -373,11 +206,9 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         bail!(i18n::error_browser_host_requires_pipe());
     }
 
-    let pending_copies = Arc::new(AtomicUsize::new(0));
     let context = HostContext {
         uri_keys: &args.uri_keys,
         username_keys: &args.username_keys,
-        pending_copies: Arc::clone(&pending_copies),
     };
 
     let stdin = std::io::stdin();
@@ -390,22 +221,7 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         let response_bytes = serde_json::to_vec(&response)?;
         write_message(&mut output, &response_bytes)?;
     }
-    drain_pending_copies(&pending_copies);
     Ok(())
-}
-
-/// After the browser disconnects, spin until in-flight clipboard
-/// threads have finished. Without this, the process exits within
-/// milliseconds of the response being written and kills the detached
-/// thread before its auto-clear timer fires — silently breaking the
-/// clipboard contract the popup advertises to the user. The poll tick
-/// matches `cli::clipboard`'s and keeps wake-ups cheap; the wait is
-/// bounded by the clipboard timeout the thread is sleeping on (clamped
-/// to one year inside `copy_text_to_clipboard`).
-fn drain_pending_copies(pending: &AtomicUsize) {
-    while pending.load(Ordering::SeqCst) > 0 {
-        thread::sleep(Duration::from_millis(100));
-    }
 }
 
 fn process_message(
@@ -446,54 +262,10 @@ mod tests {
         }
     }
 
-    fn empty_context() -> HostContext<'static> {
-        HostContext {
-            uri_keys: &[],
-            username_keys: &[],
-            pending_copies: Arc::new(AtomicUsize::new(0)),
-        }
-    }
-
-    #[test]
-    fn drain_pending_copies_returns_immediately_when_counter_is_zero() {
-        let pending = AtomicUsize::new(0);
-        let start = std::time::Instant::now();
-        drain_pending_copies(&pending);
-        assert!(
-            start.elapsed() < Duration::from_millis(50),
-            "drain on zero counter should not sleep noticeably"
-        );
-    }
-
-    #[test]
-    fn drain_pending_copies_waits_until_counter_reaches_zero() {
-        let pending = Arc::new(AtomicUsize::new(1));
-        let worker = {
-            let pending = Arc::clone(&pending);
-            thread::spawn(move || {
-                thread::sleep(Duration::from_millis(200));
-                pending.fetch_sub(1, Ordering::SeqCst);
-            })
-        };
-        let start = std::time::Instant::now();
-        drain_pending_copies(&pending);
-        let elapsed = start.elapsed();
-        worker.join().unwrap();
-        assert!(
-            elapsed >= Duration::from_millis(150),
-            "drain should have waited for the worker; took {elapsed:?}"
-        );
-        assert!(
-            elapsed < Duration::from_secs(2),
-            "drain should not have hung; took {elapsed:?}"
-        );
-    }
-
-    fn store_with_secret(name: &str, value: &str) -> PasswordStore {
-        let mut store = PasswordStore::default();
-        store.secrets.insert(name.to_owned(), value.to_owned());
-        store
-    }
+    const EMPTY_CONTEXT: HostContext<'static> = HostContext {
+        uri_keys: &[],
+        username_keys: &[],
+    };
 
     /// `Configuration::select_store(None)` consults `PASEJO_DEFAULT_STORE`
     /// before falling back to the config field; running these tests with
@@ -667,102 +439,10 @@ mod tests {
 
     // --- process_message --------------------------------------------------
 
-    // --- resolve_copy_value -----------------------------------------------
-
-    #[test]
-    fn resolve_copy_value_returns_password_first_line() {
-        let store = store_with_secret("alice", "hunter2\nlogin: alice@example.com");
-        let value =
-            resolve_copy_value(&store, "alice", CopyWhat::Password, &["login".into()]).unwrap();
-        assert_eq!(value.as_str(), "hunter2");
-    }
-
-    #[test]
-    fn resolve_copy_value_returns_username_from_named_field() {
-        let store = store_with_secret("alice", "hunter2\nlogin: alice@example.com");
-        let value =
-            resolve_copy_value(&store, "alice", CopyWhat::Username, &["login".into()]).unwrap();
-        assert_eq!(value.as_str(), "alice@example.com");
-    }
-
-    #[test]
-    fn resolve_copy_value_returns_secret_not_found_for_unknown_path() {
-        let store = store_with_secret("alice", "hunter2");
-        let (kind, _) =
-            resolve_copy_value(&store, "ghost", CopyWhat::Password, &["login".into()]).unwrap_err();
-        assert_eq!(kind, ErrorKind::SecretNotFound);
-    }
-
-    #[test]
-    fn resolve_copy_value_returns_field_not_found_when_username_absent() {
-        let store = store_with_secret("alice", "hunter2");
-        let (kind, _) =
-            resolve_copy_value(&store, "alice", CopyWhat::Username, &["login".into()]).unwrap_err();
-        assert_eq!(kind, ErrorKind::FieldNotFound);
-    }
-
-    #[test]
-    fn resolve_copy_value_returns_secret_not_found_for_otp_missing() {
-        let store = store_with_secret("alice", "hunter2");
-        let (kind, _) =
-            resolve_copy_value(&store, "alice", CopyWhat::Otp, &["login".into()]).unwrap_err();
-        assert_eq!(kind, ErrorKind::SecretNotFound);
-    }
-
-    #[test]
-    fn resolve_copy_value_rejects_hotp_with_field_not_found() {
-        use crate::models::password_store::{OneTimePassword, OneTimePasswordAlgorithm};
-
-        let mut store = PasswordStore::default();
-        store.otp.insert(
-            "alice".into(),
-            OneTimePassword {
-                secret: "JBSWY3DPEHPK3PXP".into(),
-                otp_type: OneTimePasswordType::Hotp,
-                algorithm: OneTimePasswordAlgorithm::Sha1,
-                digits: 6,
-                period: 30,
-                counter: 0,
-                skew: 0,
-            },
-        );
-        let (kind, _) =
-            resolve_copy_value(&store, "alice", CopyWhat::Otp, &["login".into()]).unwrap_err();
-        assert_eq!(kind, ErrorKind::FieldNotFound);
-    }
-
-    #[test]
-    fn resolve_copy_value_generates_zero_padded_totp_code() {
-        use crate::models::password_store::{OneTimePassword, OneTimePasswordAlgorithm};
-
-        let mut store = PasswordStore::default();
-        store.otp.insert(
-            "alice".into(),
-            OneTimePassword {
-                secret: "JBSWY3DPEHPK3PXP".into(),
-                otp_type: OneTimePasswordType::Totp,
-                algorithm: OneTimePasswordAlgorithm::Sha1,
-                digits: 6,
-                period: 30,
-                counter: 0,
-                skew: 0,
-            },
-        );
-        let value = resolve_copy_value(&store, "alice", CopyWhat::Otp, &["login".into()]).unwrap();
-        assert_eq!(
-            value.as_str().len(),
-            6,
-            "TOTP must be zero-padded to digit width"
-        );
-        assert!(value.as_str().chars().all(|c| c.is_ascii_digit()));
-    }
-
-    // --- process_message --------------------------------------------------
-
     #[test]
     fn process_message_emits_decode_error_for_malformed_json() {
         let cfg = configuration_with(&[], None);
-        let response = process_message(b"not json at all", &cfg, &empty_context(), true);
+        let response = process_message(b"not json at all", &cfg, &EMPTY_CONTEXT, true);
         match response {
             ResponsePayload::Error(err) => {
                 assert_eq!(err.error, ErrorKind::DecodeError);
@@ -780,7 +460,7 @@ mod tests {
         // `UnknownAction` kind. The UnknownAction variant is reserved for
         // a future two-step parse that needs to differentiate.
         let cfg = configuration_with(&[], None);
-        let response = process_message(br#"{"action":"create"}"#, &cfg, &empty_context(), true);
+        let response = process_message(br#"{"action":"create"}"#, &cfg, &EMPTY_CONTEXT, true);
         match response {
             ResponsePayload::Error(err) => assert_eq!(err.error, ErrorKind::DecodeError),
             _ => panic!("expected DecodeError"),
@@ -790,8 +470,7 @@ mod tests {
     #[test]
     fn process_message_routes_list_stores_to_response() {
         let cfg = configuration_with(&["personal"], None);
-        let response =
-            process_message(br#"{"action":"list_stores"}"#, &cfg, &empty_context(), true);
+        let response = process_message(br#"{"action":"list_stores"}"#, &cfg, &EMPTY_CONTEXT, true);
         match response {
             ResponsePayload::ListStores(payload) => {
                 assert_eq!(payload.stores.len(), 1);

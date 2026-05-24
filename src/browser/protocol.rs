@@ -20,26 +20,6 @@ pub enum Request {
         store: Option<String>,
     },
     ListStores,
-    /// Re-resolve the secret at `path` in `store` (same fallback chain as
-    /// every other action), copy the requested field to the system
-    /// clipboard, and schedule the same auto-clear pipeline the CLI uses.
-    /// The host responds immediately with the scheduled timeout; the
-    /// clear runs in a background thread so the request loop stays
-    /// responsive while a secret is in the clipboard.
-    Copy {
-        #[serde(default)]
-        store: Option<String>,
-        path: String,
-        what: CopyWhat,
-    },
-}
-
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum CopyWhat {
-    Password,
-    Username,
-    Otp,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,17 +31,6 @@ pub struct QueryResponse {
 pub struct ListStoresResponse {
     pub protocol_version: u32,
     pub stores: Vec<StoreEntry>,
-}
-
-/// Returned for a successful `Copy` request. `duration_seconds` is the
-/// effective `clipboard_timeout` from the configuration so the popup can
-/// render "Copied — clearing in Ns" without having to know the user's
-/// settings. `notify` mirrors `clipboard_notify` so the popup can decide
-/// whether a follow-up desktop notification will also fire.
-#[derive(Debug, Serialize)]
-pub struct CopyResponse {
-    pub duration_seconds: u64,
-    pub notify: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,21 +74,6 @@ pub enum ErrorKind {
     /// not identity-side.
     StoreUnreachable,
     NoStoreConfigured,
-    /// `arboard::Clipboard::new()` returned an error — typically a
-    /// missing `$DISPLAY`/`$WAYLAND_DISPLAY` in the browser-spawned
-    /// environment, or a Wayland compositor that won't grant clipboard
-    /// access to the host. The popup can fall back to
-    /// `navigator.clipboard.writeText` (without auto-clear) when this
-    /// kind arrives.
-    ClipboardUnavailable,
-    /// A `Copy` request named a `path` that has no entry in the
-    /// matching map (`secrets` for password/username, `otp` for OTP).
-    SecretNotFound,
-    /// A `Copy` request named a `path` that exists but does not have
-    /// the requested field — no `login:` line for a `username` copy,
-    /// no password line for a `password` copy, or a HOTP entry where a
-    /// TOTP code was requested.
-    FieldNotFound,
 }
 
 #[cfg(test)]
@@ -274,58 +228,5 @@ mod tests {
         let raw = r#"{"action": "list_stores"}"#;
         let request: Request = serde_json::from_str(raw).unwrap();
         assert!(matches!(request, Request::ListStores));
-    }
-
-    #[test]
-    fn request_copy_round_trips_with_all_what_variants() {
-        for (raw, expected) in [
-            (
-                r#"{"action": "copy", "path": "alice", "what": "password"}"#,
-                CopyWhat::Password,
-            ),
-            (
-                r#"{"action": "copy", "path": "alice", "what": "username"}"#,
-                CopyWhat::Username,
-            ),
-            (
-                r#"{"action": "copy", "path": "alice", "what": "otp"}"#,
-                CopyWhat::Otp,
-            ),
-        ] {
-            let request: Request = serde_json::from_str(raw).unwrap();
-            match request {
-                Request::Copy { store, path, what } => {
-                    assert!(store.is_none(), "store should default to None");
-                    assert_eq!(path, "alice");
-                    assert_eq!(what, expected);
-                }
-                other => panic!("expected Copy variant for {raw}, got {other:?}"),
-            }
-        }
-    }
-
-    #[test]
-    fn request_copy_carries_optional_store_field() {
-        let raw = r#"{"action": "copy", "store": "work", "path": "alice", "what": "password"}"#;
-        let request: Request = serde_json::from_str(raw).unwrap();
-        match request {
-            Request::Copy { store, .. } => assert_eq!(store.as_deref(), Some("work")),
-            other => panic!("expected Copy variant, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn copy_response_carries_duration_and_notify() {
-        let response = CopyResponse {
-            duration_seconds: 45,
-            notify: true,
-        };
-        let json = serde_json::to_string(&response).unwrap();
-        let parsed: Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(
-            parsed.get("duration_seconds").and_then(Value::as_u64),
-            Some(45)
-        );
-        assert_eq!(parsed.get("notify").and_then(Value::as_bool), Some(true));
     }
 }
