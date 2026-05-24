@@ -183,3 +183,12 @@ error-cannot-encrypt-store = No se puede cifrar el almacén
 error-failed-to-run-command = Falló la ejecución del comando { $binary }
 error-command-exited-with = El comando { $binary } terminó con { $exit }
 error-browser-host-requires-pipe = El host del navegador requiere una entrada estándar redirigida desde la extensión del navegador conectada. Ejecute este comando a través del manifiesto de mensajería nativa de su navegador, no directamente desde una terminal.
+error-browser-install-manifest-no-browser = Especifique al menos un --browser para el que instalar el manifiesto de mensajería nativa.
+error-browser-install-manifest-needs-extension-id = El navegador '{ $browser }' requiere --extension-id porque los ID de extensión de los navegadores basados en Chromium se derivan de la clave pública de la extensión descomprimida.
+error-browser-install-manifest-unsupported-os = La instalación de manifiestos de mensajería nativa no está soportada en '{ $os }'.
+error-browser-install-manifest-no-home-dir = No se pudo determinar el directorio personal del usuario.
+error-browser-install-manifest-no-data-dir = No se pudo determinar el directorio de datos del usuario.
+error-browser-install-manifest-no-current-exe = No se pudo determinar la ruta del binario de pasejo en ejecución.
+browser-install-manifest-written = Manifiesto de mensajería nativa para '{ $browser }' escrito en '{ $path }'
+error-browser-install-manifest-invalid-env = La entrada --env '{ $entry }' no tiene el formato KEY=VALUE.
+error-browser-install-manifest-invalid-env-name = El nombre --env '{ $name }' no es un nombre de variable de entorno POSIX válido (debe comenzar con una letra o guion bajo y contener solo letras, dígitos y guiones bajos).

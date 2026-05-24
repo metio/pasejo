@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::browser::host;
+use crate::browser::install_manifest;
 use crate::browser::matcher::find_matches;
 use crate::browser::protocol::QueryResponse;
 use crate::commands::store_op::{StoreMutation, with_store};
@@ -16,6 +17,7 @@ pub fn dispatch(
     match command {
         BrowserCommands::Query(args) => query(args, configuration, offline),
         BrowserCommands::Host(args) => host::run(configuration, args, offline),
+        BrowserCommands::InstallManifest(args) => install_manifest::run(args),
     }
 }
 

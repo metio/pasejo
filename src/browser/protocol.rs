@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::browser::matcher::Match;
 
+/// Wire-format version emitted in `ListStoresResponse::protocol_version`.
+/// Bump on any backwards-incompatible change to the host's request or
+/// response shapes; the extension refuses to operate against a host
+/// outside its supported range.
+pub const PROTOCOL_VERSION: u32 = 1;
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Request {
@@ -23,6 +29,7 @@ pub struct QueryResponse {
 
 #[derive(Debug, Serialize)]
 pub struct ListStoresResponse {
+    pub protocol_version: u32,
     pub stores: Vec<StoreEntry>,
 }
 
@@ -53,7 +60,19 @@ pub enum ErrorKind {
     #[allow(dead_code)]
     UnknownAction,
     DecodeError,
+    /// `decrypt_store` failed — most commonly a locked age identity that
+    /// needs ssh-agent, but also fires for "no identity files configured"
+    /// or "identities don't match recipients."
     IdentityLocked,
+    /// A pull or push hook command returned non-zero or could not be spawned.
+    /// The hint carries the underlying anyhow chain so the extension can
+    /// surface which hook went wrong.
+    HookFailed,
+    /// The store file itself could not be opened or locked (missing file,
+    /// permissions, or lock contention that exceeded the kernel's wait).
+    /// Distinct from `IdentityLocked` because the fix is filesystem-side,
+    /// not identity-side.
+    StoreUnreachable,
     NoStoreConfigured,
 }
 
@@ -76,6 +95,7 @@ mod tests {
             match_kind: MatchKind::UrlField,
             score: 1.0,
             fields: BTreeMap::new(),
+            otp: None,
         }
     }
 
@@ -123,6 +143,7 @@ mod tests {
     #[test]
     fn list_stores_response_marks_default() {
         let response = ListStoresResponse {
+            protocol_version: PROTOCOL_VERSION,
             stores: vec![
                 StoreEntry {
                     name: "personal".into(),
@@ -145,6 +166,20 @@ mod tests {
         assert_eq!(
             stores[1].get("default").and_then(Value::as_bool),
             Some(false)
+        );
+    }
+
+    #[test]
+    fn list_stores_response_includes_protocol_version() {
+        let response = ListStoresResponse {
+            protocol_version: PROTOCOL_VERSION,
+            stores: vec![],
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        let parsed: Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            parsed.get("protocol_version").and_then(Value::as_u64),
+            Some(u64::from(PROTOCOL_VERSION))
         );
     }
 

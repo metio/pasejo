@@ -24,4 +24,8 @@ $ pasejo store decrypt
 ? 1
 Error: 복호화를 거부했습니다: 모든 비밀이 평문으로 stdout에 출력됩니다. 확인을 위해 --yes-i-know를 전달하세요.
 
+$ pasejo browser install-manifest --browser chrome --print --binary /usr/local/bin/pasejo
+? 1
+Error: Chromium 계열 브라우저의 확장 프로그램 ID는 압축 해제된 확장 프로그램의 공개 키에서 파생되므로 브라우저 'chrome'에는 --extension-id가 필요합니다.
+
 ```

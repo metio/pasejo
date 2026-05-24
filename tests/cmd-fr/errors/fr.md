@@ -24,4 +24,8 @@ $ pasejo store decrypt
 ? 1
 Error: Déchiffrement refusé : cela affichera tous les secrets en clair sur stdout. Passez --yes-i-know pour confirmer.
 
+$ pasejo browser install-manifest --browser chrome --print --binary /usr/local/bin/pasejo
+? 1
+Error: Le navigateur 'chrome' nécessite --extension-id car les identifiants d'extension des navigateurs de la famille Chromium sont dérivés de la clé publique de l'extension décompressée.
+
 ```

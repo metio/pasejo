@@ -9,9 +9,10 @@ Browser integration
 Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
-  query  Search a store for credentials matching a domain
-  host   Run a native-messaging host that browser extensions connect to
-  help   Print this message or the help of the given subcommand(s)
+  query             Search a store for credentials matching a domain
+  host              Run a native-messaging host that browser extensions connect to
+  install-manifest  Install the native-messaging manifest for one or more browsers
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -22,4 +23,8 @@ Options:
 
 `browser query` searches a single store for credentials matching the given domain and prints the results as JSON on stdout. URL field matches (against any field listed in `--uri-keys`) are scored higher than fallback matches against the secret's path segments.
 
-`browser host` runs the same matching logic as a long-lived native-messaging host: the browser spawns this process per its native-messaging manifest, exchanges length-prefixed JSON messages over stdin/stdout, and closes the pipe when the user closes the browser. The host refuses to start when stdin is a terminal — it is not meant to be run by hand. Store selection follows the same rules as every other pasejo command (`PASEJO_DEFAULT_STORE` env, the config's `default_store` field, then the first store); native-messaging manifests can pin a specific store by setting `PASEJO_DEFAULT_STORE` in the spawn environment.
+`browser host` runs the same matching logic as a long-lived native-messaging host: the browser spawns this process per its native-messaging manifest, exchanges length-prefixed JSON messages over stdin/stdout, and closes the pipe when the user closes the browser. The host refuses to start when stdin is a terminal — it is not meant to be run by hand. Store selection follows the same rules as every other pasejo command (`PASEJO_DEFAULT_STORE` env, the config's `default_store` field, then the first store); native-messaging manifests can pin a specific store by setting `PASEJO_DEFAULT_STORE` in the spawn environment via a small launcher script.
+
+`browser install-manifest` writes the per-user native-messaging manifest a browser needs before it will spawn `pasejo browser host`. Pass `--browser firefox` and/or one or more chromium-family entries (`chrome`, `chromium`, `brave`, `edge`, `vivaldi`); for chromium-family browsers, also pass `--extension-id` because their extension ids are derived from the unpacked extension's public key. The Firefox build of the [pasejo web extension][ext] ships with a stable add-on id, so `--extension-id` is optional there. The command also drops a tiny wrapper script under the user's data directory that invokes `pasejo browser host` on behalf of the browser; pass `--binary` to point the manifest at your own launcher instead. Use `--print` to emit the JSON to stdout (no files written) for inspection or templating.
+
+[ext]: https://github.com/metio/pasejo-web-extension

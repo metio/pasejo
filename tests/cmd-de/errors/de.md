@@ -24,4 +24,8 @@ $ pasejo store decrypt
 ? 1
 Error: Entschlüsselung verweigert: Dadurch werden alle Geheimnisse im Klartext auf stdout ausgegeben. Übergeben Sie --yes-i-know zur Bestätigung.
 
+$ pasejo browser install-manifest --browser chrome --print --binary /usr/local/bin/pasejo
+? 1
+Error: Browser 'chrome' erfordert --extension-id, da Erweiterungs-IDs für Chromium-basierte Browser aus dem öffentlichen Schlüssel der entpackten Erweiterung abgeleitet werden.
+
 ```

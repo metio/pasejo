@@ -8,10 +8,12 @@ use serde::Serialize;
 
 use crate::browser::matcher::find_matches;
 use crate::browser::protocol::{
-    ErrorKind, ErrorResponse, ListStoresResponse, QueryResponse, Request, StoreEntry,
+    ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
+    StoreEntry,
 };
 use crate::cli::i18n;
-use crate::commands::store_op::{StoreMutation, with_store};
+use crate::commands::store_op::acquire_store_lock;
+use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration};
 
@@ -59,23 +61,63 @@ fn handle_query(
         Err(err) => return ResponsePayload::Error(err),
     };
     let store_name = registration.name.clone();
-    match with_store(configuration, Some(&store_name), offline, |reg, store| {
-        let results = find_matches(
-            store,
-            &reg.name,
-            domain,
-            context.uri_keys,
-            context.username_keys,
-        );
-        Ok((results, StoreMutation::Unchanged))
-    }) {
-        Ok(results) => ResponsePayload::Query(QueryResponse { results }),
-        Err(err) => ResponsePayload::Error(ErrorResponse {
-            error: ErrorKind::IdentityLocked,
-            store: Some(store_name),
-            hint: Some(format!("{err:#}")),
-        }),
+
+    // The query path runs a hand-rolled equivalent of `store_op::with_store`
+    // (minus the encrypt + push tail, which a read-only query never needs)
+    // so each step's failure can be classified into a distinct `ErrorKind`.
+    // Routing every failure through `with_store` would collapse them into a
+    // single anyhow chain, and the extension would be left guessing whether
+    // the user needs to fix their identity, their hooks, or their store
+    // file.
+    let hooks = HookExecutor {
+        configuration,
+        registration,
+        offline,
+        force: false,
+    };
+    if let Err(err) = hooks.execute_pull_commands() {
+        return error_response(ErrorKind::HookFailed, &store_name, &err);
     }
+
+    let lock = match acquire_store_lock(registration.path()) {
+        // `Ok(None)` is the bootstrap path — a store registered in the
+        // config but with no file on disk yet. The browser host is never
+        // the right entry point for that (you can't query an empty store),
+        // so surface it as unreachable instead of letting decrypt_store
+        // fail later and mis-classify as IdentityLocked.
+        Ok(Some(lock)) => Some(lock),
+        Ok(None) => {
+            let err = anyhow::anyhow!(
+                "store file does not exist at {}",
+                registration.path().display()
+            );
+            return error_response(ErrorKind::StoreUnreachable, &store_name, &err);
+        }
+        Err(err) => return error_response(ErrorKind::StoreUnreachable, &store_name, &err),
+    };
+
+    let store = match configuration.decrypt_store(registration) {
+        Ok(store) => store,
+        Err(err) => return error_response(ErrorKind::IdentityLocked, &store_name, &err),
+    };
+    drop(lock);
+
+    let results = find_matches(
+        &store,
+        &store_name,
+        domain,
+        context.uri_keys,
+        context.username_keys,
+    );
+    ResponsePayload::Query(QueryResponse { results })
+}
+
+fn error_response(kind: ErrorKind, store: &str, err: &anyhow::Error) -> ResponsePayload {
+    ResponsePayload::Error(ErrorResponse {
+        error: kind,
+        store: Some(store.to_owned()),
+        hint: Some(format!("{err:#}")),
+    })
 }
 
 pub fn resolve_store<'a>(
@@ -107,6 +149,7 @@ const fn no_store_configured_error() -> ErrorResponse {
 pub fn list_stores_response(configuration: &Configuration) -> ListStoresResponse {
     let default_name = configuration.select_store(None).map(|r| r.name.as_str());
     ListStoresResponse {
+        protocol_version: PROTOCOL_VERSION,
         stores: configuration
             .stores
             .iter()

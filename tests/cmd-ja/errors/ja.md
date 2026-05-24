@@ -24,4 +24,8 @@ $ pasejo store decrypt
 ? 1
 Error: 復号を拒否しました: すべてのシークレットが平文で stdout に出力されます。確認のため --yes-i-know を指定してください。
 
+$ pasejo browser install-manifest --browser chrome --print --binary /usr/local/bin/pasejo
+? 1
+Error: Chromium系ブラウザの拡張機能IDは展開された拡張機能の公開鍵から導出されるため、ブラウザ 'chrome' には --extension-id が必要です。
+
 ```

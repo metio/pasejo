@@ -183,3 +183,12 @@ error-cannot-encrypt-store = Speicher konnte nicht verschlüsselt werden
 error-failed-to-run-command = Befehl { $binary } konnte nicht ausgeführt werden
 error-command-exited-with = Befehl { $binary } beendet mit { $exit }
 error-browser-host-requires-pipe = Der Browser-Host benötigt eine weitergeleitete Standardeingabe von der verbundenen Browser-Erweiterung. Führen Sie diesen Befehl über das Native-Messaging-Manifest Ihres Browsers aus, nicht direkt in einem Terminal.
+error-browser-install-manifest-no-browser = Geben Sie mindestens einen --browser an, für den das Native-Messaging-Manifest installiert werden soll.
+error-browser-install-manifest-needs-extension-id = Browser '{ $browser }' erfordert --extension-id, da Erweiterungs-IDs für Chromium-basierte Browser aus dem öffentlichen Schlüssel der entpackten Erweiterung abgeleitet werden.
+error-browser-install-manifest-unsupported-os = Die Installation von Native-Messaging-Manifesten wird unter '{ $os }' nicht unterstützt.
+error-browser-install-manifest-no-home-dir = Das Home-Verzeichnis des Benutzers konnte nicht ermittelt werden.
+error-browser-install-manifest-no-data-dir = Das Daten-Verzeichnis des Benutzers konnte nicht ermittelt werden.
+error-browser-install-manifest-no-current-exe = Der Pfad der laufenden pasejo-Binärdatei konnte nicht ermittelt werden.
+browser-install-manifest-written = Native-Messaging-Manifest für '{ $browser }' nach '{ $path }' geschrieben
+error-browser-install-manifest-invalid-env = --env-Eintrag '{ $entry }' hat nicht die Form KEY=VALUE.
+error-browser-install-manifest-invalid-env-name = --env-Name '{ $name }' ist kein gültiger POSIX-Umgebungsvariablenname (muss mit einem Buchstaben oder Unterstrich beginnen und darf nur Buchstaben, Ziffern und Unterstriche enthalten).

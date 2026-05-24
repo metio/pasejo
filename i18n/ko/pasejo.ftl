@@ -183,3 +183,12 @@ error-cannot-encrypt-store = 저장소를 암호화할 수 없습니다
 error-failed-to-run-command = 명령 { $binary } 실행 실패
 error-command-exited-with = 명령 { $binary }이(가) { $exit }(으)로 종료되었습니다
 error-browser-host-requires-pipe = 브라우저 호스트는 연결된 브라우저 확장으로부터 파이프된 표준 입력이 필요합니다. 이 명령은 브라우저의 네이티브 메시징 매니페스트를 통해 실행하세요. 터미널에서 직접 실행하지 마세요.
+error-browser-install-manifest-no-browser = 네이티브 메시징 매니페스트를 설치할 --browser를 최소 하나 이상 지정하세요.
+error-browser-install-manifest-needs-extension-id = Chromium 계열 브라우저의 확장 프로그램 ID는 압축 해제된 확장 프로그램의 공개 키에서 파생되므로 브라우저 '{ $browser }'에는 --extension-id가 필요합니다.
+error-browser-install-manifest-unsupported-os = '{ $os }'에서는 네이티브 메시징 매니페스트 설치를 지원하지 않습니다.
+error-browser-install-manifest-no-home-dir = 사용자의 홈 디렉터리를 확인할 수 없습니다.
+error-browser-install-manifest-no-data-dir = 사용자의 데이터 디렉터리를 확인할 수 없습니다.
+error-browser-install-manifest-no-current-exe = 실행 중인 pasejo 바이너리의 경로를 확인할 수 없습니다.
+browser-install-manifest-written = '{ $browser }'의 네이티브 메시징 매니페스트를 '{ $path }'에 작성했습니다
+error-browser-install-manifest-invalid-env = --env 항목 '{ $entry }'이(가) KEY=VALUE 형식이 아닙니다.
+error-browser-install-manifest-invalid-env-name = --env 이름 '{ $name }'은(는) 유효한 POSIX 환경 변수 이름이 아닙니다(문자 또는 밑줄로 시작하고 문자, 숫자, 밑줄만 포함해야 합니다).

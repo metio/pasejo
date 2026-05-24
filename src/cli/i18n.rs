@@ -797,3 +797,52 @@ fl_string!(
     error_browser_host_requires_pipe,
     "error-browser-host-requires-pipe"
 );
+fl_string!(
+    error_browser_install_manifest_no_browser,
+    "error-browser-install-manifest-no-browser"
+);
+fl_string!(
+    error_browser_install_manifest_needs_extension_id,
+    "error-browser-install-manifest-needs-extension-id",
+    browser
+);
+fl_string!(
+    error_browser_install_manifest_unsupported_os,
+    "error-browser-install-manifest-unsupported-os",
+    os
+);
+fl_string!(
+    error_browser_install_manifest_no_home_dir,
+    "error-browser-install-manifest-no-home-dir"
+);
+fl_string!(
+    error_browser_install_manifest_no_data_dir,
+    "error-browser-install-manifest-no-data-dir"
+);
+fl_string!(
+    error_browser_install_manifest_no_current_exe,
+    "error-browser-install-manifest-no-current-exe"
+);
+fl_string!(
+    error_browser_install_manifest_invalid_env,
+    "error-browser-install-manifest-invalid-env",
+    entry
+);
+fl_string!(
+    error_browser_install_manifest_invalid_env_name,
+    "error-browser-install-manifest-invalid-env-name",
+    name
+);
+
+pub fn browser_install_manifest_written(browser: &str, path: &Path) {
+    let path = path_string(path);
+    info!(
+        "{}",
+        fl!(
+            LANGUAGE_LOADER,
+            "browser-install-manifest-written",
+            browser = browser,
+            path = path.as_str()
+        )
+    );
+}

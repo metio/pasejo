@@ -5,9 +5,10 @@ Browser integration
 Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
-  query  Search a store for credentials matching a domain
-  host   Run a native-messaging host that browser extensions connect to
-  help   Print this message or the help of the given subcommand(s)
+  query             Search a store for credentials matching a domain
+  host              Run a native-messaging host that browser extensions connect to
+  install-manifest  Install the native-messaging manifest for one or more browsers
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -23,9 +24,10 @@ Browser integration
 Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
-  query  Search a store for credentials matching a domain
-  host   Run a native-messaging host that browser extensions connect to
-  help   Print this message or the help of the given subcommand(s)
+  query             Search a store for credentials matching a domain
+  host              Run a native-messaging host that browser extensions connect to
+  install-manifest  Install the native-messaging manifest for one or more browsers
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity
@@ -41,9 +43,10 @@ Browser integration
 Usage: pasejo browser [OPTIONS] <COMMAND>
 
 Commands:
-  query  Search a store for credentials matching a domain
-  host   Run a native-messaging host that browser extensions connect to
-  help   Print this message or the help of the given subcommand(s)
+  query             Search a store for credentials matching a domain
+  host              Run a native-messaging host that browser extensions connect to
+  install-manifest  Install the native-messaging manifest for one or more browsers
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose...  Increase logging verbosity

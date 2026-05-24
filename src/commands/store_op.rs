@@ -22,7 +22,7 @@ use crate::models::password_store::PasswordStore;
 /// window. Holding it across that window keeps concurrent invocations from
 /// both reading the same HOTP counter, both bumping it, and losing one of
 /// the increments when re-encrypting.
-fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
+pub fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
     let path_display = path.display().to_string();
     match File::open(path) {
         Ok(file) => {

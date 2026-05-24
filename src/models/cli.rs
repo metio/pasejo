@@ -126,6 +126,72 @@ pub enum BrowserCommands {
 
     /// Run a native-messaging host that browser extensions connect to
     Host(HostArgs),
+
+    /// Install the native-messaging manifest for one or more browsers
+    InstallManifest(InstallManifestArgs),
+}
+
+#[derive(Args)]
+pub struct InstallManifestArgs {
+    /// Browser to install the manifest for. Repeatable.
+    #[arg(long = "browser", required = true)]
+    pub browsers: Vec<InstallManifestBrowser>,
+
+    /// Extension id allowed to connect to the host. Repeatable. Required
+    /// for chromium-family browsers; Firefox defaults to the bundled
+    /// extension id.
+    #[arg(long = "extension-id")]
+    pub extension_ids: Vec<String>,
+
+    /// Print the resulting manifest JSON to stdout instead of writing
+    /// it to disk. Does not create the wrapper script.
+    #[arg(long)]
+    pub print: bool,
+
+    /// Override the path written into the manifest. When set, no
+    /// wrapper script is installed and the supplied path is referenced
+    /// verbatim — useful for callers that maintain their own launcher.
+    #[arg(long, value_hint = FilePath)]
+    pub binary: Option<PathBuf>,
+
+    /// Override the native-messaging host name. Defaults to
+    /// `wtf.metio.pasejo`; only change when integrating with a
+    /// non-default extension build.
+    #[arg(long)]
+    pub host_name: Option<String>,
+
+    /// Environment variable in `KEY=VALUE` form to bake into the
+    /// generated wrapper script. Repeatable. Use this to pin
+    /// `SSH_AUTH_SOCK`, `PASEJO_CONFIG`, `PASEJO_DEFAULT_STORE`, or
+    /// anything else the browser-spawned host won't otherwise inherit.
+    /// Has no effect with `--print` (the wrapper isn't generated then)
+    /// or with `--binary` (the wrapper isn't generated then).
+    #[arg(long = "env")]
+    pub envs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[clap(rename_all = "lowercase")]
+pub enum InstallManifestBrowser {
+    Firefox,
+    Chrome,
+    Chromium,
+    Brave,
+    Edge,
+    Vivaldi,
+}
+
+impl InstallManifestBrowser {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Firefox => "firefox",
+            Self::Chrome => "chrome",
+            Self::Chromium => "chromium",
+            Self::Brave => "brave",
+            Self::Edge => "edge",
+            Self::Vivaldi => "vivaldi",
+        }
+    }
 }
 
 #[derive(Args)]

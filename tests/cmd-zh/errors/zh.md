@@ -24,4 +24,8 @@ $ pasejo store decrypt
 ? 1
 Error: 拒绝解密:这会将每个密钥以明文形式打印到 stdout。请传递 --yes-i-know 以确认。
 
+$ pasejo browser install-manifest --browser chrome --print --binary /usr/local/bin/pasejo
+? 1
+Error: Chromium 系浏览器的扩展 ID 由解压扩展的公钥派生，因此浏览器 'chrome' 需要 --extension-id。
+
 ```

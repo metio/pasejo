@@ -183,3 +183,12 @@ error-cannot-encrypt-store = Impossible de chiffrer le coffre
 error-failed-to-run-command = Échec de l'exécution de la commande { $binary }
 error-command-exited-with = La commande { $binary } s'est terminée avec { $exit }
 error-browser-host-requires-pipe = L'hôte du navigateur nécessite une entrée standard redirigée depuis l'extension du navigateur connectée. Exécutez cette commande via le manifeste de messagerie native de votre navigateur, et non directement depuis un terminal.
+error-browser-install-manifest-no-browser = Spécifiez au moins un --browser pour lequel installer le manifeste de messagerie native.
+error-browser-install-manifest-needs-extension-id = Le navigateur '{ $browser }' nécessite --extension-id car les identifiants d'extension des navigateurs de la famille Chromium sont dérivés de la clé publique de l'extension décompressée.
+error-browser-install-manifest-unsupported-os = L'installation des manifestes de messagerie native n'est pas prise en charge sur '{ $os }'.
+error-browser-install-manifest-no-home-dir = Impossible de déterminer le répertoire personnel de l'utilisateur.
+error-browser-install-manifest-no-data-dir = Impossible de déterminer le répertoire de données de l'utilisateur.
+error-browser-install-manifest-no-current-exe = Impossible de déterminer le chemin du binaire pasejo en cours d'exécution.
+browser-install-manifest-written = Manifeste de messagerie native pour '{ $browser }' écrit dans '{ $path }'
+error-browser-install-manifest-invalid-env = L'entrée --env '{ $entry }' n'est pas au format KEY=VALUE.
+error-browser-install-manifest-invalid-env-name = Le nom --env '{ $name }' n'est pas un nom de variable d'environnement POSIX valide (doit commencer par une lettre ou un trait de soulignement et ne contenir que des lettres, chiffres et traits de soulignement).

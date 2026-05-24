@@ -183,3 +183,12 @@ error-cannot-encrypt-store = ストアを暗号化できません
 error-failed-to-run-command = コマンド { $binary } の実行に失敗しました
 error-command-exited-with = コマンド { $binary } は { $exit } で終了しました
 error-browser-host-requires-pipe = ブラウザホストには、接続中のブラウザ拡張機能からのパイプ標準入力が必要です。このコマンドはブラウザのネイティブメッセージングマニフェスト経由で実行してください。ターミナルから直接実行しないでください。
+error-browser-install-manifest-no-browser = ネイティブメッセージングマニフェストをインストールする --browser を少なくとも1つ指定してください。
+error-browser-install-manifest-needs-extension-id = Chromium系ブラウザの拡張機能IDは展開された拡張機能の公開鍵から導出されるため、ブラウザ '{ $browser }' には --extension-id が必要です。
+error-browser-install-manifest-unsupported-os = ネイティブメッセージングマニフェストのインストールは '{ $os }' ではサポートされていません。
+error-browser-install-manifest-no-home-dir = ユーザーのホームディレクトリを特定できませんでした。
+error-browser-install-manifest-no-data-dir = ユーザーのデータディレクトリを特定できませんでした。
+error-browser-install-manifest-no-current-exe = 実行中の pasejo バイナリのパスを特定できませんでした。
+browser-install-manifest-written = '{ $browser }' のネイティブメッセージングマニフェストを '{ $path }' に書き込みました
+error-browser-install-manifest-invalid-env = --env エントリ '{ $entry }' は KEY=VALUE 形式ではありません。
+error-browser-install-manifest-invalid-env-name = --env 名 '{ $name }' は有効な POSIX 環境変数名ではありません（先頭は英字またはアンダースコアで、英字・数字・アンダースコアのみ使用できます）。

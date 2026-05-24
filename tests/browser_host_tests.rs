@@ -186,6 +186,50 @@ fn host_lists_stores_with_default_marker() {
         "response was: {response}"
     );
     assert!(response.contains(r#""default":true"#));
+    assert!(
+        response.contains(r#""protocol_version":1"#),
+        "list_stores must include protocol_version so the extension can refuse a mismatched host; response was: {response}"
+    );
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success());
+}
+
+#[test]
+fn host_reports_store_unreachable_when_store_file_missing() {
+    // Register a store and identity but delete the store file before
+    // querying. The bootstrap path (`acquire_store_lock` returning
+    // `Ok(None)`) must surface as `store_unreachable`, not as the
+    // catch-all `identity_locked` — the actionable fix is filesystem-side,
+    // not identity-side.
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+    let store_path = temp.path().join("store");
+    std::fs::remove_file(&store_path).unwrap();
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(&mut stdin, br#"{"action":"query","domain":"example.com"}"#);
+    let response = read_response(&mut stdout);
+
+    assert!(
+        response.contains(r#""error":"store_unreachable""#),
+        "response was: {response}"
+    );
+    assert!(response.contains(r#""store":"test""#));
 
     drop(stdin);
     let status = child.wait().unwrap();

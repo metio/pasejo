@@ -183,3 +183,12 @@ error-cannot-encrypt-store = Impossibile cifrare l'archivio
 error-failed-to-run-command = Esecuzione del comando { $binary } fallita
 error-command-exited-with = Il comando { $binary } è terminato con { $exit }
 error-browser-host-requires-pipe = L'host del browser richiede uno stdin reindirizzato dall'estensione del browser connessa. Eseguire questo comando tramite il manifest di messaggistica nativa del browser, non direttamente da un terminale.
+error-browser-install-manifest-no-browser = Specificare almeno un --browser per cui installare il manifest di messaggistica nativa.
+error-browser-install-manifest-needs-extension-id = Il browser '{ $browser }' richiede --extension-id perché gli ID delle estensioni dei browser basati su Chromium sono derivati dalla chiave pubblica dell'estensione decompressa.
+error-browser-install-manifest-unsupported-os = L'installazione dei manifest di messaggistica nativa non è supportata su '{ $os }'.
+error-browser-install-manifest-no-home-dir = Impossibile determinare la directory home dell'utente.
+error-browser-install-manifest-no-data-dir = Impossibile determinare la directory dati dell'utente.
+error-browser-install-manifest-no-current-exe = Impossibile determinare il percorso del binario pasejo in esecuzione.
+browser-install-manifest-written = Manifest di messaggistica nativa per '{ $browser }' scritto in '{ $path }'
+error-browser-install-manifest-invalid-env = La voce --env '{ $entry }' non è nella forma KEY=VALUE.
+error-browser-install-manifest-invalid-env-name = Il nome --env '{ $name }' non è un nome valido per una variabile d'ambiente POSIX (deve iniziare con una lettera o un trattino basso e contenere solo lettere, cifre e trattini bassi).

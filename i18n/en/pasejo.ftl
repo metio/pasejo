@@ -183,3 +183,12 @@ error-cannot-encrypt-store = Cannot encrypt store
 error-failed-to-run-command = Failed to run command { $binary }
 error-command-exited-with = Command { $binary } exited with { $exit }
 error-browser-host-requires-pipe = Browser host requires a piped stdin from the connecting browser extension. Run this command via your browser's native-messaging manifest, not directly from a terminal.
+error-browser-install-manifest-no-browser = Specify at least one --browser to install the native-messaging manifest for.
+error-browser-install-manifest-needs-extension-id = Browser '{ $browser }' requires --extension-id because chromium-family extension ids are derived from the unpacked extension's public key.
+error-browser-install-manifest-unsupported-os = Installing native-messaging manifests is not supported on '{ $os }'.
+error-browser-install-manifest-no-home-dir = Could not determine the user's home directory.
+error-browser-install-manifest-no-data-dir = Could not determine the user's data directory.
+error-browser-install-manifest-no-current-exe = Could not determine the path of the running pasejo binary.
+browser-install-manifest-written = Wrote '{ $browser }' native-messaging manifest to '{ $path }'
+error-browser-install-manifest-invalid-env = --env entry '{ $entry }' is not in KEY=VALUE form.
+error-browser-install-manifest-invalid-env-name = --env name '{ $name }' is not a valid POSIX environment variable name (must start with a letter or underscore and contain only letters, digits, and underscores).

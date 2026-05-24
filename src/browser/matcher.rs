@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::exporters::parser::parse_secret;
-use crate::models::password_store::PasswordStore;
+use crate::models::password_store::{OneTimePasswordType, PasswordStore};
 
 const SCORE_URL_EXACT_HOST: f64 = 1.0;
 const SCORE_URL_REGISTRABLE_DOMAIN: f64 = 0.9;
@@ -30,6 +30,14 @@ pub struct Match {
     pub match_kind: MatchKind,
     pub score: f64,
     pub fields: BTreeMap<String, String>,
+    /// Current TOTP code if `store.otp` has a TOTP entry under the same
+    /// name as the matched secret. HOTP entries are deliberately
+    /// excluded: emitting an HOTP code without bumping the counter
+    /// breaks RFC 4226's single-use contract, and bumping it would turn
+    /// the browser query path (currently read-only) into a writer that
+    /// has to re-encrypt the store on every popup open.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub otp: Option<String>,
 }
 
 pub fn find_matches(
@@ -49,7 +57,7 @@ pub fn find_matches(
         .secrets
         .iter()
         .filter_map(|(name, value)| {
-            match_secret(
+            let mut m = match_secret(
                 name,
                 value,
                 store_name,
@@ -57,7 +65,9 @@ pub fn find_matches(
                 query_registrable.as_deref(),
                 uri_keys,
                 username_keys,
-            )
+            )?;
+            m.otp = totp_code_for(store, name);
+            Some(m)
         })
         .collect();
     matches.sort_by(|a, b| {
@@ -112,6 +122,7 @@ fn match_secret(
             match_kind: MatchKind::UrlField,
             score,
             fields: other_fields,
+            otp: None,
         });
     }
 
@@ -125,10 +136,26 @@ fn match_secret(
             match_kind: MatchKind::Name,
             score: SCORE_NAME,
             fields: other_fields,
+            otp: None,
         });
     }
 
     None
+}
+
+/// Look up a TOTP entry stored under the same name as the matched
+/// secret and render its current code. Returns `None` for non-existent
+/// entries, for HOTP entries (see the doc comment on `Match::otp`), and
+/// when code generation itself fails (a broken `otpauth://` secret
+/// shouldn't crash the whole query).
+fn totp_code_for(store: &PasswordStore, secret_name: &str) -> Option<String> {
+    let entry = store.otp.get(secret_name)?;
+    if entry.otp_type != OneTimePasswordType::Totp {
+        return None;
+    }
+    let mut clone = entry.clone();
+    let code = clone.generate().ok()?;
+    Some(format!("{code:0width$}", width = entry.digits as usize))
 }
 
 fn score_url_field(
@@ -186,6 +213,9 @@ fn registrable_domain(host: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::password_store::{
+        OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
+    };
 
     fn store_with(secrets: &[(&str, &str)]) -> PasswordStore {
         let mut store = PasswordStore::default();
@@ -195,6 +225,24 @@ mod tests {
                 .insert((*name).to_owned(), (*value).to_owned());
         }
         store
+    }
+
+    fn totp_entry() -> OneTimePassword {
+        OneTimePassword {
+            secret: "JBSWY3DPEHPK3PXP".into(),
+            otp_type: OneTimePasswordType::Totp,
+            algorithm: OneTimePasswordAlgorithm::Sha1,
+            digits: 6,
+            period: 30,
+            counter: 0,
+            skew: 0,
+        }
+    }
+
+    fn hotp_entry() -> OneTimePassword {
+        let mut entry = totp_entry();
+        entry.otp_type = OneTimePasswordType::Hotp;
+        entry
     }
 
     fn uri_keys() -> Vec<String> {
@@ -484,6 +532,51 @@ mod tests {
         );
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].match_kind, MatchKind::UrlField);
+    }
+
+    #[test]
+    fn match_includes_totp_code_when_otp_entry_exists_for_secret_name() {
+        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        store.otp.insert("alice".into(), totp_entry());
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1);
+        let otp = result[0].otp.as_deref().expect("expected TOTP code");
+        assert_eq!(otp.len(), 6, "TOTP should be zero-padded to digit width");
+        assert!(otp.chars().all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn match_omits_otp_for_hotp_entry_to_preserve_counter() {
+        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        store.otp.insert("alice".into(), hotp_entry());
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert!(result[0].otp.is_none());
+    }
+
+    #[test]
+    fn match_omits_otp_when_no_otp_entry_matches_secret_name() {
+        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        store.otp.insert("bob".into(), totp_entry());
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert!(result[0].otp.is_none());
     }
 
     #[test]

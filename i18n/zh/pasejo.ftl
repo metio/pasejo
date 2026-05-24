@@ -183,3 +183,12 @@ error-cannot-encrypt-store = 无法加密存储
 error-failed-to-run-command = 无法运行命令 { $binary }
 error-command-exited-with = 命令 { $binary } 以 { $exit } 退出
 error-browser-host-requires-pipe = 浏览器主机需要来自连接的浏览器扩展的管道标准输入。请通过浏览器的原生消息传递清单运行此命令，而不是直接从终端运行。
+error-browser-install-manifest-no-browser = 请至少指定一个 --browser 以安装其原生消息传递清单。
+error-browser-install-manifest-needs-extension-id = Chromium 系浏览器的扩展 ID 由解压扩展的公钥派生，因此浏览器 '{ $browser }' 需要 --extension-id。
+error-browser-install-manifest-unsupported-os = '{ $os }' 不支持安装原生消息传递清单。
+error-browser-install-manifest-no-home-dir = 无法确定用户的主目录。
+error-browser-install-manifest-no-data-dir = 无法确定用户的数据目录。
+error-browser-install-manifest-no-current-exe = 无法确定正在运行的 pasejo 二进制文件的路径。
+browser-install-manifest-written = 已将 '{ $browser }' 的原生消息传递清单写入 '{ $path }'
+error-browser-install-manifest-invalid-env = --env 条目 '{ $entry }' 不是 KEY=VALUE 形式。
+error-browser-install-manifest-invalid-env-name = --env 名称 '{ $name }' 不是有效的 POSIX 环境变量名（必须以字母或下划线开头，且仅包含字母、数字和下划线）。
