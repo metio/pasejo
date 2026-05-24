@@ -2,20 +2,24 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::io::{IsTerminal, Read, Write};
+use std::time::Duration;
 
 use anyhow::{Result, bail};
 use serde::Serialize;
+use zeroize::Zeroizing;
 
 use crate::browser::matcher::find_matches;
 use crate::browser::protocol::{
-    ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
-    StoreEntry,
+    CopyResponse, CopyWhat, ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION,
+    QueryResponse, Request, StoreEntry,
 };
-use crate::cli::i18n;
+use crate::cli::{clipboard, i18n};
 use crate::commands::store_op::acquire_store_lock;
+use crate::exporters::parser::parse_secret;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration};
+use crate::models::password_store::{OneTimePasswordType, PasswordStore};
 
 // Chrome's documented native-messaging maximum is 1 MiB per direction.
 // Rejecting larger length prefixes prevents a malformed peer from driving
@@ -32,6 +36,7 @@ pub struct HostContext<'a> {
 pub enum ResponsePayload {
     Query(QueryResponse),
     ListStores(ListStoresResponse),
+    Copy(CopyResponse),
     Error(ErrorResponse),
 }
 
@@ -46,6 +51,14 @@ pub fn handle_request(
             handle_query(configuration, context, store.as_deref(), domain, offline)
         }
         Request::ListStores => ResponsePayload::ListStores(list_stores_response(configuration)),
+        Request::Copy { store, path, what } => handle_copy(
+            configuration,
+            context,
+            store.as_deref(),
+            path,
+            *what,
+            offline,
+        ),
     }
 }
 
@@ -62,45 +75,10 @@ fn handle_query(
     };
     let store_name = registration.name.clone();
 
-    // The query path runs a hand-rolled equivalent of `store_op::with_store`
-    // (minus the encrypt + push tail, which a read-only query never needs)
-    // so each step's failure can be classified into a distinct `ErrorKind`.
-    // Routing every failure through `with_store` would collapse them into a
-    // single anyhow chain, and the extension would be left guessing whether
-    // the user needs to fix their identity, their hooks, or their store
-    // file.
-    let hooks = HookExecutor {
-        configuration,
-        registration,
-        offline,
-        force: false,
-    };
-    if let Err(err) = hooks.execute_pull_commands() {
-        return error_response(ErrorKind::HookFailed, &store_name, &err);
-    }
-
-    let lock = match acquire_store_lock(registration.path()) {
-        // `Ok(None)` is the bootstrap path — a store registered in the
-        // config but with no file on disk yet. The browser host is never
-        // the right entry point for that (you can't query an empty store),
-        // so surface it as unreachable instead of letting decrypt_store
-        // fail later and mis-classify as IdentityLocked.
-        Ok(Some(lock)) => Some(lock),
-        Ok(None) => {
-            let err = anyhow::anyhow!(
-                "store file does not exist at {}",
-                registration.path().display()
-            );
-            return error_response(ErrorKind::StoreUnreachable, &store_name, &err);
-        }
-        Err(err) => return error_response(ErrorKind::StoreUnreachable, &store_name, &err),
-    };
-
-    let store = match configuration.decrypt_store(registration) {
+    let store = match open_store_for_read(configuration, registration, offline) {
         Ok(store) => store,
-        Err(err) => return error_response(ErrorKind::IdentityLocked, &store_name, &err),
+        Err((kind, err)) => return error_response(kind, &store_name, &err),
     };
-    drop(lock);
 
     let results = find_matches(
         &store,
@@ -110,6 +88,194 @@ fn handle_query(
         context.username_keys,
     );
     ResponsePayload::Query(QueryResponse { results })
+}
+
+fn handle_copy(
+    configuration: &Configuration,
+    context: &HostContext<'_>,
+    requested_store: Option<&str>,
+    path: &str,
+    what: CopyWhat,
+    offline: bool,
+) -> ResponsePayload {
+    let registration = match resolve_store(configuration, requested_store) {
+        Ok(reg) => reg,
+        Err(err) => return ResponsePayload::Error(err),
+    };
+    let store_name = registration.name.clone();
+
+    let store = match open_store_for_read(configuration, registration, offline) {
+        Ok(store) => store,
+        Err((kind, err)) => return error_response(kind, &store_name, &err),
+    };
+
+    let value = match resolve_copy_value(&store, path, what, context.username_keys) {
+        Ok(value) => value,
+        Err((kind, hint)) => {
+            return ResponsePayload::Error(ErrorResponse {
+                error: kind,
+                store: Some(store_name),
+                hint: Some(hint),
+            });
+        }
+    };
+
+    // Sync precheck so the popup gets an immediate, structured error
+    // (and can fall back to navigator.clipboard) when the host can't
+    // reach the system clipboard at all — typically a missing
+    // `$DISPLAY`/`$WAYLAND_DISPLAY` in the browser-spawned environment.
+    // The thread we spawn below assumes a working clipboard handle.
+    if let Err(err) = arboard::Clipboard::new() {
+        return error_response(
+            ErrorKind::ClipboardUnavailable,
+            &store_name,
+            &anyhow::Error::from(err),
+        );
+    }
+
+    let timeout_secs = configuration.clipboard_timeout.unwrap_or(45);
+    let notify = configuration.clipboard_notify.unwrap_or(true);
+    let duration = Duration::from_secs(timeout_secs);
+    std::thread::spawn(move || {
+        // copy_text_to_clipboard blocks until the clear-timer fires or
+        // SIGINT arrives. Running it on a detached thread keeps the
+        // host's request loop responsive while the clipboard timer is
+        // counting down. Concurrent Copy requests each spawn their own
+        // thread; the ClipboardGuard's "expected" snapshot means a
+        // newer copy naturally cancels an older timer (the older
+        // thread sees the clipboard has changed and leaves it alone).
+        // The Zeroizing wrapper wipes our resolved value when the
+        // thread exits, so the heap copy doesn't outlive the thread.
+        if let Err(err) = clipboard::copy_text_to_clipboard(value.as_str(), duration, notify) {
+            log::warn!("browser host clipboard pipeline failed: {err:#}");
+        }
+    });
+
+    ResponsePayload::Copy(CopyResponse {
+        duration_seconds: timeout_secs,
+        notify,
+    })
+}
+
+/// Hand-rolled equivalent of the read-only prefix of `store_op::with_store`
+/// (minus the encrypt + push tail, which a read-only operation never
+/// needs). Pull hooks fire (throttled), the file lock is acquired,
+/// `decrypt_store` runs, the lock is released, and the decrypted store is
+/// returned. Each step's failure is classified into a distinct `ErrorKind`
+/// so the extension can surface the right fix — the funnel itself returns
+/// `anyhow::Error`, which would collapse those into a single chain and
+/// leave the user guessing.
+///
+/// `acquire_store_lock` returning `Ok(None)` (the bootstrap path — a
+/// store registered in the config but with no file on disk yet) is
+/// mapped to `StoreUnreachable`; the browser host is never the right
+/// entry point for bootstrapping, and letting `decrypt_store` fail
+/// later would mis-classify as `IdentityLocked`.
+fn open_store_for_read(
+    configuration: &Configuration,
+    registration: &StoreRegistration,
+    offline: bool,
+) -> std::result::Result<PasswordStore, (ErrorKind, anyhow::Error)> {
+    let hooks = HookExecutor {
+        configuration,
+        registration,
+        offline,
+        force: false,
+    };
+    hooks
+        .execute_pull_commands()
+        .map_err(|err| (ErrorKind::HookFailed, err))?;
+
+    let lock = match acquire_store_lock(registration.path()) {
+        Ok(Some(lock)) => Some(lock),
+        Ok(None) => {
+            return Err((
+                ErrorKind::StoreUnreachable,
+                anyhow::anyhow!(
+                    "store file does not exist at {}",
+                    registration.path().display()
+                ),
+            ));
+        }
+        Err(err) => return Err((ErrorKind::StoreUnreachable, err)),
+    };
+
+    let store = configuration
+        .decrypt_store(registration)
+        .map_err(|err| (ErrorKind::IdentityLocked, err))?;
+    drop(lock);
+    Ok(store)
+}
+
+/// Resolve the value to copy from a freshly decrypted store. Returns
+/// the value as a `Zeroizing<String>` so the heap copy is wiped when
+/// the spawned clipboard thread exits.
+fn resolve_copy_value(
+    store: &PasswordStore,
+    path: &str,
+    what: CopyWhat,
+    username_keys: &[String],
+) -> std::result::Result<Zeroizing<String>, (ErrorKind, String)> {
+    match what {
+        CopyWhat::Password => {
+            let secret = store
+                .secrets
+                .get(path)
+                .ok_or_else(|| (ErrorKind::SecretNotFound, format!("no secret at '{path}'")))?;
+            let parsed = parse_secret(secret);
+            let password = parsed.password.ok_or_else(|| {
+                (
+                    ErrorKind::FieldNotFound,
+                    format!("secret '{path}' has no password line"),
+                )
+            })?;
+            Ok(Zeroizing::new(password))
+        }
+        CopyWhat::Username => {
+            let secret = store
+                .secrets
+                .get(path)
+                .ok_or_else(|| (ErrorKind::SecretNotFound, format!("no secret at '{path}'")))?;
+            let parsed = parse_secret(secret);
+            for key in username_keys {
+                if let Some(value) = parsed.fields.get(key) {
+                    return Ok(Zeroizing::new(value.clone()));
+                }
+            }
+            Err((
+                ErrorKind::FieldNotFound,
+                format!("secret '{path}' has no username field matching any of {username_keys:?}"),
+            ))
+        }
+        CopyWhat::Otp => {
+            let entry = store.otp.get(path).ok_or_else(|| {
+                (
+                    ErrorKind::SecretNotFound,
+                    format!("no OTP entry at '{path}'"),
+                )
+            })?;
+            if entry.otp_type != OneTimePasswordType::Totp {
+                return Err((
+                    ErrorKind::FieldNotFound,
+                    format!(
+                        "OTP entry '{path}' is HOTP — browser host only emits TOTP codes \
+                         to keep the query path read-only"
+                    ),
+                ));
+            }
+            let mut clone = entry.clone();
+            let code = clone.generate().map_err(|err| {
+                (
+                    ErrorKind::FieldNotFound,
+                    format!("failed to generate TOTP for '{path}': {err:#}"),
+                )
+            })?;
+            Ok(Zeroizing::new(format!(
+                "{code:0width$}",
+                width = entry.digits as usize
+            )))
+        }
+    }
 }
 
 fn error_response(kind: ErrorKind, store: &str, err: &anyhow::Error) -> ResponsePayload {
@@ -250,6 +416,12 @@ mod tests {
         uri_keys: &[],
         username_keys: &[],
     };
+
+    fn store_with_secret(name: &str, value: &str) -> PasswordStore {
+        let mut store = PasswordStore::default();
+        store.secrets.insert(name.to_owned(), value.to_owned());
+        store
+    }
 
     /// `Configuration::select_store(None)` consults `PASEJO_DEFAULT_STORE`
     /// before falling back to the config field; running these tests with
@@ -419,6 +591,98 @@ mod tests {
                 .unwrap()
                 .default
         );
+    }
+
+    // --- process_message --------------------------------------------------
+
+    // --- resolve_copy_value -----------------------------------------------
+
+    #[test]
+    fn resolve_copy_value_returns_password_first_line() {
+        let store = store_with_secret("alice", "hunter2\nlogin: alice@example.com");
+        let value =
+            resolve_copy_value(&store, "alice", CopyWhat::Password, &["login".into()]).unwrap();
+        assert_eq!(value.as_str(), "hunter2");
+    }
+
+    #[test]
+    fn resolve_copy_value_returns_username_from_named_field() {
+        let store = store_with_secret("alice", "hunter2\nlogin: alice@example.com");
+        let value =
+            resolve_copy_value(&store, "alice", CopyWhat::Username, &["login".into()]).unwrap();
+        assert_eq!(value.as_str(), "alice@example.com");
+    }
+
+    #[test]
+    fn resolve_copy_value_returns_secret_not_found_for_unknown_path() {
+        let store = store_with_secret("alice", "hunter2");
+        let (kind, _) =
+            resolve_copy_value(&store, "ghost", CopyWhat::Password, &["login".into()]).unwrap_err();
+        assert_eq!(kind, ErrorKind::SecretNotFound);
+    }
+
+    #[test]
+    fn resolve_copy_value_returns_field_not_found_when_username_absent() {
+        let store = store_with_secret("alice", "hunter2");
+        let (kind, _) =
+            resolve_copy_value(&store, "alice", CopyWhat::Username, &["login".into()]).unwrap_err();
+        assert_eq!(kind, ErrorKind::FieldNotFound);
+    }
+
+    #[test]
+    fn resolve_copy_value_returns_secret_not_found_for_otp_missing() {
+        let store = store_with_secret("alice", "hunter2");
+        let (kind, _) =
+            resolve_copy_value(&store, "alice", CopyWhat::Otp, &["login".into()]).unwrap_err();
+        assert_eq!(kind, ErrorKind::SecretNotFound);
+    }
+
+    #[test]
+    fn resolve_copy_value_rejects_hotp_with_field_not_found() {
+        use crate::models::password_store::{OneTimePassword, OneTimePasswordAlgorithm};
+
+        let mut store = PasswordStore::default();
+        store.otp.insert(
+            "alice".into(),
+            OneTimePassword {
+                secret: "JBSWY3DPEHPK3PXP".into(),
+                otp_type: OneTimePasswordType::Hotp,
+                algorithm: OneTimePasswordAlgorithm::Sha1,
+                digits: 6,
+                period: 30,
+                counter: 0,
+                skew: 0,
+            },
+        );
+        let (kind, _) =
+            resolve_copy_value(&store, "alice", CopyWhat::Otp, &["login".into()]).unwrap_err();
+        assert_eq!(kind, ErrorKind::FieldNotFound);
+    }
+
+    #[test]
+    fn resolve_copy_value_generates_zero_padded_totp_code() {
+        use crate::models::password_store::{OneTimePassword, OneTimePasswordAlgorithm};
+
+        let mut store = PasswordStore::default();
+        store.otp.insert(
+            "alice".into(),
+            OneTimePassword {
+                secret: "JBSWY3DPEHPK3PXP".into(),
+                otp_type: OneTimePasswordType::Totp,
+                algorithm: OneTimePasswordAlgorithm::Sha1,
+                digits: 6,
+                period: 30,
+                counter: 0,
+                skew: 0,
+            },
+        );
+        let value = resolve_copy_value(&store, "alice", CopyWhat::Otp, &["login".into()]).unwrap();
+        assert_eq!(
+            value.as_str().len(),
+            6,
+            "TOTP must be zero-padded to digit width"
+        );
+        assert!(value.as_str().chars().all(|c| c.is_ascii_digit()));
     }
 
     // --- process_message --------------------------------------------------
