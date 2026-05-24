@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::io::{IsTerminal, Read, Write};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
 use std::time::Duration;
 
 use anyhow::{Result, bail};
@@ -29,6 +32,13 @@ pub const MAX_MESSAGE_LEN: usize = 1024 * 1024;
 pub struct HostContext<'a> {
     pub uri_keys: &'a [String],
     pub username_keys: &'a [String],
+    /// Counts copy operations whose clipboard-clear thread is still
+    /// running. The browser disconnects immediately after the response
+    /// is written, which closes our stdin and would normally make the
+    /// main loop return — taking the detached clipboard thread (and
+    /// its pending auto-clear) with the process. `run` drains this
+    /// counter to zero after stdin EOF so the timer actually fires.
+    pub pending_copies: Arc<AtomicUsize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -136,7 +146,9 @@ fn handle_copy(
     let timeout_secs = configuration.clipboard_timeout.unwrap_or(45);
     let notify = configuration.clipboard_notify.unwrap_or(true);
     let duration = Duration::from_secs(timeout_secs);
-    std::thread::spawn(move || {
+    let pending = Arc::clone(&context.pending_copies);
+    pending.fetch_add(1, Ordering::SeqCst);
+    thread::spawn(move || {
         // copy_text_to_clipboard blocks until the clear-timer fires or
         // SIGINT arrives. Running it on a detached thread keeps the
         // host's request loop responsive while the clipboard timer is
@@ -146,9 +158,14 @@ fn handle_copy(
         // thread sees the clipboard has changed and leaves it alone).
         // The Zeroizing wrapper wipes our resolved value when the
         // thread exits, so the heap copy doesn't outlive the thread.
+        // The pending counter prevents `run` from returning before this
+        // thread's auto-clear has had a chance to fire — the browser
+        // disconnects the pipes right after our response, and a naive
+        // `main` would exit milliseconds later, killing the timer.
         if let Err(err) = clipboard::copy_text_to_clipboard(value.as_str(), duration, notify) {
             log::warn!("browser host clipboard pipeline failed: {err:#}");
         }
+        pending.fetch_sub(1, Ordering::SeqCst);
     });
 
     ResponsePayload::Copy(CopyResponse {
@@ -356,9 +373,11 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         bail!(i18n::error_browser_host_requires_pipe());
     }
 
+    let pending_copies = Arc::new(AtomicUsize::new(0));
     let context = HostContext {
         uri_keys: &args.uri_keys,
         username_keys: &args.username_keys,
+        pending_copies: Arc::clone(&pending_copies),
     };
 
     let stdin = std::io::stdin();
@@ -371,7 +390,22 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         let response_bytes = serde_json::to_vec(&response)?;
         write_message(&mut output, &response_bytes)?;
     }
+    drain_pending_copies(&pending_copies);
     Ok(())
+}
+
+/// After the browser disconnects, spin until in-flight clipboard
+/// threads have finished. Without this, the process exits within
+/// milliseconds of the response being written and kills the detached
+/// thread before its auto-clear timer fires — silently breaking the
+/// clipboard contract the popup advertises to the user. The poll tick
+/// matches `cli::clipboard`'s and keeps wake-ups cheap; the wait is
+/// bounded by the clipboard timeout the thread is sleeping on (clamped
+/// to one year inside `copy_text_to_clipboard`).
+fn drain_pending_copies(pending: &AtomicUsize) {
+    while pending.load(Ordering::SeqCst) > 0 {
+        thread::sleep(Duration::from_millis(100));
+    }
 }
 
 fn process_message(
@@ -412,10 +446,48 @@ mod tests {
         }
     }
 
-    const EMPTY_CONTEXT: HostContext<'static> = HostContext {
-        uri_keys: &[],
-        username_keys: &[],
-    };
+    fn empty_context() -> HostContext<'static> {
+        HostContext {
+            uri_keys: &[],
+            username_keys: &[],
+            pending_copies: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    #[test]
+    fn drain_pending_copies_returns_immediately_when_counter_is_zero() {
+        let pending = AtomicUsize::new(0);
+        let start = std::time::Instant::now();
+        drain_pending_copies(&pending);
+        assert!(
+            start.elapsed() < Duration::from_millis(50),
+            "drain on zero counter should not sleep noticeably"
+        );
+    }
+
+    #[test]
+    fn drain_pending_copies_waits_until_counter_reaches_zero() {
+        let pending = Arc::new(AtomicUsize::new(1));
+        let worker = {
+            let pending = Arc::clone(&pending);
+            thread::spawn(move || {
+                thread::sleep(Duration::from_millis(200));
+                pending.fetch_sub(1, Ordering::SeqCst);
+            })
+        };
+        let start = std::time::Instant::now();
+        drain_pending_copies(&pending);
+        let elapsed = start.elapsed();
+        worker.join().unwrap();
+        assert!(
+            elapsed >= Duration::from_millis(150),
+            "drain should have waited for the worker; took {elapsed:?}"
+        );
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "drain should not have hung; took {elapsed:?}"
+        );
+    }
 
     fn store_with_secret(name: &str, value: &str) -> PasswordStore {
         let mut store = PasswordStore::default();
@@ -690,7 +762,7 @@ mod tests {
     #[test]
     fn process_message_emits_decode_error_for_malformed_json() {
         let cfg = configuration_with(&[], None);
-        let response = process_message(b"not json at all", &cfg, &EMPTY_CONTEXT, true);
+        let response = process_message(b"not json at all", &cfg, &empty_context(), true);
         match response {
             ResponsePayload::Error(err) => {
                 assert_eq!(err.error, ErrorKind::DecodeError);
@@ -708,7 +780,7 @@ mod tests {
         // `UnknownAction` kind. The UnknownAction variant is reserved for
         // a future two-step parse that needs to differentiate.
         let cfg = configuration_with(&[], None);
-        let response = process_message(br#"{"action":"create"}"#, &cfg, &EMPTY_CONTEXT, true);
+        let response = process_message(br#"{"action":"create"}"#, &cfg, &empty_context(), true);
         match response {
             ResponsePayload::Error(err) => assert_eq!(err.error, ErrorKind::DecodeError),
             _ => panic!("expected DecodeError"),
@@ -718,7 +790,8 @@ mod tests {
     #[test]
     fn process_message_routes_list_stores_to_response() {
         let cfg = configuration_with(&["personal"], None);
-        let response = process_message(br#"{"action":"list_stores"}"#, &cfg, &EMPTY_CONTEXT, true);
+        let response =
+            process_message(br#"{"action":"list_stores"}"#, &cfg, &empty_context(), true);
         match response {
             ResponsePayload::ListStores(payload) => {
                 assert_eq!(payload.stores.len(), 1);
