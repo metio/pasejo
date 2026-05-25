@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::io::{IsTerminal, Read, Write};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use anyhow::{Result, bail};
-use serde::Serialize;
 
 use crate::browser::matcher::find_matches;
 use crate::browser::protocol::{
     ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
-    StoreEntry,
+    RequestEnvelope, ResponseEnvelope, ResponsePayload, StoreEntry,
 };
 use crate::cli::i18n;
 use crate::commands::store_op::acquire_store_lock;
@@ -23,23 +24,28 @@ use crate::models::password_store::PasswordStore;
 // the host into multi-gigabyte allocations.
 pub const MAX_MESSAGE_LEN: usize = 1024 * 1024;
 
-pub struct HostContext<'a> {
-    pub uri_keys: &'a [String],
-    pub username_keys: &'a [String],
+/// Borrowed by every request handler. Owns its keys (rather than
+/// borrowing from `HostArgs`) so the same value can ride an `Arc` into
+/// detached worker threads without lifetime gymnastics.
+#[derive(Debug, Default)]
+pub struct HostContext {
+    pub uri_keys: Vec<String>,
+    pub username_keys: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum ResponsePayload {
-    Query(QueryResponse),
-    ListStores(ListStoresResponse),
-    Error(ErrorResponse),
+impl HostContext {
+    pub fn from_args(args: &HostArgs) -> Self {
+        Self {
+            uri_keys: args.uri_keys.clone(),
+            username_keys: args.username_keys.clone(),
+        }
+    }
 }
 
 pub fn handle_request(
     request: &Request,
     configuration: &Configuration,
-    context: &HostContext<'_>,
+    context: &HostContext,
     offline: bool,
 ) -> ResponsePayload {
     match request {
@@ -52,7 +58,7 @@ pub fn handle_request(
 
 fn handle_query(
     configuration: &Configuration,
-    context: &HostContext<'_>,
+    context: &HostContext,
     requested_store: Option<&str>,
     domain: &str,
     offline: bool,
@@ -72,8 +78,8 @@ fn handle_query(
         &store,
         &store_name,
         domain,
-        context.uri_keys,
-        context.username_keys,
+        &context.uri_keys,
+        &context.username_keys,
     );
     ResponsePayload::Query(QueryResponse { results })
 }
@@ -206,38 +212,95 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         bail!(i18n::error_browser_host_requires_pipe());
     }
 
-    let context = HostContext {
-        uri_keys: &args.uri_keys,
-        username_keys: &args.username_keys,
-    };
-
+    let configuration = Arc::new(configuration.clone());
+    let context = Arc::new(HostContext::from_args(args));
+    let stdout = Arc::new(Mutex::new(std::io::stdout()));
     let stdin = std::io::stdin();
-    let stdout = std::io::stdout();
     let mut input = stdin.lock();
-    let mut output = stdout.lock();
 
+    // Detached worker per request. The main thread keeps draining stdin
+    // so the next request can be dispatched while earlier ones are
+    // still blocked inside `decrypt_store` (e.g. waiting on a YubiKey
+    // touch) — a slow decrypt holds back only its own slot, every
+    // other store answers as fast as its own decrypt allows. The
+    // process exits as soon as stdin closes — Rust auto-terminates
+    // the workers, which is fine because every step is read-only on
+    // the store file (the lock is released by the OS on fd close,
+    // hooks are restartable, age plugins exit on stdin EOF).
     while let Some(bytes) = read_message(&mut input)? {
-        let response = process_message(&bytes, configuration, &context, offline);
-        let response_bytes = serde_json::to_vec(&response)?;
-        write_message(&mut output, &response_bytes)?;
+        let configuration = Arc::clone(&configuration);
+        let context = Arc::clone(&context);
+        let stdout = Arc::clone(&stdout);
+        thread::spawn(move || {
+            handle_one_message(&bytes, &configuration, &context, offline, &stdout);
+        });
     }
     Ok(())
+}
+
+/// Per-worker entry point: parse, dispatch, serialize, and write. Any
+/// I/O error on the final stdout write is logged to stderr (the only
+/// channel still available) and silently dropped — the worker has
+/// nowhere else to report it, and the extension's per-request timeout
+/// will surface a transport error to the user anyway.
+fn handle_one_message(
+    bytes: &[u8],
+    configuration: &Configuration,
+    context: &HostContext,
+    offline: bool,
+    stdout: &Mutex<std::io::Stdout>,
+) {
+    let (request_id, payload) = process_message(bytes, configuration, context, offline);
+    let envelope = ResponseEnvelope {
+        request_id,
+        payload: &payload,
+    };
+    let response_bytes = match serde_json::to_vec(&envelope) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            eprintln!("pasejo browser host: failed to serialize response: {err}");
+            return;
+        }
+    };
+    let mut out = match stdout.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Err(err) = write_message(&mut *out, &response_bytes) {
+        eprintln!("pasejo browser host: failed to write response: {err}");
+    }
 }
 
 fn process_message(
     bytes: &[u8],
     configuration: &Configuration,
-    context: &HostContext<'_>,
+    context: &HostContext,
     offline: bool,
-) -> ResponsePayload {
-    match serde_json::from_slice::<Request>(bytes) {
-        Ok(request) => handle_request(&request, configuration, context, offline),
-        Err(err) => ResponsePayload::Error(ErrorResponse {
-            error: ErrorKind::DecodeError,
-            store: None,
-            hint: Some(err.to_string()),
-        }),
+) -> (Option<u64>, ResponsePayload) {
+    match serde_json::from_slice::<RequestEnvelope>(bytes) {
+        Ok(envelope) => (
+            envelope.request_id,
+            handle_request(&envelope.action, configuration, context, offline),
+        ),
+        Err(err) => (
+            decode_error_request_id(bytes),
+            ResponsePayload::Error(ErrorResponse {
+                error: ErrorKind::DecodeError,
+                store: None,
+                hint: Some(err.to_string()),
+            }),
+        ),
     }
+}
+
+/// On a malformed payload the envelope deserialization fails wholesale,
+/// so we still want to echo `request_id` if the caller managed to put
+/// a parseable number under that key — a multiplexing client needs to
+/// match the error reply back to its request. Best-effort: returns
+/// `None` for anything that doesn't yield a u64.
+fn decode_error_request_id(bytes: &[u8]) -> Option<u64> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    value.get("request_id")?.as_u64()
 }
 
 #[cfg(test)]
@@ -262,10 +325,9 @@ mod tests {
         }
     }
 
-    const EMPTY_CONTEXT: HostContext<'static> = HostContext {
-        uri_keys: &[],
-        username_keys: &[],
-    };
+    fn empty_context() -> HostContext {
+        HostContext::default()
+    }
 
     /// `Configuration::select_store(None)` consults `PASEJO_DEFAULT_STORE`
     /// before falling back to the config field; running these tests with
@@ -442,7 +504,9 @@ mod tests {
     #[test]
     fn process_message_emits_decode_error_for_malformed_json() {
         let cfg = configuration_with(&[], None);
-        let response = process_message(b"not json at all", &cfg, &EMPTY_CONTEXT, true);
+        let (request_id, response) =
+            process_message(b"not json at all", &cfg, &empty_context(), true);
+        assert!(request_id.is_none());
         match response {
             ResponsePayload::Error(err) => {
                 assert_eq!(err.error, ErrorKind::DecodeError);
@@ -460,7 +524,8 @@ mod tests {
         // `UnknownAction` kind. The UnknownAction variant is reserved for
         // a future two-step parse that needs to differentiate.
         let cfg = configuration_with(&[], None);
-        let response = process_message(br#"{"action":"create"}"#, &cfg, &EMPTY_CONTEXT, true);
+        let (_request_id, response) =
+            process_message(br#"{"action":"create"}"#, &cfg, &empty_context(), true);
         match response {
             ResponsePayload::Error(err) => assert_eq!(err.error, ErrorKind::DecodeError),
             _ => panic!("expected DecodeError"),
@@ -470,7 +535,8 @@ mod tests {
     #[test]
     fn process_message_routes_list_stores_to_response() {
         let cfg = configuration_with(&["personal"], None);
-        let response = process_message(br#"{"action":"list_stores"}"#, &cfg, &EMPTY_CONTEXT, true);
+        let (_request_id, response) =
+            process_message(br#"{"action":"list_stores"}"#, &cfg, &empty_context(), true);
         match response {
             ResponsePayload::ListStores(payload) => {
                 assert_eq!(payload.stores.len(), 1);
@@ -478,5 +544,63 @@ mod tests {
             }
             _ => panic!("expected ListStores"),
         }
+    }
+
+    #[test]
+    fn process_message_echoes_request_id_on_success() {
+        let cfg = configuration_with(&["personal"], None);
+        let (request_id, _response) = process_message(
+            br#"{"request_id":42,"action":"list_stores"}"#,
+            &cfg,
+            &empty_context(),
+            true,
+        );
+        assert_eq!(request_id, Some(42));
+    }
+
+    #[test]
+    fn process_message_echoes_request_id_on_decode_error_when_recoverable() {
+        // Malformed *body* but the request_id at the top level is still
+        // a parseable number — a multiplexing client must be able to
+        // match the error reply back to its request.
+        let cfg = configuration_with(&[], None);
+        let (request_id, response) = process_message(
+            br#"{"request_id":7,"action":"create"}"#,
+            &cfg,
+            &empty_context(),
+            true,
+        );
+        assert_eq!(request_id, Some(7));
+        assert!(matches!(response, ResponsePayload::Error(_)));
+    }
+
+    #[test]
+    fn process_message_returns_none_request_id_when_payload_is_not_json() {
+        let cfg = configuration_with(&[], None);
+        let (request_id, _response) =
+            process_message(b"not json at all", &cfg, &empty_context(), true);
+        assert!(request_id.is_none());
+    }
+
+    #[test]
+    fn process_message_returns_none_request_id_when_field_is_non_numeric() {
+        // A client that sends `"request_id": "abc"` cannot be correlated
+        // — we don't invent an id and we don't echo a non-number.
+        let cfg = configuration_with(&[], None);
+        let (request_id, _response) = process_message(
+            br#"{"request_id":"abc","action":"create"}"#,
+            &cfg,
+            &empty_context(),
+            true,
+        );
+        assert!(request_id.is_none());
+    }
+
+    #[test]
+    fn protocol_version_in_list_stores_is_one() {
+        let cfg = configuration_with(&["personal"], None);
+        let response = list_stores_response(&cfg);
+        assert_eq!(response.protocol_version, PROTOCOL_VERSION);
+        assert_eq!(PROTOCOL_VERSION, 1);
     }
 }

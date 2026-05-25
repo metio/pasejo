@@ -237,6 +237,218 @@ fn host_reports_store_unreachable_when_store_file_missing() {
 }
 
 #[test]
+fn host_echoes_request_id_on_a_query() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":42,"action":"query","domain":"example.com"}"#,
+    );
+    let response = read_response(&mut stdout);
+    assert!(
+        response.contains(r#""request_id":42"#),
+        "host must echo request_id; response was: {response}"
+    );
+    assert!(response.contains(r#""name":"alice""#));
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success(), "host exited with {status:?}");
+}
+
+#[test]
+fn host_omits_request_id_when_caller_does_not_send_one() {
+    // Defensive contract: the host echoes `request_id` only when it
+    // received one; a malformed (or in tests, deliberately incomplete)
+    // request must not pick up a synthesised id that the caller could
+    // not correlate. Locked in so a future change can't quietly start
+    // emitting a `request_id: null` for the no-id path.
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(&mut stdin, br#"{"action":"list_stores"}"#);
+    let response = read_response(&mut stdout);
+    assert!(
+        !response.contains("request_id"),
+        "v1 caller must not see a request_id field in the response; got: {response}"
+    );
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success());
+}
+
+#[test]
+fn host_processes_requests_concurrently_so_a_slow_store_does_not_gate_a_fast_one() {
+    // Two stores share the same identity / recipient; only the slow
+    // one carries a `pull_commands = ["sleep 1"]` hook. We pipeline
+    // BOTH queries into stdin before draining stdout — under v1's
+    // single-threaded model the slow query would have to finish
+    // before the fast one starts, and the fast reply would come back
+    // second. With per-request worker threads the fast reply comes
+    // back first; we identify which is which by `request_id`.
+    let temp = setup_two_stores_with_slow_pull();
+    let config = temp.path().join("config.toml");
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        // Disable hook throttling so the sleep ALWAYS fires on the
+        // slow store — without this the second test run within the
+        // throttling window would skip the sleep and the timing
+        // ordering would be ambiguous.
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"query","store":"slow","domain":"example.com"}"#,
+    );
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"query","store":"fast","domain":"example.com"}"#,
+    );
+
+    let first = read_response(&mut stdout);
+    let second = read_response(&mut stdout);
+
+    assert!(
+        first.contains(r#""request_id":2"#),
+        "fast store should win the race; first response was: {first}"
+    );
+    assert!(
+        second.contains(r#""request_id":1"#),
+        "slow store should arrive second; second response was: {second}"
+    );
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success());
+}
+
+fn setup_two_stores_with_slow_pull() -> TempDir {
+    let temp = TempDir::new().unwrap();
+    let config = temp.path().join("config.toml");
+    let identity_file = temp.path().join("identity");
+    let slow_store = temp.path().join("slow.store");
+    let fast_store = temp.path().join("fast.store");
+
+    std::fs::write(&identity_file, TEST_PRIVATE_KEY).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&identity_file, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+
+    for (name, path) in [("slow", &slow_store), ("fast", &fast_store)] {
+        AssertCommand::cargo_bin("pasejo")
+            .unwrap()
+            .args(["store", "add", "--name", name, "--path"])
+            .arg(path)
+            .env("PASEJO_CONFIG", &config)
+            .env("LANG", "en")
+            .env("LC_ALL", "en")
+            .assert()
+            .success();
+    }
+
+    AssertCommand::cargo_bin("pasejo")
+        .unwrap()
+        .args(["identity", "add", "--global", "--file"])
+        .arg(&identity_file)
+        .env("PASEJO_CONFIG", &config)
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .assert()
+        .success();
+
+    for name in ["slow", "fast"] {
+        AssertCommand::cargo_bin("pasejo")
+            .unwrap()
+            .args([
+                "recipient",
+                "add",
+                "--store",
+                name,
+                "--public-key",
+                TEST_PUBLIC_KEY,
+            ])
+            .env("PASEJO_CONFIG", &config)
+            .env("LANG", "en")
+            .env("LC_ALL", "en")
+            .assert()
+            .success();
+
+        AssertCommand::cargo_bin("pasejo")
+            .unwrap()
+            .args(["secret", "add", "--store", name, &format!("{name}-secret")])
+            .env("PASEJO_CONFIG", &config)
+            .env("LANG", "en")
+            .env("LC_ALL", "en")
+            .write_stdin("password\nurl: https://example.com\n")
+            .assert()
+            .success();
+    }
+
+    // Set the slow store's `pull_commands` to `["sleep 1"]` by
+    // patching the on-disk TOML — the CLI doesn't expose a "configure
+    // pull hooks" command. `StoreRegistration` serialises path, name,
+    // identities, pull_commands, push_commands in a fixed order with
+    // recipients living inside the encrypted store file rather than in
+    // the config, so this exact byte-level match is stable.
+    let contents = std::fs::read_to_string(&config).unwrap();
+    let injected = contents.replace(
+        "name = \"slow\"\nidentities = []\npull_commands = []\n",
+        "name = \"slow\"\nidentities = []\npull_commands = [\"sleep 1\"]\n",
+    );
+    assert_ne!(
+        contents, injected,
+        "expected to find the slow store entry to patch; config was:\n{contents}"
+    );
+    std::fs::write(&config, injected).unwrap();
+
+    temp
+}
+
+#[test]
 fn host_handles_multiple_requests_in_sequence() {
     let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
     let config = temp.path().join("config.toml");

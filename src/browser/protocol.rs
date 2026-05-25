@@ -6,9 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::browser::matcher::Match;
 
 /// Wire-format version emitted in `ListStoresResponse::protocol_version`.
-/// Bump on any backwards-incompatible change to the host's request or
-/// response shapes; the extension refuses to operate against a host
-/// outside its supported range.
+/// The extension refuses to operate against any host that doesn't
+/// report the exact same value, so bumping this number is the
+/// single mechanism we have for signalling a breaking change to the
+/// request or response shapes. We carry it from day one even though
+/// only one shape exists today — that way the very first
+/// incompatible change can ship without also having to teach old
+/// extensions and old hosts how to negotiate.
 pub const PROTOCOL_VERSION: u32 = 1;
 
 #[derive(Debug, Deserialize)]
@@ -20,6 +24,46 @@ pub enum Request {
         store: Option<String>,
     },
     ListStores,
+}
+
+/// Request envelope: pulls the optional `request_id` out of the JSON
+/// payload before the action-specific deserialization. The field is
+/// optional purely for defensive parsing — if a malformed payload
+/// fails to deserialize as a full envelope, we still try to recover
+/// the top-level `request_id` so the error reply can be correlated to
+/// the request that triggered it. The extension always sends a
+/// `request_id`; a host that sees `None` here is parsing a payload it
+/// could not otherwise route.
+#[derive(Debug, Deserialize)]
+pub struct RequestEnvelope {
+    #[serde(default)]
+    pub request_id: Option<u64>,
+    #[serde(flatten)]
+    pub action: Request,
+}
+
+/// Response envelope: echoes the request's `request_id` verbatim
+/// alongside the action-specific payload. `skip_serializing_if`
+/// drops the field entirely when the inbound request had no
+/// `request_id` (the defensive-parse path described above), so the
+/// caller never sees a stray `null`. `untagged` on `ResponsePayload`
+/// keeps the payload fields at the top level of the JSON object —
+/// the wire shape is `{request_id?, ...payload}`, with no extra
+/// nesting tag.
+#[derive(Debug, Serialize)]
+pub struct ResponseEnvelope<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<u64>,
+    #[serde(flatten)]
+    pub payload: &'a ResponsePayload,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum ResponsePayload {
+    Query(QueryResponse),
+    ListStores(ListStoresResponse),
+    Error(ErrorResponse),
 }
 
 #[derive(Debug, Serialize)]
