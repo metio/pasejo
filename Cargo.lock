@@ -3183,6 +3183,7 @@ dependencies = [
  "trycmd",
  "unic-langid",
  "ureq",
+ "url",
  "uuid",
  "zeroize",
 ]

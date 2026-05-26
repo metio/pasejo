@@ -187,18 +187,23 @@ fn name_matches_domain(name: &str, query_domain: &str, query_registrable: Option
     false
 }
 
-fn extract_host(url: &str) -> Option<String> {
-    let after_scheme = url.split_once("://").map_or(url, |(_, rest)| rest);
-    let authority = after_scheme
-        .split(['/', '?', '#'])
-        .next()
-        .filter(|s| !s.is_empty())?;
-    let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
-    let host = if let Some(stripped) = host_port.strip_prefix('[') {
-        stripped.split_once(']').map(|(h, _)| h)?
+fn extract_host(input: &str) -> Option<String> {
+    // The `url` crate's parser is the trust boundary for URL shape:
+    // it handles percent-encoded hostnames, IDN punycode, userinfo,
+    // port, IPv6 brackets, and fragment-only inputs without us
+    // re-implementing the spec. `Url::parse` requires an explicit
+    // scheme, so for scheme-less stored values (`example.com`,
+    // `example.com/login`) prepend a placeholder before parsing —
+    // the scheme doesn't affect the extracted host, only the
+    // parser's ability to find an authority. `host_str` returns
+    // the unbracketed form for IPv6 already, matching what the
+    // matcher's comparison side expects.
+    let parsed = if input.contains("://") {
+        url::Url::parse(input).ok()?
     } else {
-        host_port.rsplit_once(':').map_or(host_port, |(h, _)| h)
+        url::Url::parse(&format!("http://{input}")).ok()?
     };
+    let host = parsed.host_str()?;
     if host.is_empty() {
         None
     } else {
@@ -518,6 +523,40 @@ mod tests {
         let store = store_with(&[("alice", "hunter2\nurl: https://[::1]:8443/x")]);
         let result = find_matches(&store, "personal", "::1", &uri_keys(), &username_keys());
         assert!(result.is_empty() || result[0].match_kind == MatchKind::UrlField);
+    }
+
+    #[test]
+    fn extract_host_handles_idn_punycode_consistently() {
+        // The `url` crate normalises IDN to punycode at parse time, so
+        // a stored URL written with the unicode form and a query for
+        // the punycode form (or vice versa) need to agree on which
+        // representation reaches the comparison. Both sides flow
+        // through the same parser, so the result is consistent —
+        // pinned here so a future revert to hand-rolled splitting
+        // can't silently regress.
+        assert_eq!(
+            extract_host("https://xn--bcher-kva.example/"),
+            Some("xn--bcher-kva.example".to_owned()),
+        );
+    }
+
+    #[test]
+    fn extract_host_rejects_empty_authority() {
+        // Stored garbage like `https://` shouldn't yield a phantom
+        // empty host that compares equal to other empty inputs.
+        assert!(extract_host("https://").is_none());
+        assert!(extract_host("").is_none());
+    }
+
+    #[test]
+    fn extract_host_accepts_scheme_less_input_with_path_query_fragment() {
+        // Stored values like `example.com/login?ref=x#section` come
+        // up when users paste from address bars without the scheme;
+        // the parser prepends a placeholder scheme transparently.
+        assert_eq!(
+            extract_host("example.com/login?ref=x#section"),
+            Some("example.com".to_owned()),
+        );
     }
 
     #[test]

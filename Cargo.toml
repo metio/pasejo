@@ -63,6 +63,7 @@ termtree = { version = "1.0.0" }
 toml = { version = "1.1.0" }
 unic-langid = { version = "0.9" }
 ureq = { version = "3.3.0" }
+url = { version = "2.5.4" }
 uuid = { version = "1.23.3", features = ["v7"] }
 zeroize = { version = "1.8.2" }
 
