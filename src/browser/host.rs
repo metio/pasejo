@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::io::{IsTerminal, Read, Write};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -71,7 +72,7 @@ fn handle_query(
 
     let store = match open_store_for_read(configuration, registration, offline) {
         Ok(store) => store,
-        Err((kind, err)) => return error_response(kind, &store_name, &err),
+        Err((kind, err)) => return error_response(kind, configuration, registration, &err),
     };
 
     let results = find_matches(
@@ -134,12 +135,76 @@ fn open_store_for_read(
     Ok(store)
 }
 
-fn error_response(kind: ErrorKind, store: &str, err: &anyhow::Error) -> ResponsePayload {
+/// Placeholder substituted for the store file's absolute path in the
+/// outgoing error `hint`. Chosen to be cross-platform (no leading `~/`
+/// since that only renders meaningfully on Unix-shaped shells) and
+/// distinctive enough that a reader scanning a screenshot can see
+/// what was removed.
+const STORE_PATH_PLACEHOLDER: &str = "<store>";
+
+/// Placeholder substituted for every configured age / SSH identity
+/// path. Same redaction story as the store path: the local user
+/// already knows where their identity files live; the popup's status
+/// line should not be the surface where those paths end up on a
+/// shared screen or a support-channel screenshot.
+const IDENTITY_PATH_PLACEHOLDER: &str = "<identity>";
+
+/// Builds an error payload from an anyhow chain after redacting the
+/// store file path and every identity path the configuration knows
+/// about. The `Path::display()` form is the canonical surface — that
+/// is what every anyhow context in this module formats with — so the
+/// redaction is exact-string-substitution against that form rather
+/// than an attempt to normalise canonicalisation across the chain.
+/// Paths that leak through a different formatter (e.g. `{:?}` which
+/// adds quotes) keep their original shape; this is an acceptable
+/// limitation for a defence-in-depth measure rather than a security
+/// boundary.
+fn error_response(
+    kind: ErrorKind,
+    configuration: &Configuration,
+    registration: &StoreRegistration,
+    err: &anyhow::Error,
+) -> ResponsePayload {
+    let identity_files = configuration.all_identity_files(registration);
+    let mut pairs: Vec<(&Path, &str)> = Vec::with_capacity(identity_files.len().saturating_add(1));
+    pairs.push((registration.path(), STORE_PATH_PLACEHOLDER));
+    for file in &identity_files {
+        pairs.push((file.as_path(), IDENTITY_PATH_PLACEHOLDER));
+    }
+    let raw = format!("{err:#}");
+    let hint = redact_sensitive_paths(&raw, &pairs);
     ResponsePayload::Error(ErrorResponse {
         error: kind,
-        store: Some(store.to_owned()),
-        hint: Some(format!("{err:#}")),
+        store: Some(registration.name.clone()),
+        hint: Some(hint),
     })
+}
+
+/// Substitutes the `display()` form of every supplied path in `input`
+/// with the matching placeholder, longest-first so an identity path
+/// nested inside a store path's directory can't fragment the longer
+/// match before it gets a chance to fire. Empty paths are dropped
+/// silently — a `StoreRegistration::default()` value carries an empty
+/// `PathBuf`, and an empty needle would match between every byte of
+/// the input.
+fn redact_sensitive_paths(input: &str, pairs: &[(&Path, &str)]) -> String {
+    let mut needles: Vec<(String, &str)> = pairs
+        .iter()
+        .map(|(path, placeholder)| (path.display().to_string(), *placeholder))
+        .filter(|(needle, _)| !needle.is_empty())
+        .collect();
+    // Descending length so a path nested inside another (e.g. an
+    // identity file living inside the store's directory) replaces the
+    // outer match first; reversed comparison via `Reverse` keeps
+    // clippy happy without flipping operands.
+    needles.sort_by_key(|(needle, _)| std::cmp::Reverse(needle.len()));
+    let mut out = input.to_owned();
+    for (needle, placeholder) in &needles {
+        if out.contains(needle.as_str()) {
+            out = out.replace(needle.as_str(), placeholder);
+        }
+    }
+    out
 }
 
 pub fn resolve_store<'a>(
@@ -602,5 +667,187 @@ mod tests {
         let response = list_stores_response(&cfg);
         assert_eq!(response.protocol_version, PROTOCOL_VERSION);
         assert_eq!(PROTOCOL_VERSION, 1);
+    }
+
+    // --- redact_sensitive_paths / error_response (item F) ----------------
+
+    use std::path::PathBuf;
+
+    use crate::models::configuration::Identity;
+
+    #[test]
+    fn redact_sensitive_paths_returns_input_unchanged_when_no_path_appears() {
+        let store = PathBuf::from("/home/alice/.local/share/pasejo/personal.age");
+        let pairs: Vec<(&Path, &str)> = vec![(store.as_path(), STORE_PATH_PLACEHOLDER)];
+        let input = "decryption failed: identity does not match recipients";
+        assert_eq!(redact_sensitive_paths(input, &pairs), input);
+    }
+
+    #[test]
+    fn redact_sensitive_paths_replaces_the_store_path() {
+        let store = PathBuf::from("/home/alice/.local/share/pasejo/personal.age");
+        let pairs: Vec<(&Path, &str)> = vec![(store.as_path(), STORE_PATH_PLACEHOLDER)];
+        let input = format!("store file does not exist at {}", store.display());
+        let redacted = redact_sensitive_paths(&input, &pairs);
+        assert_eq!(redacted, "store file does not exist at <store>");
+    }
+
+    #[test]
+    fn redact_sensitive_paths_replaces_every_occurrence_of_the_same_path() {
+        let store = PathBuf::from("/data/personal.age");
+        let pairs: Vec<(&Path, &str)> = vec![(store.as_path(), STORE_PATH_PLACEHOLDER)];
+        let input = format!(
+            "failed to open {} (path: {}, retrying via {} once)",
+            store.display(),
+            store.display(),
+            store.display(),
+        );
+        let redacted = redact_sensitive_paths(&input, &pairs);
+        // All three occurrences are replaced — a single hint can mention
+        // the same path multiple times when the anyhow chain repeats the
+        // context across layers.
+        assert_eq!(
+            redacted,
+            "failed to open <store> (path: <store>, retrying via <store> once)"
+        );
+    }
+
+    #[test]
+    fn redact_sensitive_paths_replaces_identity_paths_with_a_distinct_placeholder() {
+        let identity_a = PathBuf::from("/home/alice/.config/pasejo/identities/key.txt");
+        let identity_b = PathBuf::from("/home/alice/.ssh/id_ed25519");
+        let pairs: Vec<(&Path, &str)> = vec![
+            (identity_a.as_path(), IDENTITY_PATH_PLACEHOLDER),
+            (identity_b.as_path(), IDENTITY_PATH_PLACEHOLDER),
+        ];
+        let input = format!(
+            "could not decrypt with {}; also tried {}",
+            identity_a.display(),
+            identity_b.display()
+        );
+        let redacted = redact_sensitive_paths(&input, &pairs);
+        assert_eq!(
+            redacted,
+            "could not decrypt with <identity>; also tried <identity>"
+        );
+    }
+
+    #[test]
+    fn redact_sensitive_paths_applies_longest_first_so_a_nested_match_does_not_fragment_the_outer()
+    {
+        // Identity path lives inside the store path's directory. Without
+        // longest-first ordering, replacing the identity path first
+        // would mangle the surrounding string and the store match would
+        // never fire on the now-fragmented input.
+        let outer = PathBuf::from("/data/stores/personal/store.age");
+        let inner = PathBuf::from("/data/stores/personal");
+        let pairs: Vec<(&Path, &str)> = vec![
+            (inner.as_path(), IDENTITY_PATH_PLACEHOLDER),
+            (outer.as_path(), STORE_PATH_PLACEHOLDER),
+        ];
+        let input = format!("store {} inside dir {}", outer.display(), inner.display());
+        let redacted = redact_sensitive_paths(&input, &pairs);
+        assert_eq!(redacted, "store <store> inside dir <identity>");
+    }
+
+    #[test]
+    fn redact_sensitive_paths_drops_empty_paths_so_default_registrations_do_not_carpet_bomb() {
+        // `StoreRegistration::default()` has an empty `PathBuf`. The
+        // replacement loop must not run with an empty needle — that
+        // would match between every UTF-8 boundary and turn the input
+        // into a sea of placeholders. The helper filters empties out.
+        let empty = PathBuf::new();
+        let pairs: Vec<(&Path, &str)> = vec![(empty.as_path(), STORE_PATH_PLACEHOLDER)];
+        let input = "anyhow chain text";
+        assert_eq!(redact_sensitive_paths(input, &pairs), input);
+    }
+
+    #[test]
+    fn error_response_redacts_the_store_path_from_the_outgoing_hint() {
+        let store_path = PathBuf::from("/data/personal.age");
+        let mut reg = registration("personal");
+        reg.path = store_path.clone();
+        reg.identities = vec![Identity {
+            file: PathBuf::from("/keys/personal.key"),
+        }];
+        let cfg = Configuration {
+            stores: vec![reg.clone()],
+            ..Configuration::default()
+        };
+        let err = anyhow::anyhow!("store file does not exist at {}", store_path.display());
+        let payload = error_response(ErrorKind::StoreUnreachable, &cfg, &reg, &err);
+        let ResponsePayload::Error(response) = payload else {
+            panic!("expected error payload");
+        };
+        let hint = response.hint.expect("hint is always populated");
+        assert!(
+            !hint.contains("/data/personal.age"),
+            "raw store path leaked: {hint}"
+        );
+        assert!(
+            hint.contains("<store>"),
+            "store placeholder missing: {hint}"
+        );
+        // The structured `store` field still carries the user-chosen
+        // name — names are not filesystem leaks and the popup needs
+        // them for routing.
+        assert_eq!(response.store.as_deref(), Some("personal"));
+    }
+
+    #[test]
+    fn error_response_redacts_identity_paths_combined_from_global_and_per_store_lists() {
+        let identity_global = PathBuf::from("/keys/shared.key");
+        let identity_local = PathBuf::from("/keys/personal.key");
+        let mut reg = registration("personal");
+        reg.path = PathBuf::from("/data/personal.age");
+        reg.identities = vec![Identity {
+            file: identity_local.clone(),
+        }];
+        let cfg = Configuration {
+            stores: vec![reg.clone()],
+            identities: vec![Identity {
+                file: identity_global.clone(),
+            }],
+            ..Configuration::default()
+        };
+        let err = anyhow::anyhow!(
+            "could not decrypt with {}; also tried {}",
+            identity_global.display(),
+            identity_local.display()
+        );
+        let payload = error_response(ErrorKind::IdentityLocked, &cfg, &reg, &err);
+        let ResponsePayload::Error(response) = payload else {
+            panic!("expected error payload");
+        };
+        let hint = response.hint.expect("hint is always populated");
+        assert!(
+            !hint.contains("/keys/shared.key"),
+            "global identity leaked: {hint}"
+        );
+        assert!(
+            !hint.contains("/keys/personal.key"),
+            "per-store identity leaked: {hint}"
+        );
+        assert_eq!(hint.matches("<identity>").count(), 2);
+    }
+
+    #[test]
+    fn error_response_leaves_non_path_diagnostic_text_intact() {
+        // The redaction is targeted at filesystem paths — error category
+        // text, hook stderr, and similar diagnostic content must come
+        // through unchanged so the user can act on it.
+        let mut reg = registration("personal");
+        reg.path = PathBuf::from("/data/personal.age");
+        let cfg = Configuration {
+            stores: vec![reg.clone()],
+            ..Configuration::default()
+        };
+        let err = anyhow::anyhow!("pull hook returned exit code 42");
+        let payload = error_response(ErrorKind::HookFailed, &cfg, &reg, &err);
+        let ResponsePayload::Error(response) = payload else {
+            panic!("expected error payload");
+        };
+        let hint = response.hint.expect("hint is always populated");
+        assert_eq!(hint, "pull hook returned exit code 42");
     }
 }
