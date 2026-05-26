@@ -308,6 +308,86 @@ fn host_omits_request_id_when_caller_does_not_send_one() {
 }
 
 #[test]
+fn host_drains_a_pipeline_deeper_than_the_worker_queue_without_dropping_requests() {
+    // Item T regression: the host's worker pool caps concurrent
+    // threads via `HOST_WORKER_THREADS = 16` and back-pressures the
+    // stdin reader through a `mpsc::sync_channel` of capacity
+    // `HOST_WORKER_QUEUE_DEPTH = 32`. Pipeline more requests than
+    // those two combined and verify every one of them eventually
+    // gets a response (none is dropped, the host doesn't deadlock,
+    // and the request_id correlation stays intact). 60 requests
+    // exceeds the 48-slot in-flight cap by a healthy margin.
+    let temp = setup_store_with_secret("alice", "value: hunter2\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    // Drain the stdout side concurrently with the write loop so the
+    // pool doesn't backpressure on stdout (it serialises writes
+    // through a single Mutex<Stdout>; a piled-up reader would
+    // deadlock the worker that's waiting to flush). Also: stdin
+    // must stay open until every response is drained — if we close
+    // it first, the host's main loop returns and the process exits
+    // before in-flight workers can flush the rest of the responses,
+    // matching the production "stdin close → process exits" contract
+    // intentionally. Test pinning is the inverse: keep stdin alive
+    // long enough to confirm every queued request is honoured.
+    let reader = std::thread::spawn(move || {
+        let mut received = Vec::with_capacity(60);
+        for _ in 0..60 {
+            received.push(read_response(&mut stdout));
+        }
+        received
+    });
+
+    for i in 1..=60u64 {
+        let payload = format!(r#"{{"request_id":{i},"action":"list_stores"}}"#);
+        write_request(&mut stdin, payload.as_bytes());
+    }
+
+    let responses = reader.join().unwrap();
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success());
+
+    // Every request_id from 1..=60 must appear exactly once in the
+    // reply stream — order doesn't matter (workers race), but no
+    // request can be silently dropped or duplicated.
+    let mut ids: Vec<u64> = responses
+        .iter()
+        .filter_map(|r| {
+            // The wire shape is `{"request_id":N,...}`. Parse it out
+            // by hand to avoid pulling serde_json into the test.
+            let needle = "\"request_id\":";
+            let start = r.find(needle)? + needle.len();
+            let rest = &r[start..];
+            let end = rest
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(rest.len());
+            rest[..end].parse().ok()
+        })
+        .collect();
+    ids.sort_unstable();
+    let expected: Vec<u64> = (1..=60).collect();
+    assert_eq!(
+        ids, expected,
+        "every pipelined request_id must come back exactly once"
+    );
+}
+
+#[test]
 fn host_processes_requests_concurrently_so_a_slow_store_does_not_gate_a_fast_one() {
     // Two stores share the same identity / recipient; only the slow
     // one carries a `pull_commands = ["sleep 1"]` hook. We pipeline

@@ -3,7 +3,7 @@
 
 use std::io::{IsTerminal, Read, Write};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
 use anyhow::{Result, bail};
@@ -24,6 +24,25 @@ use crate::models::password_store::PasswordStore;
 // Rejecting larger length prefixes prevents a malformed peer from driving
 // the host into multi-gigabyte allocations.
 pub const MAX_MESSAGE_LEN: usize = 1024 * 1024;
+
+// Bounded worker pool. The workload is I/O-bound (file I/O, ssh-agent
+// stdio, age plugin stdio, sometimes a YubiKey touch), not CPU-bound,
+// so the pool size doesn't track `available_parallelism()`. 16 covers
+// the realistic upper bound of concurrent stores a real user has
+// configured (typical: 1–10, aggressive deployments: ~20) with
+// headroom. Adding more workers wouldn't help — they'd all be waiting
+// on the same single physical YubiKey or ssh-agent socket.
+const HOST_WORKER_THREADS: usize = 16;
+
+// Bounded request queue. Without it, a misbehaving caller pipelining
+// thousands of requests could swap "thousands of OS threads" for
+// "thousands of queued request payloads" — each up to MAX_MESSAGE_LEN
+// (1 MiB), so an unbounded queue would cap at gigabytes of pending
+// bytes. With a depth of 32 (≈2× the pool) the stdin read loop
+// back-pressures cleanly when the queue is full: `send` blocks until
+// a worker drains a slot, and the caller has to slow down rather
+// than the host having to drop work.
+const HOST_WORKER_QUEUE_DEPTH: usize = 32;
 
 /// Borrowed by every request handler. Owns its keys (rather than
 /// borrowing from `HostArgs`) so the same value can ride an `Arc` into
@@ -283,24 +302,76 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
 
-    // Detached worker per request. The main thread keeps draining stdin
-    // so the next request can be dispatched while earlier ones are
-    // still blocked inside `decrypt_store` (e.g. waiting on a YubiKey
-    // touch) — a slow decrypt holds back only its own slot, every
-    // other store answers as fast as its own decrypt allows. The
-    // process exits as soon as stdin closes — Rust auto-terminates
-    // the workers, which is fine because every step is read-only on
-    // the store file (the lock is released by the OS on fd close,
-    // hooks are restartable, age plugins exit on stdin EOF).
-    while let Some(bytes) = read_message(&mut input)? {
+    // Fixed-size worker pool: the main thread reads one request at a
+    // time and hands the raw bytes off through a bounded channel; the
+    // workers race to take the next slot. The previous per-request
+    // `thread::spawn` had no cap, so a misbehaving caller pipelining
+    // thousands of requests could exhaust the process's thread budget.
+    // With this pool the worst case is HOST_WORKER_THREADS concurrent
+    // threads regardless of how fast the caller writes, and the
+    // bounded queue back-pressures the stdin reader when full instead
+    // of buffering unbounded request bytes in memory.
+    //
+    // Workers run detached: when stdin closes, the `while let`
+    // returns, we drop the sender, and idle workers exit when
+    // `recv()` returns `Err`. Workers still inside `decrypt_store`
+    // (e.g. blocked on a YubiKey touch) keep running until the
+    // process itself exits, at which point the OS reaps them. Every
+    // step is read-only on the store file — OS releases the lock on
+    // fd close, hooks are restartable, age plugins exit on stdin
+    // EOF — so this is safe.
+    let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(HOST_WORKER_QUEUE_DEPTH);
+    let rx = Arc::new(Mutex::new(rx));
+    for _ in 0..HOST_WORKER_THREADS {
         let configuration = Arc::clone(&configuration);
         let context = Arc::clone(&context);
         let stdout = Arc::clone(&stdout);
-        thread::spawn(move || {
-            handle_one_message(&bytes, &configuration, &context, offline, &stdout);
-        });
+        let rx = Arc::clone(&rx);
+        thread::spawn(move || worker_loop(&rx, &configuration, &context, offline, &stdout));
     }
+
+    while let Some(bytes) = read_message(&mut input)? {
+        // A full queue blocks here until a worker drains a slot —
+        // that's the load-bearing back-pressure: the caller can't
+        // outrun us into memory exhaustion. A `send` failure means
+        // every worker has dropped its receiver clone, which only
+        // happens after `rx` itself is dropped; that can't happen
+        // while we still hold a clone in the loop above, so this
+        // branch is genuinely unreachable in normal operation. The
+        // `if` keeps it from looking like an unwrap.
+        if tx.send(bytes).is_err() {
+            break;
+        }
+    }
+    drop(tx);
     Ok(())
+}
+
+// Worker body: pulls one request at a time off the shared receiver.
+// The Mutex around `Receiver` is held only across the `recv()` call
+// itself — once a message lands the guard drops before the worker
+// runs `handle_one_message`, so two workers process requests
+// concurrently rather than serially. When the sender drops and the
+// queue empties, `recv()` returns `Err` and the worker exits.
+fn worker_loop(
+    rx: &Mutex<mpsc::Receiver<Vec<u8>>>,
+    configuration: &Configuration,
+    context: &HostContext,
+    offline: bool,
+    stdout: &Mutex<std::io::Stdout>,
+) {
+    loop {
+        let bytes = {
+            let Ok(guard) = rx.lock() else {
+                return;
+            };
+            match guard.recv() {
+                Ok(bytes) => bytes,
+                Err(_) => return,
+            }
+        };
+        handle_one_message(&bytes, configuration, context, offline, stdout);
+    }
 }
 
 /// Per-worker entry point: parse, dispatch, serialize, and write. Any
