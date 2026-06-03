@@ -71,7 +71,7 @@ assert_fs = { version = "1.1.4" }
 #mockall = { version = "0.13.1" }
 predicates = "3.1.4"
 regex = { version = "1.12.3" }
-serial_test = { version = "3.4.0" }
+serial_test = { version = "3.5.0" }
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
 trycmd = { version = "1.2.0" }
 
