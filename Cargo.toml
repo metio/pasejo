@@ -62,7 +62,7 @@ termtree = { version = "1.0.0" }
 toml = { version = "1.1.0" }
 unic-langid = { version = "0.9" }
 ureq = { version = "3.3.0" }
-uuid = { version = "1.23.2", features = ["v7"] }
+uuid = { version = "1.23.3", features = ["v7"] }
 zeroize = { version = "1.8.2" }
 
 [dev-dependencies]
