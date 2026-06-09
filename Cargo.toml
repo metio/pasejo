@@ -45,7 +45,7 @@ notify-rust = { version = "4.17.0" }
 otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
 passwords = { version = "3.1.16" }
 qr2term = { version = "0.3.3" }
-regex = { version = "1.12.3" }
+regex = { version = "1.12.4" }
 rqrr = { version = "0.10.1" }
 # `debug-embed` makes rust-embed embed the i18n/ files into the binary in
 # debug builds too. Without it, every binary spawn reads the .ftl files
@@ -70,7 +70,7 @@ assert_cmd = { version = "2.2.2" }
 assert_fs = { version = "1.1.4" }
 #mockall = { version = "0.13.1" }
 predicates = "3.1.4"
-regex = { version = "1.12.3" }
+regex = { version = "1.12.4" }
 serial_test = { version = "3.5.0" }
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
 trycmd = { version = "1.2.0" }
