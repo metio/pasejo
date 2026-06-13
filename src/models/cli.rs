@@ -109,7 +109,7 @@ pub struct ConfigSetArgs {
     pub value: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, clap::ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, clap::ValueEnum)]
 pub enum ConfigurationOption {
     IgnoreMissingIdentities,
     ClipboardTimeout,
@@ -117,6 +117,42 @@ pub enum ConfigurationOption {
     KeyDownloadTimeoutSeconds,
     PullIntervalSeconds,
     PushIntervalSeconds,
+}
+
+/// Whether a `config` option holds a boolean or a (non-negative) integer.
+/// Drives how `config set` parses and validates the supplied value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OptionValueKind {
+    Boolean,
+    Integer,
+}
+
+impl ConfigurationOption {
+    /// The TOML key this option is stored under — identical to the matching
+    /// field name on `Configuration`. This is the single source for the key
+    /// so `config get`/`set` cannot drift from the struct; a round-trip test
+    /// pins every variant's key to a real serialized field.
+    pub const fn toml_key(self) -> &'static str {
+        match self {
+            Self::IgnoreMissingIdentities => "ignore_missing_identities",
+            Self::ClipboardTimeout => "clipboard_timeout",
+            Self::ClipboardNotify => "clipboard_notify",
+            Self::KeyDownloadTimeoutSeconds => "key_download_timeout_seconds",
+            Self::PullIntervalSeconds => "pull_interval_seconds",
+            Self::PushIntervalSeconds => "push_interval_seconds",
+        }
+    }
+
+    /// The value kind `config set` accepts and validates for this option.
+    pub const fn value_kind(self) -> OptionValueKind {
+        match self {
+            Self::IgnoreMissingIdentities | Self::ClipboardNotify => OptionValueKind::Boolean,
+            Self::ClipboardTimeout
+            | Self::KeyDownloadTimeoutSeconds
+            | Self::PullIntervalSeconds
+            | Self::PushIntervalSeconds => OptionValueKind::Integer,
+        }
+    }
 }
 
 #[derive(Subcommand)]

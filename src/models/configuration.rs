@@ -19,6 +19,16 @@ use crate::{identities, recipients, secrets};
 
 static CACHED_CONFIGURATION: OnceLock<Configuration> = OnceLock::new();
 
+/// Built-in defaults for the optional configuration options. Each is the
+/// single source for its default: `config get` prints it when the option is
+/// unset, and every consumption site applies it via `unwrap_or`, so the
+/// printed default and the effective behaviour can never drift apart.
+pub const DEFAULT_IGNORE_MISSING_IDENTITIES: bool = true;
+pub const DEFAULT_CLIPBOARD_TIMEOUT_SECONDS: u64 = 45;
+pub const DEFAULT_CLIPBOARD_NOTIFY: bool = true;
+pub const DEFAULT_KEY_DOWNLOAD_TIMEOUT_SECONDS: u64 = 30;
+pub const DEFAULT_HOOK_INTERVAL_SECONDS: u64 = 60 * 60 * 24;
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
     /// All registered stores the user has configured on their system
@@ -310,7 +320,8 @@ impl Configuration {
         }
         let identities = identities::read(
             identity_files,
-            self.ignore_missing_identities.unwrap_or(true),
+            self.ignore_missing_identities
+                .unwrap_or(DEFAULT_IGNORE_MISSING_IDENTITIES),
         )?;
         let decrypted_store = secrets::decrypt(store_path, &identities)?;
         let store: PasswordStore = toml::from_str(&decrypted_store)?;

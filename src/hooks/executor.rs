@@ -12,57 +12,98 @@ use crate::hooks::files::{last_pull_paths, last_push_paths, should_execute, writ
 use crate::models::configuration::{Configuration, StoreRegistration};
 
 pub struct HookExecutor<'a> {
-    pub configuration: &'a Configuration,
-    pub registration: &'a StoreRegistration,
-    pub offline: bool,
-    pub force: bool,
+    configuration: &'a Configuration,
+    registration: &'a StoreRegistration,
+    offline: bool,
+    /// When true, throttling is bypassed and hooks always run (used by the
+    /// explicit `hook run` command); when false, the per-store interval
+    /// gate in `hooks::files` applies.
+    force: bool,
+}
+
+impl<'a> HookExecutor<'a> {
+    /// Throttled executor — pull/push hooks honor the configured interval.
+    /// This is what every implicit pull/push around a store operation uses.
+    pub const fn new(
+        configuration: &'a Configuration,
+        registration: &'a StoreRegistration,
+        offline: bool,
+    ) -> Self {
+        Self {
+            configuration,
+            registration,
+            offline,
+            force: false,
+        }
+    }
+
+    /// Forced executor — bypasses the throttle so the hooks run now. Used by
+    /// the explicit `hook run` command, where the user asked for execution.
+    pub const fn forced(
+        configuration: &'a Configuration,
+        registration: &'a StoreRegistration,
+        offline: bool,
+    ) -> Self {
+        Self {
+            configuration,
+            registration,
+            offline,
+            force: true,
+        }
+    }
+}
+
+/// Which side of synchronization a hook run belongs to. Pull and push share
+/// the same throttle/log/stamp protocol; the phase selects which command
+/// lists, interval, log line, and marker files apply, so that protocol has
+/// one definition instead of two copies that must stay in lockstep.
+#[derive(Clone, Copy)]
+enum Phase {
+    Pull,
+    Push,
 }
 
 impl HookExecutor<'_> {
     pub fn execute_pull_commands(&self) -> anyhow::Result<()> {
-        if !&self.configuration.pull_commands.is_empty()
-            || !&self.registration.pull_commands.is_empty()
-        {
-            if let Some(store_name) = self.registration.path().file_name() {
-                if self.force || (!self.offline && self.should_pull(store_name)?) {
-                    i18n::execute_pull_hooks(&self.registration.name);
-                    self.execute(&self.configuration.pull_commands)?;
-                    self.execute(&self.registration.pull_commands)?;
-                    // Stamp the throttle marker only now that the commands
-                    // have succeeded — a `?` above bails before this, so a
-                    // failed hook leaves the previous timestamp intact and
-                    // the next invocation retries instead of silently
-                    // skipping for the rest of the interval.
-                    write_last_execution(last_pull_paths(store_name))?;
-                }
-                Ok(())
-            } else {
-                anyhow::bail!(i18n::error_cannot_determine_store_name())
-            }
-        } else {
-            Ok(())
-        }
+        self.execute_phase(Phase::Pull)
     }
 
     pub fn execute_push_commands(&self) -> anyhow::Result<()> {
-        if !&self.configuration.push_commands.is_empty()
-            || !&self.registration.push_commands.is_empty()
-        {
-            if let Some(store_name) = self.registration.path().file_name() {
-                if self.force || (!self.offline && self.should_push(store_name)?) {
-                    i18n::execute_push_hooks(&self.registration.name);
-                    self.execute(&self.configuration.push_commands)?;
-                    self.execute(&self.registration.push_commands)?;
-                    // Stamp only after success — see the pull path above.
-                    write_last_execution(last_push_paths(store_name))?;
-                }
-                Ok(())
-            } else {
-                anyhow::bail!(i18n::error_cannot_determine_store_name())
-            }
-        } else {
-            Ok(())
+        self.execute_phase(Phase::Push)
+    }
+
+    fn execute_phase(&self, phase: Phase) -> anyhow::Result<()> {
+        let (global_commands, store_commands) = match phase {
+            Phase::Pull => (
+                &self.configuration.pull_commands,
+                &self.registration.pull_commands,
+            ),
+            Phase::Push => (
+                &self.configuration.push_commands,
+                &self.registration.push_commands,
+            ),
+        };
+        if global_commands.is_empty() && store_commands.is_empty() {
+            return Ok(());
         }
+        let Some(store_name) = self.registration.path().file_name() else {
+            anyhow::bail!(i18n::error_cannot_determine_store_name())
+        };
+        if self.force || (!self.offline && self.is_due(phase, store_name)?) {
+            match phase {
+                Phase::Pull => i18n::execute_pull_hooks(&self.registration.name),
+                Phase::Push => i18n::execute_push_hooks(&self.registration.name),
+            }
+            self.execute(global_commands)?;
+            self.execute(store_commands)?;
+            // Stamp the throttle marker only now that the commands have
+            // succeeded — a `?` above bails before this, so a failed hook
+            // leaves the previous timestamp intact and the next invocation
+            // retries instead of silently skipping for the rest of the
+            // interval.
+            write_last_execution(Self::marker_paths(phase, store_name))?;
+        }
+        Ok(())
     }
 
     fn execute(&self, commands: &[String]) -> anyhow::Result<()> {
@@ -121,18 +162,26 @@ impl HookExecutor<'_> {
         Ok(())
     }
 
-    fn should_pull(&self, store_name: &OsStr) -> anyhow::Result<bool> {
-        should_execute(
-            self.configuration.pull_interval_seconds,
-            last_pull_paths(store_name),
-        )
+    /// Whether enough time has elapsed since the last successful run of this
+    /// phase for it to run again (subject to the per-side interval).
+    fn is_due(&self, phase: Phase, store_name: &OsStr) -> anyhow::Result<bool> {
+        let interval = match phase {
+            Phase::Pull => self.configuration.pull_interval_seconds,
+            Phase::Push => self.configuration.push_interval_seconds,
+        };
+        should_execute(interval, Self::marker_paths(phase, store_name))
     }
 
-    fn should_push(&self, store_name: &OsStr) -> anyhow::Result<bool> {
-        should_execute(
-            self.configuration.push_interval_seconds,
-            last_push_paths(store_name),
-        )
+    /// The (directory, file) throttle-marker paths for this phase, or `None`
+    /// when throttling is disabled.
+    fn marker_paths(
+        phase: Phase,
+        store_name: &OsStr,
+    ) -> Option<(std::path::PathBuf, std::path::PathBuf)> {
+        match phase {
+            Phase::Pull => last_pull_paths(store_name),
+            Phase::Push => last_push_paths(store_name),
+        }
     }
 }
 

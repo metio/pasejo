@@ -87,6 +87,8 @@ Every command that touches a store goes through `commands::store_op::with_store`
 
 The closure signature is `FnOnce(&StoreRegistration, &mut PasswordStore) -> Result<(T, StoreMutation)>` — return `StoreMutation::Unchanged` for read-only flows so encrypt and push hooks are skipped.
 
+Shared pieces so the funnel is not hand-rolled elsewhere: `store_op::open_store` performs the front half (select → pull hooks → file lock → decrypt) and returns an `OpenStore { registration, hooks, lock, store }`; `with_store_then` is built on it, and `otp::show` reuses it for its deliver-before-persist tail (the one flow whose tail genuinely differs). `store_op::require_store` is the single store selector that distinguishes "unknown store name" (`error-unknown-store`) from "no stores configured" (`error-no-store-in-configuration`) — every command that needs a store (`export`, `hooks::run`, `stores::{decrypt,merge,exec,remove}`, `recipients::add`, `otp::show`) routes through it rather than collapsing the two cases. `HookExecutor` is constructed via `HookExecutor::new(...)` (throttled) or `::forced(...)` (`hook run`, bypasses the throttle), not a struct literal — its fields are private. The browser host keeps its own `open_store_for_read` because it must classify each step's failure into a distinct `ErrorKind` that an `anyhow` chain would erase.
+
 ### QR sandbox
 
 `pasejo otp add --qrcode <file>` feeds attacker-controlled bytes through the `image` and `rqrr` parsers — the largest untrusted-input parser stack in the codebase. To bound the blast radius of a memory-corruption bug in either crate, the decode runs through `cli::sandbox::decode_qrcode_to_otpauth_url`:
@@ -137,6 +139,8 @@ Configuration is loaded from `$PASEJO_CONFIG` (env) or the OS-standard config di
 
 Key env vars: `PASEJO_CONFIG`, `PASEJO_DEFAULT_STORE`, `PASEJO_DATA_DIR`, `PASEJO_DISABLE_HOOK_THROTTLING`, `CODEBERG_HOST`, `GITHUB_HOST`, `GITLAB_HOST`.
 
+**Config-option single source.** A `config` option's knowledge lives in one place per concern: the `DEFAULT_*` constants at the top of `models/configuration.rs` are the only defaults — `config get` and every consumption site (`unwrap_or(DEFAULT_…)` in clipboard/hook/download paths) share them, so the printed default can't drift from the effective one; `ConfigurationOption::toml_key()` is the only TOML key string (matching the struct field) and `value_kind()` the only bool-vs-integer classification, both consumed by `config set`'s single arm. A `commands::config::tests` round-trip pins every `toml_key()` to a real serialized field of the right type, so a renamed field fails the build rather than silently writing an unreadable key.
+
 ### Internationalization
 
 All user-facing strings (log lines, prompt labels, error messages, anyhow contexts) are routed through `cli/i18n.rs`. Fluent files live in `i18n/<lang>/pasejo.ftl`, embedded into the binary by `rust-embed`. English (`en`) is the fallback; other languages (`de`, `es`, `fr`, `it`, `ja`, `ko`, `zh`) ship full translations and fall back to English for any missing key.
@@ -159,7 +163,7 @@ A few wrappers are hand-written because they mix argument types (`list_store` ta
 1. Add the entry to `i18n/en/pasejo.ftl` with appropriate `{ $variable }` placeholders.
 2. Add the `fl_*!` macro invocation to `cli/i18n.rs`.
 3. Call the generated function from the production code site.
-4. Translate the entry into the other 7 language files (`i18n/<lang>/pasejo.ftl`). Missing keys fall back to English at runtime, but you should backfill — the language-specific trycmd suites assert translated text.
+4. Translate the entry into the other 7 language files (`i18n/<lang>/pasejo.ftl`). Missing keys fall back to English at runtime, but you should backfill — the language-specific trycmd suites assert translated text, and `cli::i18n::tests::every_language_defines_exactly_the_english_key_set` fails the build if any language's key set diverges from English (and `every_english_message_has_a_wrapper_in_this_module` flags an `en` key with no `fl_*` wrapper).
 5. If the new message fires from a code path that has unit tests, those tests must call `cli::i18n::init_for_tests()` before exercising the path.
 
 **Technical strings that are NOT localized**: parse aliases like `true`/`false`/`yes`/`no`/`y`/`n`/`1`/`0` in `parse_bool`, env-var names, TOML field names, Fluent message ids themselves, and test fixtures.

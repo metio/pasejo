@@ -69,10 +69,101 @@ where
     }
 
     if merge_conflict {
-        Err(anyhow::anyhow!(
-            "Merge conflict detected in {value_type}s. Please resolve manually."
-        ))
+        Err(anyhow::anyhow!(cli::i18n::error_merge_conflict(value_type)))
     } else {
         Ok(merged_map)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn map(pairs: &[(&str, i32)]) -> BTreeMap<String, i32> {
+        pairs
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), *value))
+            .collect()
+    }
+
+    /// Run the three-way merge over `i32` maps so the engine is exercised
+    /// directly, independent of the secret/OTP/recipient value types that
+    /// otherwise re-prove the same matrix three times.
+    fn merge(
+        ancestor: &[(&str, i32)],
+        current: &[(&str, i32)],
+        other: &[(&str, i32)],
+    ) -> Result<BTreeMap<String, i32>> {
+        crate::cli::i18n::init_for_tests();
+        three_way_merge_map(&map(ancestor), &map(current), &map(other), "value")
+    }
+
+    #[test]
+    fn unchanged_on_both_sides_is_kept() {
+        let merged = merge(&[("a", 1)], &[("a", 1)], &[("a", 1)]).unwrap();
+        assert_eq!(merged, map(&[("a", 1)]));
+    }
+
+    #[test]
+    fn change_on_one_side_only_takes_that_change() {
+        // current edits, other leaves it at the ancestor value → current wins.
+        assert_eq!(
+            merge(&[("a", 1)], &[("a", 2)], &[("a", 1)]).unwrap(),
+            map(&[("a", 2)])
+        );
+        // symmetric: other edits, current unchanged → other wins.
+        assert_eq!(
+            merge(&[("a", 1)], &[("a", 1)], &[("a", 3)]).unwrap(),
+            map(&[("a", 3)])
+        );
+    }
+
+    #[test]
+    fn same_change_on_both_sides_converges() {
+        assert_eq!(
+            merge(&[("a", 1)], &[("a", 2)], &[("a", 2)]).unwrap(),
+            map(&[("a", 2)])
+        );
+    }
+
+    #[test]
+    fn divergent_change_on_both_sides_is_a_conflict() {
+        assert!(merge(&[("a", 1)], &[("a", 2)], &[("a", 3)]).is_err());
+    }
+
+    #[test]
+    fn removed_on_one_side_and_unchanged_on_the_other_is_removed() {
+        assert!(merge(&[("a", 1)], &[], &[("a", 1)]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn removed_on_one_side_and_modified_on_the_other_is_a_conflict() {
+        assert!(merge(&[("a", 1)], &[], &[("a", 2)]).is_err());
+    }
+
+    #[test]
+    fn added_on_one_side_only_is_included() {
+        assert_eq!(merge(&[], &[("new", 9)], &[]).unwrap(), map(&[("new", 9)]));
+    }
+
+    #[test]
+    fn added_on_both_sides_with_the_same_value_is_included_once() {
+        assert_eq!(
+            merge(&[], &[("new", 9)], &[("new", 9)]).unwrap(),
+            map(&[("new", 9)])
+        );
+    }
+
+    #[test]
+    fn added_on_both_sides_with_different_values_is_a_conflict() {
+        assert!(merge(&[], &[("new", 9)], &[("new", 8)]).is_err());
+    }
+
+    #[test]
+    fn independent_additions_on_each_side_are_unioned() {
+        assert_eq!(
+            merge(&[], &[("x", 1)], &[("y", 2)]).unwrap(),
+            map(&[("x", 1), ("y", 2)])
+        );
     }
 }

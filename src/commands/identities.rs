@@ -173,3 +173,63 @@ fn list(configuration: &Configuration, store_name: Option<&String>, global: bool
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
+
+    use super::*;
+
+    fn config_with_global_identity(file: PathBuf) -> Configuration {
+        Configuration {
+            identities: vec![Identity { file }],
+            ..Configuration::default()
+        }
+    }
+
+    #[test]
+    fn suggest_registered_spelling_finds_a_differently_spelled_path_to_the_same_file() {
+        let temp = TempDir::new().unwrap();
+        let key = temp.child("id");
+        key.write_str("x").unwrap();
+        let stored = key.path().to_path_buf();
+        let configuration = config_with_global_identity(stored.clone());
+
+        // Same file, a different (un-normalized) spelling — the verbatim
+        // match misses but the canonicalized comparison should recover it.
+        let other_spelling = temp.path().join(".").join("id");
+        let suggestion = suggest_registered_spelling(&configuration, None, true, &other_spelling);
+
+        assert_eq!(suggestion, Some(stored));
+    }
+
+    #[test]
+    fn suggest_registered_spelling_returns_none_when_no_registration_resolves_to_the_file() {
+        let temp = TempDir::new().unwrap();
+        let registered = temp.child("registered");
+        registered.write_str("x").unwrap();
+        let configuration = config_with_global_identity(registered.path().to_path_buf());
+
+        let unrelated = temp.child("unrelated");
+        unrelated.write_str("x").unwrap();
+        let suggestion = suggest_registered_spelling(&configuration, None, true, unrelated.path());
+
+        assert_eq!(suggestion, None);
+    }
+
+    #[test]
+    fn suggest_registered_spelling_returns_none_for_a_nonexistent_given_path() {
+        // Best-effort: a path that cannot be canonicalized (it does not
+        // exist) yields no suggestion rather than an error.
+        let temp = TempDir::new().unwrap();
+        let registered = temp.child("registered");
+        registered.write_str("x").unwrap();
+        let configuration = config_with_global_identity(registered.path().to_path_buf());
+
+        let suggestion =
+            suggest_registered_spelling(&configuration, None, true, Path::new("/no/such/path"));
+
+        assert_eq!(suggestion, None);
+    }
+}

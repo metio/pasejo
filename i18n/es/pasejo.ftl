@@ -161,6 +161,7 @@ error-hook-failed-with-detail = el hook { $command } falló (salida { $exit }): 
 error-cannot-determine-store-parent-path = No se puede determinar el padre de la ruta del almacén { $path }
 error-store-path-not-utf8 = No se puede sustituir %p en el token { $token }: la ruta del almacén { $path } no es UTF-8 válido
 error-merge-conflict-recipients = Conflicto de fusión detectado en los destinatarios. Por favor, resuélvalo manualmente.
+error-merge-conflict = Conflicto de fusión detectado en { $value_type }s. Por favor, resuélvalo manualmente.
 error-recipient-not-found-in-store = Destinatario no encontrado en el almacén
 error-cannot-remove-last-recipient = No se puede eliminar el último destinatario del almacén. Añada un nuevo destinatario antes de eliminar este.
 error-cannot-decrypt-common-ancestor-store = No se puede descifrar el almacén ancestro común

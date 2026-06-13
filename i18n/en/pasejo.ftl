@@ -161,6 +161,7 @@ error-hook-failed-with-detail = hook { $command } failed (exit { $exit }): { $de
 error-cannot-determine-store-parent-path = Cannot determine parent of store path { $path }
 error-store-path-not-utf8 = Cannot substitute %p in token { $token }: store path { $path } is not valid UTF-8
 error-merge-conflict-recipients = Merge conflict detected in recipients. Please resolve manually.
+error-merge-conflict = Merge conflict detected in { $value_type }s. Please resolve manually.
 error-recipient-not-found-in-store = Recipient not found in the store
 error-cannot-remove-last-recipient = Cannot remove the last recipient from the store. Please add a new recipient before removing this one.
 error-cannot-decrypt-common-ancestor-store = Cannot decrypt common ancestor store

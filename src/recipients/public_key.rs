@@ -21,24 +21,7 @@ pub fn get(
     } else if let Some(gitlab_username) = &args.gitlab {
         download_keys(Provider::Gitlab, gitlab_username, download_timeout)
     } else if let Some(filename) = &args.file {
-        let mut public_keys = vec![];
-        let file_content = fs::read_to_string(filename)?;
-        let mut comment: String = String::new();
-        for line in file_content.lines() {
-            if line.starts_with('#') {
-                append_comment_line(&mut comment, line);
-            } else {
-                let split = split_ssh_key(line)?;
-
-                if comment.is_empty() {
-                    public_keys.push(split);
-                } else {
-                    public_keys.push((split.0, comment.clone()));
-                }
-
-                comment.clear();
-            }
-        }
+        let public_keys = parse_recipient_file_body(&fs::read_to_string(filename)?)?;
         if public_keys.is_empty() {
             anyhow::bail!(i18n::error_no_public_key_found_in_file(filename))
         }
@@ -46,6 +29,32 @@ pub fn get(
     } else {
         anyhow::bail!(i18n::error_no_public_key_source())
     }
+}
+
+/// Parses the body of a `--file` recipient list into `(key, comment)` pairs.
+/// A line starting with `#` accumulates as the comment for the *next* key
+/// line (multiple comment lines join with a space); a key line with no
+/// preceding comment keeps its own inline comment. Pure, so the
+/// comment-association logic is testable without a tempfile. Unlike the
+/// `.keys` body parser ([`split_keys_body`]), this mirrors the file format
+/// exactly and does not skip blank lines.
+fn parse_recipient_file_body(content: &str) -> anyhow::Result<Vec<(String, String)>> {
+    let mut public_keys = vec![];
+    let mut comment = String::new();
+    for line in content.lines() {
+        if line.starts_with('#') {
+            append_comment_line(&mut comment, line);
+        } else {
+            let split = split_ssh_key(line)?;
+            if comment.is_empty() {
+                public_keys.push(split);
+            } else {
+                public_keys.push((split.0, comment.clone()));
+            }
+            comment.clear();
+        }
+    }
+    Ok(public_keys)
 }
 
 /// Fetches a provider's `.keys` body and turns EVERY key line into a
@@ -348,6 +357,38 @@ mod tests {
             result[2],
             (String::from("age1ghi"), String::from("bob admin"))
         );
+    }
+
+    #[test]
+    fn parse_recipient_file_body_attaches_preceding_comment_to_next_key() {
+        let keys = parse_recipient_file_body("# alice\nage1abc\n# bob\nage1def\n").unwrap();
+        assert_eq!(keys[0], (String::from("age1abc"), String::from("alice")));
+        assert_eq!(keys[1], (String::from("age1def"), String::from("bob")));
+    }
+
+    #[test]
+    fn parse_recipient_file_body_resets_the_comment_between_keys() {
+        let keys =
+            parse_recipient_file_body("# alice\nage1abc\nage1def\n# bob\n# admin\nage1ghi\n")
+                .unwrap();
+        assert_eq!(keys.len(), 3);
+        assert_eq!(keys[0], (String::from("age1abc"), String::from("alice")));
+        assert_eq!(keys[1], (String::from("age1def"), String::new()));
+        assert_eq!(
+            keys[2],
+            (String::from("age1ghi"), String::from("bob admin"))
+        );
+    }
+
+    #[test]
+    fn parse_recipient_file_body_uses_an_ssh_keys_own_inline_comment() {
+        let keys = parse_recipient_file_body("ssh-ed25519 AAAA alice@host\n").unwrap();
+        assert_eq!(keys[0], ("ssh-ed25519 AAAA".into(), "alice@host".into()));
+    }
+
+    #[test]
+    fn parse_recipient_file_body_propagates_a_malformed_key_line() {
+        assert!(parse_recipient_file_body("ssh-ed25519\n").is_err());
     }
 
     #[test]

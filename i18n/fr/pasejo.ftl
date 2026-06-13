@@ -161,6 +161,7 @@ error-hook-failed-with-detail = le hook { $command } a échoué (sortie { $exit 
 error-cannot-determine-store-parent-path = Impossible de déterminer le parent du chemin du coffre { $path }
 error-store-path-not-utf8 = Impossible de substituer %p dans le jeton { $token } : le chemin du coffre { $path } n'est pas UTF-8 valide
 error-merge-conflict-recipients = Conflit de fusion détecté dans les destinataires. Veuillez le résoudre manuellement.
+error-merge-conflict = Conflit de fusion détecté dans les { $value_type }s. Veuillez le résoudre manuellement.
 error-recipient-not-found-in-store = Destinataire introuvable dans le coffre
 error-cannot-remove-last-recipient = Impossible de supprimer le dernier destinataire du magasin. Veuillez ajouter un nouveau destinataire avant de supprimer celui-ci.
 error-cannot-decrypt-common-ancestor-store = Impossible de déchiffrer le coffre de l'ancêtre commun

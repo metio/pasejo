@@ -161,6 +161,7 @@ error-hook-failed-with-detail = il hook { $command } è fallito (uscita { $exit 
 error-cannot-determine-store-parent-path = Impossibile determinare il padre del percorso dell'archivio { $path }
 error-store-path-not-utf8 = Impossibile sostituire %p nel token { $token }: il percorso dell'archivio { $path } non è UTF-8 valido
 error-merge-conflict-recipients = Conflitto di unione rilevato nei destinatari. Risolvere manualmente.
+error-merge-conflict = Conflitto di unione rilevato in { $value_type }s. Risolvere manualmente.
 error-recipient-not-found-in-store = Destinatario non trovato nell'archivio
 error-cannot-remove-last-recipient = Impossibile rimuovere l'ultimo destinatario dall'archivio. Aggiungere un nuovo destinatario prima di rimuovere questo.
 error-cannot-decrypt-common-ancestor-store = Impossibile decifrare l'archivio dell'antenato comune

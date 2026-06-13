@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::i18n;
+use crate::commands::store_op::require_store;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HookCommands;
 use crate::models::configuration::Configuration;
@@ -130,30 +131,22 @@ pub fn run(
     pull: Option<bool>,
     push: Option<bool>,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let run_pull = pull.unwrap_or(false);
-        let run_push = push.unwrap_or(false);
-        if !run_pull && !run_push {
-            // Both flags default to false, so a bare `hook run` would
-            // otherwise be a silent no-op (exit 0) — tell the user which
-            // flags select work instead of leaving them guessing.
-            i18n::hook_run_nothing_selected();
-            return Ok(());
-        }
-        let hooks = HookExecutor {
-            configuration,
-            registration,
-            offline: false,
-            force: true,
-        };
-        if run_pull {
-            hooks.execute_pull_commands()?;
-        }
-        if run_push {
-            hooks.execute_push_commands()?;
-        }
-        Ok(())
-    } else {
-        anyhow::bail!(i18n::error_no_store_in_configuration())
+    let registration = require_store(configuration, store_name)?;
+    let run_pull = pull.unwrap_or(false);
+    let run_push = push.unwrap_or(false);
+    if !run_pull && !run_push {
+        // Both flags default to false, so a bare `hook run` would otherwise
+        // be a silent no-op (exit 0) — tell the user which flags select work
+        // instead of leaving them guessing.
+        i18n::hook_run_nothing_selected();
+        return Ok(());
     }
+    let hooks = HookExecutor::forced(configuration, registration, false);
+    if run_pull {
+        hooks.execute_pull_commands()?;
+    }
+    if run_push {
+        hooks.execute_push_commands()?;
+    }
+    Ok(())
 }

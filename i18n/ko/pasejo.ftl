@@ -161,6 +161,7 @@ error-hook-failed-with-detail = 훅 { $command } 실패 (종료 { $exit }): { $d
 error-cannot-determine-store-parent-path = 저장소 경로 { $path }의 상위를 확인할 수 없습니다
 error-store-path-not-utf8 = 토큰 { $token }에서 %p를 대체할 수 없습니다: 저장소 경로 { $path }은(는) 유효한 UTF-8이 아닙니다
 error-merge-conflict-recipients = 수신자에서 병합 충돌이 감지되었습니다. 수동으로 해결하세요.
+error-merge-conflict = { $value_type }s에서 병합 충돌이 감지되었습니다. 수동으로 해결하세요.
 error-recipient-not-found-in-store = 수신자를 저장소에서 찾을 수 없습니다
 error-cannot-remove-last-recipient = 저장소에서 마지막 수신자를 제거할 수 없습니다. 이 수신자를 제거하기 전에 새 수신자를 추가하세요.
 error-cannot-decrypt-common-ancestor-store = 공통 조상 저장소를 복호화할 수 없습니다

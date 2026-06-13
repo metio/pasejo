@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::cell::LazyCell;
+use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -39,20 +40,17 @@ pub fn read(
             match std::fs::read_to_string(&file) {
                 Ok(content) => {
                     if content.contains("AGE-PLUGIN-YUBIKEY-") {
-                        let mut matched_any = false;
-                        content.lines().for_each(|line| {
-                            if line.starts_with("AGE-PLUGIN-YUBIKEY-") {
-                                let parts = line.split('-').collect::<Vec<&str>>();
-                                if let Some(split) = parts.split_last()
-                                    && let Ok(output) = &*age_plugin_yubikey_output
-                                    && output.contains(split.0)
-                                {
-                                    files.push(file.clone());
-                                    matched_any = true;
-                                }
-                            }
-                        });
-                        if !matched_any {
+                        // A YubiKey identity file is only usable if the device
+                        // it names is currently plugged in — keep it when the
+                        // plugin's `--identity` output echoes one of its
+                        // device tags, otherwise skip it so a locked/absent
+                        // key doesn't block decryption with the others.
+                        let connected = (*age_plugin_yubikey_output)
+                            .as_ref()
+                            .is_ok_and(|output| file_has_matching_device(&content, output));
+                        if connected {
+                            files.push(file);
+                        } else {
                             log::debug!(
                                 "Skipping yubikey identity file with no matching device: {}",
                                 file.display()
@@ -84,13 +82,41 @@ pub fn read(
     )?)
 }
 
+/// The device-identifying suffix of an `AGE-PLUGIN-YUBIKEY-…` identity line:
+/// its final `-`-separated segment, which the plugin's `--identity` output
+/// echoes for a connected device. `None` for any line that is not a yubikey
+/// identity line.
+fn yubikey_device_tag(line: &str) -> Option<&str> {
+    if line.starts_with("AGE-PLUGIN-YUBIKEY-") {
+        line.rsplit('-').next()
+    } else {
+        None
+    }
+}
+
+/// Whether any `AGE-PLUGIN-YUBIKEY-…` line in `content` names a device tag
+/// present in the plugin's `--identity` `output` — i.e. the yubikey backing
+/// this identity file is currently connected.
+fn file_has_matching_device(content: &str, output: &str) -> bool {
+    content
+        .lines()
+        .filter_map(yubikey_device_tag)
+        .any(|tag| output.contains(tag))
+}
+
 /// Find an executable by name on `PATH`. Replacement for `which::which`
 /// scoped to the one place we need it (the `age-plugin-yubikey` lookup
 /// above). Returns the first match, or `None` if `PATH` is unset or no
 /// executable file with that name exists in any entry.
 fn find_in_path(name: &str) -> Option<PathBuf> {
-    let path_var = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path_var) {
+    find_in_paths(name, &std::env::var_os("PATH")?)
+}
+
+/// The pure core of [`find_in_path`], taking the search path explicitly so
+/// the lookup can be unit-tested against a constructed directory list
+/// without mutating the process-global `PATH`.
+fn find_in_paths(name: &str, path_var: &OsStr) -> Option<PathBuf> {
+    for dir in std::env::split_paths(path_var) {
         let candidate = dir.join(name);
         if is_executable_file(&candidate) {
             return Some(candidate);
@@ -119,4 +145,93 @@ fn is_executable_file(path: &Path) -> bool {
 #[cfg(not(unix))]
 fn is_executable_file(path: &Path) -> bool {
     path.is_file()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn yubikey_device_tag_extracts_the_final_segment() {
+        assert_eq!(
+            yubikey_device_tag("AGE-PLUGIN-YUBIKEY-ABC123"),
+            Some("ABC123")
+        );
+    }
+
+    #[test]
+    fn yubikey_device_tag_ignores_non_yubikey_lines() {
+        assert_eq!(yubikey_device_tag("AGE-SECRET-KEY-1XYZ"), None);
+        assert_eq!(yubikey_device_tag("# a comment"), None);
+        assert_eq!(yubikey_device_tag(""), None);
+    }
+
+    #[test]
+    fn file_has_matching_device_is_true_when_output_echoes_a_tag() {
+        let content = "# created by age-plugin-yubikey\nAGE-PLUGIN-YUBIKEY-ABC123\n";
+        assert!(file_has_matching_device(
+            content,
+            "Serial 12345678 (slot ABC123)"
+        ));
+    }
+
+    #[test]
+    fn file_has_matching_device_is_false_when_no_tag_matches_or_output_is_empty() {
+        let content = "AGE-PLUGIN-YUBIKEY-ABC123\n";
+        assert!(!file_has_matching_device(content, "Serial DEF456"));
+        assert!(!file_has_matching_device(content, ""));
+    }
+
+    #[test]
+    fn file_has_matching_device_is_false_for_content_without_a_yubikey_line() {
+        assert!(!file_has_matching_device("age1abc\n", "ABC123"));
+    }
+
+    #[cfg(unix)]
+    mod executable_lookup {
+        use std::os::unix::fs::PermissionsExt;
+
+        use assert_fs::TempDir;
+        use assert_fs::prelude::*;
+
+        use super::super::{find_in_paths, is_executable_file};
+
+        fn write_mode(temp: &TempDir, name: &str, mode: u32) -> std::path::PathBuf {
+            let file = temp.child(name);
+            file.write_str("#!/bin/sh\n").unwrap();
+            std::fs::set_permissions(file.path(), std::fs::Permissions::from_mode(mode)).unwrap();
+            file.path().to_path_buf()
+        }
+
+        #[test]
+        fn is_executable_file_requires_an_execute_bit() {
+            let temp = TempDir::new().unwrap();
+            assert!(is_executable_file(&write_mode(&temp, "runnable", 0o755)));
+            assert!(!is_executable_file(&write_mode(&temp, "plain", 0o644)));
+        }
+
+        #[test]
+        fn is_executable_file_rejects_directories_and_missing_paths() {
+            let temp = TempDir::new().unwrap();
+            assert!(!is_executable_file(temp.path())); // a directory, not a file
+            assert!(!is_executable_file(&temp.path().join("absent")));
+        }
+
+        #[test]
+        fn find_in_paths_returns_the_first_executable_match() {
+            let temp = TempDir::new().unwrap();
+            write_mode(&temp, "tool", 0o755);
+            let path = std::env::join_paths([temp.path()]).unwrap();
+            assert_eq!(find_in_paths("tool", &path), Some(temp.path().join("tool")));
+        }
+
+        #[test]
+        fn find_in_paths_returns_none_for_non_executable_or_absent_name() {
+            let temp = TempDir::new().unwrap();
+            write_mode(&temp, "data", 0o644);
+            let path = std::env::join_paths([temp.path()]).unwrap();
+            assert!(find_in_paths("data", &path).is_none()); // present but not executable
+            assert!(find_in_paths("ghost", &path).is_none()); // absent
+        }
+    }
 }

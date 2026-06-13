@@ -95,8 +95,22 @@ pub fn init_for_tests() {
 /// values are treated as "no specific locale", which lets the loader's
 /// fallback language (English) be used.
 fn requested_languages() -> Vec<LanguageIdentifier> {
+    resolve_languages(|var| std::env::var(var).ok())
+        .unwrap_or_else(DesktopLanguageRequester::requested_languages)
+}
+
+/// The pure core of [`requested_languages`], parameterized over the
+/// environment `lookup` so the precedence chain can be unit-tested without
+/// mutating process-global env vars. Returns `Some(langs)` as soon as one of
+/// the gettext-precedence variables (`LANGUAGE` > `LC_ALL` > `LC_MESSAGES` >
+/// `LANG`) is set and non-empty — even when every locale in it is `C`/`POSIX`
+/// and the resulting list is empty, since the variable being *set* is the
+/// signal to stop looking. Returns `None` only when none are set, so the
+/// caller falls back to the OS-native requester. `LANGUAGE` is a
+/// colon-separated chain; the others carry a single locale.
+fn resolve_languages(lookup: impl Fn(&str) -> Option<String>) -> Option<Vec<LanguageIdentifier>> {
     for var in ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"] {
-        let Ok(value) = std::env::var(var) else {
+        let Some(value) = lookup(var) else {
             continue;
         };
         if value.is_empty() {
@@ -107,12 +121,14 @@ fn requested_languages() -> Vec<LanguageIdentifier> {
         } else {
             vec![value.as_str()]
         };
-        return candidates
-            .into_iter()
-            .filter_map(parse_posix_locale)
-            .collect();
+        return Some(
+            candidates
+                .into_iter()
+                .filter_map(parse_posix_locale)
+                .collect(),
+        );
     }
-    DesktopLanguageRequester::requested_languages()
+    None
 }
 
 /// Strip the codeset (`.UTF-8`) and modifier (`@euro`) suffixes a POSIX
@@ -703,6 +719,7 @@ fl_string!(
     error_merge_conflict_recipients,
     "error-merge-conflict-recipients"
 );
+fl_string!(error_merge_conflict, "error-merge-conflict", value_type);
 fl_string!(
     error_recipient_not_found_in_store,
     "error-recipient-not-found-in-store"
@@ -926,4 +943,151 @@ pub fn browser_install_manifest_written(browser: &str, path: &Path) {
             path = path.as_str()
         )
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeSet, HashMap};
+
+    use super::{parse_posix_locale, resolve_languages};
+
+    /// Build an environment lookup from `(var, value)` pairs.
+    fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> + use<> {
+        let map: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect();
+        move |var: &str| map.get(var).cloned()
+    }
+
+    fn tags(langs: &[unic_langid::LanguageIdentifier]) -> Vec<String> {
+        langs.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn parse_posix_locale_strips_codeset_and_modifier() {
+        assert_eq!(
+            parse_posix_locale("de_DE.UTF-8@euro").unwrap().to_string(),
+            "de-DE"
+        );
+        assert_eq!(
+            parse_posix_locale("en_US.UTF-8").unwrap().to_string(),
+            "en-US"
+        );
+        assert_eq!(parse_posix_locale("ja").unwrap().to_string(), "ja");
+    }
+
+    #[test]
+    fn parse_posix_locale_treats_c_posix_and_empty_as_no_locale() {
+        assert!(parse_posix_locale("C").is_none());
+        assert!(parse_posix_locale("posix").is_none());
+        assert!(parse_posix_locale("").is_none());
+        assert!(parse_posix_locale("   ").is_none());
+    }
+
+    #[test]
+    fn resolve_languages_language_var_wins_and_splits_on_colon() {
+        let langs = resolve_languages(env(&[("LANGUAGE", "de:fr"), ("LC_ALL", "es")])).unwrap();
+        assert_eq!(tags(&langs), ["de", "fr"]);
+    }
+
+    #[test]
+    fn resolve_languages_lc_all_beats_lc_messages_and_lang() {
+        let langs = resolve_languages(env(&[
+            ("LC_ALL", "es"),
+            ("LC_MESSAGES", "fr"),
+            ("LANG", "de"),
+        ]))
+        .unwrap();
+        assert_eq!(tags(&langs), ["es"]);
+    }
+
+    #[test]
+    fn resolve_languages_falls_through_to_lang_when_higher_vars_unset() {
+        let langs = resolve_languages(env(&[("LANG", "ko_KR.UTF-8")])).unwrap();
+        assert_eq!(tags(&langs), ["ko-KR"]);
+    }
+
+    #[test]
+    fn resolve_languages_returns_none_when_nothing_is_set() {
+        // Signals the caller to fall back to the OS-native requester.
+        assert!(resolve_languages(env(&[])).is_none());
+    }
+
+    #[test]
+    fn resolve_languages_returns_some_empty_for_a_set_but_c_locale() {
+        // `LANG=C` is *set*, so resolution stops here and yields an empty
+        // list (English fallback) rather than consulting the OS requester.
+        let langs = resolve_languages(env(&[("LANG", "C")])).unwrap();
+        assert!(langs.is_empty());
+    }
+
+    /// Every shipped language bundle, embedded at compile time so the
+    /// coverage check needs no filesystem access at test time.
+    const BUNDLES: &[(&str, &str)] = &[
+        ("en", include_str!("../../i18n/en/pasejo.ftl")),
+        ("de", include_str!("../../i18n/de/pasejo.ftl")),
+        ("es", include_str!("../../i18n/es/pasejo.ftl")),
+        ("fr", include_str!("../../i18n/fr/pasejo.ftl")),
+        ("it", include_str!("../../i18n/it/pasejo.ftl")),
+        ("ja", include_str!("../../i18n/ja/pasejo.ftl")),
+        ("ko", include_str!("../../i18n/ko/pasejo.ftl")),
+        ("zh", include_str!("../../i18n/zh/pasejo.ftl")),
+    ];
+
+    /// This source file, so the test can confirm every message has a wrapper.
+    const I18N_SRC: &str = include_str!("i18n.rs");
+
+    /// Extract the Fluent message ids from a `.ftl` bundle. Message ids start
+    /// in column 0 with an ASCII letter and are followed by ` =`; comments
+    /// (`#`), terms (`-…`), and indented attributes/continuations are not
+    /// message ids and are skipped.
+    fn message_ids(bundle: &str) -> BTreeSet<String> {
+        bundle
+            .lines()
+            .filter(|line| line.starts_with(|c: char| c.is_ascii_alphabetic()))
+            .filter_map(|line| line.split_once(" ="))
+            .map(|(id, _)| id.trim().to_string())
+            .filter(|id| id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
+            .collect()
+    }
+
+    fn english_ids() -> BTreeSet<String> {
+        message_ids(BUNDLES[0].1)
+    }
+
+    #[test]
+    fn every_language_defines_exactly_the_english_key_set() {
+        // English is the fallback, so a key it has but another bundle lacks
+        // silently falls back to English at runtime — the localization hole
+        // this guards against. A key a translation has but English lacks is
+        // an orphan (usually a typo'd id). Both are failures here, turning a
+        // silent runtime fallback into a build failure.
+        let english = english_ids();
+        assert!(!english.is_empty(), "English bundle has no message ids");
+        for (lang, bundle) in &BUNDLES[1..] {
+            let theirs = message_ids(bundle);
+            let missing: Vec<_> = english.difference(&theirs).collect();
+            let orphan: Vec<_> = theirs.difference(&english).collect();
+            assert!(
+                missing.is_empty() && orphan.is_empty(),
+                "`{lang}` key set diverges from English — missing: {missing:?}, orphan: {orphan:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_english_message_has_a_wrapper_in_this_module() {
+        // Each user-facing message is reached only through a `fl_*!` wrapper
+        // (or a hand-written `fl!` call) that names its id as a string
+        // literal. A key with no such reference is dead weight; flag it so
+        // the catalogue and the code stay in step.
+        for id in english_ids() {
+            let quoted = format!("\"{id}\"");
+            assert!(
+                I18N_SRC.contains(&quoted),
+                "message id `{id}` has no wrapper referencing it in cli/i18n.rs"
+            );
+        }
+    }
 }

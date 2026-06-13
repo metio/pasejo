@@ -161,6 +161,7 @@ error-hook-failed-with-detail = 钩子 { $command } 失败(退出 { $exit }):{ $
 error-cannot-determine-store-parent-path = 无法确定存储路径 { $path } 的父目录
 error-store-path-not-utf8 = 无法替换标记 { $token } 中的 %p:存储路径 { $path } 不是有效的 UTF-8
 error-merge-conflict-recipients = 在收件人中检测到合并冲突。请手动解决。
+error-merge-conflict = 在 { $value_type }s 中检测到合并冲突。请手动解决。
 error-recipient-not-found-in-store = 在存储中找不到收件人
 error-cannot-remove-last-recipient = 无法从存储中移除最后一个接收者。请先添加新的接收者，再移除此接收者。
 error-cannot-decrypt-common-ancestor-store = 无法解密公共祖先存储

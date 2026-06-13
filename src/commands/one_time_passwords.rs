@@ -7,10 +7,11 @@ use anyhow::Context;
 use zeroize::Zeroizing;
 
 use crate::cli::{clipboard, i18n, prompts};
-use crate::commands::store_op::{StoreMutation, acquire_store_lock, with_store};
-use crate::hooks::executor::HookExecutor;
+use crate::commands::store_op::{OpenStore, StoreMutation, open_store, with_store};
 use crate::models::cli::{Cli, OtpCommands};
-use crate::models::configuration::{Configuration, encrypt_store};
+use crate::models::configuration::{
+    Configuration, DEFAULT_CLIPBOARD_NOTIFY, DEFAULT_CLIPBOARD_TIMEOUT_SECONDS, encrypt_store,
+};
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType, PasswordStore};
 use crate::secrets;
 
@@ -123,13 +124,14 @@ fn list(
     })
 }
 
-/// Showing an OTP is a hand-rolled funnel rather than `with_store_then`
-/// because an **HOTP** counter must not be persisted unless the code
-/// actually reached the user. `with_store_then` encrypts (persisting the
-/// bumped counter) *before* running the delivery callback, so a clipboard
-/// that can't be opened (a headless box) would advance and persist the
-/// counter while the user got nothing — silently desyncing an event-based
-/// token. Here the order is: generate-and-bump → **deliver** (place in
+/// Showing an OTP shares the [`open_store`] front half but hand-rolls its
+/// tail rather than using `with_store_then`, because an **HOTP** counter
+/// must not be persisted unless the code actually reached the user.
+/// `with_store_then` encrypts (persisting the bumped counter) *before*
+/// running the delivery callback, so a clipboard that can't be opened (a
+/// headless box) would advance and persist the counter while the user got
+/// nothing — silently desyncing an event-based token. Here the order is:
+/// generate-and-bump → **deliver** (place in
 /// clipboard / print; the only fallible-before-wait step) → persist the
 /// increment only if delivery succeeded → release the lock → run the long
 /// auto-clear wait *unlocked* so it doesn't serialize concurrent store
@@ -142,18 +144,12 @@ fn show(
     clip: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    let registration = configuration
-        .select_store(store_name)
-        .context(i18n::error_no_store_in_configuration())?;
-    let hooks = HookExecutor {
-        configuration,
+    let OpenStore {
         registration,
-        offline,
-        force: false,
-    };
-    hooks.execute_pull_commands()?;
-    let lock = acquire_store_lock(registration.path())?;
-    let mut store = configuration.decrypt_store(registration)?;
+        hooks,
+        lock,
+        mut store,
+    } = open_store(configuration, store_name, offline)?;
 
     // Generate + (for HOTP) bump the counter, then deliver the code while
     // still holding the lock but BEFORE persisting. A clipboard placement
@@ -166,8 +162,14 @@ fn show(
         let code = password.generate()?;
         let formatted = format_code(code, password.digits);
         let pending_clipboard = if clip {
-            let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
-            let notify = configuration.clipboard_notify.unwrap_or(true);
+            let duration = Duration::from_secs(
+                configuration
+                    .clipboard_timeout
+                    .unwrap_or(DEFAULT_CLIPBOARD_TIMEOUT_SECONDS),
+            );
+            let notify = configuration
+                .clipboard_notify
+                .unwrap_or(DEFAULT_CLIPBOARD_NOTIFY);
             i18n::one_time_password_copy_into_clipboard(password_path, &duration);
             let session = clipboard::place_secret_in_clipboard(formatted.as_str())?;
             Some((session, duration, notify))

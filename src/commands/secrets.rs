@@ -8,7 +8,9 @@ use zeroize::Zeroizing;
 use crate::cli::{clipboard, i18n, prompts};
 use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
 use crate::models::cli::SecretCommands;
-use crate::models::configuration::Configuration;
+use crate::models::configuration::{
+    Configuration, DEFAULT_CLIPBOARD_NOTIFY, DEFAULT_CLIPBOARD_TIMEOUT_SECONDS,
+};
 use crate::secrets;
 
 pub fn dispatch(
@@ -328,8 +330,14 @@ fn show(
                 i18n::secret_show_as_qrcode(secret_path);
                 qr2term::print_qr(text_to_show.as_str())?;
             } else if clip {
-                let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
-                let notify = configuration.clipboard_notify.unwrap_or(true);
+                let duration = Duration::from_secs(
+                    configuration
+                        .clipboard_timeout
+                        .unwrap_or(DEFAULT_CLIPBOARD_TIMEOUT_SECONDS),
+                );
+                let notify = configuration
+                    .clipboard_notify
+                    .unwrap_or(DEFAULT_CLIPBOARD_NOTIFY);
                 i18n::secret_copy_into_clipboard(secret_path, &duration);
                 clipboard::copy_text_to_clipboard(text_to_show.as_str(), duration, notify)?;
             } else {

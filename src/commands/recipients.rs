@@ -6,10 +6,12 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use crate::cli::i18n;
-use crate::commands::store_op::{StoreMutation, with_store};
+use crate::commands::store_op::{StoreMutation, require_store, with_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::RecipientCommands;
-use crate::models::configuration::{Configuration, encrypt_store};
+use crate::models::configuration::{
+    Configuration, DEFAULT_KEY_DOWNLOAD_TIMEOUT_SECONDS, encrypt_store,
+};
 use crate::models::password_store::{PasswordStore, Recipient};
 use crate::recipients;
 use crate::recipients::public_key;
@@ -21,8 +23,11 @@ pub fn dispatch(
 ) -> Result<()> {
     match command {
         RecipientCommands::Add(args) => {
-            let download_timeout =
-                Duration::from_secs(configuration.key_download_timeout_seconds.unwrap_or(30));
+            let download_timeout = Duration::from_secs(
+                configuration
+                    .key_download_timeout_seconds
+                    .unwrap_or(DEFAULT_KEY_DOWNLOAD_TIMEOUT_SECONDS),
+            );
             add(
                 configuration,
                 args.store_selection.store.as_ref(),
@@ -55,16 +60,9 @@ fn add(
     name: Option<&String>,
     offline: bool,
 ) -> Result<()> {
-    let registration = configuration
-        .select_store(store_name)
-        .context(i18n::error_no_store_in_configuration())?;
+    let registration = require_store(configuration, store_name)?;
     let store_path = registration.path();
-    let hooks = HookExecutor {
-        configuration,
-        registration,
-        offline,
-        force: false,
-    };
+    let hooks = HookExecutor::new(configuration, registration, offline);
 
     let mut store = if store_path.exists() {
         hooks.execute_pull_commands()?;

@@ -161,6 +161,7 @@ error-hook-failed-with-detail = Hook { $command } fehlgeschlagen (Exit { $exit }
 error-cannot-determine-store-parent-path = Übergeordneter Pfad des Speicherpfads { $path } konnte nicht ermittelt werden
 error-store-path-not-utf8 = %p in Token { $token } konnte nicht ersetzt werden: Speicherpfad { $path } ist kein gültiges UTF-8
 error-merge-conflict-recipients = Merge-Konflikt bei Empfängern erkannt. Bitte manuell auflösen.
+error-merge-conflict = Merge-Konflikt bei { $value_type }s erkannt. Bitte manuell auflösen.
 error-recipient-not-found-in-store = Empfänger nicht im Speicher gefunden
 error-cannot-remove-last-recipient = Der letzte Empfänger kann nicht aus dem Speicher entfernt werden. Bitte fügen Sie einen neuen Empfänger hinzu, bevor Sie diesen entfernen.
 error-cannot-decrypt-common-ancestor-store = Gemeinsamer Vorgängerspeicher konnte nicht entschlüsselt werden

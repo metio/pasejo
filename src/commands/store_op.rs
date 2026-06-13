@@ -18,7 +18,7 @@ use crate::models::password_store::PasswordStore;
 /// unhelpful "run `pasejo store add`" message even when the user merely
 /// typo'd an existing store's name. Mirrors the host's `unknown_store` vs
 /// `no_store_configured` split so the CLI and the browser host agree.
-fn require_store<'a>(
+pub fn require_store<'a>(
     configuration: &'a Configuration,
     store_name: Option<&String>,
 ) -> Result<&'a StoreRegistration> {
@@ -67,6 +67,44 @@ pub enum StoreMutation {
     Modified,
 }
 
+/// A store opened for an operation. Produced by [`open_store`], the shared
+/// front half of every store flow: the selected `registration`, a throttled
+/// `hooks` executor, the held advisory `lock` (`None` only on the bootstrap
+/// path where the file does not exist yet), and the decrypted `store`. The
+/// caller continues under the lock and decides when to encrypt, drop the
+/// lock, and run push hooks.
+pub struct OpenStore<'a> {
+    pub registration: &'a StoreRegistration,
+    pub hooks: HookExecutor<'a>,
+    pub lock: Option<File>,
+    pub store: PasswordStore,
+}
+
+/// The shared opening sequence — require a store, run pull hooks (throttled),
+/// take the advisory file lock, decrypt. This is the front half of
+/// [`with_store_then`]; commands whose tail differs from the standard
+/// `mutate → encrypt → push` (e.g. OTP `show`, which must persist the bumped
+/// HOTP counter only *after* delivering the code) call this directly and
+/// hand-roll only their tail, so the select/pull/lock/decrypt order has one
+/// definition instead of drifting copies.
+pub fn open_store<'a>(
+    configuration: &'a Configuration,
+    store_name: Option<&String>,
+    offline: bool,
+) -> Result<OpenStore<'a>> {
+    let registration = require_store(configuration, store_name)?;
+    let hooks = HookExecutor::new(configuration, registration, offline);
+    hooks.execute_pull_commands()?;
+    let lock = acquire_store_lock(registration.path())?;
+    let store = configuration.decrypt_store(registration)?;
+    Ok(OpenStore {
+        registration,
+        hooks,
+        lock,
+        store,
+    })
+}
+
 /// Run `f` against the selected store, handling the full lifecycle:
 /// select store → pull hooks → decrypt → run `f` → (encrypt + push hooks if
 /// `f` returned [`StoreMutation::Modified`]). Returns the closure's value.
@@ -103,23 +141,19 @@ where
     F: FnOnce(&StoreRegistration, &mut PasswordStore) -> Result<(T, StoreMutation)>,
     P: FnOnce(&T) -> Result<()>,
 {
-    let registration = require_store(configuration, store_name)?;
-    let hooks = HookExecutor {
-        configuration,
+    // The lock acquired by `open_store` is held across decrypt → mutate →
+    // encrypt so concurrent invocations cannot both read the same store
+    // state, both mutate, and have the later writer's encrypt clobber the
+    // earlier writer's changes (most visibly: a HOTP counter advancing by
+    // one instead of two for two parallel `otp show` calls). It is released
+    // before push hooks so long-running network syncs do not serialize
+    // unnecessarily.
+    let OpenStore {
         registration,
-        offline,
-        force: false,
-    };
-    hooks.execute_pull_commands()?;
-    // Hold an exclusive advisory lock on the store file across decrypt →
-    // mutate → encrypt so concurrent invocations cannot both read the same
-    // store state, both mutate, and have the later writer's encrypt clobber
-    // the earlier writer's changes (most visibly: a HOTP counter advancing
-    // by one instead of two for two parallel `otp show` calls). The lock is
-    // released before push hooks so long-running network syncs do not
-    // serialize unnecessarily.
-    let lock = acquire_store_lock(registration.path())?;
-    let mut store = configuration.decrypt_store(registration)?;
+        hooks,
+        lock,
+        mut store,
+    } = open_store(configuration, store_name, offline)?;
     let (value, mutation) = f(registration, &mut store)?;
     if matches!(mutation, StoreMutation::Modified) {
         encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
@@ -141,6 +175,67 @@ mod tests {
     use assert_fs::prelude::*;
 
     use super::*;
+
+    fn registration(name: &str) -> StoreRegistration {
+        StoreRegistration {
+            path: std::path::PathBuf::from(format!("/tmp/{name}")),
+            name: name.to_string(),
+            identities: vec![],
+            pull_commands: vec![],
+            push_commands: vec![],
+        }
+    }
+
+    fn config_with(stores: Vec<StoreRegistration>) -> Configuration {
+        Configuration {
+            stores,
+            ..Configuration::default()
+        }
+    }
+
+    #[test]
+    fn require_store_returns_the_named_store_when_it_exists() {
+        crate::cli::i18n::init_for_tests();
+        let cfg = config_with(vec![registration("alpha"), registration("beta")]);
+        let got = require_store(&cfg, Some(&String::from("beta"))).unwrap();
+        assert_eq!(got.name, "beta");
+    }
+
+    #[test]
+    fn require_store_falls_back_to_the_first_store_when_no_name_is_given() {
+        crate::cli::i18n::init_for_tests();
+        let cfg = config_with(vec![registration("alpha"), registration("beta")]);
+        let got = require_store(&cfg, None).unwrap();
+        assert_eq!(got.name, "alpha");
+    }
+
+    #[test]
+    fn require_store_names_the_unknown_store_rather_than_claiming_none_configured() {
+        // The whole reason `require_store` exists: a typo against a populated
+        // config must report the unknown name, not collapse into the
+        // empty-config "run `store add`" message.
+        crate::cli::i18n::init_for_tests();
+        let cfg = config_with(vec![registration("alpha")]);
+        let message = require_store(&cfg, Some(&String::from("alfa")))
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("alfa"), "should name the typo: {message}");
+        assert!(
+            !message.contains("store add"),
+            "should not be the empty-config message: {message}"
+        );
+    }
+
+    #[test]
+    fn require_store_reports_no_store_when_the_configuration_is_empty() {
+        crate::cli::i18n::init_for_tests();
+        let cfg = config_with(vec![]);
+        let message = require_store(&cfg, None).unwrap_err().to_string();
+        assert!(
+            message.contains("No store found"),
+            "expected the empty-config message: {message}"
+        );
+    }
 
     #[test]
     fn acquire_store_lock_returns_some_for_existing_file() {

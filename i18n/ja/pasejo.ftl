@@ -161,6 +161,7 @@ error-hook-failed-with-detail = フック { $command } が失敗しました (�
 error-cannot-determine-store-parent-path = ストアパス { $path } の親を特定できません
 error-store-path-not-utf8 = トークン { $token } の %p を置換できません: ストアパス { $path } は有効な UTF-8 ではありません
 error-merge-conflict-recipients = 受信者でマージ競合が検出されました。手動で解決してください。
+error-merge-conflict = { $value_type }s でマージ競合が検出されました。手動で解決してください。
 error-recipient-not-found-in-store = 受信者がストアに見つかりません
 error-cannot-remove-last-recipient = ストアから最後の受信者を削除できません。これを削除する前に新しい受信者を追加してください。
 error-cannot-decrypt-common-ancestor-store = 共通祖先ストアを復号できません

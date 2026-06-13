@@ -9,7 +9,7 @@ use anyhow::Context;
 use zeroize::Zeroizing;
 
 use crate::cli::i18n;
-use crate::commands::store_op::acquire_store_lock;
+use crate::commands::store_op::{acquire_store_lock, require_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::StoreCommands;
 use crate::models::configuration::{Configuration, encrypt_store_to_path};
@@ -93,11 +93,8 @@ fn remove(
     store_name: Option<&String>,
     remove_data: bool,
 ) -> anyhow::Result<()> {
-    let (name, path) = if let Some(registration) = configuration.select_store(store_name) {
-        (registration.name.clone(), registration.path.clone())
-    } else {
-        anyhow::bail!(i18n::error_no_store_in_configuration())
-    };
+    let registration = require_store(configuration, store_name)?;
+    let (name, path) = (registration.name.clone(), registration.path.clone());
 
     // The configuration holds the only reference to the store's path, so
     // the file must be deleted before the registration is erased. A delete
@@ -140,38 +137,30 @@ fn decrypt(
     yes_i_know: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        if !yes_i_know {
-            anyhow::bail!(i18n::error_decrypt_requires_yes_i_know());
-        }
-        let store = if let Some(path) = store_path {
-            // An arbitrary external file (e.g. a backup) — not necessarily a
-            // registered store, so no registered-store lock applies.
-            configuration.decrypt_store_from_path(registration, path)?
-        } else {
-            let hooks = HookExecutor {
-                configuration,
-                registration,
-                offline,
-                force: false,
-            };
-            hooks.execute_pull_commands()?;
-            // Read-only operations still take the store lock so they can't
-            // read a half-written store, matching the store-op funnel
-            // invariant. Held only across the decrypt read.
-            let _lock = acquire_store_lock(registration.path())?;
-            configuration.decrypt_store(registration)?
-        };
-
-        // The full plaintext store; wrap so the buffer is scrubbed after it
-        // is printed instead of left in a freed heap page.
-        let content = Zeroizing::new(toml::to_string(&store)?);
-        println!("{}", &*content);
-
-        Ok(())
-    } else {
-        anyhow::bail!(i18n::error_no_store_in_configuration())
+    let registration = require_store(configuration, store_name)?;
+    if !yes_i_know {
+        anyhow::bail!(i18n::error_decrypt_requires_yes_i_know());
     }
+    let store = if let Some(path) = store_path {
+        // An arbitrary external file (e.g. a backup) — not necessarily a
+        // registered store, so no registered-store lock applies.
+        configuration.decrypt_store_from_path(registration, path)?
+    } else {
+        let hooks = HookExecutor::new(configuration, registration, offline);
+        hooks.execute_pull_commands()?;
+        // Read-only operations still take the store lock so they can't read a
+        // half-written store, matching the store-op funnel invariant. Held
+        // only across the decrypt read.
+        let _lock = acquire_store_lock(registration.path())?;
+        configuration.decrypt_store(registration)?
+    };
+
+    // The full plaintext store; wrap so the buffer is scrubbed after it is
+    // printed instead of left in a freed heap page.
+    let content = Zeroizing::new(toml::to_string(&store)?);
+    println!("{}", &*content);
+
+    Ok(())
 }
 
 fn list(configuration: &Configuration) {
@@ -191,76 +180,73 @@ fn merge(
     current_version: &Path,
     other_version: &Path,
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        // `--current-version` is the file we both read and write. Hold an
-        // exclusive lock across that read→write window so a manual merge
-        // against a registered live store can't interleave with a funnel
-        // operation (otp show, secret add) on the same file and lose one
-        // of the two writes. In the git-merge-driver case `current_version`
-        // is a private temp file (`%A`) that nothing else touches, so the
-        // lock is simply uncontended. `Ok(None)` (file missing) falls
-        // through to the decrypt error below.
-        let _lock = acquire_store_lock(current_version)?;
-        let common_ancestor_store = configuration
-            .decrypt_store_from_path(registration, common_ancestor)
-            .context(i18n::error_cannot_decrypt_common_ancestor_store())?;
-        let mut current_version_store = configuration
-            .decrypt_store_from_path(registration, current_version)
-            .context(i18n::error_cannot_decrypt_current_version_store())?;
-        let other_version_store = configuration
-            .decrypt_store_from_path(registration, other_version)
-            .context(i18n::error_cannot_decrypt_other_version_store())?;
+    let registration = require_store(configuration, store_name)?;
+    // `--current-version` is the file we both read and write. Hold an
+    // exclusive lock across that read→write window so a manual merge
+    // against a registered live store can't interleave with a funnel
+    // operation (otp show, secret add) on the same file and lose one
+    // of the two writes. In the git-merge-driver case `current_version`
+    // is a private temp file (`%A`) that nothing else touches, so the
+    // lock is simply uncontended. `Ok(None)` (file missing) falls
+    // through to the decrypt error below.
+    let _lock = acquire_store_lock(current_version)?;
+    let common_ancestor_store = configuration
+        .decrypt_store_from_path(registration, common_ancestor)
+        .context(i18n::error_cannot_decrypt_common_ancestor_store())?;
+    let mut current_version_store = configuration
+        .decrypt_store_from_path(registration, current_version)
+        .context(i18n::error_cannot_decrypt_current_version_store())?;
+    let other_version_store = configuration
+        .decrypt_store_from_path(registration, other_version)
+        .context(i18n::error_cannot_decrypt_other_version_store())?;
 
-        let mut errors = vec![];
+    let mut errors = vec![];
 
-        match recipients::merge_recipients(
-            &common_ancestor_store.recipients,
-            &current_version_store.recipients,
-            &other_version_store.recipients,
-        ) {
-            Ok(merged_recipients) => {
-                current_version_store.recipients = merged_recipients;
-            }
-            Err(error) => {
-                errors.push(error);
-            }
+    match recipients::merge_recipients(
+        &common_ancestor_store.recipients,
+        &current_version_store.recipients,
+        &other_version_store.recipients,
+    ) {
+        Ok(merged_recipients) => {
+            current_version_store.recipients = merged_recipients;
         }
-
-        match secrets::merge_secrets(
-            &common_ancestor_store.secrets,
-            &current_version_store.secrets,
-            &other_version_store.secrets,
-        ) {
-            Ok(merged_secrets) => {
-                current_version_store.secrets = merged_secrets;
-            }
-            Err(error) => {
-                errors.push(error);
-            }
+        Err(error) => {
+            errors.push(error);
         }
+    }
 
-        match one_time_passwords::merge_one_time_passwords(
-            &common_ancestor_store.otp,
-            &current_version_store.otp,
-            &other_version_store.otp,
-        ) {
-            Ok(merged_one_time_passwords) => {
-                current_version_store.otp = merged_one_time_passwords;
-            }
-            Err(error) => {
-                errors.push(error);
-            }
+    match secrets::merge_secrets(
+        &common_ancestor_store.secrets,
+        &current_version_store.secrets,
+        &other_version_store.secrets,
+    ) {
+        Ok(merged_secrets) => {
+            current_version_store.secrets = merged_secrets;
         }
+        Err(error) => {
+            errors.push(error);
+        }
+    }
 
-        if errors.is_empty() {
-            encrypt_store_to_path(&current_version_store, current_version)
-        } else {
-            let error_messages: Vec<String> =
-                errors.into_iter().map(|error| error.to_string()).collect();
-            anyhow::bail!(error_messages.join("\n       "))
+    match one_time_passwords::merge_one_time_passwords(
+        &common_ancestor_store.otp,
+        &current_version_store.otp,
+        &other_version_store.otp,
+    ) {
+        Ok(merged_one_time_passwords) => {
+            current_version_store.otp = merged_one_time_passwords;
         }
+        Err(error) => {
+            errors.push(error);
+        }
+    }
+
+    if errors.is_empty() {
+        encrypt_store_to_path(&current_version_store, current_version)
     } else {
-        anyhow::bail!(i18n::error_no_store_in_configuration())
+        let error_messages: Vec<String> =
+            errors.into_iter().map(|error| error.to_string()).collect();
+        anyhow::bail!(error_messages.join("\n       "))
     }
 }
 
@@ -269,33 +255,30 @@ fn exec(
     store_name: Option<&String>,
     command: &[String],
 ) -> anyhow::Result<()> {
-    if let Some(registration) = configuration.select_store(store_name) {
-        let store_path = registration.path();
-        if let Some(parent) = store_path.parent() {
-            if let Some((binary, rest)) = command.split_first() {
-                let status = Command::new(binary)
-                    .args(rest)
-                    .env("PASEJO_EXEC_STORE_PATH", store_path)
-                    .env("PASEJO_EXEC_STORE_PARENT", parent)
-                    .env("PASEJO_EXEC_COMMAND", binary)
-                    .current_dir(parent)
-                    .status()
-                    .with_context(|| i18n::error_failed_to_run_command(binary))?;
-                if !status.success() {
-                    let exit = status
-                        .code()
-                        .map_or_else(|| String::from("signal"), |c| c.to_string());
-                    anyhow::bail!(i18n::error_command_exited_with(binary, &exit));
-                }
+    let registration = require_store(configuration, store_name)?;
+    let store_path = registration.path();
+    if let Some(parent) = store_path.parent() {
+        if let Some((binary, rest)) = command.split_first() {
+            let status = Command::new(binary)
+                .args(rest)
+                .env("PASEJO_EXEC_STORE_PATH", store_path)
+                .env("PASEJO_EXEC_STORE_PARENT", parent)
+                .env("PASEJO_EXEC_COMMAND", binary)
+                .current_dir(parent)
+                .status()
+                .with_context(|| i18n::error_failed_to_run_command(binary))?;
+            if !status.success() {
+                let exit = status
+                    .code()
+                    .map_or_else(|| String::from("signal"), |c| c.to_string());
+                anyhow::bail!(i18n::error_command_exited_with(binary, &exit));
             }
-        } else {
-            anyhow::bail!(i18n::error_cannot_get_store_parent())
         }
-
-        Ok(())
     } else {
-        anyhow::bail!(i18n::error_no_store_in_configuration())
+        anyhow::bail!(i18n::error_cannot_get_store_parent())
     }
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -123,12 +123,7 @@ fn open_store_for_read(
     registration: &StoreRegistration,
     offline: bool,
 ) -> std::result::Result<PasswordStore, (ErrorKind, anyhow::Error)> {
-    let hooks = HookExecutor {
-        configuration,
-        registration,
-        offline,
-        force: false,
-    };
+    let hooks = HookExecutor::new(configuration, registration, offline);
     hooks
         .execute_pull_commands()
         .map_err(|err| (ErrorKind::HookFailed, err))?;

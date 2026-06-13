@@ -10,6 +10,7 @@ use std::time::SystemTime;
 use directories::BaseDirs;
 
 use crate::cli::environment_variables;
+use crate::models::configuration;
 
 /// Decides whether a throttled hook is due to run. PURE: it never writes
 /// the throttle marker — the caller advances the marker via
@@ -22,22 +23,33 @@ pub fn should_execute(
     interval_seconds: Option<u64>,
     paths: Option<(PathBuf, PathBuf)>,
 ) -> anyhow::Result<bool> {
-    if let Some((_last_directory, last_file)) = paths {
-        if last_file.exists() {
-            let last_content = fs::read_to_string(&last_file)?;
-            let last_seconds: u64 = last_content.parse()?;
-            let epoch_seconds = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)?
-                .as_secs();
-            let seconds_since_last_execution = epoch_seconds.saturating_sub(last_seconds);
-            let interval = interval_seconds.unwrap_or(60 * 60 * 24);
-            return Ok(seconds_since_last_execution > interval);
-        }
+    let Some((_last_directory, last_file)) = paths else {
+        // Throttling disabled — always run.
+        return Ok(true);
+    };
+    if !last_file.exists() {
         // No marker yet — first run for this store, so the hook is due.
         return Ok(true);
     }
+    let last_seconds: u64 = fs::read_to_string(&last_file)?.parse()?;
+    Ok(is_due(
+        interval_seconds,
+        last_seconds,
+        current_epoch_seconds()?,
+    ))
+}
 
-    Ok(true)
+/// The pure throttle decision, factored out of the file/clock plumbing so
+/// the boundary behaviour is directly testable. Given the configured
+/// `interval_seconds` (`None` → the 24h default), the marker's timestamp,
+/// and the current time (all epoch seconds), the hook is due once *strictly
+/// more* than one interval has elapsed. Saturating subtraction tolerates a
+/// marker dated ahead of `now` (clock skew, NTP rollback, or a marker file
+/// copied from a faster machine) without underflowing.
+fn is_due(interval_seconds: Option<u64>, last_seconds: u64, now_seconds: u64) -> bool {
+    let elapsed = now_seconds.saturating_sub(last_seconds);
+    let interval = interval_seconds.unwrap_or(configuration::DEFAULT_HOOK_INTERVAL_SECONDS);
+    elapsed > interval
 }
 
 pub fn write_last_execution(paths: Option<(PathBuf, PathBuf)>) -> anyhow::Result<()> {
@@ -45,13 +57,19 @@ pub fn write_last_execution(paths: Option<(PathBuf, PathBuf)>) -> anyhow::Result
         if !last_file.exists() {
             fs::create_dir_all(last_directory)?;
         }
-        let epoch_seconds = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs();
-        Ok(fs::write(last_file, epoch_seconds.to_string())?)
+        Ok(fs::write(last_file, current_epoch_seconds()?.to_string())?)
     } else {
         Ok(())
     }
+}
+
+/// Wall-clock seconds since the Unix epoch — the one place the throttle
+/// logic reads the clock, so the pure decision in [`is_due`] can be tested
+/// with explicit timestamps.
+fn current_epoch_seconds() -> anyhow::Result<u64> {
+    Ok(SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs())
 }
 
 pub fn last_pull_paths(store_name: &OsStr) -> Option<(PathBuf, PathBuf)> {
@@ -96,6 +114,37 @@ mod tests {
         let dir = temp.child("dir");
         let file = dir.child("last");
         (dir.path().to_path_buf(), file.path().to_path_buf())
+    }
+
+    #[test]
+    fn is_due_is_false_exactly_at_the_interval_boundary() {
+        // Strictly-greater: elapsed == interval is NOT yet due.
+        assert!(!is_due(Some(60), 1_000, 1_060));
+    }
+
+    #[test]
+    fn is_due_is_true_one_second_past_the_interval() {
+        assert!(is_due(Some(60), 1_000, 1_061));
+    }
+
+    #[test]
+    fn is_due_tolerates_a_marker_dated_ahead_of_now() {
+        // Saturating subtraction: a future-dated marker yields zero elapsed,
+        // never an underflow, so the hook is not (spuriously) due.
+        assert!(!is_due(Some(60), 5_000, 1_000));
+    }
+
+    #[test]
+    fn is_due_uses_the_24h_default_when_interval_is_none() {
+        let day = 60 * 60 * 24;
+        assert!(!is_due(None, 0, day)); // exactly one day: not yet
+        assert!(is_due(None, 0, day + 1)); // a second past a day: due
+    }
+
+    #[test]
+    fn is_due_with_zero_interval_requires_at_least_one_second() {
+        assert!(!is_due(Some(0), 1_000, 1_000)); // 0 elapsed is not > 0
+        assert!(is_due(Some(0), 1_000, 1_001)); // 1s elapsed is > 0
     }
 
     #[test]
