@@ -39,11 +39,15 @@ no-identities-exist-yet = 存储 '{ $store_name }' 中尚未有身份。请使�
 store-add-success = 已在 '{ $store_path }' 添加存储 '{ $store_name }'
 store-set-default = 存储 '{ $store_name }' 现在是默认存储
 store-remove-success = 已移除存储 '{ $store_name }'
+store-remove-success-with-data = 已移除存储 '{ $store_name }' 并删除其加密数据文件
 
 ## 钩子执行
 
 execute-pull-hooks = 正在执行存储 '{ $store_name }' 的拉取钩子
 execute-push-hooks = 正在执行存储 '{ $store_name }' 的推送钩子
+hook-run-nothing-selected = 没有可执行的内容：请使用 --pull 和/或 --push 选择要执行的钩子。
+export-plaintext-warning = 警告：导出内容包含所有明文密钥。
+export-written-to-file = 已将导出写入 '{ $path }'
 
 ## 合并冲突
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = '{ $secret_path }' 的 { $value_type } 合
 
 list-global-identity = 全局: { $identity_file }
 list-store-identity = 存储: { $identity_file }
+list-store-identity-also-global = 存储: { $identity_file }（也已全局注册）
 list-global-pull-hook = 全局拉取: { $command }
 list-global-push-hook = 全局推送: { $command }
 list-store-pull-hook = 存储拉取: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = 一次性密码已存在于 { $password
 error-not-allowed-to-remove-one-time-password = 不允许删除 { $password_path } 的一次性密码。使用 --force 覆盖。
 error-no-one-time-password-found = 在 '{ $password_path }' 找不到一次性密码
 error-no-store-in-configuration = 配置中找不到存储。请先运行 'pasejo store add ...' 添加一个
+error-unknown-store = 配置中不存在存储 '{ $store_name }'。运行 'pasejo store list' 查看已配置的存储。
 error-decrypt-requires-yes-i-know = 拒绝解密:这会将每个密钥以明文形式打印到 stdout。请传递 --yes-i-know 以确认。
 error-no-store-or-global = 配置中找不到存储,且未指定 --global 标志。请先运行 'pasejo store add ...' 添加一个
 error-store-name-already-exists = 存储名称已存在。请使用其他名称。
@@ -130,12 +136,16 @@ error-store-path-is-directory = 不能将目录用作存储路径。请使用文
 error-cannot-create-store-path = 无法创建存储路径。请检查路径并重试。
 error-cannot-get-store-parent = 无法获取存储路径的父目录。请检查路径并重试。
 error-cannot-identify-store = 无法识别存储。设置默认存储、使用 --store 指定存储,或使用 --global 全局设置身份。
+error-identity-file-already-added = '--file <FILE>' 的值 '{ $file }' 无效：该文件已添加为身份
+error-identity-file-not-known = '--file <FILE>' 的值 '{ $file }' 无效：该文件不匹配任何已知身份
+error-identity-did-you-mean = 您是指 '{ $stored }' 吗？身份路径按精确匹配进行比较。
 error-no-identity-files-to-decrypt = 没有可用于解密的身份文件。请至少添加一个身份以完成存储初始化。
 error-invalid-ssh-public-key-format = 无效的 SSH 公钥格式
 error-username-empty = 用户名不能为空
 error-username-contains-dotdot = 无效的用户名 '{ $username }':不能包含 '..'
 error-username-invalid-character = 无效的用户名 '{ $username }':必须以 ASCII 字母或数字开头,并且只能包含 ASCII 字母、数字、'-'、'_' 和 '.'
 error-no-public-key-found-in-file = 在 '{ $filename }' 找不到公钥
+error-no-public-keys-for-user = { $provider } 用户 '{ $username }' 没有可添加为接收者的公开 SSH 密钥
 error-no-public-key-source = 必须为公钥指定至少一个来源
 error-no-qrcode-found = 在 '{ $qrcode }' 找不到 QR 码
 error-failed-to-decode-qrcode = 无法解码 '{ $qrcode }' 中的 QR 码
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = 无法确定存储路径 { $path } �
 error-store-path-not-utf8 = 无法替换标记 { $token } 中的 %p:存储路径 { $path } 不是有效的 UTF-8
 error-merge-conflict-recipients = 在收件人中检测到合并冲突。请手动解决。
 error-recipient-not-found-in-store = 在存储中找不到收件人
+error-cannot-remove-last-recipient = 无法从存储中移除最后一个接收者。请先添加新的接收者，再移除此接收者。
 error-cannot-decrypt-common-ancestor-store = 无法解密公共祖先存储
 error-cannot-decrypt-current-version-store = 无法解密当前版本存储
 error-cannot-decrypt-other-version-store = 无法解密其他版本存储
 error-cannot-read-file = 无法读取 '{ $path }' 的文件
 error-downloading-public-key-failed = 从 { $provider } 下载公钥失败
+error-download-user-not-found = { $provider } 上没有用户 '{ $username }'
+error-download-rate-limited = { $provider } 限制了请求频率；请稍候再试
+error-download-server-error = { $provider } 返回了错误 (HTTP { $status })
+error-download-timeout = 从 { $provider } 下载公钥超时；请检查网络连接或增大 key-download-timeout-seconds
 error-cannot-determine-parent-directory = 无法确定 { $path } 的父目录
 error-failed-to-create-directory = 无法创建目录 { $path }
 error-failed-to-write-file = 无法写入 { $path }
@@ -177,6 +192,8 @@ error-could-not-store-configuration = 无法保存配置
 error-could-not-load-migrated-config = 无法加载迁移后的配置
 error-could-not-serialize-configuration = 无法序列化配置
 error-config-not-valid-toml = { $path } 的配置文件不是有效的 TOML
+error-config-invalid-integer = 选项 '{ $option }' 的值 '{ $value }' 无效：应为非负整数
+error-config-invalid-boolean = 选项 '{ $option }' 的值 '{ $value }' 无效：应为 true、false、1、0、yes、no、y、n 之一
 error-could-not-open-store-for-lock = 无法打开存储文件进行锁定:{ $path }
 error-could-not-acquire-store-lock = 无法获取存储文件的锁:{ $path }
 error-cannot-encrypt-store = 无法加密存储
@@ -185,10 +202,12 @@ error-command-exited-with = 命令 { $binary } 以 { $exit } 退出
 error-browser-host-requires-pipe = 浏览器主机需要来自连接的浏览器扩展的管道标准输入。请通过浏览器的原生消息传递清单运行此命令，而不是直接从终端运行。
 error-browser-install-manifest-no-browser = 请至少指定一个 --browser 以安装其原生消息传递清单。
 error-browser-install-manifest-needs-extension-id = Chromium 系浏览器的扩展 ID 由解压扩展的公钥派生，因此浏览器 '{ $browser }' 需要 --extension-id。
+error-browser-install-manifest-extension-id-multiple-browsers = --extension-id 不能与多个 --browser 一起使用，因为每个浏览器都需要各自的扩展 ID。请为每个浏览器分别运行一次命令。
 error-browser-install-manifest-unsupported-os = '{ $os }' 不支持安装原生消息传递清单。
 error-browser-install-manifest-no-home-dir = 无法确定用户的主目录。
 error-browser-install-manifest-no-data-dir = 无法确定用户的数据目录。
 error-browser-install-manifest-no-current-exe = 无法确定正在运行的 pasejo 二进制文件的路径。
 browser-install-manifest-written = 已将 '{ $browser }' 的原生消息传递清单写入 '{ $path }'
+browser-install-manifest-print-wrapper-note = 注意：打印的清单引用了位于 '{ $path }' 的包装脚本，但此命令并未安装它。请改用 --binary 引用现有的可执行文件。
 error-browser-install-manifest-invalid-env = --env 条目 '{ $entry }' 不是 KEY=VALUE 形式。
 error-browser-install-manifest-invalid-env-name = --env 名称 '{ $name }' 不是有效的 POSIX 环境变量名（必须以字母或下划线开头，且仅包含字母、数字和下划线）。

@@ -118,6 +118,12 @@ pub enum ErrorKind {
     /// not identity-side.
     StoreUnreachable,
     NoStoreConfigured,
+    /// The serialized reply would exceed the browser's 1 MiB
+    /// host→browser native-messaging limit. Writing it anyway would get
+    /// the whole connection killed by the browser, failing every
+    /// in-flight request — so the host downgrades the oversized reply
+    /// to this per-request error instead.
+    ResponseTooLarge,
 }
 
 #[cfg(test)]

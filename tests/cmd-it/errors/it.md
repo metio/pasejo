@@ -18,7 +18,7 @@ For more information, try '--help'.
 
 $ pasejo config set ignore-missing-identities tru
 ? 1
-Error: Invalid boolean value 'tru'. Expected one of: true, false, 1, 0, yes, no, y, n
+Error: Valore 'tru' non valido per l'opzione 'ignore-missing-identities': atteso uno tra true, false, 1, 0, yes, no, y, n
 
 $ pasejo store decrypt
 ? 1

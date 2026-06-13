@@ -39,11 +39,15 @@ no-identities-exist-yet = '{ $store_name }' 저장소에 아직 신원이 없습
 store-add-success = '{ $store_path }'에 '{ $store_name }' 저장소가 추가되었습니다
 store-set-default = 이제 '{ $store_name }' 저장소가 기본값입니다
 store-remove-success = '{ $store_name }' 저장소가 제거되었습니다
+store-remove-success-with-data = 저장소 '{ $store_name }'을(를) 제거하고 암호화된 데이터 파일을 삭제했습니다
 
 ## 훅 실행
 
 execute-pull-hooks = '{ $store_name }' 저장소의 pull 훅을 실행하는 중입니다
 execute-push-hooks = '{ $store_name }' 저장소의 push 훅을 실행하는 중입니다
+hook-run-nothing-selected = 실행할 항목이 없습니다. --pull 및/또는 --push를 지정하여 실행할 후크를 선택하세요.
+export-plaintext-warning = 경고: 내보내기에는 모든 비밀이 평문으로 포함됩니다.
+export-written-to-file = 내보내기를 '{ $path }'에 작성했습니다
 
 ## 병합 충돌
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = '{ $secret_path }'의 { $value_type }에 �
 
 list-global-identity = 전역: { $identity_file }
 list-store-identity = 저장소: { $identity_file }
+list-store-identity-also-global = 저장소: { $identity_file } (전역에도 등록됨)
 list-global-pull-hook = 전역 pull: { $command }
 list-global-push-hook = 전역 push: { $command }
 list-store-pull-hook = 저장소 pull: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = 일회용 비밀번호가 이미 { $pas
 error-not-allowed-to-remove-one-time-password = { $password_path }의 일회용 비밀번호 제거가 허용되지 않습니다. 덮어쓰려면 --force를 사용하세요.
 error-no-one-time-password-found = '{ $password_path }'에서 일회용 비밀번호를 찾을 수 없습니다
 error-no-store-in-configuration = 구성에서 저장소를 찾을 수 없습니다. 먼저 'pasejo store add ...'를 실행하여 추가하세요
+error-unknown-store = 저장소 '{ $store_name }'이(가) 구성에 없습니다. 'pasejo store list'를 실행하여 구성된 저장소를 확인하세요.
 error-decrypt-requires-yes-i-know = 복호화를 거부했습니다: 모든 비밀이 평문으로 stdout에 출력됩니다. 확인을 위해 --yes-i-know를 전달하세요.
 error-no-store-or-global = 구성에서 저장소를 찾을 수 없고 --global 플래그도 지정되지 않았습니다. 먼저 'pasejo store add ...'를 실행하여 추가하세요
 error-store-name-already-exists = 저장소 이름이 이미 존재합니다. 다른 이름을 사용하세요.
@@ -130,12 +136,16 @@ error-store-path-is-directory = 디렉터리를 저장소 경로로 사용할 �
 error-cannot-create-store-path = 저장소 경로를 생성할 수 없습니다. 경로를 확인하고 다시 시도하세요.
 error-cannot-get-store-parent = 저장소 경로의 상위 디렉터리를 가져올 수 없습니다. 경로를 확인하고 다시 시도하세요.
 error-cannot-identify-store = 저장소를 식별할 수 없습니다. 기본 저장소를 설정하거나 --store로 저장소를 지정하거나 --global로 전역 ID를 설정하세요.
+error-identity-file-already-added = '--file <FILE>'에 대한 잘못된 값 '{ $file }': 파일이 이미 신원으로 추가되었습니다
+error-identity-file-not-known = '--file <FILE>'에 대한 잘못된 값 '{ $file }': 파일이 알려진 신원과 일치하지 않습니다
+error-identity-did-you-mean = '{ $stored }'을(를) 말씀하신 건가요? 신원 경로는 정확히 일치해야 합니다.
 error-no-identity-files-to-decrypt = 복호화할 ID 파일이 없습니다. 저장소 초기화를 완료하려면 ID를 하나 이상 추가하세요.
 error-invalid-ssh-public-key-format = 유효하지 않은 SSH 공개 키 형식
 error-username-empty = 사용자 이름은 비어 있을 수 없습니다
 error-username-contains-dotdot = 유효하지 않은 사용자 이름 '{ $username }': '..'을(를) 포함할 수 없습니다
 error-username-invalid-character = 유효하지 않은 사용자 이름 '{ $username }': ASCII 문자 또는 숫자로 시작해야 하며 ASCII 문자, 숫자, '-', '_', '.'만 포함할 수 있습니다
 error-no-public-key-found-in-file = '{ $filename }'에서 공개 키를 찾을 수 없습니다
+error-no-public-keys-for-user = { $provider } 사용자 '{ $username }'에게 수신자로 추가할 공개 SSH 키가 없습니다
 error-no-public-key-source = 공개 키의 소스를 하나 이상 지정해야 합니다
 error-no-qrcode-found = '{ $qrcode }'에서 QR 코드를 찾을 수 없습니다
 error-failed-to-decode-qrcode = '{ $qrcode }'의 QR 코드 디코딩 실패
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = 저장소 경로 { $path }의 상위�
 error-store-path-not-utf8 = 토큰 { $token }에서 %p를 대체할 수 없습니다: 저장소 경로 { $path }은(는) 유효한 UTF-8이 아닙니다
 error-merge-conflict-recipients = 수신자에서 병합 충돌이 감지되었습니다. 수동으로 해결하세요.
 error-recipient-not-found-in-store = 수신자를 저장소에서 찾을 수 없습니다
+error-cannot-remove-last-recipient = 저장소에서 마지막 수신자를 제거할 수 없습니다. 이 수신자를 제거하기 전에 새 수신자를 추가하세요.
 error-cannot-decrypt-common-ancestor-store = 공통 조상 저장소를 복호화할 수 없습니다
 error-cannot-decrypt-current-version-store = 현재 버전 저장소를 복호화할 수 없습니다
 error-cannot-decrypt-other-version-store = 다른 버전 저장소를 복호화할 수 없습니다
 error-cannot-read-file = '{ $path }'의 파일을 읽을 수 없습니다
 error-downloading-public-key-failed = { $provider }에서 공개 키 다운로드 실패
+error-download-user-not-found = { $provider }에 '{ $username }' 사용자가 없습니다
+error-download-rate-limited = { $provider }에서 요청 속도를 제한했습니다. 잠시 후 다시 시도하세요
+error-download-server-error = { $provider }에서 오류를 반환했습니다 (HTTP { $status })
+error-download-timeout = { $provider }에서 공개 키를 다운로드하는 동안 시간이 초과되었습니다. 연결을 확인하거나 key-download-timeout-seconds를 늘리세요
 error-cannot-determine-parent-directory = { $path }의 상위 디렉터리를 확인할 수 없습니다
 error-failed-to-create-directory = 디렉터리 { $path } 생성 실패
 error-failed-to-write-file = { $path } 쓰기 실패
@@ -177,6 +192,8 @@ error-could-not-store-configuration = 구성을 저장할 수 없었습니다
 error-could-not-load-migrated-config = 마이그레이션된 구성을 불러올 수 없었습니다
 error-could-not-serialize-configuration = 구성을 직렬화할 수 없었습니다
 error-config-not-valid-toml = { $path }의 구성 파일이 유효한 TOML이 아닙니다
+error-config-invalid-integer = 옵션 '{ $option }'의 값 '{ $value }'이(가) 잘못되었습니다. 음이 아닌 정수를 입력하세요
+error-config-invalid-boolean = 옵션 '{ $option }'의 값 '{ $value }'이(가) 잘못되었습니다. true, false, 1, 0, yes, no, y, n 중 하나를 입력하세요
 error-could-not-open-store-for-lock = 잠금을 위해 저장소 파일을 열 수 없었습니다: { $path }
 error-could-not-acquire-store-lock = 저장소 파일의 잠금을 획득할 수 없었습니다: { $path }
 error-cannot-encrypt-store = 저장소를 암호화할 수 없습니다
@@ -185,10 +202,12 @@ error-command-exited-with = 명령 { $binary }이(가) { $exit }(으)로 종료�
 error-browser-host-requires-pipe = 브라우저 호스트는 연결된 브라우저 확장으로부터 파이프된 표준 입력이 필요합니다. 이 명령은 브라우저의 네이티브 메시징 매니페스트를 통해 실행하세요. 터미널에서 직접 실행하지 마세요.
 error-browser-install-manifest-no-browser = 네이티브 메시징 매니페스트를 설치할 --browser를 최소 하나 이상 지정하세요.
 error-browser-install-manifest-needs-extension-id = Chromium 계열 브라우저의 확장 프로그램 ID는 압축 해제된 확장 프로그램의 공개 키에서 파생되므로 브라우저 '{ $browser }'에는 --extension-id가 필요합니다.
+error-browser-install-manifest-extension-id-multiple-browsers = 각 브라우저에는 고유한 확장 프로그램 ID가 필요하므로 --extension-id는 둘 이상의 --browser와 함께 사용할 수 없습니다. 브라우저마다 명령을 한 번씩 실행하세요.
 error-browser-install-manifest-unsupported-os = '{ $os }'에서는 네이티브 메시징 매니페스트 설치를 지원하지 않습니다.
 error-browser-install-manifest-no-home-dir = 사용자의 홈 디렉터리를 확인할 수 없습니다.
 error-browser-install-manifest-no-data-dir = 사용자의 데이터 디렉터리를 확인할 수 없습니다.
 error-browser-install-manifest-no-current-exe = 실행 중인 pasejo 바이너리의 경로를 확인할 수 없습니다.
 browser-install-manifest-written = '{ $browser }'의 네이티브 메시징 매니페스트를 '{ $path }'에 작성했습니다
+browser-install-manifest-print-wrapper-note = 참고: 출력된 매니페스트는 '{ $path }'의 래퍼 스크립트를 참조하지만 이 명령은 해당 스크립트를 설치하지 않았습니다. 대신 기존 실행 파일을 참조하려면 --binary를 사용하세요.
 error-browser-install-manifest-invalid-env = --env 항목 '{ $entry }'이(가) KEY=VALUE 형식이 아닙니다.
 error-browser-install-manifest-invalid-env-name = --env 이름 '{ $name }'은(는) 유효한 POSIX 환경 변수 이름이 아닙니다(문자 또는 밑줄로 시작하고 문자, 숫자, 밑줄만 포함해야 합니다).

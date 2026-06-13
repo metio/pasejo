@@ -7,6 +7,7 @@ use std::path::Path;
 
 use age::{Decryptor, Encryptor, Recipient};
 use anyhow::Context;
+use zeroize::Zeroizing;
 
 use crate::cli::atomic_write;
 use crate::cli::i18n;
@@ -26,10 +27,16 @@ pub fn encrypt(
     Ok(())
 }
 
+/// Returns the decrypted store body wrapped in `Zeroizing` so the
+/// plaintext — the entire store: every secret, recipient, and OTP seed —
+/// is scrubbed from memory when the caller is done with it rather than
+/// lingering in a freed heap page. `String::from_utf8` reuses the
+/// `decrypted` buffer's allocation in place, so the bytes the caller
+/// reads are exactly the bytes the `Zeroizing<String>` owns and clears.
 pub fn decrypt(
     path_to_decrypt: &Path,
     identities: &[Box<dyn age::Identity>],
-) -> anyhow::Result<String> {
+) -> anyhow::Result<Zeroizing<String>> {
     let path_display = path_to_decrypt.display().to_string();
     let encrypted =
         fs::read(path_to_decrypt).with_context(|| i18n::error_cannot_read_file(&path_display))?;
@@ -37,7 +44,7 @@ pub fn decrypt(
     let mut reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
     let mut decrypted = vec![];
     reader.read_to_end(&mut decrypted)?;
-    let decrypted_text = String::from_utf8(decrypted)?;
+    let decrypted_text = Zeroizing::new(String::from_utf8(decrypted)?);
     Ok(decrypted_text)
 }
 
@@ -66,7 +73,7 @@ mod tests {
 
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
         let decrypted = decrypt(&path, &identities).unwrap();
-        assert_eq!(decrypted, plaintext);
+        assert_eq!(decrypted.as_str(), plaintext);
     }
 
     #[test]
@@ -81,7 +88,7 @@ mod tests {
 
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
         let decrypted = decrypt(&path, &identities).unwrap();
-        assert_eq!(decrypted, "second");
+        assert_eq!(decrypted.as_str(), "second");
     }
 
     #[cfg(unix)]

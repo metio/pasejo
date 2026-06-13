@@ -3,12 +3,14 @@
 
 use std::time::Duration;
 
+use anyhow::Context;
 use zeroize::Zeroizing;
 
 use crate::cli::{clipboard, i18n, prompts};
-use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
+use crate::commands::store_op::{StoreMutation, acquire_store_lock, with_store};
+use crate::hooks::executor::HookExecutor;
 use crate::models::cli::{Cli, OtpCommands};
-use crate::models::configuration::Configuration;
+use crate::models::configuration::{Configuration, encrypt_store};
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType, PasswordStore};
 use crate::secrets;
 
@@ -121,6 +123,18 @@ fn list(
     })
 }
 
+/// Showing an OTP is a hand-rolled funnel rather than `with_store_then`
+/// because an **HOTP** counter must not be persisted unless the code
+/// actually reached the user. `with_store_then` encrypts (persisting the
+/// bumped counter) *before* running the delivery callback, so a clipboard
+/// that can't be opened (a headless box) would advance and persist the
+/// counter while the user got nothing — silently desyncing an event-based
+/// token. Here the order is: generate-and-bump → **deliver** (place in
+/// clipboard / print; the only fallible-before-wait step) → persist the
+/// increment only if delivery succeeded → release the lock → run the long
+/// auto-clear wait *unlocked* so it doesn't serialize concurrent store
+/// access. (Delivery happens under the lock, but only the fast placement
+/// — the 45s hold runs after the lock is released.)
 fn show(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -128,37 +142,58 @@ fn show(
     clip: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store_then(
+    let registration = configuration
+        .select_store(store_name)
+        .context(i18n::error_no_store_in_configuration())?;
+    let hooks = HookExecutor {
         configuration,
-        store_name,
+        registration,
         offline,
-        |_, store| {
-            let Some(password) = store.otp.get_mut(password_path) else {
-                anyhow::bail!(i18n::error_no_one_time_password_found(password_path))
-            };
-            let is_hotp = password.otp_type == OneTimePasswordType::Hotp;
-            let code = password.generate()?;
-            let formatted = format_code(code, password.digits);
-            let mutation = if is_hotp {
-                StoreMutation::Modified
-            } else {
-                StoreMutation::Unchanged
-            };
-            Ok((formatted, mutation))
-        },
-        |code: &Zeroizing<String>| {
-            if clip {
-                let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
-                let notify = configuration.clipboard_notify.unwrap_or(true);
-                i18n::one_time_password_copy_into_clipboard(password_path, &duration);
-                clipboard::copy_text_to_clipboard(code.as_str(), duration, notify)?;
-            } else {
-                i18n::one_time_password_show(password_path);
-                println!("{}", code.as_str());
-            }
-            Ok(())
-        },
-    )?;
+        force: false,
+    };
+    hooks.execute_pull_commands()?;
+    let lock = acquire_store_lock(registration.path())?;
+    let mut store = configuration.decrypt_store(registration)?;
+
+    // Generate + (for HOTP) bump the counter, then deliver the code while
+    // still holding the lock but BEFORE persisting. A clipboard placement
+    // failure bails here, so the bumped counter is never encrypted.
+    let (pending_clipboard, is_hotp) = {
+        let Some(password) = store.otp.get_mut(password_path) else {
+            anyhow::bail!(i18n::error_no_one_time_password_found(password_path))
+        };
+        let is_hotp = password.otp_type == OneTimePasswordType::Hotp;
+        let code = password.generate()?;
+        let formatted = format_code(code, password.digits);
+        let pending_clipboard = if clip {
+            let duration = Duration::from_secs(configuration.clipboard_timeout.unwrap_or(45));
+            let notify = configuration.clipboard_notify.unwrap_or(true);
+            i18n::one_time_password_copy_into_clipboard(password_path, &duration);
+            let session = clipboard::place_secret_in_clipboard(formatted.as_str())?;
+            Some((session, duration, notify))
+        } else {
+            i18n::one_time_password_show(password_path);
+            println!("{}", formatted.as_str());
+            None
+        };
+        (pending_clipboard, is_hotp)
+    };
+
+    // Delivery succeeded — only now persist the advanced HOTP counter.
+    if is_hotp {
+        encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
+    }
+    drop(lock);
+
+    // The long auto-clear wait runs unlocked so it can't block concurrent
+    // operations on the same store for the clipboard timeout.
+    if let Some((session, duration, notify)) = pending_clipboard {
+        session.hold_until_cleared(duration, notify);
+    }
+
+    if is_hotp {
+        hooks.execute_push_commands()?;
+    }
     Ok(())
 }
 

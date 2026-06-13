@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use toml::Table;
+use zeroize::Zeroizing;
 
 use crate::cli::{atomic_write, constants, environment_variables, i18n};
 use crate::models::password_store::PasswordStore;
@@ -21,9 +22,11 @@ static CACHED_CONFIGURATION: OnceLock<Configuration> = OnceLock::new();
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Configuration {
     /// All registered stores the user has configured on their system
+    #[serde(default)]
     pub stores: Vec<StoreRegistration>,
 
     /// Global identities used for all stores
+    #[serde(default)]
     pub identities: Vec<Identity>,
 
     /// The default store to use when no store name was specified
@@ -61,9 +64,11 @@ pub struct Configuration {
     pub push_interval_seconds: Option<u64>,
 
     /// Global pull commands used for all stores
+    #[serde(default)]
     pub pull_commands: Vec<String>,
 
     /// Global push commands used for all stores
+    #[serde(default)]
     pub push_commands: Vec<String>,
 }
 
@@ -163,6 +168,40 @@ impl Configuration {
         let path = Self::config_path()?;
         let serialized =
             toml::to_string_pretty(self).context(i18n::error_could_not_serialize_configuration())?;
+        atomic_write::write(&path, serialized.as_bytes())
+            .context(i18n::error_could_not_store_configuration())
+    }
+
+    /// Surgically sets (`Some`) or clears (`None`, resetting to the
+    /// built-in default) a single top-level key on the config file,
+    /// preserving every OTHER key — including keys this binary does not
+    /// recognize, e.g. a field written by a newer pasejo. `config set`
+    /// uses this instead of re-serializing the typed [`Configuration`],
+    /// which would silently drop unknown keys on every edit. Reads the
+    /// on-disk TOML table directly so the round-trip never passes
+    /// through the typed struct's known-fields-only view.
+    pub fn set_top_level_key(key: &str, value: Option<toml::Value>) -> Result<()> {
+        let path = Self::config_path()?;
+        let mut table = if path.exists() {
+            let content =
+                fs::read_to_string(&path).context(i18n::error_could_not_read_configuration())?;
+            let path_display = path.display().to_string();
+            content
+                .parse::<Table>()
+                .with_context(|| i18n::error_config_not_valid_toml(&path_display))?
+        } else {
+            Table::new()
+        };
+        match value {
+            Some(value) => {
+                table.insert(key.to_owned(), value);
+            }
+            None => {
+                table.remove(key);
+            }
+        }
+        let serialized = toml::to_string_pretty(&table)
+            .context(i18n::error_could_not_serialize_configuration())?;
         atomic_write::write(&path, serialized.as_bytes())
             .context(i18n::error_could_not_store_configuration())
     }
@@ -364,7 +403,11 @@ pub fn encrypt_store(registration: &StoreRegistration, store: &PasswordStore) ->
 
 pub fn encrypt_store_to_path(store: &PasswordStore, store_path: &Path) -> Result<()> {
     let recipients = recipients::read_recipients(&store.recipients)?;
-    let store_toml = toml::to_string_pretty(&store)?;
+    // The serialized TOML is the full plaintext store in a buffer that
+    // escapes `PasswordStore`'s `ZeroizeOnDrop`; `toml` has no scrubbing
+    // serializer, so wrap the result to clear it once `encrypt` has
+    // consumed it.
+    let store_toml = Zeroizing::new(toml::to_string_pretty(&store)?);
     secrets::encrypt(&store_toml, store_path, &recipients)?;
     Ok(())
 }

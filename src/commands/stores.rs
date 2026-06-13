@@ -6,8 +6,10 @@ use std::process::Command;
 use std::{fs, path};
 
 use anyhow::Context;
+use zeroize::Zeroizing;
 
 use crate::cli::i18n;
+use crate::commands::store_op::acquire_store_lock;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::StoreCommands;
 use crate::models::configuration::{Configuration, encrypt_store_to_path};
@@ -100,18 +102,29 @@ fn remove(
     // The configuration holds the only reference to the store's path, so
     // the file must be deleted before the registration is erased. A delete
     // that fails after the configuration is updated would orphan the file
-    // on disk with no way to find it again.
-    delete_store_file_if_requested(&path, remove_data)?;
+    // on disk with no way to find it again. (The inverse — delete succeeds,
+    // then the config save fails — leaves a registration pointing at a
+    // missing file; that is the deliberately-chosen lesser evil, since the
+    // config save is atomic and far less likely to fail than the unlink.)
+    let deleted = delete_store_file_if_requested(&path, remove_data)?;
     configuration.remove_store(&name)?;
-    i18n::store_remove_success(&name);
+    // Distinct message when the encrypted data file was actually deleted —
+    // an irreversible action that the plain "removed" line would hide.
+    if deleted {
+        i18n::store_remove_success_with_data(&name);
+    } else {
+        i18n::store_remove_success(&name);
+    }
     Ok(())
 }
 
-fn delete_store_file_if_requested(path: &Path, remove_data: bool) -> anyhow::Result<()> {
+/// Returns whether the encrypted store file was deleted.
+fn delete_store_file_if_requested(path: &Path, remove_data: bool) -> anyhow::Result<bool> {
     if remove_data && path.exists() {
         fs::remove_file(path)?;
+        return Ok(true);
     }
-    Ok(())
+    Ok(false)
 }
 
 fn set_default(configuration: &mut Configuration, store_name: &str) -> anyhow::Result<()> {
@@ -131,25 +144,29 @@ fn decrypt(
         if !yes_i_know {
             anyhow::bail!(i18n::error_decrypt_requires_yes_i_know());
         }
-        if store_path.is_none() {
+        let store = if let Some(path) = store_path {
+            // An arbitrary external file (e.g. a backup) — not necessarily a
+            // registered store, so no registered-store lock applies.
+            configuration.decrypt_store_from_path(registration, path)?
+        } else {
             let hooks = HookExecutor {
                 configuration,
                 registration,
                 offline,
                 force: false,
             };
-
             hooks.execute_pull_commands()?;
-        }
-
-        let store = if let Some(path) = store_path {
-            configuration.decrypt_store_from_path(registration, path)?
-        } else {
+            // Read-only operations still take the store lock so they can't
+            // read a half-written store, matching the store-op funnel
+            // invariant. Held only across the decrypt read.
+            let _lock = acquire_store_lock(registration.path())?;
             configuration.decrypt_store(registration)?
         };
 
-        let content = toml::to_string(&store)?;
-        println!("{content}");
+        // The full plaintext store; wrap so the buffer is scrubbed after it
+        // is printed instead of left in a freed heap page.
+        let content = Zeroizing::new(toml::to_string(&store)?);
+        println!("{}", &*content);
 
         Ok(())
     } else {
@@ -175,6 +192,15 @@ fn merge(
     other_version: &Path,
 ) -> anyhow::Result<()> {
     if let Some(registration) = configuration.select_store(store_name) {
+        // `--current-version` is the file we both read and write. Hold an
+        // exclusive lock across that read→write window so a manual merge
+        // against a registered live store can't interleave with a funnel
+        // operation (otp show, secret add) on the same file and lose one
+        // of the two writes. In the git-merge-driver case `current_version`
+        // is a private temp file (`%A`) that nothing else touches, so the
+        // lock is simply uncontended. `Ok(None)` (file missing) falls
+        // through to the decrypt error below.
+        let _lock = acquire_store_lock(current_version)?;
         let common_ancestor_store = configuration
             .decrypt_store_from_path(registration, common_ancestor)
             .context(i18n::error_cannot_decrypt_common_ancestor_store())?;

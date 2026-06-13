@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::path::{Path, absolute};
+use std::fmt::Write as _;
+use std::path::{Path, PathBuf, absolute};
 
 use clap::error::ErrorKind;
 
@@ -31,11 +32,14 @@ pub fn dispatch(command: &IdentityCommands, configuration: &Configuration) -> an
                 args.ignore_unknown,
             )
         }
-        IdentityCommands::List(args) => list(
-            configuration,
-            args.store_selection.store.as_ref(),
-            args.global,
-        ),
+        IdentityCommands::List(args) => {
+            list(
+                configuration,
+                args.store_selection.store.as_ref(),
+                args.global,
+            );
+            Ok(())
+        }
     }
 }
 
@@ -54,10 +58,7 @@ fn add(
             "identity",
             "add",
             ErrorKind::InvalidValue,
-            &format!(
-                "invalid value '{}' for '--file <FILE>': file was already added as an identity",
-                identity_file.display()
-            ),
+            &i18n::error_identity_file_already_added(&identity_file.display().to_string()),
         )
     } else {
         if global {
@@ -93,38 +94,82 @@ fn remove(
     } else if ignore_missing {
         Ok(())
     } else {
-        error_exit(
-            "identity",
-            "remove",
-            ErrorKind::InvalidValue,
-            &format!(
-                "invalid value '{}' for '--file <FILE>': file does not match any known identity",
-                identity_file.display()
-            ),
-        )
+        let mut message = i18n::error_identity_file_not_known(&identity_file.display().to_string());
+        // Identity paths are matched verbatim. If a registration in this
+        // scope resolves to the same file under a different spelling, name
+        // it so the user isn't left guessing which form was stored.
+        if let Some(stored) =
+            suggest_registered_spelling(configuration, store_name, global, identity_file)
+        {
+            let _ = write!(
+                message,
+                ". {}",
+                i18n::error_identity_did_you_mean(&stored.display().to_string())
+            );
+        }
+        error_exit("identity", "remove", ErrorKind::InvalidValue, &message)
     }
 }
 
-fn list(
+/// Best-effort suggestion for a `remove` that found no exact match.
+///
+/// Because identity paths are matched verbatim, a key registered under one
+/// spelling cannot be removed under an equivalent-but-different one (a
+/// symlink, a `..` form). When the supplied file exists on disk, resolve
+/// it and the in-scope registrations to their real paths and return the
+/// stored spelling that points at the same file. Paths that do not exist
+/// are skipped — this only reads to build a hint and never changes which
+/// identities actually match.
+fn suggest_registered_spelling(
     configuration: &Configuration,
     store_name: Option<&String>,
     global: bool,
-) -> anyhow::Result<()> {
-    if global {
-        for identity in &configuration.identities {
-            i18n::list_global_identity(&identity.file);
-        }
-        Ok(())
-    } else if let Some(registration) = configuration.select_store(store_name) {
-        for identity in &configuration.identities {
-            i18n::list_global_identity(&identity.file);
-        }
-        for identity in &registration.identities {
-            i18n::list_store_identity(&identity.file);
-        }
-
-        Ok(())
+    given: &Path,
+) -> Option<PathBuf> {
+    let target = std::fs::canonicalize(given).ok()?;
+    let candidates: &[Identity] = if global {
+        configuration.identities.as_slice()
     } else {
-        anyhow::bail!(i18n::error_no_store_or_global())
+        configuration
+            .select_store(store_name)
+            .map_or(&[], |registration| registration.identities.as_slice())
+    };
+    candidates
+        .iter()
+        .find(|identity| {
+            std::fs::canonicalize(&identity.file).is_ok_and(|resolved| resolved == target)
+        })
+        .map(|identity| identity.file.clone())
+}
+
+fn list(configuration: &Configuration, store_name: Option<&String>, global: bool) {
+    // Global identities apply to every store, so always list them — even
+    // with no store configured yet, where `identity add --global` is
+    // valid. Listing is read-only, so "nothing to show" is an empty
+    // result and exit 0, never the "no store or --global" error that the
+    // mutating `add`/`remove` paths raise when they need a target scope.
+    for identity in &configuration.identities {
+        i18n::list_global_identity(&identity.file);
+    }
+    if global {
+        return;
+    }
+    if let Some(registration) = configuration.select_store(store_name) {
+        for identity in &registration.identities {
+            // A file registered both globally and on this store is listed
+            // under each scope. The store line is flagged so the redundancy
+            // is visible — a global identity already covers every store, so
+            // the per-store copy adds nothing but is harmless (decrypt
+            // dedups via `all_identity_files`).
+            if configuration
+                .identities
+                .iter()
+                .any(|global_identity| global_identity.file == identity.file)
+            {
+                i18n::list_store_identity_also_global(&identity.file);
+            } else {
+                i18n::list_store_identity(&identity.file);
+            }
+        }
     }
 }

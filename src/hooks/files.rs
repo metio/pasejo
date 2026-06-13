@@ -11,11 +11,18 @@ use directories::BaseDirs;
 
 use crate::cli::environment_variables;
 
+/// Decides whether a throttled hook is due to run. PURE: it never writes
+/// the throttle marker — the caller advances the marker via
+/// [`write_last_execution`] only AFTER the hook command actually
+/// succeeds, so a failing hook doesn't bump the timestamp and silently
+/// suppress the retry for the rest of the interval. `paths == None`
+/// means throttling is disabled (`PASEJO_DISABLE_HOOK_THROTTLING`) and
+/// the hook always runs.
 pub fn should_execute(
     interval_seconds: Option<u64>,
     paths: Option<(PathBuf, PathBuf)>,
 ) -> anyhow::Result<bool> {
-    if let Some((last_directory, last_file)) = paths {
+    if let Some((_last_directory, last_file)) = paths {
         if last_file.exists() {
             let last_content = fs::read_to_string(&last_file)?;
             let last_seconds: u64 = last_content.parse()?;
@@ -24,19 +31,10 @@ pub fn should_execute(
                 .as_secs();
             let seconds_since_last_execution = epoch_seconds.saturating_sub(last_seconds);
             let interval = interval_seconds.unwrap_or(60 * 60 * 24);
-            let should_execute = seconds_since_last_execution > interval;
-
-            if should_execute {
-                fs::write(last_file, epoch_seconds.to_string())?;
-                return Ok(should_execute);
-            }
-            return Ok(false);
+            return Ok(seconds_since_last_execution > interval);
         }
-        fs::create_dir_all(last_directory)?;
-        let epoch_seconds = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs();
-        fs::write(last_file, epoch_seconds.to_string())?;
+        // No marker yet — first run for this store, so the hook is due.
+        return Ok(true);
     }
 
     Ok(true)
@@ -107,14 +105,19 @@ mod tests {
     }
 
     #[test]
-    fn should_execute_creates_marker_file_and_returns_true_when_missing() {
+    fn should_execute_returns_true_when_marker_missing_without_creating_it() {
         let temp = TempDir::new().unwrap();
         let (dir, file) = paths_in(&temp);
 
         let executed = should_execute(None, Some((dir, file.clone()))).unwrap();
 
         assert!(executed);
-        assert!(file.exists(), "marker file should be created");
+        // `should_execute` is pure now: creating the marker is the caller's
+        // job (`write_last_execution`, only after the hook succeeds).
+        assert!(
+            !file.exists(),
+            "should_execute must not write the marker itself"
+        );
     }
 
     #[test]
@@ -129,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn should_execute_returns_true_after_interval_and_updates_marker() {
+    fn should_execute_returns_true_after_interval_and_leaves_marker_untouched() {
         let temp = TempDir::new().unwrap();
         let (dir, file) = paths_in(&temp);
         std::fs::create_dir_all(&dir).unwrap();
@@ -139,11 +142,10 @@ mod tests {
         let executed = should_execute(Some(60), Some((dir, file.clone()))).unwrap();
 
         assert!(executed);
+        // The marker is NOT refreshed by should_execute — only the caller
+        // advances it, and only after the hook command succeeds.
         let written: u64 = std::fs::read_to_string(&file).unwrap().parse().unwrap();
-        assert!(
-            written >= now_seconds() - 5,
-            "marker should be refreshed to current time, got {written}"
-        );
+        assert_eq!(written, 1, "should_execute must not refresh the marker");
     }
 
     #[test]
@@ -333,10 +335,12 @@ mod tests {
             env::set_var(environment_variables::PASEJO_DATA_DIR, temp.path());
         }
 
-        // First call creates the marker; second call sees it within interval
-        // and returns false
+        // First call is due (no marker yet). Recording success via
+        // write_last_execution stamps the marker under the override dir;
+        // the second call then sees it within the interval and is not due.
         let executed_first =
             should_execute(Some(60 * 60), last_pull_paths(OsStr::new("store-y"))).unwrap();
+        write_last_execution(last_pull_paths(OsStr::new("store-y"))).unwrap();
         let executed_second =
             should_execute(Some(60 * 60), last_pull_paths(OsStr::new("store-y"))).unwrap();
 

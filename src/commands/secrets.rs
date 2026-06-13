@@ -102,6 +102,18 @@ pub fn dispatch(
     }
 }
 
+/// Scrubs a plaintext secret displaced by a `BTreeMap::insert`. Every
+/// overwrite path (add/copy/mv/edit/generate) hands the displaced
+/// value — typically the old password being rotated — through here so
+/// it is zeroized rather than dropped as a plain `String`. Call as
+/// `scrub_displaced(store.secrets.insert(k, v))`: the `insert` is a
+/// method call, so its receiver borrow is two-phase and the value
+/// expression (e.g. a `remainder.join` that still reads the store) is
+/// allowed during argument evaluation.
+fn scrub_displaced(displaced: Option<String>) {
+    drop(displaced.map(Zeroizing::new));
+}
+
 fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -118,7 +130,7 @@ fn add(
             anyhow::bail!(i18n::error_secret_already_exists(secret_path));
         }
         let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
-        store.secrets.insert(secret_path.to_owned(), secret);
+        scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
         i18n::secret_added(secret_path);
         Ok(((), StoreMutation::Modified))
     })
@@ -165,9 +177,11 @@ fn copy(
         let Some(secret) = store.secrets.get(source_path) else {
             anyhow::bail!(i18n::error_no_secret_found(source_path))
         };
-        store
-            .secrets
-            .insert(target_path.to_owned(), secret.to_owned());
+        scrub_displaced(
+            store
+                .secrets
+                .insert(target_path.to_owned(), secret.to_owned()),
+        );
         i18n::secret_copied(source_path, target_path);
         Ok(((), StoreMutation::Modified))
     })
@@ -191,7 +205,7 @@ fn mv(
         let Some(secret) = store.secrets.remove(current_path) else {
             anyhow::bail!(i18n::error_no_secret_found(current_path))
         };
-        store.secrets.insert(new_path.to_owned(), secret);
+        scrub_displaced(store.secrets.insert(new_path.to_owned(), secret));
         i18n::secret_moved(current_path, new_path);
         Ok(((), StoreMutation::Modified))
     })
@@ -374,14 +388,16 @@ fn generate(
                 let secret = Zeroizing::new(secret);
                 let mut remainder = current_value.lines().skip(1).collect::<Vec<&str>>();
                 remainder.splice(..0, vec![secret.as_str()]);
-                store
-                    .secrets
-                    .insert(secret_path.to_owned(), remainder.join("\n"));
+                scrub_displaced(
+                    store
+                        .secrets
+                        .insert(secret_path.to_owned(), remainder.join("\n")),
+                );
             } else {
-                store.secrets.insert(secret_path.to_owned(), secret);
+                scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
             }
         } else {
-            store.secrets.insert(secret_path.to_owned(), secret);
+            scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
         }
 
         i18n::secret_generated(secret_path);
@@ -400,7 +416,7 @@ fn edit(
             anyhow::bail!(i18n::error_secret_does_not_exist_for_edit(secret_path));
         };
         let secret = prompts::edit_secret(secret_path, current_value)?;
-        store.secrets.insert(secret_path.to_owned(), secret);
+        scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
         i18n::secret_edited(secret_path);
         Ok(((), StoreMutation::Modified))
     })

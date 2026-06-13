@@ -21,6 +21,7 @@ $ pasejo secret generate deeply/nested/secret
 Generated secret at 'deeply/nested/secret'
 
 $ pasejo export bitwarden --organization-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --pretty
+Warning: the export contains every secret in plaintext.
 {
   "collections": [
     {
@@ -103,6 +104,7 @@ $ pasejo export bitwarden --organization-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 }
 
 $ pasejo export bitwarden --organization-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --collection-id yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy --pretty
+Warning: the export contains every secret in plaintext.
 {
   "collections": [
     {
@@ -185,6 +187,7 @@ $ pasejo export bitwarden --organization-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 }
 
 $ pasejo export bitwarden --organization-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --collection-id yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy --collection-name some-collection --pretty
+Warning: the export contains every secret in plaintext.
 {
   "collections": [
     {

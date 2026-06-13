@@ -12,7 +12,7 @@ $ pasejo secret add some-secret
 Added secret at 'some-secret'
 
 $ pasejo store remove something --remove-data 
-Store 'something' removed
+Store 'something' removed and its encrypted data file deleted
 
 $ pasejo store add --path store --name another
 Store 'another' added at '[CWD]/store'

@@ -21,6 +21,7 @@ $ pasejo secret generate deeply/nested/secret
 Generated secret at 'deeply/nested/secret'
 
 $ pasejo export bitwarden --pretty
+Warning: the export contains every secret in plaintext.
 {
   "folders": [
     {

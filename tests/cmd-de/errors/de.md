@@ -18,7 +18,7 @@ For more information, try '--help'.
 
 $ pasejo config set ignore-missing-identities tru
 ? 1
-Error: Invalid boolean value 'tru'. Expected one of: true, false, 1, 0, yes, no, y, n
+Error: Ungültiger Wert 'tru' für Option 'ignore-missing-identities': erwartet wird eines von true, false, 1, 0, yes, no, y, n
 
 $ pasejo store decrypt
 ? 1
@@ -27,5 +27,13 @@ Error: Entschlüsselung verweigert: Dadurch werden alle Geheimnisse im Klartext 
 $ pasejo browser install-manifest --browser chrome --print --binary /usr/local/bin/pasejo
 ? 1
 Error: Browser 'chrome' erfordert --extension-id, da Erweiterungs-IDs für Chromium-basierte Browser aus dem öffentlichen Schlüssel der entpackten Erweiterung abgeleitet werden.
+
+$ pasejo identity remove --file non-existing
+? 2
+error: ungültiger Wert 'non-existing' für '--file <FILE>': Datei entspricht keiner bekannten Identität
+
+Usage: pasejo identity remove [OPTIONS] --file <FILE>
+
+For more information, try '--help'.
 
 ```

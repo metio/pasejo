@@ -187,7 +187,29 @@ fn name_matches_domain(name: &str, query_domain: &str, query_registrable: Option
     false
 }
 
+/// Reports whether `input` starts with a URL scheme per the RFC 3986
+/// grammar (`ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) "://"`). A
+/// plain `contains("://")` is not enough: a scheme-less stored value
+/// whose query string embeds another URL
+/// (`example.com/redirect?to=https://evil.com`) contains the marker
+/// without *starting* with a scheme, and feeding it to `Url::parse`
+/// directly fails — the value would silently stop matching.
+fn has_url_scheme(input: &str) -> bool {
+    let Some((scheme, _)) = input.split_once("://") else {
+        return false;
+    };
+    let mut chars = scheme.chars();
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+}
+
 fn extract_host(input: &str) -> Option<String> {
+    // `parse_secret` preserves field values verbatim, so a stored line
+    // like `url:    https://example.com` (extra spaces / a tab after the
+    // key) keeps the leading whitespace. Trim it before scheme detection
+    // and parsing — otherwise a leading space defeats `has_url_scheme`
+    // and the URL silently fails to match.
+    let input = input.trim();
     // The `url` crate's parser is the trust boundary for URL shape:
     // it handles percent-encoded hostnames, IDN punycode, userinfo,
     // port, IPv6 brackets, and fragment-only inputs without us
@@ -195,15 +217,22 @@ fn extract_host(input: &str) -> Option<String> {
     // scheme, so for scheme-less stored values (`example.com`,
     // `example.com/login`) prepend a placeholder before parsing —
     // the scheme doesn't affect the extracted host, only the
-    // parser's ability to find an authority. `host_str` returns
-    // the unbracketed form for IPv6 already, matching what the
-    // matcher's comparison side expects.
-    let parsed = if input.contains("://") {
+    // parser's ability to find an authority.
+    let parsed = if has_url_scheme(input) {
         url::Url::parse(input).ok()?
     } else {
         url::Url::parse(&format!("http://{input}")).ok()?
     };
-    let host = parsed.host_str()?;
+    // `host()` (not `host_str()`) so IPv6 addresses come back
+    // UNBRACKETED: `host_str()` returns the serialization slice
+    // `[::1]`, but the browser extension strips the brackets from
+    // `URL.hostname` before sending the query domain, and both sides
+    // must agree on one canonical form for the equality check to
+    // fire.
+    let host = match parsed.host()? {
+        url::Host::Ipv6(addr) => addr.to_string(),
+        other => other.to_string(),
+    };
     if host.is_empty() {
         None
     } else {
@@ -519,10 +548,50 @@ mod tests {
     }
 
     #[test]
-    fn ipv6_bracketed_host_does_not_crash() {
+    fn ipv6_bracketed_url_matches_the_unbracketed_query_domain() {
+        // The extension strips the brackets from `URL.hostname` before
+        // sending the query domain, so the stored `[::1]` and the
+        // queried `::1` must land on the same canonical (unbracketed)
+        // form. An assertion that tolerates the empty result would
+        // mask a host-extraction regression — this one demands the
+        // match.
         let store = store_with(&[("alice", "hunter2\nurl: https://[::1]:8443/x")]);
         let result = find_matches(&store, "personal", "::1", &uri_keys(), &username_keys());
-        assert!(result.is_empty() || result[0].match_kind == MatchKind::UrlField);
+        assert_eq!(result.len(), 1, "IPv6 URL must match the unbracketed query");
+        assert_eq!(result[0].match_kind, MatchKind::UrlField);
+    }
+
+    #[test]
+    fn extract_host_returns_ipv6_addresses_unbracketed() {
+        assert_eq!(extract_host("https://[::1]:8443/x"), Some("::1".to_owned()),);
+        assert_eq!(
+            extract_host("https://[2001:db8::1]/"),
+            Some("2001:db8::1".to_owned()),
+        );
+    }
+
+    #[test]
+    fn extract_host_handles_a_scheme_less_value_with_an_embedded_url() {
+        // `contains("://")` is not scheme detection: this value has no
+        // scheme of its own but embeds one in the query string. It
+        // must resolve to its own host, not fail to parse (and
+        // certainly not resolve to the embedded URL's host).
+        assert_eq!(
+            extract_host("example.com/redirect?to=https://evil.com"),
+            Some("example.com".to_owned()),
+        );
+    }
+
+    #[test]
+    fn has_url_scheme_accepts_rfc3986_schemes_and_rejects_lookalikes() {
+        assert!(has_url_scheme("https://example.com"));
+        assert!(has_url_scheme("ssh://git@example.com"));
+        assert!(has_url_scheme("chrome-extension://abc/"));
+        // Path/query characters before the marker disqualify it.
+        assert!(!has_url_scheme("example.com/redirect?to=https://evil.com"));
+        assert!(!has_url_scheme("example.com"));
+        assert!(!has_url_scheme("://no-scheme"));
+        assert!(!has_url_scheme("1http://digit-first"));
     }
 
     #[test]
@@ -555,6 +624,20 @@ mod tests {
         // the parser prepends a placeholder scheme transparently.
         assert_eq!(
             extract_host("example.com/login?ref=x#section"),
+            Some("example.com".to_owned()),
+        );
+    }
+
+    #[test]
+    fn extract_host_trims_surrounding_whitespace() {
+        // `url: <tab/spaces> https://example.com` keeps the leading
+        // whitespace through the parser; trimming keeps it matching.
+        assert_eq!(
+            extract_host("   https://example.com"),
+            Some("example.com".to_owned()),
+        );
+        assert_eq!(
+            extract_host("\texample.com/login  "),
             Some("example.com".to_owned()),
         );
     }

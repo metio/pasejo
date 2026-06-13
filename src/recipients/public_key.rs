@@ -15,23 +15,11 @@ pub fn get(
     if let Some(public_key) = &args.public_key {
         Ok(vec![split_ssh_key(public_key)?])
     } else if let Some(codeberg_username) = &args.codeberg {
-        Ok(vec![split_ssh_key(&download_public_key(
-            Provider::Codeberg,
-            codeberg_username,
-            download_timeout,
-        )?)?])
+        download_keys(Provider::Codeberg, codeberg_username, download_timeout)
     } else if let Some(github_username) = &args.github {
-        Ok(vec![split_ssh_key(&download_public_key(
-            Provider::Github,
-            github_username,
-            download_timeout,
-        )?)?])
+        download_keys(Provider::Github, github_username, download_timeout)
     } else if let Some(gitlab_username) = &args.gitlab {
-        Ok(vec![split_ssh_key(&download_public_key(
-            Provider::Gitlab,
-            gitlab_username,
-            download_timeout,
-        )?)?])
+        download_keys(Provider::Gitlab, gitlab_username, download_timeout)
     } else if let Some(filename) = &args.file {
         let mut public_keys = vec![];
         let file_content = fs::read_to_string(filename)?;
@@ -58,6 +46,47 @@ pub fn get(
     } else {
         anyhow::bail!(i18n::error_no_public_key_source())
     }
+}
+
+/// Fetches a provider's `.keys` body and turns EVERY key line into a
+/// recipient. A `.keys` endpoint returns one public key per line, so a
+/// user with several enrolled keys must contribute all of them —
+/// keeping only the first would silently leave that user unable to
+/// decrypt from their other devices. (Comment lines / per-key comments
+/// don't occur in `.keys` output, so unlike the `--file` path there is
+/// no `#`-comment handling.) An account with no published keys yields
+/// an empty body; rather than fall through and create a recipient-less
+/// (undecryptable) store, that bails with a clear, localized error
+/// naming the provider and username.
+fn download_keys(
+    provider: Provider,
+    username: &str,
+    download_timeout: Duration,
+) -> anyhow::Result<Vec<(String, String)>> {
+    let body = download_public_key(provider, username, download_timeout)?;
+    let public_keys = split_keys_body(&body)?;
+    if public_keys.is_empty() {
+        anyhow::bail!(i18n::error_no_public_keys_for_user(
+            provider.name(),
+            username
+        ))
+    }
+    Ok(public_keys)
+}
+
+/// Splits a `.keys` response body (one public key per line) into
+/// `(key, comment)` pairs, skipping blank lines. Pure so the
+/// multi-key fan-out is testable without a network round-trip.
+fn split_keys_body(body: &str) -> anyhow::Result<Vec<(String, String)>> {
+    let mut public_keys = vec![];
+    for line in body.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        public_keys.push(split_ssh_key(line)?);
+    }
+    Ok(public_keys)
 }
 
 fn append_comment_line(buffer: &mut String, line: &str) {
@@ -132,6 +161,46 @@ mod tests {
             gitlab: None,
         };
         assert!(get(&args, Duration::from_secs(30)).is_err());
+    }
+
+    #[test]
+    fn split_keys_body_returns_every_key_in_a_multi_key_response() {
+        // Regression for review9 R1: a provider account with several
+        // enrolled keys returns one key per line. Keeping only the
+        // first (the old `split_ssh_key(&whole_body)` behavior) would
+        // silently fold the remaining keys into a comment and leave
+        // that user unable to decrypt from their other devices.
+        let body = "ssh-ed25519 AAAA alice@laptop\nssh-rsa BBBB alice@desktop\nssh-ed25519 CCCC";
+        let keys = split_keys_body(body).unwrap();
+        assert_eq!(keys.len(), 3);
+        assert_eq!(keys[0], ("ssh-ed25519 AAAA".into(), "alice@laptop".into()));
+        assert_eq!(keys[1], ("ssh-rsa BBBB".into(), "alice@desktop".into()));
+        assert_eq!(keys[2], ("ssh-ed25519 CCCC".into(), String::new()));
+    }
+
+    #[test]
+    fn split_keys_body_skips_blank_lines() {
+        let body = "\nssh-ed25519 AAAA\n\n  \nssh-rsa BBBB\n";
+        let keys = split_keys_body(body).unwrap();
+        assert_eq!(keys.len(), 2);
+        assert_eq!(keys[0].0, "ssh-ed25519 AAAA");
+        assert_eq!(keys[1].0, "ssh-rsa BBBB");
+    }
+
+    #[test]
+    fn split_keys_body_is_empty_for_an_account_with_no_keys() {
+        // An account that exists but published no SSH keys returns an
+        // empty body; `download_keys` turns this empty Vec into a
+        // clear "no public keys for user" error rather than creating a
+        // recipient-less store (review9 R4).
+        assert!(split_keys_body("").unwrap().is_empty());
+        assert!(split_keys_body("\n  \n\n").unwrap().is_empty());
+    }
+
+    #[test]
+    fn split_keys_body_propagates_a_malformed_key_line() {
+        // A truncated `ssh-…` line is rejected (mirrors split_ssh_key).
+        assert!(split_keys_body("ssh-ed25519 AAAA\nssh-rsa").is_err());
     }
 
     #[test]

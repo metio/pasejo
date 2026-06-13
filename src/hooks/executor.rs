@@ -28,9 +28,12 @@ impl HookExecutor<'_> {
                     i18n::execute_pull_hooks(&self.registration.name);
                     self.execute(&self.configuration.pull_commands)?;
                     self.execute(&self.registration.pull_commands)?;
-                    if self.force {
-                        write_last_execution(last_pull_paths(store_name))?;
-                    }
+                    // Stamp the throttle marker only now that the commands
+                    // have succeeded — a `?` above bails before this, so a
+                    // failed hook leaves the previous timestamp intact and
+                    // the next invocation retries instead of silently
+                    // skipping for the rest of the interval.
+                    write_last_execution(last_pull_paths(store_name))?;
                 }
                 Ok(())
             } else {
@@ -50,9 +53,8 @@ impl HookExecutor<'_> {
                     i18n::execute_push_hooks(&self.registration.name);
                     self.execute(&self.configuration.push_commands)?;
                     self.execute(&self.registration.push_commands)?;
-                    if self.force {
-                        write_last_execution(last_push_paths(store_name))?;
-                    }
+                    // Stamp only after success — see the pull path above.
+                    write_last_execution(last_push_paths(store_name))?;
                 }
                 Ok(())
             } else {
@@ -84,8 +86,15 @@ impl HookExecutor<'_> {
                 .split_first()
                 .with_context(|| i18n::error_empty_hook_command(&command_display))?;
 
+            // Hooks are non-interactive sync commands. Closing stdin keeps an
+            // accidentally-interactive hook (a `git` that wants a passphrase)
+            // from blocking forever on a read instead of failing fast, and —
+            // critically — stops a hook from consuming the parent's stdin,
+            // which under `browser host` is the native-messaging byte stream
+            // the host is mid-parse on.
             let output = Command::new(binary)
                 .args(rest)
+                .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .current_dir(parent)
                 .output()

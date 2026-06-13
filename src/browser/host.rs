@@ -387,16 +387,8 @@ fn handle_one_message(
     stdout: &Mutex<std::io::Stdout>,
 ) {
     let (request_id, payload) = process_message(bytes, configuration, context, offline);
-    let envelope = ResponseEnvelope {
-        request_id,
-        payload: &payload,
-    };
-    let response_bytes = match serde_json::to_vec(&envelope) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            eprintln!("pasejo browser host: failed to serialize response: {err}");
-            return;
-        }
+    let Some(response_bytes) = serialize_capped(request_id, &payload) else {
+        return;
     };
     let mut out = match stdout.lock() {
         Ok(guard) => guard,
@@ -404,6 +396,53 @@ fn handle_one_message(
     };
     if let Err(err) = write_message(&mut *out, &response_bytes) {
         eprintln!("pasejo browser host: failed to write response: {err}");
+    }
+}
+
+/// Serializes the response envelope and enforces the browser's
+/// host→browser message limit on the OUTBOUND side. Chrome kills the
+/// native-messaging port when the host writes a message larger than
+/// 1 MiB — which would fail every in-flight request on the
+/// connection, not just the oversized one. A reply that exceeds
+/// `MAX_MESSAGE_LEN` (a store whose matches carry very large secret
+/// bodies, for instance) is therefore downgraded to a small
+/// per-request error envelope that keeps the connection alive and
+/// tells the extension which request could not be answered. The
+/// replacement envelope is a fixed shape whose size does not depend
+/// on any user data, so it cannot itself exceed the limit.
+fn serialize_capped(request_id: Option<u64>, payload: &ResponsePayload) -> Option<Vec<u8>> {
+    let envelope = ResponseEnvelope {
+        request_id,
+        payload,
+    };
+    let response_bytes = match serde_json::to_vec(&envelope) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            eprintln!("pasejo browser host: failed to serialize response: {err}");
+            return None;
+        }
+    };
+    if response_bytes.len() <= MAX_MESSAGE_LEN {
+        return Some(response_bytes);
+    }
+    let too_large = ResponsePayload::Error(ErrorResponse {
+        error: ErrorKind::ResponseTooLarge,
+        store: None,
+        hint: Some(format!(
+            "response of {} bytes exceeds the {MAX_MESSAGE_LEN}-byte native-messaging limit",
+            response_bytes.len()
+        )),
+    });
+    let fallback = ResponseEnvelope {
+        request_id,
+        payload: &too_large,
+    };
+    match serde_json::to_vec(&fallback) {
+        Ok(bytes) => Some(bytes),
+        Err(err) => {
+            eprintln!("pasejo browser host: failed to serialize fallback response: {err}");
+            None
+        }
     }
 }
 
@@ -738,6 +777,47 @@ mod tests {
         let response = list_stores_response(&cfg);
         assert_eq!(response.protocol_version, PROTOCOL_VERSION);
         assert_eq!(PROTOCOL_VERSION, 1);
+    }
+
+    // --- serialize_capped (review8 item D) --------------------------------
+
+    #[test]
+    fn serialize_capped_passes_a_normal_reply_through_unchanged() {
+        let payload = ResponsePayload::Error(ErrorResponse {
+            error: ErrorKind::UnknownStore,
+            store: Some("personal".into()),
+            hint: None,
+        });
+        let bytes = serialize_capped(Some(7), &payload).expect("must serialize");
+        let text = String::from_utf8(bytes).expect("valid utf8");
+        assert!(text.contains(r#""request_id":7"#));
+        assert!(text.contains(r#""error":"unknown_store""#));
+    }
+
+    #[test]
+    fn serialize_capped_downgrades_an_oversized_reply_to_response_too_large() {
+        // A hint just past the limit pushes the serialized envelope over
+        // MAX_MESSAGE_LEN. Writing it would get the connection killed by
+        // the browser; the cap converts it into a small per-request
+        // error that preserves the request_id correlation.
+        let payload = ResponsePayload::Error(ErrorResponse {
+            error: ErrorKind::HookFailed,
+            store: Some("personal".into()),
+            hint: Some("x".repeat(MAX_MESSAGE_LEN + 1)),
+        });
+        let bytes = serialize_capped(Some(42), &payload).expect("fallback must serialize");
+        assert!(
+            bytes.len() <= MAX_MESSAGE_LEN,
+            "fallback must fit the limit, got {} bytes",
+            bytes.len()
+        );
+        let text = String::from_utf8(bytes).expect("valid utf8");
+        assert!(text.contains(r#""error":"response_too_large""#));
+        assert!(
+            text.contains(r#""request_id":42"#),
+            "the oversized reply's request_id must survive the downgrade so the extension can route the error"
+        );
+        assert!(text.contains("native-messaging limit"));
     }
 
     // --- redact_sensitive_paths / error_response (item F) ----------------

@@ -11,7 +11,7 @@ $ pasejo config get pull-interval-seconds
 
 $ pasejo config set pull-interval-seconds -- -1
 ? 1
-Error: invalid digit found in string
+Error: Invalid value '-1' for option 'pull-interval-seconds': expected a non-negative integer
 
 $ pasejo config get pull-interval-seconds
 1

@@ -39,11 +39,15 @@ no-identities-exist-yet = There are no identities in the store '{ $store_name }'
 store-add-success = Store '{ $store_name }' added at '{ $store_path }'
 store-set-default = Store '{ $store_name }' is now the default
 store-remove-success = Store '{ $store_name }' removed
+store-remove-success-with-data = Store '{ $store_name }' removed and its encrypted data file deleted
 
 ## Hook execution
 
 execute-pull-hooks = Executing pull hooks for store '{ $store_name }'
 execute-push-hooks = Executing push hooks for store '{ $store_name }'
+hook-run-nothing-selected = Nothing to run: pass --pull and/or --push to select which hooks to execute.
+export-plaintext-warning = Warning: the export contains every secret in plaintext.
+export-written-to-file = Wrote the export to '{ $path }'
 
 ## Merge conflicts
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = Merge conflict for { $value_type } at '{ $
 
 list-global-identity = global: { $identity_file }
 list-store-identity = store: { $identity_file }
+list-store-identity-also-global = store: { $identity_file } (also registered globally)
 list-global-pull-hook = global pull: { $command }
 list-global-push-hook = global push: { $command }
 list-store-pull-hook = store pull: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = One-time password already exists at { $
 error-not-allowed-to-remove-one-time-password = Not allowed to remove one-time password at { $password_path }. Use --force to overwrite.
 error-no-one-time-password-found = No one-time password found at '{ $password_path }'
 error-no-store-in-configuration = No store found in configuration. Run 'pasejo store add ...' first to add one
+error-unknown-store = Store '{ $store_name }' does not exist in the configuration. Run 'pasejo store list' to see the configured stores.
 error-decrypt-requires-yes-i-know = Refusing to decrypt: this prints every secret in plaintext to stdout. Pass --yes-i-know to confirm.
 error-no-store-or-global = No store found in configuration and no --global flag specified. Run 'pasejo store add ...' first to add one
 error-store-name-already-exists = Store name already exists. Please use a different name.
@@ -130,12 +136,16 @@ error-store-path-is-directory = Cannot use directory as store path. Please use a
 error-cannot-create-store-path = Cannot create store path. Please check the path and try again.
 error-cannot-get-store-parent = Cannot get parent directory of store path. Please check the path and try again.
 error-cannot-identify-store = Cannot identify store. Set a default store, use --store to specify a store or use --global to set the identity globally.
+error-identity-file-already-added = invalid value '{ $file }' for '--file <FILE>': file was already added as an identity
+error-identity-file-not-known = invalid value '{ $file }' for '--file <FILE>': file does not match any known identity
+error-identity-did-you-mean = Did you mean '{ $stored }'? Identity paths are matched exactly.
 error-no-identity-files-to-decrypt = No identity files to decrypt. Add at least one identity to complete store initialization.
 error-invalid-ssh-public-key-format = Invalid SSH public key format
 error-username-empty = Username must not be empty
 error-username-contains-dotdot = Invalid username '{ $username }': must not contain '..'
 error-username-invalid-character = Invalid username '{ $username }': must start with an ASCII letter or digit and contain only ASCII letters, digits, '-', '_' and '.'
 error-no-public-key-found-in-file = No public key found in '{ $filename }'
+error-no-public-keys-for-user = { $provider } user '{ $username }' has no public SSH keys to add as recipients
 error-no-public-key-source = You must specify at least one source for a public key
 error-no-qrcode-found = No QR code found in '{ $qrcode }'
 error-failed-to-decode-qrcode = Failed to decode QR code in '{ $qrcode }'
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = Cannot determine parent of store path
 error-store-path-not-utf8 = Cannot substitute %p in token { $token }: store path { $path } is not valid UTF-8
 error-merge-conflict-recipients = Merge conflict detected in recipients. Please resolve manually.
 error-recipient-not-found-in-store = Recipient not found in the store
+error-cannot-remove-last-recipient = Cannot remove the last recipient from the store. Please add a new recipient before removing this one.
 error-cannot-decrypt-common-ancestor-store = Cannot decrypt common ancestor store
 error-cannot-decrypt-current-version-store = Cannot decrypt current version store
 error-cannot-decrypt-other-version-store = Cannot decrypt other version store
 error-cannot-read-file = Cannot read file at '{ $path }'
 error-downloading-public-key-failed = Downloading public key from { $provider } failed
+error-download-user-not-found = { $provider } has no user '{ $username }'
+error-download-rate-limited = { $provider } rate-limited the request; wait a moment and try again
+error-download-server-error = { $provider } returned an error (HTTP { $status })
+error-download-timeout = Downloading public key from { $provider } timed out; check your connection or raise key-download-timeout-seconds
 error-cannot-determine-parent-directory = Cannot determine parent directory of { $path }
 error-failed-to-create-directory = Failed to create directory { $path }
 error-failed-to-write-file = Failed to write { $path }
@@ -177,6 +192,8 @@ error-could-not-store-configuration = Could not store configuration
 error-could-not-load-migrated-config = Could not load migrated configuration
 error-could-not-serialize-configuration = Could not serialize configuration
 error-config-not-valid-toml = Configuration file at { $path } is not valid TOML
+error-config-invalid-integer = Invalid value '{ $value }' for option '{ $option }': expected a non-negative integer
+error-config-invalid-boolean = Invalid value '{ $value }' for option '{ $option }': expected one of true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Could not open store file for locking: { $path }
 error-could-not-acquire-store-lock = Could not acquire lock on store file: { $path }
 error-cannot-encrypt-store = Cannot encrypt store
@@ -185,10 +202,12 @@ error-command-exited-with = Command { $binary } exited with { $exit }
 error-browser-host-requires-pipe = Browser host requires a piped stdin from the connecting browser extension. Run this command via your browser's native-messaging manifest, not directly from a terminal.
 error-browser-install-manifest-no-browser = Specify at least one --browser to install the native-messaging manifest for.
 error-browser-install-manifest-needs-extension-id = Browser '{ $browser }' requires --extension-id because chromium-family extension ids are derived from the unpacked extension's public key.
+error-browser-install-manifest-extension-id-multiple-browsers = --extension-id cannot be combined with more than one --browser, because each browser needs its own extension id. Run the command once per browser.
 error-browser-install-manifest-unsupported-os = Installing native-messaging manifests is not supported on '{ $os }'.
 error-browser-install-manifest-no-home-dir = Could not determine the user's home directory.
 error-browser-install-manifest-no-data-dir = Could not determine the user's data directory.
 error-browser-install-manifest-no-current-exe = Could not determine the path of the running pasejo binary.
 browser-install-manifest-written = Wrote '{ $browser }' native-messaging manifest to '{ $path }'
+browser-install-manifest-print-wrapper-note = Note: the printed manifest references the wrapper script at '{ $path }', which this command did not install. Pass --binary to reference an existing executable instead.
 error-browser-install-manifest-invalid-env = --env entry '{ $entry }' is not in KEY=VALUE form.
 error-browser-install-manifest-invalid-env-name = --env name '{ $name }' is not a valid POSIX environment variable name (must start with a letter or underscore and contain only letters, digits, and underscores).

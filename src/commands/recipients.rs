@@ -113,9 +113,7 @@ fn remove(
 ) -> Result<()> {
     with_store(configuration, store_name, offline, |_, store| {
         if store.recipients.len() == 1 && store.recipients[0].public_key == public_key {
-            anyhow::bail!(
-                "Cannot remove the last recipient from the store. Please add a new recipient before removing this one."
-            )
+            anyhow::bail!(i18n::error_cannot_remove_last_recipient())
         }
         if !store
             .recipients

@@ -39,11 +39,15 @@ no-identities-exist-yet = Aucune identité dans le coffre '{ $store_name }' pour
 store-add-success = Coffre '{ $store_name }' ajouté à '{ $store_path }'
 store-set-default = Le coffre '{ $store_name }' est maintenant le coffre par défaut
 store-remove-success = Coffre '{ $store_name }' supprimé
+store-remove-success-with-data = Magasin '{ $store_name }' supprimé et son fichier de données chiffré effacé
 
 ## Exécution des hooks
 
 execute-pull-hooks = Exécution des hooks pull pour le coffre '{ $store_name }'
 execute-push-hooks = Exécution des hooks push pour le coffre '{ $store_name }'
+hook-run-nothing-selected = Rien à exécuter : utilisez --pull et/ou --push pour choisir les hooks à exécuter.
+export-plaintext-warning = Avertissement : l'export contient tous les secrets en clair.
+export-written-to-file = Export écrit dans '{ $path }'
 
 ## Conflits de fusion
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = Conflit de fusion pour { $value_type } à 
 
 list-global-identity = global : { $identity_file }
 list-store-identity = coffre : { $identity_file }
+list-store-identity-also-global = coffre : { $identity_file } (également enregistrée globalement)
 list-global-pull-hook = pull global : { $command }
 list-global-push-hook = push global : { $command }
 list-store-pull-hook = pull coffre : { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = Un mot de passe à usage unique existe 
 error-not-allowed-to-remove-one-time-password = Suppression du mot de passe à usage unique à { $password_path } interdite. Utilisez --force pour l'écraser.
 error-no-one-time-password-found = Aucun mot de passe à usage unique trouvé à '{ $password_path }'
 error-no-store-in-configuration = Aucun coffre trouvé dans la configuration. Exécutez d'abord 'pasejo store add ...' pour en ajouter un
+error-unknown-store = Le magasin '{ $store_name }' n'existe pas dans la configuration. Exécutez 'pasejo store list' pour voir les magasins configurés.
 error-decrypt-requires-yes-i-know = Déchiffrement refusé : cela affichera tous les secrets en clair sur stdout. Passez --yes-i-know pour confirmer.
 error-no-store-or-global = Aucun coffre trouvé dans la configuration et aucune option --global spécifiée. Exécutez d'abord 'pasejo store add ...' pour en ajouter un
 error-store-name-already-exists = Le nom du coffre existe déjà. Veuillez utiliser un autre nom.
@@ -130,12 +136,16 @@ error-store-path-is-directory = Impossible d'utiliser un répertoire comme chemi
 error-cannot-create-store-path = Impossible de créer le chemin du coffre. Veuillez vérifier le chemin et réessayer.
 error-cannot-get-store-parent = Impossible d'obtenir le répertoire parent du chemin du coffre. Veuillez vérifier le chemin et réessayer.
 error-cannot-identify-store = Impossible d'identifier le coffre. Définissez un coffre par défaut, utilisez --store pour spécifier un coffre, ou --global pour définir l'identité globalement.
+error-identity-file-already-added = valeur invalide '{ $file }' pour '--file <FILE>' : le fichier a déjà été ajouté comme identité
+error-identity-file-not-known = valeur invalide '{ $file }' pour '--file <FILE>' : le fichier ne correspond à aucune identité connue
+error-identity-did-you-mean = Vouliez-vous dire '{ $stored }' ? Les chemins d'identité sont comparés à l'identique.
 error-no-identity-files-to-decrypt = Aucun fichier d'identité à déchiffrer. Ajoutez au moins une identité pour terminer l'initialisation du coffre.
 error-invalid-ssh-public-key-format = Format de clé publique SSH non valide
 error-username-empty = Le nom d'utilisateur ne doit pas être vide
 error-username-contains-dotdot = Nom d'utilisateur non valide '{ $username }' : ne doit pas contenir '..'
 error-username-invalid-character = Nom d'utilisateur non valide '{ $username }' : doit commencer par une lettre ou un chiffre ASCII et ne contenir que des lettres ASCII, chiffres, '-', '_' et '.'
 error-no-public-key-found-in-file = Aucune clé publique trouvée dans '{ $filename }'
+error-no-public-keys-for-user = L'utilisateur { $provider } '{ $username }' n'a aucune clé SSH publique à ajouter comme destinataire
 error-no-public-key-source = Vous devez spécifier au moins une source pour une clé publique
 error-no-qrcode-found = Aucun code QR trouvé dans '{ $qrcode }'
 error-failed-to-decode-qrcode = Échec du décodage du code QR dans '{ $qrcode }'
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = Impossible de déterminer le parent d
 error-store-path-not-utf8 = Impossible de substituer %p dans le jeton { $token } : le chemin du coffre { $path } n'est pas UTF-8 valide
 error-merge-conflict-recipients = Conflit de fusion détecté dans les destinataires. Veuillez le résoudre manuellement.
 error-recipient-not-found-in-store = Destinataire introuvable dans le coffre
+error-cannot-remove-last-recipient = Impossible de supprimer le dernier destinataire du magasin. Veuillez ajouter un nouveau destinataire avant de supprimer celui-ci.
 error-cannot-decrypt-common-ancestor-store = Impossible de déchiffrer le coffre de l'ancêtre commun
 error-cannot-decrypt-current-version-store = Impossible de déchiffrer le coffre de la version actuelle
 error-cannot-decrypt-other-version-store = Impossible de déchiffrer le coffre de l'autre version
 error-cannot-read-file = Impossible de lire le fichier à '{ $path }'
 error-downloading-public-key-failed = Échec du téléchargement de la clé publique depuis { $provider }
+error-download-user-not-found = { $provider } n'a aucun utilisateur '{ $username }'
+error-download-rate-limited = { $provider } a limité la requête ; patientez un instant et réessayez
+error-download-server-error = { $provider } a renvoyé une erreur (HTTP { $status })
+error-download-timeout = Délai dépassé lors du téléchargement de la clé publique depuis { $provider } ; vérifiez votre connexion ou augmentez key-download-timeout-seconds
 error-cannot-determine-parent-directory = Impossible de déterminer le répertoire parent de { $path }
 error-failed-to-create-directory = Échec de la création du répertoire { $path }
 error-failed-to-write-file = Échec de l'écriture de { $path }
@@ -177,6 +192,8 @@ error-could-not-store-configuration = Impossible d'enregistrer la configuration
 error-could-not-load-migrated-config = Impossible de charger la configuration migrée
 error-could-not-serialize-configuration = Impossible de sérialiser la configuration
 error-config-not-valid-toml = Le fichier de configuration à { $path } n'est pas un TOML valide
+error-config-invalid-integer = Valeur '{ $value }' invalide pour l'option '{ $option }' : un entier non négatif est attendu
+error-config-invalid-boolean = Valeur '{ $value }' invalide pour l'option '{ $option }' : attendu l'un de true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Impossible d'ouvrir le fichier du coffre pour le verrouillage : { $path }
 error-could-not-acquire-store-lock = Impossible d'acquérir le verrou sur le fichier du coffre : { $path }
 error-cannot-encrypt-store = Impossible de chiffrer le coffre
@@ -185,10 +202,12 @@ error-command-exited-with = La commande { $binary } s'est terminée avec { $exit
 error-browser-host-requires-pipe = L'hôte du navigateur nécessite une entrée standard redirigée depuis l'extension du navigateur connectée. Exécutez cette commande via le manifeste de messagerie native de votre navigateur, et non directement depuis un terminal.
 error-browser-install-manifest-no-browser = Spécifiez au moins un --browser pour lequel installer le manifeste de messagerie native.
 error-browser-install-manifest-needs-extension-id = Le navigateur '{ $browser }' nécessite --extension-id car les identifiants d'extension des navigateurs de la famille Chromium sont dérivés de la clé publique de l'extension décompressée.
+error-browser-install-manifest-extension-id-multiple-browsers = --extension-id ne peut pas être combiné avec plusieurs --browser, car chaque navigateur nécessite son propre identifiant d'extension. Exécutez la commande une fois par navigateur.
 error-browser-install-manifest-unsupported-os = L'installation des manifestes de messagerie native n'est pas prise en charge sur '{ $os }'.
 error-browser-install-manifest-no-home-dir = Impossible de déterminer le répertoire personnel de l'utilisateur.
 error-browser-install-manifest-no-data-dir = Impossible de déterminer le répertoire de données de l'utilisateur.
 error-browser-install-manifest-no-current-exe = Impossible de déterminer le chemin du binaire pasejo en cours d'exécution.
 browser-install-manifest-written = Manifeste de messagerie native pour '{ $browser }' écrit dans '{ $path }'
+browser-install-manifest-print-wrapper-note = Remarque : le manifeste affiché référence le script wrapper situé à '{ $path }', que cette commande n'a pas installé. Utilisez --binary pour référencer un exécutable existant à la place.
 error-browser-install-manifest-invalid-env = L'entrée --env '{ $entry }' n'est pas au format KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = Le nom --env '{ $name }' n'est pas un nom de variable d'environnement POSIX valide (doit commencer par une lettre ou un trait de soulignement et ne contenir que des lettres, chiffres et traits de soulignement).

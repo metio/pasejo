@@ -6,6 +6,7 @@ $ pasejo store add --path another --name another
 Store 'another' added at '[CWD]/another'
 
 $ pasejo hook run --verbose
+Nothing to run: pass --pull and/or --push to select which hooks to execute.
 
 $ pasejo hook run --pull --verbose
 
@@ -36,6 +37,7 @@ For more information, try '--help'.
 $ pasejo hook set --push 'echo push' --pull 'echo pull'
 
 $ pasejo hook run --verbose
+Nothing to run: pass --pull and/or --push to select which hooks to execute.
 
 $ pasejo hook set --pull 'sdfgdf'
 

@@ -11,7 +11,7 @@ $ pasejo config get clipboard-timeout
 
 $ pasejo config set clipboard-timeout -- -1
 ? 1
-Error: invalid digit found in string
+Error: Invalid value '-1' for option 'clipboard-timeout': expected a non-negative integer
 
 $ pasejo config get clipboard-timeout
 1

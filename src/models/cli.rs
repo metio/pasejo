@@ -254,6 +254,12 @@ pub struct BitwardenArgs {
     /// Toggle whether to print pretty JSON or not
     #[arg(long, default_missing_value="true", default_value("false"), num_args=0..=1)]
     pub pretty: Option<bool>,
+
+    /// Write the export to this file (created mode 0600 on Unix) instead
+    /// of stdout. Avoids a shell-redirected file landing at the umask
+    /// default and avoids the cleartext export sitting in shell history.
+    #[arg(long)]
+    pub out: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -379,11 +385,16 @@ pub struct OtpAddArgs {
     pub algorithm: Option<OneTimePasswordAlgorithm>,
 
     /// The digits of the one-time password
-    #[arg(long, conflicts_with_all = ["url", "qrcode"])]
+    // `otp-std` only generates codes of 6 to 8 digits; range-check at parse
+    // time so `otp add --digits 4` fails here (where the user can fix it)
+    // rather than succeeding and dead-ending every later `otp show`.
+    #[arg(long, conflicts_with_all = ["url", "qrcode"], value_parser = clap::value_parser!(u8).range(6..=8))]
     pub digits: Option<u8>,
 
     /// The period of the one-time password
-    #[arg(long, conflicts_with_all = ["url", "qrcode", "counter"])]
+    // A zero period is rejected by `otp-std`; reject it at parse time for the
+    // same fail-early reason as `--digits`.
+    #[arg(long, conflicts_with_all = ["url", "qrcode", "counter"], value_parser = clap::value_parser!(u64).range(1..))]
     pub period: Option<u64>,
 
     /// The skew of the one-time password

@@ -39,11 +39,15 @@ no-identities-exist-yet = Im Speicher '{ $store_name }' sind noch keine Identit�
 store-add-success = Speicher '{ $store_name }' bei '{ $store_path }' hinzugefügt
 store-set-default = Speicher '{ $store_name }' ist jetzt der Standard
 store-remove-success = Speicher '{ $store_name }' entfernt
+store-remove-success-with-data = Speicher '{ $store_name }' entfernt und seine verschlüsselte Datendatei gelöscht
 
 ## Hook-Ausführung
 
 execute-pull-hooks = Führe Pull-Hooks für Speicher '{ $store_name }' aus
 execute-push-hooks = Führe Push-Hooks für Speicher '{ $store_name }' aus
+hook-run-nothing-selected = Nichts auszuführen: Geben Sie --pull und/oder --push an, um auszuwählen, welche Hooks ausgeführt werden sollen.
+export-plaintext-warning = Warnung: Der Export enthält jedes Geheimnis im Klartext.
+export-written-to-file = Export nach '{ $path }' geschrieben
 
 ## Merge-Konflikte
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = Merge-Konflikt für { $value_type } bei '{
 
 list-global-identity = global: { $identity_file }
 list-store-identity = Speicher: { $identity_file }
+list-store-identity-also-global = Speicher: { $identity_file } (auch global registriert)
 list-global-pull-hook = Global Pull: { $command }
 list-global-push-hook = Global Push: { $command }
 list-store-pull-hook = Speicher Pull: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = Einmalpasswort existiert bereits bei { 
 error-not-allowed-to-remove-one-time-password = Entfernen des Einmalpassworts bei { $password_path } nicht erlaubt. Verwenden Sie --force zum Überschreiben.
 error-no-one-time-password-found = Kein Einmalpasswort bei '{ $password_path }' gefunden
 error-no-store-in-configuration = Kein Speicher in der Konfiguration gefunden. Führen Sie zuerst 'pasejo store add ...' aus, um einen hinzuzufügen
+error-unknown-store = Speicher '{ $store_name }' existiert nicht in der Konfiguration. Führen Sie 'pasejo store list' aus, um die konfigurierten Speicher anzuzeigen.
 error-decrypt-requires-yes-i-know = Entschlüsselung verweigert: Dadurch werden alle Geheimnisse im Klartext auf stdout ausgegeben. Übergeben Sie --yes-i-know zur Bestätigung.
 error-no-store-or-global = Kein Speicher in der Konfiguration gefunden und kein --global-Flag angegeben. Führen Sie zuerst 'pasejo store add ...' aus, um einen hinzuzufügen
 error-store-name-already-exists = Speichername existiert bereits. Bitte verwenden Sie einen anderen Namen.
@@ -130,12 +136,16 @@ error-store-path-is-directory = Verzeichnis kann nicht als Speicherpfad verwende
 error-cannot-create-store-path = Speicherpfad konnte nicht erstellt werden. Bitte überprüfen Sie den Pfad und versuchen Sie es erneut.
 error-cannot-get-store-parent = Übergeordnetes Verzeichnis des Speicherpfads konnte nicht ermittelt werden. Bitte überprüfen Sie den Pfad und versuchen Sie es erneut.
 error-cannot-identify-store = Speicher konnte nicht identifiziert werden. Legen Sie einen Standardspeicher fest, verwenden Sie --store, um einen Speicher anzugeben, oder verwenden Sie --global, um die Identität global zu setzen.
+error-identity-file-already-added = ungültiger Wert '{ $file }' für '--file <FILE>': Datei wurde bereits als Identität hinzugefügt
+error-identity-file-not-known = ungültiger Wert '{ $file }' für '--file <FILE>': Datei entspricht keiner bekannten Identität
+error-identity-did-you-mean = Meinten Sie '{ $stored }'? Identitätspfade werden exakt verglichen.
 error-no-identity-files-to-decrypt = Keine Identitätsdateien zum Entschlüsseln. Fügen Sie mindestens eine Identität hinzu, um die Speicher-Initialisierung abzuschließen.
 error-invalid-ssh-public-key-format = Ungültiges Format für öffentlichen SSH-Schlüssel
 error-username-empty = Benutzername darf nicht leer sein
 error-username-contains-dotdot = Ungültiger Benutzername '{ $username }': darf '..' nicht enthalten
 error-username-invalid-character = Ungültiger Benutzername '{ $username }': muss mit einem ASCII-Buchstaben oder einer Ziffer beginnen und darf nur ASCII-Buchstaben, Ziffern, '-', '_' und '.' enthalten
 error-no-public-key-found-in-file = Kein öffentlicher Schlüssel in '{ $filename }' gefunden
+error-no-public-keys-for-user = { $provider }-Benutzer '{ $username }' hat keine öffentlichen SSH-Schlüssel, die als Empfänger hinzugefügt werden könnten
 error-no-public-key-source = Sie müssen mindestens eine Quelle für einen öffentlichen Schlüssel angeben
 error-no-qrcode-found = Kein QR-Code in '{ $qrcode }' gefunden
 error-failed-to-decode-qrcode = QR-Code in '{ $qrcode }' konnte nicht dekodiert werden
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = Übergeordneter Pfad des Speicherpfad
 error-store-path-not-utf8 = %p in Token { $token } konnte nicht ersetzt werden: Speicherpfad { $path } ist kein gültiges UTF-8
 error-merge-conflict-recipients = Merge-Konflikt bei Empfängern erkannt. Bitte manuell auflösen.
 error-recipient-not-found-in-store = Empfänger nicht im Speicher gefunden
+error-cannot-remove-last-recipient = Der letzte Empfänger kann nicht aus dem Speicher entfernt werden. Bitte fügen Sie einen neuen Empfänger hinzu, bevor Sie diesen entfernen.
 error-cannot-decrypt-common-ancestor-store = Gemeinsamer Vorgängerspeicher konnte nicht entschlüsselt werden
 error-cannot-decrypt-current-version-store = Aktueller Versionsspeicher konnte nicht entschlüsselt werden
 error-cannot-decrypt-other-version-store = Anderer Versionsspeicher konnte nicht entschlüsselt werden
 error-cannot-read-file = Datei bei '{ $path }' konnte nicht gelesen werden
 error-downloading-public-key-failed = Herunterladen des öffentlichen Schlüssels von { $provider } fehlgeschlagen
+error-download-user-not-found = { $provider } kennt keinen Benutzer '{ $username }'
+error-download-rate-limited = { $provider } hat die Anfrage gedrosselt; bitte einen Moment warten und erneut versuchen
+error-download-server-error = { $provider } hat einen Fehler zurückgegeben (HTTP { $status })
+error-download-timeout = Zeitüberschreitung beim Herunterladen des öffentlichen Schlüssels von { $provider }; Verbindung prüfen oder key-download-timeout-seconds erhöhen
 error-cannot-determine-parent-directory = Übergeordnetes Verzeichnis von { $path } konnte nicht ermittelt werden
 error-failed-to-create-directory = Verzeichnis { $path } konnte nicht erstellt werden
 error-failed-to-write-file = { $path } konnte nicht geschrieben werden
@@ -177,6 +192,8 @@ error-could-not-store-configuration = Konfiguration konnte nicht gespeichert wer
 error-could-not-load-migrated-config = Migrierte Konfiguration konnte nicht geladen werden
 error-could-not-serialize-configuration = Konfiguration konnte nicht serialisiert werden
 error-config-not-valid-toml = Konfigurationsdatei bei { $path } ist kein gültiges TOML
+error-config-invalid-integer = Ungültiger Wert '{ $value }' für Option '{ $option }': eine nicht-negative Ganzzahl wird erwartet
+error-config-invalid-boolean = Ungültiger Wert '{ $value }' für Option '{ $option }': erwartet wird eines von true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Speicherdatei zum Sperren konnte nicht geöffnet werden: { $path }
 error-could-not-acquire-store-lock = Sperre auf Speicherdatei konnte nicht erworben werden: { $path }
 error-cannot-encrypt-store = Speicher konnte nicht verschlüsselt werden
@@ -185,10 +202,12 @@ error-command-exited-with = Befehl { $binary } beendet mit { $exit }
 error-browser-host-requires-pipe = Der Browser-Host benötigt eine weitergeleitete Standardeingabe von der verbundenen Browser-Erweiterung. Führen Sie diesen Befehl über das Native-Messaging-Manifest Ihres Browsers aus, nicht direkt in einem Terminal.
 error-browser-install-manifest-no-browser = Geben Sie mindestens einen --browser an, für den das Native-Messaging-Manifest installiert werden soll.
 error-browser-install-manifest-needs-extension-id = Browser '{ $browser }' erfordert --extension-id, da Erweiterungs-IDs für Chromium-basierte Browser aus dem öffentlichen Schlüssel der entpackten Erweiterung abgeleitet werden.
+error-browser-install-manifest-extension-id-multiple-browsers = --extension-id kann nicht mit mehr als einem --browser kombiniert werden, da jeder Browser seine eigene Erweiterungs-ID benötigt. Führen Sie den Befehl pro Browser einmal aus.
 error-browser-install-manifest-unsupported-os = Die Installation von Native-Messaging-Manifesten wird unter '{ $os }' nicht unterstützt.
 error-browser-install-manifest-no-home-dir = Das Home-Verzeichnis des Benutzers konnte nicht ermittelt werden.
 error-browser-install-manifest-no-data-dir = Das Daten-Verzeichnis des Benutzers konnte nicht ermittelt werden.
 error-browser-install-manifest-no-current-exe = Der Pfad der laufenden pasejo-Binärdatei konnte nicht ermittelt werden.
 browser-install-manifest-written = Native-Messaging-Manifest für '{ $browser }' nach '{ $path }' geschrieben
+browser-install-manifest-print-wrapper-note = Hinweis: Das ausgegebene Manifest verweist auf das Wrapper-Skript unter '{ $path }', das dieser Befehl nicht installiert hat. Verwenden Sie --binary, um stattdessen auf eine vorhandene ausführbare Datei zu verweisen.
 error-browser-install-manifest-invalid-env = --env-Eintrag '{ $entry }' hat nicht die Form KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = --env-Name '{ $name }' ist kein gültiger POSIX-Umgebungsvariablenname (muss mit einem Buchstaben oder Unterstrich beginnen und darf nur Buchstaben, Ziffern und Unterstriche enthalten).

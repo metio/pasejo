@@ -39,11 +39,15 @@ no-identities-exist-yet = Aún no hay identidades en el almacén '{ $store_name 
 store-add-success = Almacén '{ $store_name }' añadido en '{ $store_path }'
 store-set-default = El almacén '{ $store_name }' ahora es el predeterminado
 store-remove-success = Almacén '{ $store_name }' eliminado
+store-remove-success-with-data = Almacén '{ $store_name }' eliminado y su archivo de datos cifrado borrado
 
 ## Ejecución de hooks
 
 execute-pull-hooks = Ejecutando hooks de pull para el almacén '{ $store_name }'
 execute-push-hooks = Ejecutando hooks de push para el almacén '{ $store_name }'
+hook-run-nothing-selected = Nada que ejecutar: use --pull o --push para seleccionar qué hooks ejecutar.
+export-plaintext-warning = Advertencia: la exportación contiene todos los secretos en texto plano.
+export-written-to-file = Exportación escrita en '{ $path }'
 
 ## Conflictos de fusión
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = Conflicto de fusión para { $value_type } 
 
 list-global-identity = global: { $identity_file }
 list-store-identity = almacén: { $identity_file }
+list-store-identity-also-global = almacén: { $identity_file } (también registrada globalmente)
 list-global-pull-hook = pull global: { $command }
 list-global-push-hook = push global: { $command }
 list-store-pull-hook = pull almacén: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = La contraseña de un solo uso ya existe
 error-not-allowed-to-remove-one-time-password = No se permite eliminar la contraseña de un solo uso en { $password_path }. Use --force para sobrescribirla.
 error-no-one-time-password-found = No se encontró ninguna contraseña de un solo uso en '{ $password_path }'
 error-no-store-in-configuration = No se encontró ningún almacén en la configuración. Ejecute 'pasejo store add ...' primero para añadir uno
+error-unknown-store = El almacén '{ $store_name }' no existe en la configuración. Ejecute 'pasejo store list' para ver los almacenes configurados.
 error-decrypt-requires-yes-i-know = Descifrado rechazado: esto imprimirá todos los secretos en texto plano en stdout. Pase --yes-i-know para confirmar.
 error-no-store-or-global = No se encontró ningún almacén en la configuración y no se especificó la opción --global. Ejecute 'pasejo store add ...' primero para añadir uno
 error-store-name-already-exists = El nombre del almacén ya existe. Por favor use un nombre diferente.
@@ -130,12 +136,16 @@ error-store-path-is-directory = No se puede usar un directorio como ruta del alm
 error-cannot-create-store-path = No se puede crear la ruta del almacén. Por favor verifique la ruta y vuelva a intentarlo.
 error-cannot-get-store-parent = No se puede obtener el directorio padre de la ruta del almacén. Por favor verifique la ruta y vuelva a intentarlo.
 error-cannot-identify-store = No se puede identificar el almacén. Establezca un almacén predeterminado, use --store para especificar un almacén o use --global para establecer la identidad globalmente.
+error-identity-file-already-added = valor no válido '{ $file }' para '--file <FILE>': el archivo ya se añadió como identidad
+error-identity-file-not-known = valor no válido '{ $file }' para '--file <FILE>': el archivo no coincide con ninguna identidad conocida
+error-identity-did-you-mean = ¿Quiso decir '{ $stored }'? Las rutas de identidad se comparan de forma exacta.
 error-no-identity-files-to-decrypt = No hay archivos de identidad para descifrar. Añada al menos una identidad para completar la inicialización del almacén.
 error-invalid-ssh-public-key-format = Formato de clave pública SSH no válido
 error-username-empty = El nombre de usuario no debe estar vacío
 error-username-contains-dotdot = Nombre de usuario no válido '{ $username }': no debe contener '..'
 error-username-invalid-character = Nombre de usuario no válido '{ $username }': debe comenzar con una letra o dígito ASCII y contener solo letras ASCII, dígitos, '-', '_' y '.'
 error-no-public-key-found-in-file = No se encontró ninguna clave pública en '{ $filename }'
+error-no-public-keys-for-user = El usuario de { $provider } '{ $username }' no tiene claves SSH públicas para añadir como destinatarios
 error-no-public-key-source = Debe especificar al menos una fuente para una clave pública
 error-no-qrcode-found = No se encontró ningún código QR en '{ $qrcode }'
 error-failed-to-decode-qrcode = Falló la decodificación del código QR en '{ $qrcode }'
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = No se puede determinar el padre de la
 error-store-path-not-utf8 = No se puede sustituir %p en el token { $token }: la ruta del almacén { $path } no es UTF-8 válido
 error-merge-conflict-recipients = Conflicto de fusión detectado en los destinatarios. Por favor, resuélvalo manualmente.
 error-recipient-not-found-in-store = Destinatario no encontrado en el almacén
+error-cannot-remove-last-recipient = No se puede eliminar el último destinatario del almacén. Añada un nuevo destinatario antes de eliminar este.
 error-cannot-decrypt-common-ancestor-store = No se puede descifrar el almacén ancestro común
 error-cannot-decrypt-current-version-store = No se puede descifrar el almacén de la versión actual
 error-cannot-decrypt-other-version-store = No se puede descifrar el almacén de la otra versión
 error-cannot-read-file = No se puede leer el archivo en '{ $path }'
 error-downloading-public-key-failed = Falló la descarga de la clave pública desde { $provider }
+error-download-user-not-found = { $provider } no tiene ningún usuario '{ $username }'
+error-download-rate-limited = { $provider } limitó la frecuencia de la solicitud; espera un momento e inténtalo de nuevo
+error-download-server-error = { $provider } devolvió un error (HTTP { $status })
+error-download-timeout = Se agotó el tiempo de espera al descargar la clave pública desde { $provider }; comprueba tu conexión o aumenta key-download-timeout-seconds
 error-cannot-determine-parent-directory = No se puede determinar el directorio padre de { $path }
 error-failed-to-create-directory = Falló la creación del directorio { $path }
 error-failed-to-write-file = Falló la escritura de { $path }
@@ -177,6 +192,8 @@ error-could-not-store-configuration = No se pudo almacenar la configuración
 error-could-not-load-migrated-config = No se pudo cargar la configuración migrada
 error-could-not-serialize-configuration = No se pudo serializar la configuración
 error-config-not-valid-toml = El archivo de configuración en { $path } no es TOML válido
+error-config-invalid-integer = Valor '{ $value }' no válido para la opción '{ $option }': se esperaba un entero no negativo
+error-config-invalid-boolean = Valor '{ $value }' no válido para la opción '{ $option }': se esperaba uno de true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = No se pudo abrir el archivo del almacén para bloquearlo: { $path }
 error-could-not-acquire-store-lock = No se pudo adquirir el bloqueo del archivo del almacén: { $path }
 error-cannot-encrypt-store = No se puede cifrar el almacén
@@ -185,10 +202,12 @@ error-command-exited-with = El comando { $binary } terminó con { $exit }
 error-browser-host-requires-pipe = El host del navegador requiere una entrada estándar redirigida desde la extensión del navegador conectada. Ejecute este comando a través del manifiesto de mensajería nativa de su navegador, no directamente desde una terminal.
 error-browser-install-manifest-no-browser = Especifique al menos un --browser para el que instalar el manifiesto de mensajería nativa.
 error-browser-install-manifest-needs-extension-id = El navegador '{ $browser }' requiere --extension-id porque los ID de extensión de los navegadores basados en Chromium se derivan de la clave pública de la extensión descomprimida.
+error-browser-install-manifest-extension-id-multiple-browsers = --extension-id no puede combinarse con más de un --browser, porque cada navegador necesita su propio id de extensión. Ejecute el comando una vez por navegador.
 error-browser-install-manifest-unsupported-os = La instalación de manifiestos de mensajería nativa no está soportada en '{ $os }'.
 error-browser-install-manifest-no-home-dir = No se pudo determinar el directorio personal del usuario.
 error-browser-install-manifest-no-data-dir = No se pudo determinar el directorio de datos del usuario.
 error-browser-install-manifest-no-current-exe = No se pudo determinar la ruta del binario de pasejo en ejecución.
 browser-install-manifest-written = Manifiesto de mensajería nativa para '{ $browser }' escrito en '{ $path }'
+browser-install-manifest-print-wrapper-note = Nota: el manifiesto impreso hace referencia al script envoltorio en '{ $path }', que este comando no instaló. Use --binary para hacer referencia a un ejecutable existente en su lugar.
 error-browser-install-manifest-invalid-env = La entrada --env '{ $entry }' no tiene el formato KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = El nombre --env '{ $name }' no es un nombre de variable de entorno POSIX válido (debe comenzar con una letra o guion bajo y contener solo letras, dígitos y guiones bajos).

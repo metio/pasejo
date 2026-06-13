@@ -19,6 +19,8 @@ Options:
           [default: uri url link site]
       --pretty [<PRETTY>]
           Toggle whether to print pretty JSON or not [default: false] [possible values: true, false]
+      --out <OUT>
+          Write the export to this file (created mode 0600 on Unix) instead of stdout. Avoids a shell-redirected file landing at the umask default and avoids the cleartext export sitting in shell history
   -v, --verbose...
           Increase logging verbosity
   -q, --quiet...
@@ -49,6 +51,8 @@ Options:
           [default: uri url link site]
       --pretty [<PRETTY>]
           Toggle whether to print pretty JSON or not [default: false] [possible values: true, false]
+      --out <OUT>
+          Write the export to this file (created mode 0600 on Unix) instead of stdout. Avoids a shell-redirected file landing at the umask default and avoids the cleartext export sitting in shell history
   -v, --verbose...
           Increase logging verbosity
   -q, --quiet...
@@ -79,6 +83,8 @@ Options:
           [default: uri url link site]
       --pretty [<PRETTY>]
           Toggle whether to print pretty JSON or not [default: false] [possible values: true, false]
+      --out <OUT>
+          Write the export to this file (created mode 0600 on Unix) instead of stdout. Avoids a shell-redirected file landing at the umask default and avoids the cleartext export sitting in shell history
   -v, --verbose...
           Increase logging verbosity
   -q, --quiet...

@@ -39,11 +39,15 @@ no-identities-exist-yet = Nessuna identità nell'archivio '{ $store_name }'. Agg
 store-add-success = Archivio '{ $store_name }' aggiunto in '{ $store_path }'
 store-set-default = L'archivio '{ $store_name }' è ora quello predefinito
 store-remove-success = Archivio '{ $store_name }' rimosso
+store-remove-success-with-data = Archivio '{ $store_name }' rimosso e il suo file di dati cifrato eliminato
 
 ## Esecuzione hook
 
 execute-pull-hooks = Esecuzione degli hook di pull per l'archivio '{ $store_name }'
 execute-push-hooks = Esecuzione degli hook di push per l'archivio '{ $store_name }'
+hook-run-nothing-selected = Niente da eseguire: usare --pull e/o --push per scegliere quali hook eseguire.
+export-plaintext-warning = Attenzione: l'esportazione contiene ogni segreto in chiaro.
+export-written-to-file = Esportazione scritta in '{ $path }'
 
 ## Conflitti di unione
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = Conflitto di unione per { $value_type } in
 
 list-global-identity = globale: { $identity_file }
 list-store-identity = archivio: { $identity_file }
+list-store-identity-also-global = archivio: { $identity_file } (registrata anche globalmente)
 list-global-pull-hook = pull globale: { $command }
 list-global-push-hook = push globale: { $command }
 list-store-pull-hook = pull archivio: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = La password monouso esiste già a { $pa
 error-not-allowed-to-remove-one-time-password = Rimozione della password monouso a { $password_path } non consentita. Usare --force per sovrascriverla.
 error-no-one-time-password-found = Nessuna password monouso trovata a '{ $password_path }'
 error-no-store-in-configuration = Nessun archivio trovato nella configurazione. Eseguire prima 'pasejo store add ...' per aggiungerne uno
+error-unknown-store = L'archivio '{ $store_name }' non esiste nella configurazione. Eseguire 'pasejo store list' per vedere gli archivi configurati.
 error-decrypt-requires-yes-i-know = Decifratura rifiutata: stamperà ogni segreto in chiaro su stdout. Passa --yes-i-know per confermare.
 error-no-store-or-global = Nessun archivio trovato nella configurazione e nessun flag --global specificato. Eseguire prima 'pasejo store add ...' per aggiungerne uno
 error-store-name-already-exists = Il nome dell'archivio esiste già. Usare un nome diverso.
@@ -130,12 +136,16 @@ error-store-path-is-directory = Impossibile usare una directory come percorso de
 error-cannot-create-store-path = Impossibile creare il percorso dell'archivio. Verificare il percorso e riprovare.
 error-cannot-get-store-parent = Impossibile ottenere la directory padre del percorso dell'archivio. Verificare il percorso e riprovare.
 error-cannot-identify-store = Impossibile identificare l'archivio. Impostare un archivio predefinito, usare --store per specificare un archivio o --global per impostare l'identità globalmente.
+error-identity-file-already-added = valore non valido '{ $file }' per '--file <FILE>': il file è già stato aggiunto come identità
+error-identity-file-not-known = valore non valido '{ $file }' per '--file <FILE>': il file non corrisponde a nessuna identità nota
+error-identity-did-you-mean = Intendevi '{ $stored }'? I percorsi delle identità vengono confrontati in modo esatto.
 error-no-identity-files-to-decrypt = Nessun file di identità da decifrare. Aggiungere almeno un'identità per completare l'inizializzazione dell'archivio.
 error-invalid-ssh-public-key-format = Formato di chiave pubblica SSH non valido
 error-username-empty = Il nome utente non deve essere vuoto
 error-username-contains-dotdot = Nome utente non valido '{ $username }': non deve contenere '..'
 error-username-invalid-character = Nome utente non valido '{ $username }': deve iniziare con una lettera o cifra ASCII e contenere solo lettere ASCII, cifre, '-', '_' e '.'
 error-no-public-key-found-in-file = Nessuna chiave pubblica trovata in '{ $filename }'
+error-no-public-keys-for-user = L'utente { $provider } '{ $username }' non ha chiavi SSH pubbliche da aggiungere come destinatari
 error-no-public-key-source = Specificare almeno una fonte per una chiave pubblica
 error-no-qrcode-found = Nessun codice QR trovato in '{ $qrcode }'
 error-failed-to-decode-qrcode = Decodifica del codice QR in '{ $qrcode }' fallita
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = Impossibile determinare il padre del 
 error-store-path-not-utf8 = Impossibile sostituire %p nel token { $token }: il percorso dell'archivio { $path } non è UTF-8 valido
 error-merge-conflict-recipients = Conflitto di unione rilevato nei destinatari. Risolvere manualmente.
 error-recipient-not-found-in-store = Destinatario non trovato nell'archivio
+error-cannot-remove-last-recipient = Impossibile rimuovere l'ultimo destinatario dall'archivio. Aggiungere un nuovo destinatario prima di rimuovere questo.
 error-cannot-decrypt-common-ancestor-store = Impossibile decifrare l'archivio dell'antenato comune
 error-cannot-decrypt-current-version-store = Impossibile decifrare l'archivio della versione corrente
 error-cannot-decrypt-other-version-store = Impossibile decifrare l'archivio dell'altra versione
 error-cannot-read-file = Impossibile leggere il file a '{ $path }'
 error-downloading-public-key-failed = Download della chiave pubblica da { $provider } fallito
+error-download-user-not-found = { $provider } non ha nessun utente '{ $username }'
+error-download-rate-limited = { $provider } ha limitato la richiesta; attendi un momento e riprova
+error-download-server-error = { $provider } ha restituito un errore (HTTP { $status })
+error-download-timeout = Timeout durante il download della chiave pubblica da { $provider }; controlla la connessione o aumenta key-download-timeout-seconds
 error-cannot-determine-parent-directory = Impossibile determinare la directory padre di { $path }
 error-failed-to-create-directory = Creazione della directory { $path } fallita
 error-failed-to-write-file = Scrittura di { $path } fallita
@@ -177,6 +192,8 @@ error-could-not-store-configuration = Impossibile salvare la configurazione
 error-could-not-load-migrated-config = Impossibile caricare la configurazione migrata
 error-could-not-serialize-configuration = Impossibile serializzare la configurazione
 error-config-not-valid-toml = Il file di configurazione a { $path } non è TOML valido
+error-config-invalid-integer = Valore '{ $value }' non valido per l'opzione '{ $option }': atteso un intero non negativo
+error-config-invalid-boolean = Valore '{ $value }' non valido per l'opzione '{ $option }': atteso uno tra true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Impossibile aprire il file dell'archivio per il blocco: { $path }
 error-could-not-acquire-store-lock = Impossibile acquisire il blocco sul file dell'archivio: { $path }
 error-cannot-encrypt-store = Impossibile cifrare l'archivio
@@ -185,10 +202,12 @@ error-command-exited-with = Il comando { $binary } è terminato con { $exit }
 error-browser-host-requires-pipe = L'host del browser richiede uno stdin reindirizzato dall'estensione del browser connessa. Eseguire questo comando tramite il manifest di messaggistica nativa del browser, non direttamente da un terminale.
 error-browser-install-manifest-no-browser = Specificare almeno un --browser per cui installare il manifest di messaggistica nativa.
 error-browser-install-manifest-needs-extension-id = Il browser '{ $browser }' richiede --extension-id perché gli ID delle estensioni dei browser basati su Chromium sono derivati dalla chiave pubblica dell'estensione decompressa.
+error-browser-install-manifest-extension-id-multiple-browsers = --extension-id non può essere combinato con più di un --browser, perché ogni browser richiede il proprio id estensione. Eseguire il comando una volta per browser.
 error-browser-install-manifest-unsupported-os = L'installazione dei manifest di messaggistica nativa non è supportata su '{ $os }'.
 error-browser-install-manifest-no-home-dir = Impossibile determinare la directory home dell'utente.
 error-browser-install-manifest-no-data-dir = Impossibile determinare la directory dati dell'utente.
 error-browser-install-manifest-no-current-exe = Impossibile determinare il percorso del binario pasejo in esecuzione.
 browser-install-manifest-written = Manifest di messaggistica nativa per '{ $browser }' scritto in '{ $path }'
+browser-install-manifest-print-wrapper-note = Nota: il manifest stampato fa riferimento allo script wrapper in '{ $path }', che questo comando non ha installato. Usare --binary per fare riferimento a un eseguibile esistente.
 error-browser-install-manifest-invalid-env = La voce --env '{ $entry }' non è nella forma KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = Il nome --env '{ $name }' non è un nome valido per una variabile d'ambiente POSIX (deve iniziare con una lettera o un trattino basso e contenere solo lettere, cifre e trattini bassi).

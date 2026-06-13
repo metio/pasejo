@@ -11,7 +11,7 @@ $ pasejo config get key-download-timeout-seconds
 
 $ pasejo config set key-download-timeout-seconds -- -1
 ? 1
-Error: invalid digit found in string
+Error: Invalid value '-1' for option 'key-download-timeout-seconds': expected a non-negative integer
 
 $ pasejo config get key-download-timeout-seconds
 60

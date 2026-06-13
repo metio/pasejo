@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use clap::ValueEnum;
+
+use crate::cli::i18n;
 use crate::models::cli::{ConfigCommands, ConfigurationOption};
 use crate::models::configuration::Configuration;
 
@@ -10,10 +13,7 @@ pub fn dispatch(command: &ConfigCommands, configuration: &Configuration) -> anyh
             get(configuration, &args.option);
             Ok(())
         }
-        ConfigCommands::Set(args) => {
-            let mut owned = configuration.clone();
-            set(&mut owned, &args.option, &args.value)
-        }
+        ConfigCommands::Set(args) => set(&args.option, &args.value),
     }
 }
 
@@ -52,75 +52,93 @@ fn get(configuration: &Configuration, option: &ConfigurationOption) {
     }
 }
 
-fn set(
-    configuration: &mut Configuration,
-    option: &ConfigurationOption,
-    value: &str,
-) -> anyhow::Result<()> {
-    match option {
+/// Maps the requested option to its on-disk TOML key + a typed value,
+/// then writes it surgically so unknown keys on the file are preserved
+/// (see [`Configuration::set_top_level_key`]). An empty value clears the
+/// key, resetting the option to its built-in default.
+fn set(option: &ConfigurationOption, value: &str) -> anyhow::Result<()> {
+    let (key, parsed) = match option {
         ConfigurationOption::IgnoreMissingIdentities => {
-            if value.is_empty() {
-                configuration.ignore_missing_identities = None;
-            } else {
-                configuration.ignore_missing_identities = Some(parse_bool(value)?);
-            }
+            ("ignore_missing_identities", optional_bool(option, value)?)
         }
         ConfigurationOption::ClipboardTimeout => {
-            if value.is_empty() {
-                configuration.clipboard_timeout = None;
-            } else {
-                let timeout = value.parse::<u64>()?;
-                configuration.clipboard_timeout = Some(timeout);
-            }
+            ("clipboard_timeout", optional_integer(option, value)?)
         }
-        ConfigurationOption::ClipboardNotify => {
-            if value.is_empty() {
-                configuration.clipboard_notify = None;
-            } else {
-                configuration.clipboard_notify = Some(parse_bool(value)?);
-            }
-        }
-        ConfigurationOption::KeyDownloadTimeoutSeconds => {
-            if value.is_empty() {
-                configuration.key_download_timeout_seconds = None;
-            } else {
-                let timeout = value.parse::<u64>()?;
-                configuration.key_download_timeout_seconds = Some(timeout);
-            }
-        }
+        ConfigurationOption::ClipboardNotify => ("clipboard_notify", optional_bool(option, value)?),
+        ConfigurationOption::KeyDownloadTimeoutSeconds => (
+            "key_download_timeout_seconds",
+            optional_integer(option, value)?,
+        ),
         ConfigurationOption::PullIntervalSeconds => {
-            if value.is_empty() {
-                configuration.pull_interval_seconds = None;
-            } else {
-                let interval = value.parse::<u64>()?;
-                configuration.pull_interval_seconds = Some(interval);
-            }
+            ("pull_interval_seconds", optional_integer(option, value)?)
         }
         ConfigurationOption::PushIntervalSeconds => {
-            if value.is_empty() {
-                configuration.push_interval_seconds = None;
-            } else {
-                let interval = value.parse::<u64>()?;
-                configuration.push_interval_seconds = Some(interval);
-            }
+            ("push_interval_seconds", optional_integer(option, value)?)
         }
-    }
-    configuration.save_configuration()
+    };
+    Configuration::set_top_level_key(key, parsed)
 }
 
-fn parse_bool(value: &str) -> anyhow::Result<bool> {
+/// The kebab-case name clap accepted for `option`, for error messages.
+fn option_name(option: &ConfigurationOption) -> String {
+    option
+        .to_possible_value()
+        .map_or_else(|| String::from("?"), |value| value.get_name().to_owned())
+}
+
+fn optional_bool(option: &ConfigurationOption, value: &str) -> anyhow::Result<Option<toml::Value>> {
+    if value.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(toml::Value::Boolean(parse_bool(option, value)?)))
+}
+
+fn optional_integer(
+    option: &ConfigurationOption,
+    value: &str,
+) -> anyhow::Result<Option<toml::Value>> {
+    if value.is_empty() {
+        return Ok(None);
+    }
+    // Parse as u64 first so a negative input is rejected, then narrow to
+    // the i64 TOML integers use. Both failure modes surface the same
+    // localized "expected a non-negative integer" message naming the
+    // option, instead of a raw `ParseIntError`.
+    let parsed = value
+        .parse::<u64>()
+        .ok()
+        .and_then(|n| i64::try_from(n).ok())
+        .ok_or_else(|| {
+            anyhow::anyhow!(i18n::error_config_invalid_integer(
+                &option_name(option),
+                value
+            ))
+        })?;
+    Ok(Some(toml::Value::Integer(parsed)))
+}
+
+fn parse_bool(option: &ConfigurationOption, value: &str) -> anyhow::Result<bool> {
     match value.to_ascii_lowercase().as_str() {
         "true" | "1" | "yes" | "y" => Ok(true),
         "false" | "0" | "no" | "n" => Ok(false),
-        _ => anyhow::bail!(
-            "Invalid boolean value '{value}'. Expected one of: true, false, 1, 0, yes, no, y, n"
-        ),
+        _ => anyhow::bail!(i18n::error_config_invalid_boolean(
+            &option_name(option),
+            value
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::cli::i18n;
+
     use super::*;
+
+    const OPT: ConfigurationOption = ConfigurationOption::ClipboardNotify;
+
+    fn parse_bool(value: &str) -> anyhow::Result<bool> {
+        super::parse_bool(&OPT, value)
+    }
 
     #[test]
     fn parse_bool_accepts_canonical_truthy_values() {
@@ -189,10 +207,38 @@ mod tests {
     }
 
     #[test]
-    fn parse_bool_error_message_lists_accepted_values() {
+    fn parse_bool_error_message_names_the_option_and_value() {
+        i18n::init_for_tests();
         let error = parse_bool("maybe").unwrap_err().to_string();
-        assert!(error.contains("maybe"));
-        assert!(error.contains("true"));
-        assert!(error.contains("false"));
+        assert!(
+            error.contains("maybe"),
+            "error should name the bad value: {error}"
+        );
+        assert!(
+            error.contains("clipboard-notify"),
+            "error should name the option: {error}"
+        );
+    }
+
+    #[test]
+    fn optional_integer_rejects_a_negative_value_with_a_localized_message() {
+        i18n::init_for_tests();
+        let error = optional_integer(&ConfigurationOption::ClipboardTimeout, "-1")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("-1"));
+        assert!(error.contains("clipboard-timeout"));
+    }
+
+    #[test]
+    fn optional_integer_clears_on_empty_and_parses_a_valid_value() {
+        assert!(matches!(
+            optional_integer(&ConfigurationOption::ClipboardTimeout, ""),
+            Ok(None)
+        ));
+        assert!(matches!(
+            optional_integer(&ConfigurationOption::ClipboardTimeout, "60"),
+            Ok(Some(toml::Value::Integer(60)))
+        ));
     }
 }

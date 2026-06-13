@@ -53,6 +53,14 @@ pub fn run(args: &InstallManifestArgs) -> Result<()> {
     if args.browsers.is_empty() {
         bail!(i18n::error_browser_install_manifest_no_browser());
     }
+    // A single `--extension-id` list cannot be disambiguated across
+    // multiple browsers — applying a chromium id to Firefox's gecko-id
+    // slot (or vice versa) writes a manifest that never authorizes the
+    // real extension, silently. Require one browser per invocation when
+    // ids are supplied.
+    if args.browsers.len() > 1 && !args.extension_ids.is_empty() {
+        bail!(i18n::error_browser_install_manifest_extension_id_multiple_browsers());
+    }
     let host_name = args.host_name.as_deref().unwrap_or(HOST_NAME);
     let binary = resolve_binary(args.binary.as_deref())?;
     let envs = parse_env_pairs(&args.envs)?;
@@ -60,6 +68,23 @@ pub fn run(args: &InstallManifestArgs) -> Result<()> {
     let (manifest_path_field, wrapper) =
         compute_wrapper(args.binary.as_deref(), &binary, host_name, &envs)?;
 
+    if args.print
+        && let Some((wrapper_path, _)) = wrapper.as_ref()
+    {
+        // `--print` skips wrapper installation, but the printed
+        // manifest's `path` field still references the wrapper under
+        // the data directory. A user piping the JSON into the manifest
+        // location by hand would end up pointing the browser at a
+        // script that doesn't exist — say so on stderr (the JSON on
+        // stdout stays pipeable).
+        i18n::browser_install_manifest_print_wrapper_note(wrapper_path);
+    }
+
+    // Build (and thereby validate, e.g. chromium browsers requiring an
+    // extension id) EVERY manifest before writing any, so a later
+    // browser's validation failure can't leave earlier browsers'
+    // wrappers and manifests half-installed.
+    let mut prepared = Vec::with_capacity(args.browsers.len());
     for browser in &args.browsers {
         let manifest = build_manifest_json(
             *browser,
@@ -68,6 +93,10 @@ pub fn run(args: &InstallManifestArgs) -> Result<()> {
             &args.extension_ids,
         )?;
         let json = serde_json::to_string_pretty(&manifest)?;
+        prepared.push((*browser, json));
+    }
+
+    for (browser, json) in &prepared {
         if args.print {
             println!("{json}");
             continue;

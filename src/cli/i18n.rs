@@ -281,6 +281,12 @@ fl_log!(
 );
 fl_log!(
     info,
+    store_remove_success_with_data,
+    "store-remove-success-with-data",
+    store_name
+);
+fl_log!(
+    info,
     recipient_does_not_exist_ignored,
     "recipient-does-not-exist-ignored",
     public_key
@@ -307,6 +313,9 @@ fl_log!(
 );
 fl_log!(debug, execute_pull_hooks, "execute-pull-hooks", store_name);
 fl_log!(debug, execute_push_hooks, "execute-push-hooks", store_name);
+fl_log!(warn, hook_run_nothing_selected, "hook-run-nothing-selected");
+fl_log!(warn, export_plaintext_warning, "export-plaintext-warning");
+fl_log_path!(info, export_written_to_file, "export-written-to-file", path);
 
 // Status logs — warn / error levels
 fl_log!(
@@ -375,6 +384,11 @@ fl_log_path!(info, identity_added, "identity-added", identity_file);
 fl_log_path!(info, identity_removed, "identity-removed", identity_file);
 fl_println_path!(list_global_identity, "list-global-identity", identity_file);
 fl_println_path!(list_store_identity, "list-store-identity", identity_file);
+fl_println_path!(
+    list_store_identity_also_global,
+    "list-store-identity-also-global",
+    identity_file
+);
 
 // Error-display wrappers
 fl_log_error!(
@@ -557,6 +571,7 @@ fl_string!(
     error_no_store_in_configuration,
     "error-no-store-in-configuration"
 );
+fl_string!(error_unknown_store, "error-unknown-store", store_name);
 fl_string!(
     error_decrypt_requires_yes_i_know,
     "error-decrypt-requires-yes-i-know"
@@ -580,6 +595,21 @@ fl_string!(
 );
 fl_string!(error_cannot_identify_store, "error-cannot-identify-store");
 fl_string!(
+    error_identity_file_already_added,
+    "error-identity-file-already-added",
+    file
+);
+fl_string!(
+    error_identity_file_not_known,
+    "error-identity-file-not-known",
+    file
+);
+fl_string!(
+    error_identity_did_you_mean,
+    "error-identity-did-you-mean",
+    stored
+);
+fl_string!(
     error_no_identity_files_to_decrypt,
     "error-no-identity-files-to-decrypt"
 );
@@ -602,6 +632,12 @@ fl_string!(
     error_no_public_key_found_in_file,
     "error-no-public-key-found-in-file",
     filename
+);
+fl_string!(
+    error_no_public_keys_for_user,
+    "error-no-public-keys-for-user",
+    provider,
+    username
 );
 fl_string!(error_no_public_key_source, "error-no-public-key-source");
 fl_string!(error_no_qrcode_found, "error-no-qrcode-found", qrcode);
@@ -672,6 +708,10 @@ fl_string!(
     "error-recipient-not-found-in-store"
 );
 fl_string!(
+    error_cannot_remove_last_recipient,
+    "error-cannot-remove-last-recipient"
+);
+fl_string!(
     error_cannot_decrypt_common_ancestor_store,
     "error-cannot-decrypt-common-ancestor-store"
 );
@@ -689,6 +729,24 @@ fl_string!(
     "error-downloading-public-key-failed",
     provider
 );
+fl_string!(
+    error_download_user_not_found,
+    "error-download-user-not-found",
+    provider,
+    username
+);
+fl_string!(
+    error_download_rate_limited,
+    "error-download-rate-limited",
+    provider
+);
+fl_string!(
+    error_download_server_error,
+    "error-download-server-error",
+    provider,
+    status
+);
+fl_string!(error_download_timeout, "error-download-timeout", provider);
 fl_string!(
     error_cannot_determine_parent_directory,
     "error-cannot-determine-parent-directory",
@@ -772,6 +830,18 @@ fl_string!(
     path
 );
 fl_string!(
+    error_config_invalid_integer,
+    "error-config-invalid-integer",
+    option,
+    value
+);
+fl_string!(
+    error_config_invalid_boolean,
+    "error-config-invalid-boolean",
+    option,
+    value
+);
+fl_string!(
     error_could_not_open_store_for_lock,
     "error-could-not-open-store-for-lock",
     path
@@ -807,6 +877,10 @@ fl_string!(
     browser
 );
 fl_string!(
+    error_browser_install_manifest_extension_id_multiple_browsers,
+    "error-browser-install-manifest-extension-id-multiple-browsers"
+);
+fl_string!(
     error_browser_install_manifest_unsupported_os,
     "error-browser-install-manifest-unsupported-os",
     os
@@ -832,6 +906,13 @@ fl_string!(
     error_browser_install_manifest_invalid_env_name,
     "error-browser-install-manifest-invalid-env-name",
     name
+);
+
+fl_log_path!(
+    warn,
+    browser_install_manifest_print_wrapper_note,
+    "browser-install-manifest-print-wrapper-note",
+    path
 );
 
 pub fn browser_install_manifest_written(browser: &str, path: &Path) {

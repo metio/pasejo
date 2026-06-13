@@ -158,6 +158,31 @@ fn install_interrupt_handler() {
 /// `set` fails. Failures during the wait loop or clear step are logged and
 /// surfaced through the notification / stderr rather than returned.
 pub fn copy_text_to_clipboard(text: &str, duration: Duration, notify: bool) -> anyhow::Result<()> {
+    place_secret_in_clipboard(text)?.hold_until_cleared(duration, notify);
+    Ok(())
+}
+
+/// A secret that has already been placed in the clipboard, paired with
+/// the guard that will clear it. Holds NO store lock — see
+/// [`place_secret_in_clipboard`] for why the placement / hold split
+/// exists.
+pub struct ClipboardSession {
+    guard: ClipboardGuard<arboard::Clipboard>,
+}
+
+/// Places `text` in the system clipboard and returns a session that
+/// holds it. This is the fast, *fallible* half of a clipboard copy: the
+/// only failure points — opening the clipboard handle and the initial
+/// `set` — happen here, before any wait. A caller that must commit
+/// dependent state only once the secret is genuinely delivered (most
+/// importantly: persisting an HOTP counter increment, which is lost
+/// forever if the code never reached the user) can treat a returned
+/// `ClipboardSession` as proof of delivery and do that commit *before*
+/// calling [`ClipboardSession::hold_until_cleared`] for the long
+/// auto-clear wait. Splitting the two also lets the caller release any
+/// store lock before the (up to 24h, default 45s) wait so it does not
+/// serialize concurrent operations on the same store.
+pub fn place_secret_in_clipboard(text: &str) -> anyhow::Result<ClipboardSession> {
     // Install the Ctrl-C handler before any secret enters the clipboard, so
     // SIGINT triggers our handler (which lets the loop exit and Drop run
     // clear()) instead of the default action that _exit()s without unwinding.
@@ -171,50 +196,61 @@ pub fn copy_text_to_clipboard(text: &str, duration: Duration, notify: bool) -> a
     // guard whose Drop would then try to clear something we never wrote.
     let mut clipboard = arboard::Clipboard::new()?;
     clipboard.set().exclude_from_history().text(text)?;
-    let mut guard = ClipboardGuard {
-        clipboard,
-        expected: Zeroizing::new(text.to_owned()),
-        cleared: false,
-    };
+    Ok(ClipboardSession {
+        guard: ClipboardGuard {
+            clipboard,
+            expected: Zeroizing::new(text.to_owned()),
+            cleared: false,
+        },
+    })
+}
 
-    // Poll so we respond to Ctrl-C promptly, clamping each tick so we never
-    // oversleep the requested duration. Clamping `duration` to `MAX_DEADLINE`
-    // both guarantees loop termination and keeps `Instant + Duration` from
-    // overflowing on absurd configured timeouts.
-    let deadline = Instant::now() + duration.min(MAX_DEADLINE);
-    let cancelled = loop {
-        if INTERRUPTED.load(Ordering::Relaxed) {
-            break true;
+impl ClipboardSession {
+    /// Holds the secret in the clipboard for at most `duration`, then
+    /// clears it (only if the clipboard still holds our value). Blocks;
+    /// run this AFTER releasing any store lock. Clear / notify failures
+    /// are logged and surfaced via the notification, not returned — the
+    /// secret is already delivered by the time this runs.
+    pub fn hold_until_cleared(mut self, duration: Duration, notify: bool) {
+        // Poll so we respond to Ctrl-C promptly, clamping each tick so we
+        // never oversleep the requested duration. Clamping `duration` to
+        // `MAX_DEADLINE` both guarantees loop termination and keeps
+        // `Instant + Duration` from overflowing on absurd configured
+        // timeouts.
+        let deadline = Instant::now() + duration.min(MAX_DEADLINE);
+        let cancelled = loop {
+            if INTERRUPTED.load(Ordering::Relaxed) {
+                break true;
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break false;
+            }
+            thread::sleep(remaining.min(POLL_TICK));
+        };
+
+        let outcome = self.guard.clear_if_unchanged();
+        drop(self.guard); // wipes the secret from memory even on early-return paths
+
+        if let Err(error) = &outcome {
+            // Critical path: the user's secret may still be in the clipboard.
+            // Emit to stderr in addition to the notification, since a missing
+            // notification daemon would otherwise leave the user uninformed.
+            i18n::clipboard_clear_failed(error);
+            i18n::clipboard_manual_clear_required();
         }
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            break false;
+        if notify {
+            let (body, timeout) = notification(&outcome, cancelled);
+            if let Err(error) = Notification::new()
+                .summary("pasejo")
+                .body(&body)
+                .timeout(timeout)
+                .show()
+            {
+                i18n::clipboard_notification_dispatch_failed(&error);
+            }
         }
-        thread::sleep(remaining.min(POLL_TICK));
-    };
-
-    let outcome = guard.clear_if_unchanged();
-    drop(guard); // ensures the secret is wiped from memory even on early-return paths
-
-    if let Err(error) = &outcome {
-        // Critical path: the user's secret may still be in the clipboard.
-        // Emit to stderr in addition to the notification, since a missing
-        // notification daemon would otherwise leave the user uninformed.
-        i18n::clipboard_clear_failed(error);
-        i18n::clipboard_manual_clear_required();
     }
-    if notify {
-        let (body, timeout) = notification(&outcome, cancelled);
-        if let Err(error) = Notification::new()
-            .summary("pasejo")
-            .body(&body)
-            .timeout(timeout)
-            .show()
-        {
-            i18n::clipboard_notification_dispatch_failed(&error);
-        }
-    }
-    Ok(())
 }
 
 /// Builds the notification body and timeout for a given clear outcome.

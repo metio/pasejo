@@ -39,11 +39,15 @@ no-identities-exist-yet = ストア '{ $store_name }' にはまだアイデン�
 store-add-success = ストア '{ $store_name }' を '{ $store_path }' に追加しました
 store-set-default = ストア '{ $store_name }' をデフォルトに設定しました
 store-remove-success = ストア '{ $store_name }' を削除しました
+store-remove-success-with-data = ストア '{ $store_name }' を削除し、暗号化されたデータファイルも削除しました
 
 ## フックの実行
 
 execute-pull-hooks = ストア '{ $store_name }' のプルフックを実行しています
 execute-push-hooks = ストア '{ $store_name }' のプッシュフックを実行しています
+hook-run-nothing-selected = 実行するものがありません。--pull や --push を指定して実行するフックを選択してください。
+export-plaintext-warning = 警告: エクスポートにはすべてのシークレットが平文で含まれます。
+export-written-to-file = エクスポートを '{ $path }' に書き込みました
 
 ## マージ競合
 
@@ -56,6 +60,7 @@ merge-conflict-removed-and-modified = '{ $secret_path }' の { $value_type } で
 
 list-global-identity = グローバル: { $identity_file }
 list-store-identity = ストア: { $identity_file }
+list-store-identity-also-global = ストア: { $identity_file } (グローバルにも登録済み)
 list-global-pull-hook = グローバルプル: { $command }
 list-global-push-hook = グローバルプッシュ: { $command }
 list-store-pull-hook = ストアプル: { $command }
@@ -123,6 +128,7 @@ error-one-time-password-already-exists = ワンタイムパスワードは既に
 error-not-allowed-to-remove-one-time-password = { $password_path } のワンタイムパスワードの削除は許可されていません。上書きするには --force を使用してください。
 error-no-one-time-password-found = '{ $password_path }' にワンタイムパスワードが見つかりません
 error-no-store-in-configuration = 設定にストアが見つかりません。最初に 'pasejo store add ...' を実行して追加してください
+error-unknown-store = ストア '{ $store_name }' は設定に存在しません。'pasejo store list' を実行して設定済みのストアを確認してください。
 error-decrypt-requires-yes-i-know = 復号を拒否しました: すべてのシークレットが平文で stdout に出力されます。確認のため --yes-i-know を指定してください。
 error-no-store-or-global = 設定にストアが見つからず、--global フラグも指定されていません。最初に 'pasejo store add ...' を実行して追加してください
 error-store-name-already-exists = ストア名は既に存在します。別の名前を使用してください。
@@ -130,12 +136,16 @@ error-store-path-is-directory = ディレクトリをストアパスとして使
 error-cannot-create-store-path = ストアパスを作成できません。パスを確認してやり直してください。
 error-cannot-get-store-parent = ストアパスの親ディレクトリを取得できません。パスを確認してやり直してください。
 error-cannot-identify-store = ストアを識別できません。デフォルトストアを設定するか、--store でストアを指定するか、--global でアイデンティティをグローバルに設定してください。
+error-identity-file-already-added = '--file <FILE>' の値 '{ $file }' は無効です: ファイルは既にアイデンティティとして追加されています
+error-identity-file-not-known = '--file <FILE>' の値 '{ $file }' は無効です: ファイルは既知のアイデンティティと一致しません
+error-identity-did-you-mean = '{ $stored }' のことですか？アイデンティティのパスは完全一致で比較されます。
 error-no-identity-files-to-decrypt = 復号するアイデンティティファイルがありません。ストアの初期化を完了するには、少なくとも 1 つのアイデンティティを追加してください。
 error-invalid-ssh-public-key-format = 無効な SSH 公開鍵形式
 error-username-empty = ユーザー名は空であってはなりません
 error-username-contains-dotdot = 無効なユーザー名 '{ $username }': '..' を含めてはなりません
 error-username-invalid-character = 無効なユーザー名 '{ $username }': ASCII の英字または数字で始まり、ASCII の英字、数字、'-'、'_'、'.' のみを含む必要があります
 error-no-public-key-found-in-file = '{ $filename }' に公開鍵が見つかりません
+error-no-public-keys-for-user = { $provider } ユーザー '{ $username }' には受信者として追加できる公開 SSH 鍵がありません
 error-no-public-key-source = 公開鍵のソースを少なくとも 1 つ指定する必要があります
 error-no-qrcode-found = '{ $qrcode }' に QR コードが見つかりません
 error-failed-to-decode-qrcode = '{ $qrcode }' の QR コードのデコードに失敗しました
@@ -152,11 +162,16 @@ error-cannot-determine-store-parent-path = ストアパス { $path } の親を�
 error-store-path-not-utf8 = トークン { $token } の %p を置換できません: ストアパス { $path } は有効な UTF-8 ではありません
 error-merge-conflict-recipients = 受信者でマージ競合が検出されました。手動で解決してください。
 error-recipient-not-found-in-store = 受信者がストアに見つかりません
+error-cannot-remove-last-recipient = ストアから最後の受信者を削除できません。これを削除する前に新しい受信者を追加してください。
 error-cannot-decrypt-common-ancestor-store = 共通祖先ストアを復号できません
 error-cannot-decrypt-current-version-store = 現在のバージョンのストアを復号できません
 error-cannot-decrypt-other-version-store = 他のバージョンのストアを復号できません
 error-cannot-read-file = '{ $path }' のファイルを読み取れません
 error-downloading-public-key-failed = { $provider } からの公開鍵のダウンロードに失敗しました
+error-download-user-not-found = { $provider } にユーザー '{ $username }' は存在しません
+error-download-rate-limited = { $provider } がリクエストを制限しました。少し待ってから再試行してください
+error-download-server-error = { $provider } がエラーを返しました (HTTP { $status })
+error-download-timeout = { $provider } からの公開鍵のダウンロードがタイムアウトしました。接続を確認するか key-download-timeout-seconds を増やしてください
 error-cannot-determine-parent-directory = { $path } の親ディレクトリを特定できません
 error-failed-to-create-directory = ディレクトリ { $path } の作成に失敗しました
 error-failed-to-write-file = { $path } への書き込みに失敗しました
@@ -177,6 +192,8 @@ error-could-not-store-configuration = 設定を保存できませんでした
 error-could-not-load-migrated-config = 移行された設定を読み込めませんでした
 error-could-not-serialize-configuration = 設定をシリアライズできませんでした
 error-config-not-valid-toml = { $path } の設定ファイルは有効な TOML ではありません
+error-config-invalid-integer = オプション '{ $option }' の値 '{ $value }' が無効です。非負の整数を指定してください
+error-config-invalid-boolean = オプション '{ $option }' の値 '{ $value }' が無効です。true, false, 1, 0, yes, no, y, n のいずれかを指定してください
 error-could-not-open-store-for-lock = ロック用にストアファイルを開けませんでした: { $path }
 error-could-not-acquire-store-lock = ストアファイルのロックを取得できませんでした: { $path }
 error-cannot-encrypt-store = ストアを暗号化できません
@@ -185,10 +202,12 @@ error-command-exited-with = コマンド { $binary } は { $exit } で終了し�
 error-browser-host-requires-pipe = ブラウザホストには、接続中のブラウザ拡張機能からのパイプ標準入力が必要です。このコマンドはブラウザのネイティブメッセージングマニフェスト経由で実行してください。ターミナルから直接実行しないでください。
 error-browser-install-manifest-no-browser = ネイティブメッセージングマニフェストをインストールする --browser を少なくとも1つ指定してください。
 error-browser-install-manifest-needs-extension-id = Chromium系ブラウザの拡張機能IDは展開された拡張機能の公開鍵から導出されるため、ブラウザ '{ $browser }' には --extension-id が必要です。
+error-browser-install-manifest-extension-id-multiple-browsers = 各ブラウザには固有の拡張機能 ID が必要なため、--extension-id を複数の --browser と組み合わせることはできません。ブラウザごとにコマンドを実行してください。
 error-browser-install-manifest-unsupported-os = ネイティブメッセージングマニフェストのインストールは '{ $os }' ではサポートされていません。
 error-browser-install-manifest-no-home-dir = ユーザーのホームディレクトリを特定できませんでした。
 error-browser-install-manifest-no-data-dir = ユーザーのデータディレクトリを特定できませんでした。
 error-browser-install-manifest-no-current-exe = 実行中の pasejo バイナリのパスを特定できませんでした。
 browser-install-manifest-written = '{ $browser }' のネイティブメッセージングマニフェストを '{ $path }' に書き込みました
+browser-install-manifest-print-wrapper-note = 注意: 出力されたマニフェストは '{ $path }' のラッパースクリプトを参照していますが、このコマンドはそれをインストールしていません。既存の実行ファイルを参照するには --binary を使用してください。
 error-browser-install-manifest-invalid-env = --env エントリ '{ $entry }' は KEY=VALUE 形式ではありません。
 error-browser-install-manifest-invalid-env-name = --env 名 '{ $name }' は有効な POSIX 環境変数名ではありません（先頭は英字またはアンダースコアで、英字・数字・アンダースコアのみ使用できます）。
