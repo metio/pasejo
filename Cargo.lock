@@ -54,9 +54,9 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a07d86e4272c093c88caf7864a2d09af52a5159180848ca4832a3cdbd7d014d5"
+checksum = "22a9e0aa470b0ca06dcf4bcf513ccce90301df1cad9bd08221e4377c653aef13"
 dependencies = [
  "aes",
  "aes-gcm",
