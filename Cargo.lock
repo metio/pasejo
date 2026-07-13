@@ -3247,9 +3247,9 @@ dependencies = [
 
 [[package]]
 name = "passwords"
-version = "3.1.17"
+version = "3.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "322cf6daaa7a47e5ae1d34d4efcecf306d0c28a336f35cb22375e6e35890b155"
+checksum = "82fd6420df3178a5d669664d73777eeb5c961bde3ca811060417c750a2c191ef"
 dependencies = [
  "rand 0.10.2",
 ]
