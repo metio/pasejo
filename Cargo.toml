@@ -46,7 +46,7 @@ otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
 passwords = { version = "3.1.16" }
 qr2term = { version = "0.3.3" }
 regex = { version = "1.12.4" }
-rqrr = { version = "0.10.1" }
+rqrr = { version = "0.11.0" }
 # `debug-embed` makes rust-embed embed the i18n/ files into the binary in
 # debug builds too. Without it, every binary spawn reads the .ftl files
 # (and walks the i18n/ folder) from disk; trycmd spawns a fresh process
