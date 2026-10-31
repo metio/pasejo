@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: The pasejo Authors
 SPDX-License-Identifier: 0BSD
- -->
+-->
 
 # pasejo
 
@@ -24,3 +24,7 @@ Its main features are:
 ## Usage
 
 Checkout the [docs](./docs/README.md) if you want to learn more about `pasejo` and how to use it.
+
+## License
+
+[0BSD](LICENSES/0BSD.txt).
