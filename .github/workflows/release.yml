@@ -138,6 +138,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write # cosign keyless sign-blob
     steps:
       - id: checkout
         name: Clone Git Repository
@@ -162,23 +163,12 @@ jobs:
         if: needs.prepare.outputs.release_version != ''
         run: sha256sum *.tar.gz > SHA256SUMS
         working-directory: dist
-      - id: import_gpg
-        name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
-        if: needs.prepare.outputs.release_version != ''
-        with:
-          gpg_private_key: ${{ secrets.GPG_SECRET_KEY_BASE64 }}
-          passphrase: ${{ secrets.GPG_SECRET_KEY_PASSWORD }}
       - id: sign_checksums
         name: Sign Checksums
         if: needs.prepare.outputs.release_version != ''
-        run: >
-          gpg
-          --batch
-          --local-user ${{ steps.import_gpg.outputs.fingerprint }}
-          --output dist/SHA256SUMS.sig
-          --detach-sign
-          dist/SHA256SUMS
+        uses: metio/ci/cosign-sign-blob@f6c5da232253f67486721f46cf4cd5d488189e04 # 2026.10.31224636
+        with:
+          file: dist/SHA256SUMS
       - id: create_release
         name: Create Release
         if: needs.prepare.outputs.release_version != ''
@@ -193,7 +183,7 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/SHA256SUMS
-            dist/SHA256SUMS.sig
+            dist/SHA256SUMS.bundle
       - id: versioning
         name: Modify release version
         if: needs.prepare.outputs.release_version != ''
