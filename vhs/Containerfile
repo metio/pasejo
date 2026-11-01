@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: 0BSD
 
 FROM ghcr.io/charmbracelet/vhs:latest
+LABEL wtf.metio.ci.root-allowed="records the VHS demo from throwaway demo data"
 
 RUN mkdir /storage
 RUN chmod 777 /storage

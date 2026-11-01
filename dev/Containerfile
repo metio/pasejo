@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: 0BSD
 
 FROM docker.io/library/rust:latest
+LABEL wtf.metio.ci.root-allowed="development image run by ilo with the repository mounted"
 
 RUN apt-get update && apt-get install -y mercurial age
 
