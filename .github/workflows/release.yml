@@ -166,7 +166,7 @@ jobs:
       - id: sign_checksums
         name: Sign Checksums
         if: needs.prepare.outputs.release_version != ''
-        uses: metio/ci/cosign-sign-blob@f6c5da232253f67486721f46cf4cd5d488189e04 # 2026.10.31224636
+        uses: metio/ci/cosign-sign-blob@d4a165ac035d1fa1a7aee5b27192d0aed9c7a0b0 # main
         with:
           file: dist/SHA256SUMS
       - id: create_release
