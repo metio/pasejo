@@ -10,6 +10,7 @@
 .classpath
 .DS_Store
 .claude/settings.local.json
+.breto.local.edn
 target/
 TODO.md
 .bash_history
