@@ -13,6 +13,4 @@
 .breto.local.edn
 target/
 TODO.md
-.bash_history
 dist/
-.local/
