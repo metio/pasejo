@@ -25,7 +25,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         insert_secret_with_key(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
         Ok(())
     }
@@ -33,7 +33,7 @@ mod interactive_tests {
     #[test]
     #[serial]
     fn insert_secret_with_ssh_ed25519_key() -> anyhow::Result<()> {
-        let key = PrivateKey::random(&mut OsRng::default(), Algorithm::Ed25519)?;
+        let key = PrivateKey::random(&mut OsRng, Algorithm::Ed25519)?;
         insert_secret_with_key(
             &key.public_key().to_string(),
             &key.to_openssh(LineEnding::default())?,
@@ -45,7 +45,7 @@ mod interactive_tests {
     #[serial]
     #[ignore] // it takes too long to run - execute with: cargo test -- --ignored
     fn insert_secret_with_ssh_rsa_key() -> anyhow::Result<()> {
-        let key = PrivateKey::random(&mut OsRng::default(), Algorithm::Rsa { hash: None })?;
+        let key = PrivateKey::random(&mut OsRng, Algorithm::Rsa { hash: None })?;
         insert_secret_with_key(
             &key.public_key().to_string(),
             &key.to_openssh(LineEnding::default())?,
@@ -192,7 +192,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
         let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
 
@@ -220,7 +220,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
         let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
 
@@ -262,7 +262,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
         let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
 
@@ -302,7 +302,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
         let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
 
@@ -327,7 +327,7 @@ mod interactive_tests {
         let key = age::x25519::Identity::generate();
         let temp = prepare_environment(
             &key.to_public().to_string(),
-            &key.to_string().expose_secret(),
+            key.to_string().expose_secret(),
         )?;
         let cmd_path = cargo_bin(env!("CARGO_PKG_NAME")).into_os_string();
 
