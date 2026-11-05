@@ -1052,16 +1052,17 @@ mod tests {
     }
 
     fn parse_generate(flags: &[&str]) -> SecretGenerateArgs {
-        let argv = ["pasejo", "secret", "generate", "name"]
+        let command_line = ["pasejo", "secret", "generate", "name"]
             .iter()
             .chain(flags)
             .copied();
-        match Cli::try_parse_from(argv).unwrap().command {
-            Commands::Secret {
-                command: SecretCommands::Generate(args),
-            } => args,
-            _ => panic!("expected `secret generate`"),
-        }
+        let Commands::Secret {
+            command: SecretCommands::Generate(args),
+        } = Cli::try_parse_from(command_line).unwrap().command
+        else {
+            panic!("expected `secret generate`");
+        };
+        args
     }
 
     #[test]
