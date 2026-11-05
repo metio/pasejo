@@ -133,10 +133,10 @@ fn list(
 /// nothing — silently desyncing an event-based token. Here the order is:
 /// generate-and-bump → **deliver** (place in
 /// clipboard / print; the only fallible-before-wait step) → persist the
-/// increment only if delivery succeeded → release the lock → run the long
-/// auto-clear wait *unlocked* so it doesn't serialize concurrent store
-/// access. (Delivery happens under the lock, but only the fast placement
-/// — the 45s hold runs after the lock is released.)
+/// increment only if delivery succeeded → release the lock → run the push
+/// hooks → run the long auto-clear wait *unlocked* so it doesn't serialize
+/// concurrent store access. (Delivery happens under the lock, but only the fast
+/// placement — the 45s hold runs after the lock is released.)
 fn show(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -189,14 +189,32 @@ fn show(
 
     // The long auto-clear wait runs unlocked so it can't block concurrent
     // operations on the same store for the clipboard timeout.
-    if let Some((session, duration, notify)) = pending_clipboard {
-        session.hold_until_cleared(duration, notify);
-    }
+    push_then_hold(
+        || {
+            if is_hotp {
+                hooks.execute_push_commands()
+            } else {
+                Ok(())
+            }
+        },
+        || {
+            if let Some((session, duration, notify)) = pending_clipboard {
+                session.hold_until_cleared(duration, notify);
+            }
+        },
+    )
+}
 
-    if is_hotp {
-        hooks.execute_push_commands()?;
-    }
-    Ok(())
+/// Runs `push` before `hold` so a persisted HOTP counter reaches the remote
+/// without waiting for the clipboard timeout, and returns a push failure
+/// only after `hold`, so the code stays in the clipboard for its full time.
+fn push_then_hold(
+    push: impl FnOnce() -> anyhow::Result<()>,
+    hold: impl FnOnce(),
+) -> anyhow::Result<()> {
+    let pushed = push();
+    hold();
+    pushed
 }
 
 fn mv(
@@ -328,6 +346,28 @@ fn format_code(code: u32, digits: u8) -> Zeroizing<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn push_runs_before_the_clipboard_hold() {
+        let calls = std::cell::RefCell::new(Vec::new());
+        push_then_hold(
+            || {
+                calls.borrow_mut().push("push");
+                Ok(())
+            },
+            || calls.borrow_mut().push("hold"),
+        )
+        .unwrap();
+        assert_eq!(*calls.borrow(), ["push", "hold"]);
+    }
+
+    #[test]
+    fn push_failure_is_reported_after_the_clipboard_hold() {
+        let held = std::cell::Cell::new(false);
+        let result = push_then_hold(|| anyhow::bail!("push failed"), || held.set(true));
+        assert!(held.get());
+        assert!(result.is_err());
+    }
 
     #[test]
     fn pads_with_leading_zeros_for_six_digits() {
