@@ -27,16 +27,16 @@ Warning: the export contains every secret in plaintext.
     {
       "id": "[..]",
       "name": "pasejo",
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "external_id": null
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "externalId": null
     }
   ],
   "items": [
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "[..]"
       ],
       "name": "another-secret",
@@ -51,9 +51,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "[..]"
       ],
       "name": "deeply/nested/secret",
@@ -68,9 +68,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "[..]"
       ],
       "name": "nested/secret",
@@ -85,9 +85,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "[..]"
       ],
       "name": "some-secret",
@@ -110,16 +110,16 @@ Warning: the export contains every secret in plaintext.
     {
       "id": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
       "name": "pasejo",
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "external_id": null
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "externalId": null
     }
   ],
   "items": [
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "another-secret",
@@ -134,9 +134,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "deeply/nested/secret",
@@ -151,9 +151,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "nested/secret",
@@ -168,9 +168,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "some-secret",
@@ -193,16 +193,16 @@ Warning: the export contains every secret in plaintext.
     {
       "id": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
       "name": "some-collection",
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "external_id": null
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "externalId": null
     }
   ],
   "items": [
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "another-secret",
@@ -217,9 +217,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "deeply/nested/secret",
@@ -234,9 +234,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "nested/secret",
@@ -251,9 +251,9 @@ Warning: the export contains every secret in plaintext.
     },
     {
       "id": "[..]",
-      "folder_id": null,
-      "organization_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "collection_ids": [
+      "folderId": null,
+      "organizationId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "collectionIds": [
         "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
       ],
       "name": "some-secret",

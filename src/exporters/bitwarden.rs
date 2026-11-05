@@ -195,6 +195,7 @@ pub struct BitwardenFolder {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BitwardenCollection {
     pub id: String,
     pub name: String,
@@ -203,6 +204,7 @@ pub struct BitwardenCollection {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BitwardenItem {
     pub id: String,
     pub folder_id: Option<String>,
@@ -288,7 +290,7 @@ mod tests {
         let collections = parsed.get("collections").unwrap().as_array().unwrap();
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0]["id"], "coll-456");
-        assert_eq!(collections[0]["organization_id"], "org-123");
+        assert_eq!(collections[0]["organizationId"], "org-123");
         assert_eq!(collections[0]["name"], "MyTeam");
     }
 
@@ -333,8 +335,8 @@ mod tests {
         let folder_id = parsed["folders"][0]["id"].clone();
         let items = parsed.get("items").unwrap().as_array().unwrap();
         assert_eq!(items.len(), 2);
-        assert_eq!(items[0]["folder_id"], folder_id);
-        assert_eq!(items[1]["folder_id"], folder_id);
+        assert_eq!(items[0]["folderId"], folder_id);
+        assert_eq!(items[1]["folderId"], folder_id);
     }
 
     #[test]
@@ -395,10 +397,10 @@ mod tests {
         let mut flat_count = 0;
         let mut nested_count = 0;
         for item in items {
-            if item["folder_id"].is_null() {
+            if item["folderId"].is_null() {
                 flat_count += 1;
             } else {
-                assert_eq!(item["folder_id"], work_folder_id);
+                assert_eq!(item["folderId"], work_folder_id);
                 nested_count += 1;
             }
         }
@@ -414,7 +416,7 @@ mod tests {
 
         let parsed: Value = serde_json::from_str(&output).unwrap();
         let items = parsed.get("items").unwrap().as_array().unwrap();
-        assert_eq!(items[0]["folder_id"], Value::Null);
+        assert_eq!(items[0]["folderId"], Value::Null);
     }
 
     #[test]
@@ -672,6 +674,34 @@ mod tests {
         assert_eq!(item.name, "name");
         assert_eq!(item.login.password, "password");
         assert_eq!(item.item_type, LOGIN_ITEM_TYPE);
+    }
+
+    #[test]
+    fn individual_export_links_items_to_folders_with_bitwarden_keys() {
+        let store = store_with(&[("work/email", "hunter2")]);
+
+        let output = json(&store, None, None, None, &[], &[], false).unwrap();
+
+        let parsed: Value = serde_json::from_str(&output).unwrap();
+        let item = &parsed["items"][0];
+        assert_eq!(item["folderId"], parsed["folders"][0]["id"]);
+        assert!(item.get("folder_id").is_none());
+    }
+
+    #[test]
+    fn organization_export_links_items_to_collections_with_bitwarden_keys() {
+        let store = store_with(&[("login", "hunter2")]);
+        let org_id = String::from("org-123");
+
+        let output = json(&store, Some(&org_id), None, None, &[], &[], false).unwrap();
+
+        let parsed: Value = serde_json::from_str(&output).unwrap();
+        let collection = &parsed["collections"][0];
+        let item = &parsed["items"][0];
+        assert_eq!(collection["organizationId"], "org-123");
+        assert!(collection.get("externalId").is_some());
+        assert_eq!(item["organizationId"], "org-123");
+        assert_eq!(item["collectionIds"][0], collection["id"]);
     }
 
     #[test]
