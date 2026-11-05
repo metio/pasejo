@@ -104,9 +104,9 @@ pub enum ErrorKind {
     #[allow(dead_code)]
     UnknownAction,
     DecodeError,
-    /// `decrypt_store` failed — most commonly a locked age identity that
-    /// needs ssh-agent, but also fires for "no identity files configured"
-    /// or "identities don't match recipients."
+    /// The identities could not be read, or none of them decrypts the
+    /// store: a locked age identity that needs ssh-agent, "no identity
+    /// files configured", or "identities don't match recipients."
     IdentityLocked,
     /// A pull or push hook command returned non-zero or could not be spawned.
     /// The hint carries the underlying anyhow chain so the extension can

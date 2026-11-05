@@ -18,7 +18,7 @@ use crate::cli::i18n;
 use crate::commands::store_op::try_acquire_store_lock;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HostArgs;
-use crate::models::configuration::{Configuration, StoreRegistration};
+use crate::models::configuration::{Configuration, StoreRegistration, decrypt_store_with};
 use crate::models::password_store::PasswordStore;
 
 // Chrome's documented native-messaging maximum is 1 MiB per direction.
@@ -113,18 +113,17 @@ fn handle_query(
 
 /// Hand-rolled equivalent of the read-only prefix of `store_op::with_store`
 /// (minus the encrypt + push tail, which a read-only operation never
-/// needs). Pull hooks fire (throttled), the file lock is acquired,
-/// `decrypt_store` runs, the lock is released, and the decrypted store is
-/// returned. Each step's failure is classified into a distinct `ErrorKind`
-/// so the extension can surface the right fix — the funnel itself returns
-/// `anyhow::Error`, which would collapse those into a single chain and
-/// leave the user guessing.
+/// needs). Pull hooks fire (throttled), the file lock is acquired, the
+/// identities are read and the store decrypted, the lock is released, and
+/// the decrypted store is returned. Each step's failure is classified into a
+/// distinct `ErrorKind` so the extension can surface the right fix — the funnel
+/// itself returns `anyhow::Error`, which would collapse those into a single
+/// chain and leave the user guessing.
 ///
 /// `try_acquire_store_lock` returning `Ok(None)` (the bootstrap path — a
 /// store registered in the config but with no file on disk yet) is
 /// mapped to `StoreUnreachable`; the browser host is never the right
-/// entry point for bootstrapping, and letting `decrypt_store` fail
-/// later would mis-classify as `IdentityLocked`.
+/// entry point for bootstrapping.
 fn open_store_for_read(
     configuration: &Configuration,
     registration: &StoreRegistration,
@@ -149,11 +148,29 @@ fn open_store_for_read(
         Err(err) => return Err((ErrorKind::StoreUnreachable, err)),
     };
 
-    let store = configuration
-        .decrypt_store(registration)
+    let identities = configuration
+        .read_identities(registration)
         .map_err(|err| (ErrorKind::IdentityLocked, err))?;
+    let store = decrypt_store_with(registration.path(), &identities)
+        .map_err(|err| (decrypt_error_kind(&err), err))?;
     drop(lock);
     Ok(store)
+}
+
+/// Decryption fails on the identity side when none of the identities
+/// unwraps the file key; every other failure (an unreadable file, a broken
+/// age header or payload, a plaintext that is not a store) lies with the
+/// store file.
+fn decrypt_error_kind(err: &anyhow::Error) -> ErrorKind {
+    match err.downcast_ref::<age::DecryptError>() {
+        Some(
+            age::DecryptError::NoMatchingKeys
+            | age::DecryptError::KeyDecryptionFailed
+            | age::DecryptError::Plugin(_)
+            | age::DecryptError::PluginResolve(_),
+        ) => ErrorKind::IdentityLocked,
+        _ => ErrorKind::StoreUnreachable,
+    }
 }
 
 /// Placeholder substituted for the store file's absolute path in the
@@ -1010,6 +1027,92 @@ mod tests {
         let outcome = rx.recv_timeout(STORE_LOCK_WAIT * 2);
         drop(held);
         assert_eq!(outcome, Ok(Some(ErrorKind::StoreUnreachable)));
+    }
+
+    fn configuration_with_identity(
+        temp: &assert_fs::TempDir,
+        store_path: PathBuf,
+    ) -> Configuration {
+        let identity = age::x25519::Identity::generate();
+        let identity_file = temp.path().join("identity");
+        std::fs::write(
+            &identity_file,
+            age::secrecy::ExposeSecret::expose_secret(&identity.to_string()),
+        )
+        .unwrap();
+        let mut reg = registration("personal");
+        reg.path = store_path;
+        Configuration {
+            stores: vec![reg],
+            identities: vec![Identity {
+                file: identity_file,
+            }],
+            ..Configuration::default()
+        }
+    }
+
+    fn open_store_for_read_error_kind(cfg: &Configuration) -> Option<ErrorKind> {
+        open_store_for_read(cfg, &cfg.stores[0], true)
+            .err()
+            .map(|(kind, _)| kind)
+    }
+
+    #[test]
+    fn open_store_for_read_reports_an_empty_store_file_as_store_unreachable() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let store_path = temp.path().join("personal.age");
+        std::fs::write(&store_path, b"").unwrap();
+        let cfg = configuration_with_identity(&temp, store_path);
+        assert_eq!(
+            open_store_for_read_error_kind(&cfg),
+            Some(ErrorKind::StoreUnreachable)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_store_for_read_reports_a_directory_at_the_store_path_as_store_unreachable() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let store_path = temp.path().join("personal.age");
+        std::fs::create_dir(&store_path).unwrap();
+        let cfg = configuration_with_identity(&temp, store_path);
+        assert_eq!(
+            open_store_for_read_error_kind(&cfg),
+            Some(ErrorKind::StoreUnreachable)
+        );
+    }
+
+    #[test]
+    fn open_store_for_read_reports_a_store_for_other_recipients_as_identity_locked() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let store_path = temp.path().join("personal.age");
+        let stranger = age::x25519::Identity::generate().to_public();
+        let recipients: Vec<Box<dyn age::Recipient + Send>> = vec![Box::new(stranger)];
+        crate::secrets::encrypt("", &store_path, &recipients).unwrap();
+        let cfg = configuration_with_identity(&temp, store_path);
+        assert_eq!(
+            open_store_for_read_error_kind(&cfg),
+            Some(ErrorKind::IdentityLocked)
+        );
+    }
+
+    #[test]
+    fn open_store_for_read_reports_a_store_that_is_not_toml_as_store_unreachable() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let store_path = temp.path().join("personal.age");
+        let cfg = configuration_with_identity(&temp, store_path.clone());
+        let identity_text = std::fs::read_to_string(&cfg.identities[0].file).unwrap();
+        let identity: age::x25519::Identity = identity_text.trim().parse().unwrap();
+        let recipients: Vec<Box<dyn age::Recipient + Send>> = vec![Box::new(identity.to_public())];
+        crate::secrets::encrypt("not = [toml", &store_path, &recipients).unwrap();
+        assert_eq!(
+            open_store_for_read_error_kind(&cfg),
+            Some(ErrorKind::StoreUnreachable)
+        );
     }
 
     #[test]

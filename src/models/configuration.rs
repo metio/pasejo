@@ -314,18 +314,25 @@ impl Configuration {
         registration: &StoreRegistration,
         store_path: &Path,
     ) -> Result<PasswordStore> {
+        let identities = self.read_identities(registration)?;
+        decrypt_store_with(store_path, &identities)
+    }
+
+    /// The identities that may decrypt the store of `registration`: the
+    /// global ones plus the store's own.
+    pub fn read_identities(
+        &self,
+        registration: &StoreRegistration,
+    ) -> Result<Vec<Box<dyn age::Identity>>> {
         let identity_files = self.all_identity_files(registration);
         if identity_files.is_empty() {
             anyhow::bail!(i18n::error_no_identity_files_to_decrypt());
         }
-        let identities = identities::read(
+        identities::read(
             identity_files,
             self.ignore_missing_identities
                 .unwrap_or(DEFAULT_IGNORE_MISSING_IDENTITIES),
-        )?;
-        let decrypted_store = secrets::decrypt(store_path, &identities)?;
-        let store: PasswordStore = toml::from_str(&decrypted_store)?;
-        Ok(store)
+        )
     }
 
     pub fn select_store(&self, store_name: Option<&String>) -> Option<&StoreRegistration> {
@@ -406,6 +413,15 @@ impl StoreRegistration {
     pub fn path(&self) -> &Path {
         self.path.as_path()
     }
+}
+
+pub fn decrypt_store_with(
+    store_path: &Path,
+    identities: &[Box<dyn age::Identity>],
+) -> Result<PasswordStore> {
+    let decrypted_store = secrets::decrypt(store_path, identities)?;
+    let store: PasswordStore = toml::from_str(&decrypted_store)?;
+    Ok(store)
 }
 
 pub fn encrypt_store(registration: &StoreRegistration, store: &PasswordStore) -> Result<()> {
