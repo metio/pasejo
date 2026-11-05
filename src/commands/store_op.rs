@@ -43,19 +43,40 @@ pub fn require_store<'a>(
 /// window. Holding it across that window keeps concurrent invocations from
 /// both reading the same HOTP counter, both bumping it, and losing one of
 /// the increments when re-encrypting.
+///
+/// Every encrypt renames a fresh file over `path`, so a waiter that opened
+/// the previous file can be granted a lock on an inode `path` no longer
+/// names, while a newcomer locks the current one. The lock therefore only
+/// counts once the locked handle is still the file at `path`; otherwise it
+/// is dropped and the open is retried.
 pub fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
     let path_display = path.display().to_string();
-    match File::open(path) {
-        Ok(file) => {
-            file.lock()
-                .with_context(|| i18n::error_could_not_acquire_store_lock(&path_display))?;
-            Ok(Some(file))
-        }
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(error) => {
-            Err(error).with_context(|| i18n::error_could_not_open_store_for_lock(&path_display))
+    loop {
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display));
+            }
+        };
+        file.lock()
+            .with_context(|| i18n::error_could_not_acquire_store_lock(&path_display))?;
+        if is_file_at(&file, path)
+            .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display))?
+        {
+            return Ok(Some(file));
         }
     }
+}
+
+fn is_file_at(file: &File, path: &Path) -> io::Result<bool> {
+    let current = match same_file::Handle::from_path(path) {
+        Ok(current) => current,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error),
+    };
+    Ok(same_file::Handle::from_file(file.try_clone()?)? == current)
 }
 
 /// Whether the closure passed to [`with_store`] modified the password store.
@@ -308,5 +329,55 @@ mod tests {
         rx.recv_timeout(Duration::from_secs(2))
             .expect("second acquisition should succeed within 2s of first being released");
         worker.join().unwrap();
+    }
+
+    #[test]
+    fn acquire_store_lock_serializes_a_waiter_and_a_newcomer_after_the_file_is_replaced() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("store");
+        file.write_str("payload").unwrap();
+        let path = file.path().to_path_buf();
+
+        let guard_a = acquire_store_lock(&path).unwrap();
+
+        let (b_acquired_tx, b_acquired_rx) = mpsc::channel();
+        let (b_release_tx, b_release_rx) = mpsc::channel::<()>();
+        let b_path = path.clone();
+        let waiter_b = std::thread::spawn(move || {
+            let guard_b = acquire_store_lock(&b_path).unwrap();
+            b_acquired_tx.send(()).unwrap();
+            b_release_rx.recv().unwrap();
+            drop(guard_b);
+        });
+        // Give B time to open the original file and block on its lock.
+        std::thread::sleep(Duration::from_millis(100));
+
+        crate::cli::atomic_write::write(&path, b"replaced").unwrap();
+        drop(guard_a);
+        b_acquired_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("B should acquire once A releases");
+
+        let (c_acquired_tx, c_acquired_rx) = mpsc::channel();
+        let c_path = path.clone();
+        let newcomer_c = std::thread::spawn(move || {
+            let guard_c = acquire_store_lock(&c_path).unwrap();
+            c_acquired_tx.send(()).unwrap();
+            drop(guard_c);
+        });
+
+        assert!(
+            c_acquired_rx
+                .recv_timeout(Duration::from_millis(150))
+                .is_err(),
+            "C acquired the lock while B still held it"
+        );
+
+        b_release_tx.send(()).unwrap();
+        waiter_b.join().unwrap();
+        c_acquired_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("C should acquire once B releases");
+        newcomer_c.join().unwrap();
     }
 }
