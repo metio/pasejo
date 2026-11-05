@@ -250,7 +250,9 @@ impl Configuration {
         self.save_configuration()
     }
 
-    fn default_store_name(&self) -> Option<String> {
+    /// The store name used when none is given: `PASEJO_DEFAULT_STORE`,
+    /// else `default_store`.
+    pub fn default_store_name(&self) -> Option<String> {
         var_os(environment_variables::PASEJO_DEFAULT_STORE).map_or_else(
             || self.default_store.clone(),
             |value| value.into_string().ok(),

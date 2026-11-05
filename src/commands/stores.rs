@@ -164,11 +164,11 @@ fn decrypt(
 }
 
 fn list(configuration: &Configuration) {
+    let default = configuration.default_store_name();
     for store in &configuration.stores {
-        let is_default = configuration
-            .default_store
-            .as_ref()
-            .is_some_and(|default| default == &store.name);
+        let is_default = default
+            .as_deref()
+            .is_some_and(|default| default.eq_ignore_ascii_case(&store.name));
         i18n::list_store(&store.name, &store.path, is_default);
     }
 }

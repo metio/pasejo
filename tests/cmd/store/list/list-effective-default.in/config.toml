@@ -1,0 +1,18 @@
+identities = []
+default_store = "personal"
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "/stores/personal"
+name = "Personal"
+identities = []
+pull_commands = []
+push_commands = []
+
+[[stores]]
+path = "/stores/work"
+name = "work"
+identities = []
+pull_commands = []
+push_commands = []
