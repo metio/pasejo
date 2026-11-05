@@ -114,9 +114,11 @@ mod interactive_tests {
 
     fn prepare_environment(public_key: &str, private_key: &str) -> anyhow::Result<TempDir> {
         // Pin the locale so every child process picks up English from the
-        // i18n loader, regardless of the developer's shell locale. These
-        // tests are #[serial] so the global env mutation is race-free.
+        // i18n loader, regardless of the developer's shell locale. A host
+        // `LANGUAGE` outranks `LC_ALL`, so it is removed. These tests are
+        // #[serial] so the global env mutation is race-free.
         unsafe {
+            env::remove_var("LANGUAGE");
             env::set_var("LANG", "en");
             env::set_var("LC_ALL", "en");
         }
@@ -417,6 +419,7 @@ mod interactive_tests {
         spawn_cmd
             .args(["browser", "host"])
             .env("PASEJO_CONFIG", &config)
+            .env_remove("LANGUAGE")
             .env("LANG", "en")
             .env("LC_ALL", "en");
         let mut process = rexpect::session::spawn_command(spawn_cmd, Some(5_000))?;

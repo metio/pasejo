@@ -25,10 +25,11 @@
 //! When adding a new `tests/cmd/<area>/` directory, add a matching
 //! `cli_tests_<area>` function below.
 
-/// Pre-populates a `TestCases` with the env every English-locale suite
-/// needs. trycmd's `TestCases::env` is `&self` (interior mutability), so
-/// we can apply settings here and hand the value back by move.
-fn english_test_cases() -> trycmd::TestCases {
+/// Pre-populates a `TestCases` with the env every snapshot suite needs,
+/// running the binary under `lang`. trycmd's `TestCases::env` is `&self`
+/// (interior mutability), so we can apply settings here and hand the value
+/// back by move.
+fn test_cases(lang: &str) -> trycmd::TestCases {
     let cases = trycmd::TestCases::new();
     cases
         // Point to a test-local configuration file. Without this, all
@@ -40,15 +41,20 @@ fn english_test_cases() -> trycmd::TestCases {
         // between tests (and between `cargo test` runs), making the
         // suite flaky.
         .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        // Pin the locale so the binary's i18n loader always selects
-        // English. Without this, snapshots would be checked against the
-        // developer's system locale (e.g. de_DE) and break on machines
-        // other than the author's. LC_ALL takes precedence over LANG /
-        // LC_MESSAGES, so setting it is sufficient on its own, but we
-        // set both for belt-and-braces.
-        .env("LANG", "en")
-        .env("LC_ALL", "en");
+        // Pin the locale so snapshots never depend on the developer's
+        // environment. The i18n loader follows gettext precedence
+        // (`LANGUAGE` > `LC_ALL` > `LC_MESSAGES` > `LANG`), so a host
+        // `LANGUAGE` would win over the other two unless it is set here
+        // as well. trycmd cannot remove an inherited variable, so all
+        // three are overwritten.
+        .env("LANGUAGE", lang)
+        .env("LC_ALL", lang)
+        .env("LANG", lang);
     cases
+}
+
+fn english_test_cases() -> trycmd::TestCases {
+    test_cases("en")
 }
 
 #[test]
@@ -140,76 +146,41 @@ fn cli_tests_docs() {
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_de() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-de/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "de")
-        .env("LC_ALL", "de");
+    test_cases("de").case("tests/cmd-de/**/*.md");
 }
 
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_es() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-es/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "es")
-        .env("LC_ALL", "es");
+    test_cases("es").case("tests/cmd-es/**/*.md");
 }
 
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_fr() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-fr/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "fr")
-        .env("LC_ALL", "fr");
+    test_cases("fr").case("tests/cmd-fr/**/*.md");
 }
 
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_it() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-it/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "it")
-        .env("LC_ALL", "it");
+    test_cases("it").case("tests/cmd-it/**/*.md");
 }
 
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_ja() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-ja/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "ja")
-        .env("LC_ALL", "ja");
+    test_cases("ja").case("tests/cmd-ja/**/*.md");
 }
 
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_ko() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-ko/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "ko")
-        .env("LC_ALL", "ko");
+    test_cases("ko").case("tests/cmd-ko/**/*.md");
 }
 
 #[test]
 #[cfg(not(windows))]
 fn cli_tests_zh() {
-    trycmd::TestCases::new()
-        .case("tests/cmd-zh/**/*.md")
-        .env("PASEJO_CONFIG", "config.toml")
-        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
-        .env("LANG", "zh")
-        .env("LC_ALL", "zh");
+    test_cases("zh").case("tests/cmd-zh/**/*.md");
 }

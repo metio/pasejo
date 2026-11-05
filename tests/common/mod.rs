@@ -23,13 +23,15 @@ pub const TEST_PRIVATE_KEY: &str = "# public key: age1fdalwkzzv0vztxm08gmh6geddk
      AGE-SECRET-KEY-14LGKWZMHDDWMLCL5EUU2FSQNEX33DZYR3F8VEPZSA670QRC3DA3SNSD535";
 pub const TEST_PUBLIC_KEY: &str = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd";
 
-/// A `pasejo` command pre-wired with the test config path and a pinned C
-/// locale, so assertions see English output regardless of the host
-/// environment.
+/// A `pasejo` command pre-wired with the test config path and a pinned
+/// English locale, so assertions see English output regardless of the host
+/// environment. A host `LANGUAGE` outranks `LC_ALL` in the i18n loader, so it
+/// is removed; a test that needs another locale overrides `LANG`/`LC_ALL`.
 pub fn pasejo(config: &Path) -> AssertCommand {
     let mut command = AssertCommand::cargo_bin("pasejo").unwrap();
     command
         .env("PASEJO_CONFIG", config)
+        .env_remove("LANGUAGE")
         .env("LANG", "en")
         .env("LC_ALL", "en");
     command
