@@ -139,21 +139,22 @@ fn append_comment_line(buffer: &mut String, line: &str) {
 }
 
 fn split_ssh_key(key: &str) -> anyhow::Result<(String, String)> {
-    let (key, comment) = if key.starts_with("ssh") {
+    let key = key.trim();
+    if key.starts_with("ssh") {
         let parts: Vec<&str> = key.split_whitespace().collect();
         if parts.len() < 2 {
             anyhow::bail!(i18n::error_invalid_ssh_public_key_format())
         }
-        if parts.len() > 2 {
-            (parts[0..2].join(" "), parts[2..].join(" "))
-        } else {
-            (key.to_owned(), String::new())
-        }
+        Ok((parts[0..2].join(" "), parts[2..].join(" ")))
     } else {
-        (key.to_owned(), String::new())
-    };
+        Ok((key.to_owned(), String::new()))
+    }
+}
 
-    Ok((key, comment))
+/// The form a public key is stored and compared in: surrounding whitespace
+/// removed and, for SSH keys, only the key type and base64 body.
+pub fn normalize(key: &str) -> String {
+    split_ssh_key(key).map_or_else(|_| key.trim().to_owned(), |(key, _)| key)
 }
 
 #[cfg(test)]
@@ -279,6 +280,26 @@ mod tests {
         let (key, comment) = split_ssh_key("ssh-ed25519 AAAA").unwrap();
         assert_eq!(key, "ssh-ed25519 AAAA");
         assert_eq!(comment, "");
+    }
+
+    #[test]
+    fn split_ssh_key_drops_surrounding_whitespace() {
+        assert_eq!(
+            split_ssh_key("  ssh-ed25519   AAAA  ").unwrap(),
+            ("ssh-ed25519 AAAA".into(), String::new())
+        );
+        assert_eq!(
+            split_ssh_key(" age1xyz ").unwrap(),
+            ("age1xyz".into(), String::new())
+        );
+    }
+
+    #[test]
+    fn normalize_strips_ssh_comments_and_whitespace() {
+        assert_eq!(normalize("ssh-ed25519 AAAA alice@host"), "ssh-ed25519 AAAA");
+        assert_eq!(normalize("ssh-ed25519 AAAA "), "ssh-ed25519 AAAA");
+        assert_eq!(normalize(" age1xyz\n"), "age1xyz");
+        assert_eq!(normalize("ssh-ed25519"), "ssh-ed25519");
     }
 
     #[test]

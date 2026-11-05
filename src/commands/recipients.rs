@@ -82,7 +82,7 @@ fn add(
         if let Some(recipient) = store
             .recipients
             .iter_mut()
-            .find(|recipient| recipient.public_key == public_key.0)
+            .find(|recipient| public_key::normalize(&recipient.public_key) == public_key.0)
         {
             if let Some(name) = name {
                 name.clone_into(&mut recipient.name);
@@ -117,25 +117,22 @@ fn remove(
     ignore_unknown: bool,
     offline: bool,
 ) -> Result<()> {
+    let public_key = public_key::normalize(public_key);
+    let matches =
+        |recipient: &Recipient| public_key::normalize(&recipient.public_key) == public_key;
     with_store(configuration, store_name, offline, |_, store| {
-        if store.recipients.len() == 1 && store.recipients[0].public_key == public_key {
+        if !store.recipients.is_empty() && store.recipients.iter().all(matches) {
             anyhow::bail!(i18n::error_cannot_remove_last_recipient())
         }
-        if !store
-            .recipients
-            .iter()
-            .any(|recipient| recipient.public_key == public_key)
-        {
+        if !store.recipients.iter().any(matches) {
             if ignore_unknown {
-                i18n::recipient_does_not_exist_ignored(public_key);
+                i18n::recipient_does_not_exist_ignored(&public_key);
                 return Ok(((), StoreMutation::Unchanged));
             }
             anyhow::bail!(i18n::error_recipient_not_found_in_store());
         }
-        store
-            .recipients
-            .retain(|recipient| recipient.public_key != public_key);
-        i18n::recipient_removed(public_key);
+        store.recipients.retain(|recipient| !matches(recipient));
+        i18n::recipient_removed(&public_key);
         Ok(((), StoreMutation::Modified))
     })
 }
