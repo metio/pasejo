@@ -695,6 +695,7 @@ mod tests {
 
     #[test]
     fn set_default_store_error_message_mentions_the_input() {
+        crate::cli::i18n::init_for_tests();
         let mut cfg = configuration_with_stores(vec![registration("Personal", "/tmp/personal")]);
 
         let error = cfg.set_default_store("WORK").unwrap_err().to_string();
