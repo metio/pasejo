@@ -110,6 +110,37 @@ mod tests {
     }
 
     #[test]
+    fn otpauth_url_round_trips_through_the_url_parser() {
+        let entries = [
+            OneTimePassword {
+                secret: String::from("JBSWY3DPEHPK3PXP"),
+                otp_type: OneTimePasswordType::Totp,
+                algorithm: OneTimePasswordAlgorithm::Sha256,
+                digits: 8,
+                period: 60,
+                counter: 0,
+                skew: 1,
+            },
+            OneTimePassword {
+                secret: String::from("JBSWY3DPEHPK3PXP"),
+                otp_type: OneTimePasswordType::Hotp,
+                algorithm: OneTimePasswordAlgorithm::Sha512,
+                digits: 7,
+                period: 0,
+                counter: 42,
+                skew: 0,
+            },
+        ];
+        for entry in entries {
+            let args = OtpAddArgs {
+                url: Some(entry.otpauth_url("work/Example: alice")),
+                ..empty_args()
+            };
+            assert_eq!(args.parse_password().unwrap(), entry);
+        }
+    }
+
+    #[test]
     fn defaults_are_filled_in_for_missing_arguments() {
         let args = OtpAddArgs {
             secret: Some(String::from("JBSWY3DPEHPK3PXP")),

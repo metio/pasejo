@@ -48,6 +48,8 @@ execute-pull-hooks = 正在执行存储 '{ $store_name }' 的拉取钩子
 execute-push-hooks = 正在执行存储 '{ $store_name }' 的推送钩子
 hook-run-nothing-selected = 没有可执行的内容：请使用 --pull 和/或 --push 选择要执行的钩子。
 export-plaintext-warning = 警告：导出内容包含所有明文密钥。
+export-hotp-omitted = 警告：Bitwarden 无法存储 HOTP 一次性密码，因此以下条目不包含在导出中：{ $names }
+export-orphaned-otp-omitted = 警告：以下一次性密码没有同名的密文，不包含在导出中：{ $names }
 export-written-to-file = 已将导出写入 '{ $path }'
 
 ## 合并冲突

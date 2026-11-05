@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::cli::constants::APPLICATION_NAME;
 use crate::exporters::parser::{ParsedSecret, parse_secret};
-use crate::models::password_store::PasswordStore;
+use crate::models::password_store::{OneTimePasswordType, PasswordStore};
 
 const LOGIN_ITEM_TYPE: u8 = 1;
 const TEXT_FIELD_TYPE: u8 = 0;
@@ -41,6 +41,35 @@ pub fn json(
     )
 }
 
+/// One-time passwords the export leaves out, by name. Bitwarden stores
+/// only TOTP, so every HOTP entry is omitted; a TOTP entry is attached to
+/// the login of the same name and omitted when no such secret exists.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct OmittedOneTimePasswords {
+    pub hotp: Vec<String>,
+    pub orphaned: Vec<String>,
+}
+
+pub fn omitted_one_time_passwords(store: &PasswordStore) -> OmittedOneTimePasswords {
+    let mut omitted = OmittedOneTimePasswords::default();
+    for (name, otp) in &store.otp {
+        if otp.otp_type == OneTimePasswordType::Hotp {
+            omitted.hotp.push(name.clone());
+        } else if !store.secrets.contains_key(name) {
+            omitted.orphaned.push(name.clone());
+        }
+    }
+    omitted
+}
+
+fn totp_url_for(store: &PasswordStore, name: &str) -> Option<String> {
+    store
+        .otp
+        .get(name)
+        .filter(|otp| otp.otp_type == OneTimePasswordType::Totp)
+        .map(|otp| otp.otpauth_url(name))
+}
+
 fn build_organization(
     store: &PasswordStore,
     organization_id: &str,
@@ -64,6 +93,7 @@ fn build_organization(
         .iter()
         .map(|(name, secret)| {
             let mut item = BitwardenItem::from_secret(name, secret, username_keys, uri_keys);
+            item.login.totp = totp_url_for(store, name);
             item.organization_id = Some(organization_id.to_owned());
             item.collection_ids = vec![collection.id.clone()];
             item
@@ -86,6 +116,7 @@ fn build_individual(
         .iter()
         .map(|(name, secret)| {
             let mut item = BitwardenItem::from_secret(name, secret, username_keys, uri_keys);
+            item.login.totp = totp_url_for(store, name);
             item.folder_id = folder_id_for(name, &mut folders);
             item
         })
@@ -140,6 +171,7 @@ impl BitwardenItem {
                 username,
                 password: parsed.password.unwrap_or_default(),
                 uris,
+                totp: None,
             },
             item_type: LOGIN_ITEM_TYPE,
         }
@@ -238,6 +270,8 @@ pub struct BitwardenLogin {
     pub username: String,
     pub password: String,
     pub uris: Vec<BitwardenUri>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub totp: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -252,6 +286,21 @@ mod tests {
     use serde_json::Value;
 
     use super::*;
+    use crate::models::password_store::{
+        OneTimePassword, OneTimePasswordAlgorithm, OneTimePasswordType,
+    };
+
+    fn totp(secret: &str) -> OneTimePassword {
+        OneTimePassword {
+            secret: secret.to_owned(),
+            otp_type: OneTimePasswordType::Totp,
+            algorithm: OneTimePasswordAlgorithm::Sha256,
+            digits: 8,
+            period: 60,
+            counter: 0,
+            skew: 1,
+        }
+    }
 
     fn store_with(secrets: &[(&str, &str)]) -> PasswordStore {
         let mut store = PasswordStore::default();
@@ -458,6 +507,83 @@ mod tests {
         assert_eq!(item.login.password, " hunter2 ");
         assert_eq!(item.fields[0].name, "note");
         assert_eq!(item.fields[0].value, "  padded  ");
+    }
+
+    #[test]
+    fn same_named_totp_entry_becomes_login_totp_uri() {
+        let mut store = store_with(&[("work/github", "hunter2"), ("plain", "hunter3")]);
+        store.otp.insert(
+            String::from("work/github"),
+            totp("JEQDYMZAN5YGK3RAONXXK4TDMU"),
+        );
+
+        let output = json(&store, None, None, None, &[], &[], false).unwrap();
+
+        let parsed: Value = serde_json::from_str(&output).unwrap();
+        let items = parsed["items"].as_array().unwrap();
+        let github = items.iter().find(|i| i["name"] == "work/github").unwrap();
+        assert_eq!(
+            github["login"]["totp"],
+            "otpauth://totp/work%2Fgithub?secret=JEQDYMZAN5YGK3RAONXXK4TDMU&algorithm=SHA256&digits=8&period=60"
+        );
+        let plain = items.iter().find(|i| i["name"] == "plain").unwrap();
+        assert!(plain["login"].get("totp").is_none());
+    }
+
+    #[test]
+    fn organization_export_attaches_same_named_totp() {
+        let mut store = store_with(&[("github", "hunter2")]);
+        store
+            .otp
+            .insert(String::from("github"), totp("JEQDYMZAN5YGK3RAONXXK4TDMU"));
+
+        let payload = build_organization(&store, "org-123", None, None, &[], &[]);
+
+        assert!(
+            payload.items[0]
+                .login
+                .totp
+                .as_deref()
+                .is_some_and(|url| url.starts_with("otpauth://totp/github?"))
+        );
+    }
+
+    #[test]
+    fn hotp_entries_are_not_attached_and_reported_as_omitted() {
+        let mut store = store_with(&[("bank", "hunter2"), ("github", "hunter3")]);
+        let mut hotp = totp("JEQDYMZAN5YGK3RAONXXK4TDMU");
+        hotp.otp_type = OneTimePasswordType::Hotp;
+        store.otp.insert(String::from("bank"), hotp);
+        store
+            .otp
+            .insert(String::from("github"), totp("JEQDYMZAN5YGK3RAONXXK4TDMU"));
+        store
+            .otp
+            .insert(String::from("orphan"), totp("JEQDYMZAN5YGK3RAONXXK4TDMU"));
+
+        let payload = build_individual(&store, &[], &[]);
+        let omitted = omitted_one_time_passwords(&store);
+
+        let bank = payload.items.iter().find(|i| i.name == "bank").unwrap();
+        assert!(bank.login.totp.is_none());
+        assert_eq!(payload.items.len(), 2);
+        assert_eq!(
+            omitted,
+            OmittedOneTimePasswords {
+                hotp: vec![String::from("bank")],
+                orphaned: vec![String::from("orphan")],
+            }
+        );
+    }
+
+    #[test]
+    fn store_without_otp_entries_omits_nothing() {
+        let store = store_with(&[("github", "hunter2")]);
+
+        assert_eq!(
+            omitted_one_time_passwords(&store),
+            OmittedOneTimePasswords::default()
+        );
     }
 
     #[test]

@@ -48,6 +48,8 @@ execute-pull-hooks = Führe Pull-Hooks für Speicher '{ $store_name }' aus
 execute-push-hooks = Führe Push-Hooks für Speicher '{ $store_name }' aus
 hook-run-nothing-selected = Nichts auszuführen: Geben Sie --pull und/oder --push an, um auszuwählen, welche Hooks ausgeführt werden sollen.
 export-plaintext-warning = Warnung: Der Export enthält jedes Geheimnis im Klartext.
+export-hotp-omitted = Warnung: Bitwarden kann keine HOTP-Einmalpasswörter speichern, daher sind diese nicht Teil des Exports: { $names }
+export-orphaned-otp-omitted = Warnung: Diese Einmalpasswörter haben kein gleichnamiges Geheimnis und sind nicht Teil des Exports: { $names }
 export-written-to-file = Export nach '{ $path }' geschrieben
 
 ## Merge-Konflikte

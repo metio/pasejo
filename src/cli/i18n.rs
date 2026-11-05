@@ -339,6 +339,13 @@ fl_log!(debug, execute_pull_hooks, "execute-pull-hooks", store_name);
 fl_log!(debug, execute_push_hooks, "execute-push-hooks", store_name);
 fl_log!(warn, hook_run_nothing_selected, "hook-run-nothing-selected");
 fl_log!(warn, export_plaintext_warning, "export-plaintext-warning");
+fl_log!(warn, export_hotp_omitted, "export-hotp-omitted", names);
+fl_log!(
+    warn,
+    export_orphaned_otp_omitted,
+    "export-orphaned-otp-omitted",
+    names
+);
 fl_log_path!(info, export_written_to_file, "export-written-to-file", path);
 
 // Status logs — warn / error levels

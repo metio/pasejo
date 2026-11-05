@@ -48,6 +48,8 @@ execute-pull-hooks = Executing pull hooks for store '{ $store_name }'
 execute-push-hooks = Executing push hooks for store '{ $store_name }'
 hook-run-nothing-selected = Nothing to run: pass --pull and/or --push to select which hooks to execute.
 export-plaintext-warning = Warning: the export contains every secret in plaintext.
+export-hotp-omitted = Warning: Bitwarden cannot store HOTP one-time passwords, so these are not part of the export: { $names }
+export-orphaned-otp-omitted = Warning: these one-time passwords have no secret of the same name and are not part of the export: { $names }
 export-written-to-file = Wrote the export to '{ $path }'
 
 ## Merge conflicts

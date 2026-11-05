@@ -48,6 +48,8 @@ execute-pull-hooks = Esecuzione degli hook di pull per l'archivio '{ $store_name
 execute-push-hooks = Esecuzione degli hook di push per l'archivio '{ $store_name }'
 hook-run-nothing-selected = Niente da eseguire: usare --pull e/o --push per scegliere quali hook eseguire.
 export-plaintext-warning = Attenzione: l'esportazione contiene ogni segreto in chiaro.
+export-hotp-omitted = Attenzione: Bitwarden non può memorizzare password monouso HOTP, quindi queste non fanno parte dell'esportazione: { $names }
+export-orphaned-otp-omitted = Attenzione: queste password monouso non hanno un segreto con lo stesso nome e non fanno parte dell'esportazione: { $names }
 export-written-to-file = Esportazione scritta in '{ $path }'
 
 ## Conflitti di unione

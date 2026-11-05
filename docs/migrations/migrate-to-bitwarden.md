@@ -18,3 +18,9 @@ $ pasejo export bitwarden --organization-id existing-organization-id --collectio
 > file under your default umask and leaves the command in your shell
 > history. Prefer `--out <FILE>`, which writes the file with `0600`
 > permissions, and delete it as soon as the import is done.
+
+A TOTP entry is exported as the `totp` value of the login with the same
+name. HOTP entries and OTP entries without a same-named secret are not
+part of the export; the command lists them on stderr. Rename an OTP entry
+with `pasejo otp move` to pair it with its secret before exporting, and
+re-enroll HOTP entries in an authenticator that supports them.

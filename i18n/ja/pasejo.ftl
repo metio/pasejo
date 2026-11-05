@@ -48,6 +48,8 @@ execute-pull-hooks = ストア '{ $store_name }' のプルフックを実行し�
 execute-push-hooks = ストア '{ $store_name }' のプッシュフックを実行しています
 hook-run-nothing-selected = 実行するものがありません。--pull や --push を指定して実行するフックを選択してください。
 export-plaintext-warning = 警告: エクスポートにはすべてのシークレットが平文で含まれます。
+export-hotp-omitted = 警告: Bitwarden は HOTP ワンタイムパスワードを保存できないため、次のものはエクスポートに含まれません: { $names }
+export-orphaned-otp-omitted = 警告: 次のワンタイムパスワードには同名のシークレットがないため、エクスポートに含まれません: { $names }
 export-written-to-file = エクスポートを '{ $path }' に書き込みました
 
 ## マージ競合

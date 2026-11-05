@@ -107,6 +107,29 @@ impl OneTimePassword {
         Ok(code)
     }
 
+    /// Renders the entry as an `otpauth://` URI labelled `label`. Every
+    /// byte outside the RFC 3986 unreserved set is percent-encoded, so a
+    /// `:` in the label cannot be read as an issuer prefix. The skew is
+    /// left out because it only widens verification windows and has no
+    /// effect on the codes a generator produces.
+    pub fn otpauth_url(&self, label: &str) -> String {
+        let (otp_type, moving_factor) = match self.otp_type {
+            OneTimePasswordType::Totp => ("totp", format!("period={}", self.period)),
+            OneTimePasswordType::Hotp => ("hotp", format!("counter={}", self.counter)),
+        };
+        let algorithm = match self.algorithm {
+            OneTimePasswordAlgorithm::Sha1 => "SHA1",
+            OneTimePasswordAlgorithm::Sha256 => "SHA256",
+            OneTimePasswordAlgorithm::Sha512 => "SHA512",
+        };
+        format!(
+            "otpauth://{otp_type}/{}?secret={}&algorithm={algorithm}&digits={}&{moving_factor}",
+            percent_encode(label),
+            percent_encode(&self.secret),
+            self.digits,
+        )
+    }
+
     fn base(&self) -> anyhow::Result<Base<'_>> {
         // otp-std's decode error embeds the secret, so it is replaced rather
         // than wrapped.
@@ -119,6 +142,19 @@ impl OneTimePassword {
             .build();
         Ok(base)
     }
+}
+
+fn percent_encode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| {
+            if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+                char::from(byte).to_string()
+            } else {
+                format!("%{byte:02X}")
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Default, Clone, clap::ValueEnum)]
@@ -339,6 +375,33 @@ mod tests {
         otp.counter = u64::MAX;
         assert!(otp.generate().is_err());
         assert_eq!(otp.counter, u64::MAX);
+    }
+
+    #[test]
+    fn otpauth_url_of_totp_carries_period() {
+        assert_eq!(
+            sample_otp().otpauth_url("github"),
+            "otpauth://totp/github?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30"
+        );
+    }
+
+    #[test]
+    fn otpauth_url_of_hotp_carries_counter() {
+        let mut otp = sample_otp();
+        otp.otp_type = OneTimePasswordType::Hotp;
+        otp.algorithm = OneTimePasswordAlgorithm::Sha512;
+        otp.digits = 8;
+        otp.counter = 7;
+        assert_eq!(
+            otp.otpauth_url("bank"),
+            "otpauth://hotp/bank?secret=JBSWY3DPEHPK3PXP&algorithm=SHA512&digits=8&counter=7"
+        );
+    }
+
+    #[test]
+    fn otpauth_url_percent_encodes_label_separators() {
+        let url = sample_otp().otpauth_url("work/Example: alice");
+        assert!(url.starts_with("otpauth://totp/work%2FExample%3A%20alice?"));
     }
 
     #[test]

@@ -48,6 +48,8 @@ execute-pull-hooks = Exécution des hooks pull pour le coffre '{ $store_name }'
 execute-push-hooks = Exécution des hooks push pour le coffre '{ $store_name }'
 hook-run-nothing-selected = Rien à exécuter : utilisez --pull et/ou --push pour choisir les hooks à exécuter.
 export-plaintext-warning = Avertissement : l'export contient tous les secrets en clair.
+export-hotp-omitted = Avertissement : Bitwarden ne peut pas stocker de mots de passe à usage unique HOTP, ceux-ci ne font donc pas partie de l'export : { $names }
+export-orphaned-otp-omitted = Avertissement : ces mots de passe à usage unique n'ont pas de secret du même nom et ne font pas partie de l'export : { $names }
 export-written-to-file = Export écrit dans '{ $path }'
 
 ## Conflits de fusion

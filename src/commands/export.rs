@@ -44,6 +44,13 @@ fn export_as_json(
     // piping to a file or capturing stdout should know the whole vault just
     // left the encrypted store.
     i18n::export_plaintext_warning();
+    let omitted = exporters::bitwarden::omitted_one_time_passwords(&store);
+    if !omitted.hotp.is_empty() {
+        i18n::export_hotp_omitted(&omitted.hotp.join(", "));
+    }
+    if !omitted.orphaned.is_empty() {
+        i18n::export_orphaned_otp_omitted(&omitted.orphaned.join(", "));
+    }
     if let Some(out_path) = args.out.as_ref() {
         // `atomic_write` creates the file mode 0600 on Unix (sibling tempfile
         // + fsync + rename), avoiding the umask-default permissions a shell

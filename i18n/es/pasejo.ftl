@@ -48,6 +48,8 @@ execute-pull-hooks = Ejecutando hooks de pull para el almacén '{ $store_name }'
 execute-push-hooks = Ejecutando hooks de push para el almacén '{ $store_name }'
 hook-run-nothing-selected = Nada que ejecutar: use --pull o --push para seleccionar qué hooks ejecutar.
 export-plaintext-warning = Advertencia: la exportación contiene todos los secretos en texto plano.
+export-hotp-omitted = Advertencia: Bitwarden no puede almacenar contraseñas de un solo uso HOTP, por lo que estas no forman parte de la exportación: { $names }
+export-orphaned-otp-omitted = Advertencia: estas contraseñas de un solo uso no tienen un secreto con el mismo nombre y no forman parte de la exportación: { $names }
 export-written-to-file = Exportación escrita en '{ $path }'
 
 ## Conflictos de fusión

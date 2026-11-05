@@ -48,6 +48,8 @@ execute-pull-hooks = '{ $store_name }' 저장소의 pull 훅을 실행하는 중
 execute-push-hooks = '{ $store_name }' 저장소의 push 훅을 실행하는 중입니다
 hook-run-nothing-selected = 실행할 항목이 없습니다. --pull 및/또는 --push를 지정하여 실행할 후크를 선택하세요.
 export-plaintext-warning = 경고: 내보내기에는 모든 비밀이 평문으로 포함됩니다.
+export-hotp-omitted = 경고: Bitwarden은 HOTP 일회용 비밀번호를 저장할 수 없으므로 다음 항목은 내보내기에 포함되지 않습니다: { $names }
+export-orphaned-otp-omitted = 경고: 다음 일회용 비밀번호에는 같은 이름의 비밀이 없어 내보내기에 포함되지 않습니다: { $names }
 export-written-to-file = 내보내기를 '{ $path }'에 작성했습니다
 
 ## 병합 충돌
