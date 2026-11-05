@@ -4,12 +4,13 @@
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
+use std::io;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
 use directories::BaseDirs;
 
-use crate::cli::environment_variables;
+use crate::cli::{atomic_write, environment_variables};
 use crate::models::configuration;
 
 /// Decides whether a throttled hook is due to run. PURE: it never writes
@@ -27,11 +28,17 @@ pub fn should_execute(
         // Throttling disabled — always run.
         return Ok(true);
     };
-    if !last_file.exists() {
-        // No marker yet — first run for this store, so the hook is due.
+    // A missing marker is the first run for this store. An unparseable one
+    // is treated as due too, so the next successful run overwrites it
+    // instead of every operation on the store failing.
+    let last_seconds = match fs::read_to_string(&last_file) {
+        Ok(contents) => contents.trim().parse::<u64>().ok(),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error.into()),
+    };
+    let Some(last_seconds) = last_seconds else {
         return Ok(true);
-    }
-    let last_seconds: u64 = fs::read_to_string(&last_file)?.parse()?;
+    };
     Ok(is_due(
         interval_seconds,
         last_seconds,
@@ -53,11 +60,8 @@ fn is_due(interval_seconds: Option<u64>, last_seconds: u64, now_seconds: u64) ->
 }
 
 pub fn write_last_execution(paths: Option<(PathBuf, PathBuf)>) -> anyhow::Result<()> {
-    if let Some((last_directory, last_file)) = paths {
-        if !last_file.exists() {
-            fs::create_dir_all(last_directory)?;
-        }
-        Ok(fs::write(last_file, current_epoch_seconds()?.to_string())?)
+    if let Some((_last_directory, last_file)) = paths {
+        atomic_write::write(&last_file, current_epoch_seconds()?.to_string().as_bytes())
     } else {
         Ok(())
     }
@@ -167,6 +171,46 @@ mod tests {
             !file.exists(),
             "should_execute must not write the marker itself"
         );
+    }
+
+    #[test]
+    fn should_execute_treats_an_empty_or_garbled_marker_as_due() {
+        let temp = TempDir::new().unwrap();
+        let (dir, file) = paths_in(&temp);
+        std::fs::create_dir_all(&dir).unwrap();
+        for contents in ["", "garbage"] {
+            std::fs::write(&file, contents).unwrap();
+            assert!(
+                should_execute(Some(60), Some((dir.clone(), file.clone()))).unwrap(),
+                "marker {contents:?} should make the hook due"
+            );
+        }
+    }
+
+    #[test]
+    fn concurrent_marker_writes_never_expose_a_partial_marker_to_readers() {
+        let temp = TempDir::new().unwrap();
+        let (dir, file) = paths_in(&temp);
+        write_last_execution(Some((dir.clone(), file.clone()))).unwrap();
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let writer = {
+            let (dir, file, stop) = (dir.clone(), file.clone(), stop.clone());
+            std::thread::spawn(move || {
+                while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                    write_last_execution(Some((dir.clone(), file.clone()))).unwrap();
+                }
+            })
+        };
+        let mut torn_reads = 0;
+        for _ in 0..5_000 {
+            let contents = std::fs::read_to_string(&file).unwrap();
+            if contents.parse::<u64>().is_err() {
+                torn_reads += 1;
+            }
+        }
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        writer.join().unwrap();
+        assert_eq!(torn_reads, 0, "readers observed a partially written marker");
     }
 
     #[test]
