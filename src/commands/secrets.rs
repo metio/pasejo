@@ -144,21 +144,29 @@ fn audit(
     secret_path: Option<&String>,
     offline: bool,
 ) -> anyhow::Result<()> {
-    use passwords::{analyzer, scorer};
     with_store(configuration, store_name, offline, |_, store| {
         if let Some(secret_path) = secret_path {
             let value = store
                 .secrets
                 .get(secret_path)
                 .ok_or_else(|| anyhow::anyhow!(i18n::error_no_secret_found(secret_path)))?;
-            i18n::password_strength(secret_path, scorer::score(&analyzer::analyze(value)));
+            i18n::password_strength(secret_path, audit_score(value));
         } else {
             for (key, value) in &store.secrets {
-                i18n::password_strength(key, scorer::score(&analyzer::analyze(value)));
+                i18n::password_strength(key, audit_score(value));
             }
         }
         Ok(((), StoreMutation::Unchanged))
     })
+}
+
+fn audit_score(value: &str) -> f64 {
+    use passwords::{analyzer, scorer};
+    let password = value
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or_default();
+    scorer::score(&analyzer::analyze(password))
 }
 
 fn copy(
@@ -477,9 +485,24 @@ fn grep(
 
 #[cfg(test)]
 mod tests {
-    use super::{LineSelector, Pattern, extract_line};
+    use super::{LineSelector, Pattern, audit_score, extract_line};
 
     const THREE_LINE_SECRET: &str = "password\nuser: alice\nurl: https://example.com";
+
+    #[test]
+    fn audit_score_ignores_metadata_lines() {
+        assert!(
+            (audit_score("hunter2\nlogin: alice\nurl: https://example.com")
+                - audit_score("hunter2"))
+            .abs()
+                < f64::EPSILON
+        );
+    }
+
+    #[test]
+    fn audit_score_uses_the_first_non_blank_line() {
+        assert!((audit_score("\n  \nhunter2\nnote") - audit_score("hunter2")).abs() < f64::EPSILON);
+    }
 
     #[test]
     fn from_args_with_neither_arg_is_all() {
