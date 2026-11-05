@@ -2,9 +2,9 @@
 
 The browser integration's Windows path (`pasejo browser install-manifest`'s
 registry + `.cmd` registration, and the extension talking to
-`pasejo browser host` through it) is compile-verified on every CI run via
-`cargo check --target x86_64-pc-windows-gnu`, and its host registration is
-runtime-checked on a `windows-latest` runner (see below). The parts that need
+`pasejo browser host` through it) is compiled and unit-tested on every pull
+request by the `x86_64-pc-windows-msvc` job on a `windows-latest` runner, and
+the same job runtime-checks the host registration (see below). The parts that need
 a real browser are listed here for a human to run on a Windows machine.
 
 ## Automated (CI + local)
@@ -20,9 +20,9 @@ artifacts the registration must produce:
   `.cmd` `path`), and
 - the `.cmd` wrapper that launches `pasejo browser host`.
 
-`cargo test` also runs natively on the Windows runner, exercising the
-`#[cfg(windows)]` code paths of the pure helpers
-(`windows_registry_subkey` / `windows_manifest_path` / `windows_wrapper_content`).
+`cargo test` also runs natively on the Windows runner, where the
+`cfg!(windows)` branches of `wrapper_path`, `wrapper_content` and
+`manifest_path_for_browser` take the Windows side.
 
 To run the registration check on your own Windows checkout:
 
@@ -60,6 +60,7 @@ field for a site you can log into.
       registry value; removing the registry key + manifest + `.cmd` stops the
       browser from launching the host.
 
-When all manual boxes pass on a real Windows machine, drop the
-"compile-verified, not runtime-tested" caveat from `CLAUDE.md` and the
+When all manual boxes pass on a real Windows machine, drop the note in
+`CLAUDE.md` that no real browser has been driven through the Windows host,
+and the "not yet exercised on a real Windows machine" caveat in the
 web-extension README.
