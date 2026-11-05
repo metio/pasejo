@@ -4,70 +4,19 @@
 use std::io::{Read, Write};
 use std::process::{Command as StdCommand, Stdio};
 
-use assert_cmd::Command as AssertCommand;
 use assert_cmd::cargo::cargo_bin;
 use assert_fs::TempDir;
 
-// Fixed age key fixture (also used in tests/cmd/export/bitwarden). Using
-// a known value keeps the test free of the `age` crate's key-generation
-// API surface — the same code path is exercised either way.
-const TEST_PRIVATE_KEY: &str = "# public key: age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd\n\
-     AGE-SECRET-KEY-14LGKWZMHDDWMLCL5EUU2FSQNEX33DZYR3F8VEPZSA670QRC3DA3SNSD535";
-const TEST_PUBLIC_KEY: &str = "age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd";
+mod common;
+use common::{TEST_PRIVATE_KEY, TEST_PUBLIC_KEY, pasejo};
 
 fn setup_store_with_secret(secret_name: &str, secret_value: &str) -> TempDir {
-    let temp = TempDir::new().unwrap();
-    let config = temp.path().join("config.toml");
-    let identity_file = temp.path().join("identity");
-    let store_path = temp.path().join("store");
-
-    std::fs::write(&identity_file, TEST_PRIVATE_KEY).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&identity_file, std::fs::Permissions::from_mode(0o600)).unwrap();
-    }
-
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
-        .args(["store", "add", "--name", "test", "--path"])
-        .arg(&store_path)
-        .env("PASEJO_CONFIG", &config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
-        .assert()
-        .success();
-
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
-        .args(["identity", "add", "--file"])
-        .arg(&identity_file)
-        .env("PASEJO_CONFIG", &config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
-        .assert()
-        .success();
-
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
-        .args(["recipient", "add", "--public-key", TEST_PUBLIC_KEY])
-        .env("PASEJO_CONFIG", &config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
-        .assert()
-        .success();
-
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
-        .args(["secret", "add", secret_name])
-        .env("PASEJO_CONFIG", &config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
-        .write_stdin(secret_value)
-        .assert()
-        .success();
-
-    temp
+    common::StoreScaffold::new()
+        .store("test")
+        .identity()
+        .recipient()
+        .secret(secret_name, secret_value)
+        .temp
 }
 
 fn write_request(stdin: &mut impl Write, payload: &[u8]) {
@@ -459,30 +408,21 @@ fn setup_two_stores_with_slow_pull() -> TempDir {
     }
 
     for (name, path) in [("slow", &slow_store), ("fast", &fast_store)] {
-        AssertCommand::cargo_bin("pasejo")
-            .unwrap()
+        pasejo(&config)
             .args(["store", "add", "--name", name, "--path"])
             .arg(path)
-            .env("PASEJO_CONFIG", &config)
-            .env("LANG", "en")
-            .env("LC_ALL", "en")
             .assert()
             .success();
     }
 
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
+    pasejo(&config)
         .args(["identity", "add", "--global", "--file"])
         .arg(&identity_file)
-        .env("PASEJO_CONFIG", &config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
         .assert()
         .success();
 
     for name in ["slow", "fast"] {
-        AssertCommand::cargo_bin("pasejo")
-            .unwrap()
+        pasejo(&config)
             .args([
                 "recipient",
                 "add",
@@ -491,18 +431,11 @@ fn setup_two_stores_with_slow_pull() -> TempDir {
                 "--public-key",
                 TEST_PUBLIC_KEY,
             ])
-            .env("PASEJO_CONFIG", &config)
-            .env("LANG", "en")
-            .env("LC_ALL", "en")
             .assert()
             .success();
 
-        AssertCommand::cargo_bin("pasejo")
-            .unwrap()
+        pasejo(&config)
             .args(["secret", "add", "--store", name, &format!("{name}-secret")])
-            .env("PASEJO_CONFIG", &config)
-            .env("LANG", "en")
-            .env("LC_ALL", "en")
             .write_stdin("password\nurl: https://example.com\n")
             .assert()
             .success();

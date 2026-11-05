@@ -16,9 +16,11 @@ use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::time::Duration;
 
-use assert_cmd::Command as AssertCommand;
 use assert_fs::TempDir;
 use predicates::prelude::*;
+
+mod common;
+use common::pasejo;
 
 // Real, well-formed `ssh-ed25519` public keys. Their provenance does not
 // matter — they only have to parse as age SSH recipients.
@@ -115,32 +117,16 @@ fn handle_connection(mut stream: TcpStream, routes: &HashMap<String, Reply>) {
 /// Create a registered (but empty) store in a fresh config and return the
 /// temp dir plus the config path, ready for a `recipient add` invocation.
 fn setup_store() -> (TempDir, std::path::PathBuf) {
-    let temp = TempDir::new().unwrap();
-    let config = temp.path().join("config.toml");
-
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
-        .args(["store", "add", "--name", "something", "--path"])
-        .arg(temp.path().join("store"))
-        .env("PASEJO_CONFIG", &config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
-        .assert()
-        .success();
-
+    let common::StoreScaffold { temp, config } = common::StoreScaffold::new().store("something");
     (temp, config)
 }
 
 /// Pin the per-request download timeout in the config so the timeout case
 /// fails in about a second instead of the 30s default.
 fn set_download_timeout(config: &std::path::Path, seconds: u32) {
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
+    pasejo(config)
         .args(["config", "set", "key-download-timeout-seconds"])
         .arg(seconds.to_string())
-        .env("PASEJO_CONFIG", config)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
         .assert()
         .success();
 }
@@ -153,13 +139,9 @@ fn add_recipient(
     host_env: &str,
     base: &str,
 ) -> assert_cmd::assert::Assert {
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
+    pasejo(config)
         .args(["recipient", "add", flag, "tester"])
-        .env("PASEJO_CONFIG", config)
         .env(host_env, base)
-        .env("LANG", "en")
-        .env("LC_ALL", "en")
         .assert()
 }
 
@@ -290,10 +272,9 @@ fn recipient_add_404_message_is_localized() {
     let base = server_with("/other.keys", Reply::Body(String::from(KEY_A)));
     let (_temp, config) = setup_store();
 
-    AssertCommand::cargo_bin("pasejo")
-        .unwrap()
+    // Override the helper's pinned `en` locale to drive the German bundle.
+    pasejo(&config)
         .args(["recipient", "add", "--codeberg", "tester"])
-        .env("PASEJO_CONFIG", &config)
         .env("CODEBERG_HOST", &base)
         .env("LANG", "de")
         .env("LC_ALL", "de")
