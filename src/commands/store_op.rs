@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::fs::{File, TryLockError};
-use std::io;
-use std::path::Path;
+use std::fs::{self, File, OpenOptions, TryLockError};
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -34,81 +33,77 @@ pub fn require_store<'a>(
     )
 }
 
-/// Acquires an exclusive advisory lock on the store file at `path`. The
-/// returned `File` holds the lock; dropping it releases the lock. Returns
-/// `Ok(None)` when the store file does not yet exist — that is the
-/// bootstrap path (a freshly registered store before its first encrypt),
-/// where there is no file content to race over.
+/// The sidecar file whose advisory lock serializes every operation on the
+/// store at `store_path`: the store's file name plus `.lock`, in the same
+/// directory.
+pub fn store_lock_path(store_path: &Path) -> PathBuf {
+    let mut lock_path = store_path.as_os_str().to_owned();
+    lock_path.push(".lock");
+    PathBuf::from(lock_path)
+}
+
+/// Acquires an exclusive advisory lock on the sidecar lock file of the store
+/// at `path`, creating the file (and its directory) when missing. The
+/// returned `File` holds the lock; dropping it releases the lock.
 ///
-/// This is the serialization primitive for the `decrypt → mutate → encrypt`
-/// window. Holding it across that window keeps concurrent invocations from
-/// both reading the same HOTP counter, both bumping it, and losing one of
-/// the increments when re-encrypting.
+/// Holding it across pull hooks and the `decrypt → mutate → encrypt` window
+/// keeps concurrent invocations from both reading the same HOTP counter and
+/// losing one increment, and keeps a pull hook from rewriting the store
+/// while another process is about to encrypt its own copy over it.
 ///
-/// Every encrypt renames a fresh file over `path`, so a waiter that opened
-/// the previous file can be granted a lock on an inode `path` no longer
-/// names, while a newcomer locks the current one. The lock therefore only
-/// counts once the locked handle is still the file at `path`; otherwise it
-/// is dropped and the open is retried.
-pub fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
-    lock_store_file(path, |file, path_display| {
-        file.lock()
-            .with_context(|| i18n::error_could_not_acquire_store_lock(path_display))
-    })
+/// The lock lives on a sidecar because every encrypt, and many pull hooks,
+/// replace the store file itself: a lock on the replaced file would no
+/// longer exclude a process that opens the file the path names now. The
+/// sidecar is never renamed, replaced or deleted.
+pub fn acquire_store_lock(path: &Path) -> Result<File> {
+    let file = open_store_lock(path)?;
+    file.lock()
+        .with_context(|| i18n::error_could_not_acquire_store_lock(&path.display().to_string()))?;
+    Ok(file)
 }
 
 /// [`acquire_store_lock`] for callers that must not wait on another
 /// process indefinitely: a lock still held after `wait` is an error.
-pub fn try_acquire_store_lock(path: &Path, wait: Duration) -> Result<Option<File>> {
-    let deadline = Instant::now() + wait;
-    lock_store_file(path, |file, path_display| {
-        loop {
-            match file.try_lock() {
-                Ok(()) => return Ok(()),
-                Err(TryLockError::WouldBlock) if Instant::now() < deadline => {
-                    thread::sleep(LOCK_RETRY_INTERVAL);
-                }
-                Err(TryLockError::WouldBlock) => {
-                    anyhow::bail!(i18n::error_store_lock_wait_timed_out(path_display));
-                }
-                Err(TryLockError::Error(error)) => {
-                    return Err(error)
-                        .with_context(|| i18n::error_could_not_acquire_store_lock(path_display));
-                }
-            }
-        }
-    })
-}
-
-const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(50);
-
-fn lock_store_file(path: &Path, lock: impl Fn(&File, &str) -> Result<()>) -> Result<Option<File>> {
+pub fn try_acquire_store_lock(path: &Path, wait: Duration) -> Result<File> {
+    let file = open_store_lock(path)?;
     let path_display = path.display().to_string();
+    let deadline = Instant::now() + wait;
     loop {
-        let file = match File::open(path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => {
-                return Err(error)
-                    .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display));
+        match file.try_lock() {
+            Ok(()) => return Ok(file),
+            Err(TryLockError::WouldBlock) if Instant::now() < deadline => {
+                thread::sleep(LOCK_RETRY_INTERVAL);
             }
-        };
-        lock(&file, &path_display)?;
-        if is_file_at(&file, path)
-            .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display))?
-        {
-            return Ok(Some(file));
+            Err(TryLockError::WouldBlock) => {
+                anyhow::bail!(i18n::error_store_lock_wait_timed_out(&path_display));
+            }
+            Err(TryLockError::Error(error)) => {
+                return Err(error)
+                    .with_context(|| i18n::error_could_not_acquire_store_lock(&path_display));
+            }
         }
     }
 }
 
-fn is_file_at(file: &File, path: &Path) -> io::Result<bool> {
-    let current = match same_file::Handle::from_path(path) {
-        Ok(current) => current,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
-        Err(error) => return Err(error),
-    };
-    Ok(same_file::Handle::from_file(file.try_clone()?)? == current)
+const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(50);
+
+fn open_store_lock(path: &Path) -> Result<File> {
+    let lock_path = store_lock_path(path);
+    let lock_display = lock_path.display().to_string();
+    if let Some(parent) = lock_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| i18n::error_could_not_open_store_for_lock(&lock_display))?;
+    }
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options
+        .open(&lock_path)
+        .with_context(|| i18n::error_could_not_open_store_for_lock(&lock_display))
 }
 
 /// Whether the closure passed to [`with_store`] modified the password store.
@@ -122,34 +117,58 @@ pub enum StoreMutation {
 
 /// A store opened for an operation. Produced by [`open_store`], the shared
 /// front half of every store flow: the selected `registration`, a throttled
-/// `hooks` executor, the held advisory `lock` (`None` only on the bootstrap
-/// path where the file does not exist yet), and the decrypted `store`. The
+/// `hooks` executor, the held store `lock`, and the decrypted `store`. The
 /// caller continues under the lock and decides when to encrypt, drop the
 /// lock, and run push hooks.
 pub struct OpenStore<'a> {
     pub registration: &'a StoreRegistration,
     pub hooks: HookExecutor<'a>,
-    pub lock: Option<File>,
+    pub lock: File,
     pub store: PasswordStore,
 }
 
-/// The shared opening sequence — require a store, run pull hooks (throttled),
-/// take the advisory file lock, decrypt. This is the front half of
+/// The shared opening sequence — require a store, take the store lock, run
+/// pull hooks (throttled), decrypt. This is the front half of
 /// [`with_store_then`]; commands whose tail differs from the standard
 /// `mutate → encrypt → push` (e.g. OTP `show`, which must persist the bumped
 /// HOTP counter only *after* delivering the code) call this directly and
-/// hand-roll only their tail, so the select/pull/lock/decrypt order has one
+/// hand-roll only their tail, so the select/lock/pull/decrypt order has one
 /// definition instead of drifting copies.
 pub fn open_store<'a>(
     configuration: &'a Configuration,
     store_name: Option<&String>,
     offline: bool,
 ) -> Result<OpenStore<'a>> {
+    open(configuration, store_name, offline, false)
+}
+
+/// [`open_store`] for the bootstrap path: when the store file does not exist
+/// yet, it skips the pull hooks and the decrypt and starts from an empty
+/// `PasswordStore` instead. The existence check runs under the store lock,
+/// so two concurrent bootstraps cannot both start from an empty store.
+pub fn open_or_create_store<'a>(
+    configuration: &'a Configuration,
+    store_name: Option<&String>,
+    offline: bool,
+) -> Result<OpenStore<'a>> {
+    open(configuration, store_name, offline, true)
+}
+
+fn open<'a>(
+    configuration: &'a Configuration,
+    store_name: Option<&String>,
+    offline: bool,
+    create: bool,
+) -> Result<OpenStore<'a>> {
     let registration = require_store(configuration, store_name)?;
-    let hooks = HookExecutor::new(configuration, registration, offline);
-    hooks.execute_pull_commands()?;
     let lock = acquire_store_lock(registration.path())?;
-    let store = configuration.decrypt_store(registration)?;
+    let hooks = HookExecutor::new(configuration, registration, offline);
+    let store = if create && !registration.path().exists() {
+        PasswordStore::default()
+    } else {
+        hooks.execute_pull_commands()?;
+        configuration.decrypt_store(registration)?
+    };
     Ok(OpenStore {
         registration,
         hooks,
@@ -159,8 +178,8 @@ pub fn open_store<'a>(
 }
 
 /// Run `f` against the selected store, handling the full lifecycle:
-/// select store → pull hooks → decrypt → run `f` → (encrypt + push hooks if
-/// `f` returned [`StoreMutation::Modified`]). Returns the closure's value.
+/// select store → lock → pull hooks → decrypt → run `f` → (encrypt + push hooks
+/// if `f` returned [`StoreMutation::Modified`]). Returns the closure's value.
 ///
 /// Bails with the localized "no store" error when no store can be selected.
 pub fn with_store<F, T>(
@@ -194,13 +213,14 @@ where
     F: FnOnce(&StoreRegistration, &mut PasswordStore) -> Result<(T, StoreMutation)>,
     P: FnOnce(&T) -> Result<()>,
 {
-    // The lock acquired by `open_store` is held across decrypt → mutate →
-    // encrypt so concurrent invocations cannot both read the same store
-    // state, both mutate, and have the later writer's encrypt clobber the
-    // earlier writer's changes (most visibly: a HOTP counter advancing by
-    // one instead of two for two parallel `otp show` calls). It is released
-    // before push hooks so long-running network syncs do not serialize
-    // unnecessarily.
+    // The lock acquired by `open_store` is held across pull → decrypt →
+    // mutate → encrypt so concurrent invocations cannot both read the same
+    // store state, both mutate, and have the later writer's encrypt clobber
+    // the earlier writer's changes (most visibly: a HOTP counter advancing by
+    // one instead of two for two parallel `otp show` calls, or a pulled
+    // change reverted by a writer that decrypted before the pull). It is
+    // released before push hooks so long-running network syncs do not
+    // serialize unnecessarily.
     let OpenStore {
         registration,
         hooks,
@@ -313,27 +333,33 @@ mod tests {
     }
 
     #[test]
-    fn acquire_store_lock_returns_some_for_existing_file() {
+    fn store_lock_path_appends_lock_to_the_store_file_name() {
+        assert_eq!(
+            store_lock_path(Path::new("/data/pasejo.store")),
+            PathBuf::from("/data/pasejo.store.lock")
+        );
+    }
+
+    #[test]
+    fn acquire_store_lock_creates_the_sidecar_for_a_missing_store_file() {
+        let temp = TempDir::new().unwrap();
+        let missing = temp.child("nested").child("never-existed");
+
+        let lock = acquire_store_lock(missing.path()).unwrap();
+        assert!(store_lock_path(missing.path()).is_file());
+        assert!(!missing.path().exists());
+        drop(lock);
+    }
+
+    #[test]
+    fn acquire_store_lock_leaves_the_store_file_untouched() {
         let temp = TempDir::new().unwrap();
         let file = temp.child("store");
         file.write_str("payload").unwrap();
 
         let lock = acquire_store_lock(file.path()).unwrap();
-        assert!(lock.is_some(), "existing file should yield a held lock");
         drop(lock);
-    }
-
-    #[test]
-    fn acquire_store_lock_returns_none_for_missing_file() {
-        // A freshly registered store before its first encrypt does not yet
-        // have a file on disk. The lock acquisition must succeed-with-None
-        // so the caller can proceed to the existing "no file" error path
-        // instead of being short-circuited by the lock layer.
-        let temp = TempDir::new().unwrap();
-        let missing = temp.child("never-existed");
-
-        let lock = acquire_store_lock(missing.path()).unwrap();
-        assert!(lock.is_none());
+        file.assert("payload");
     }
 
     #[test]
@@ -343,12 +369,22 @@ mod tests {
         file.write_str("payload").unwrap();
 
         let first = acquire_store_lock(file.path()).unwrap();
-        assert!(first.is_some());
         drop(first);
-        // Re-acquisition on the same path must succeed once the previous
-        // guard has been dropped.
-        let second = acquire_store_lock(file.path()).unwrap();
-        assert!(second.is_some());
+        let second = acquire_store_lock(file.path());
+        assert!(second.is_ok());
+    }
+
+    #[test]
+    fn try_acquire_store_lock_times_out_while_the_lock_is_held() {
+        crate::cli::i18n::init_for_tests();
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("store");
+
+        let held = acquire_store_lock(file.path()).unwrap();
+        let attempt = try_acquire_store_lock(file.path(), Duration::from_millis(100));
+        assert!(attempt.is_err());
+        drop(held);
+        assert!(try_acquire_store_lock(file.path(), Duration::from_millis(100)).is_ok());
     }
 
     #[test]
@@ -359,12 +395,10 @@ mod tests {
         let path = file.path().to_path_buf();
 
         let guard = acquire_store_lock(&path).unwrap();
-        assert!(guard.is_some());
 
         let (tx, rx) = mpsc::channel();
         let worker = std::thread::spawn(move || {
             let second = acquire_store_lock(&path).unwrap();
-            assert!(second.is_some());
             // Signal the moment the worker acquires the lock.
             tx.send(()).unwrap();
             // Hold the lock until the test verifies the signal, then drop.
@@ -403,7 +437,7 @@ mod tests {
             b_release_rx.recv().unwrap();
             drop(guard_b);
         });
-        // Give B time to open the original file and block on its lock.
+        // Give B time to block on the lock.
         std::thread::sleep(Duration::from_millis(100));
 
         crate::cli::atomic_write::write(&path, b"replaced").unwrap();

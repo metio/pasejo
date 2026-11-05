@@ -4,9 +4,8 @@
 use zeroize::Zeroizing;
 
 use crate::cli::{atomic_write, i18n};
-use crate::commands::store_op::require_store;
+use crate::commands::store_op::open_store;
 use crate::exporters;
-use crate::hooks::executor::HookExecutor;
 use crate::models::cli::{BitwardenArgs, ExportCommands};
 use crate::models::configuration::Configuration;
 
@@ -25,13 +24,7 @@ fn export_as_json(
     args: &BitwardenArgs,
     offline: bool,
 ) -> anyhow::Result<()> {
-    // A read-only export: take no store lock (consistent with not mutating),
-    // but still run pull hooks so the export reflects the synced state.
-    let registration = require_store(configuration, args.store_selection.store.as_ref())?;
-    let hooks = HookExecutor::new(configuration, registration, offline);
-    hooks.execute_pull_commands()?;
-
-    let store = configuration.decrypt_store(registration)?;
+    let store = open_store(configuration, args.store_selection.store.as_ref(), offline)?.store;
 
     // The serialized export is the entire vault in cleartext — the largest
     // plaintext expansion in the codebase. Wrap it so the buffer is scrubbed

@@ -5,7 +5,7 @@
 - `pull`
 - `push`
 
-In general, the `pull` hook is executed before any data is read from a store. The `push` hook is executed after something was written to a store.
+In general, the `pull` hook is executed before any data is read from a store. The `push` hook is executed after something was written to a store. Pull hooks run while pasejo holds the store lock, so a pull hook must not itself run a pasejo command against the same store.
 
 You can configure hook commands both per store and globally for all stores, e.g., if you want all your stores to be synchronized to a remote Git repository, you can define global hook commands that do just that.
 

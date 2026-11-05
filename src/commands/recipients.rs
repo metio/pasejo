@@ -6,13 +6,12 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use crate::cli::i18n;
-use crate::commands::store_op::{OpenStore, StoreMutation, open_store, require_store, with_store};
-use crate::hooks::executor::HookExecutor;
+use crate::commands::store_op::{OpenStore, StoreMutation, open_or_create_store, with_store};
 use crate::models::cli::RecipientCommands;
 use crate::models::configuration::{
     Configuration, DEFAULT_KEY_DOWNLOAD_TIMEOUT_SECONDS, encrypt_store,
 };
-use crate::models::password_store::{PasswordStore, Recipient};
+use crate::models::password_store::Recipient;
 use crate::recipients;
 use crate::recipients::public_key;
 
@@ -52,8 +51,9 @@ pub fn dispatch(
 /// Recipient `add` is the bootstrap path: if the store file does not yet
 /// exist on disk we cannot pull or decrypt, so we start from an empty
 /// `PasswordStore`. This makes it the one command that can't use
-/// [`with_store`]; an existing store still goes through [`open_store`] so
-/// the update happens under the store lock.
+/// [`with_store`]; it goes through [`open_or_create_store`] so both the
+/// bootstrap and the update of an existing store happen under the store
+/// lock.
 fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -61,22 +61,12 @@ fn add(
     name: Option<&String>,
     offline: bool,
 ) -> Result<()> {
-    let selected = require_store(configuration, store_name)?;
     let OpenStore {
         registration,
         hooks,
         lock,
         mut store,
-    } = if selected.path().exists() {
-        open_store(configuration, store_name, offline)?
-    } else {
-        OpenStore {
-            registration: selected,
-            hooks: HookExecutor::new(configuration, selected, offline),
-            lock: None,
-            store: PasswordStore::default(),
-        }
-    };
+    } = open_or_create_store(configuration, store_name, offline)?;
 
     for public_key in public_keys {
         if let Some(recipient) = store

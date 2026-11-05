@@ -19,6 +19,12 @@ $ pasejo hook set --pull 'git pull' --push 'git add %p' --push 'git commit --mes
 
 This command will register a new store named `my-git-store` at the specified path. Make sure that the path points inside a valid Git repository. The filename `pasejo.store` can be any name you choose, and it's safe to pick any path within your Git repository.
 
+pasejo serializes operations on a store through a lock file next to it, named after the store file with `.lock` appended (`pasejo.store.lock` here). The file carries no data and must not be committed, so exclude it from the repository:
+
+```shell
+$ echo 'pasejo.store.lock' >> /path/to/your/repo/.gitignore
+```
+
 ## Using the Git Store
 
 Once initialized, you can use the `pasejo` commands to manage your secrets as usual. For example, you can add secrets, show them, and so on:

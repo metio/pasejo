@@ -29,6 +29,6 @@ Options:
 
 `store decrypt` prints **every** secret of a store in cleartext to stdout and therefore requires `--yes-i-know` to acknowledge that. `--store-path` decrypts a store file directly by path rather than by its configured name.
 
-`store merge` is the three-way merge driver pasejo registers with git for store files: it takes `--common-ancestor`, `--current-version`, and `--other-version` and writes the merged result back to the `--current-version` path. It is normally invoked by git during a conflicting pull rather than by hand; the current version's store file lock is held for the merge so a concurrent CLI edit cannot race the write.
+`store merge` is the three-way merge driver pasejo registers with git for store files: it takes `--common-ancestor`, `--current-version`, and `--other-version` and writes the merged result back to the `--current-version` path. It is normally invoked by git during a conflicting pull rather than by hand; when `--current-version` is the registered store file itself, the store lock is held for the merge so a concurrent CLI edit cannot race the write. A temporary copy, which is what Git passes, is merged without the lock.
 
 `store exec` runs a command with its working directory set to the store's directory — useful for running `git` against the store's repository without `cd`-ing there yourself.

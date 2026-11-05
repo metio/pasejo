@@ -113,15 +113,14 @@ fn handle_query(
 
 /// Hand-rolled equivalent of the read-only prefix of `store_op::with_store`
 /// (minus the encrypt + push tail, which a read-only operation never
-/// needs). Pull hooks fire (throttled), the file lock is acquired, the
+/// needs). The store lock is acquired, pull hooks fire (throttled), the
 /// identities are read and the store decrypted, the lock is released, and
 /// the decrypted store is returned. Each step's failure is classified into a
 /// distinct `ErrorKind` so the extension can surface the right fix — the funnel
 /// itself returns `anyhow::Error`, which would collapse those into a single
 /// chain and leave the user guessing.
 ///
-/// `try_acquire_store_lock` returning `Ok(None)` (the bootstrap path — a
-/// store registered in the config but with no file on disk yet) is
+/// A store registered in the config but with no file on disk yet is
 /// mapped to `StoreUnreachable`; the browser host is never the right
 /// entry point for bootstrapping.
 fn open_store_for_read(
@@ -129,23 +128,22 @@ fn open_store_for_read(
     registration: &StoreRegistration,
     offline: bool,
 ) -> std::result::Result<PasswordStore, (ErrorKind, anyhow::Error)> {
+    let lock = try_acquire_store_lock(registration.path(), STORE_LOCK_WAIT)
+        .map_err(|err| (ErrorKind::StoreUnreachable, err))?;
+
     let hooks = HookExecutor::new(configuration, registration, offline);
     hooks
         .execute_pull_commands()
         .map_err(|err| (ErrorKind::HookFailed, err))?;
 
-    let lock = match try_acquire_store_lock(registration.path(), STORE_LOCK_WAIT) {
-        Ok(Some(lock)) => Some(lock),
-        Ok(None) => {
-            return Err((
-                ErrorKind::StoreUnreachable,
-                anyhow::anyhow!(i18n::error_browser_store_file_missing(
-                    &registration.path().display().to_string()
-                )),
-            ));
-        }
-        Err(err) => return Err((ErrorKind::StoreUnreachable, err)),
-    };
+    if !registration.path().exists() {
+        return Err((
+            ErrorKind::StoreUnreachable,
+            anyhow::anyhow!(i18n::error_browser_store_file_missing(
+                &registration.path().display().to_string()
+            )),
+        ));
+    }
 
     let identities = configuration
         .read_identities(registration)
@@ -1043,8 +1041,7 @@ mod tests {
         let temp = assert_fs::TempDir::new().unwrap();
         let store_path = temp.path().join("personal.age");
         std::fs::write(&store_path, b"locked").unwrap();
-        let held = std::fs::File::open(&store_path).unwrap();
-        held.lock().unwrap();
+        let held = crate::commands::store_op::acquire_store_lock(&store_path).unwrap();
 
         let mut reg = registration("personal");
         reg.path = store_path;

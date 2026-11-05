@@ -151,8 +151,8 @@ fn host_lists_stores_with_default_marker() {
 #[test]
 fn host_reports_store_unreachable_when_store_file_missing() {
     // Register a store and identity but delete the store file before
-    // querying. The bootstrap path (`acquire_store_lock` returning
-    // `Ok(None)`) must surface as `store_unreachable`, not as the
+    // querying. A registered store without a file must surface as
+    // `store_unreachable`, not as the
     // catch-all `identity_locked` — the actionable fix is filesystem-side,
     // not identity-side.
     let temp = setup_store_with_secret("alice", "hunter2\n");
@@ -612,5 +612,56 @@ fn host_translates_the_oversized_message_error() {
     assert!(
         stderr.contains("überschreitet die Native-Messaging-Grenze"),
         "stderr was: {stderr}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn host_runs_no_pull_hook_while_another_process_holds_the_store_lock() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
+    let config = temp.path().join("config.toml");
+    let marker = temp.path().join("pulled");
+    pasejo(&config)
+        .args(["hook", "set", "--pull"])
+        .arg(format!("touch {}", marker.display()))
+        .assert()
+        .success();
+    let lock = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(temp.path().join("store.lock"))
+        .unwrap();
+    lock.lock().unwrap();
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(&mut stdin, br#"{"action":"query","domain":"example.com"}"#);
+    let response = read_response(&mut stdout);
+    let pulled_under_lock = marker.exists();
+    drop(lock);
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+
+    assert!(
+        response.contains(r#""error":"store_unreachable""#),
+        "response was: {response}"
+    );
+    assert!(
+        !pulled_under_lock,
+        "the host ran its pull hook while another process held the store lock"
     );
 }

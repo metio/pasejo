@@ -9,8 +9,7 @@ use anyhow::Context;
 use zeroize::Zeroizing;
 
 use crate::cli::i18n;
-use crate::commands::store_op::{acquire_store_lock, require_store};
-use crate::hooks::executor::HookExecutor;
+use crate::commands::store_op::{acquire_store_lock, open_store, require_store};
 use crate::models::cli::StoreCommands;
 use crate::models::configuration::{Configuration, encrypt_store_to_path};
 use crate::{one_time_passwords, recipients, secrets};
@@ -146,13 +145,7 @@ fn decrypt(
         // registered store, so no registered-store lock applies.
         configuration.decrypt_store_from_path(registration, path)?
     } else {
-        let hooks = HookExecutor::new(configuration, registration, offline);
-        hooks.execute_pull_commands()?;
-        // Read-only operations still take the store lock so they can't read a
-        // half-written store, matching the store-op funnel invariant. Held
-        // only across the decrypt read.
-        let _lock = acquire_store_lock(registration.path())?;
-        configuration.decrypt_store(registration)?
+        open_store(configuration, store_name, offline)?.store
     };
 
     // The full plaintext store; wrap so the buffer is scrubbed after it is
@@ -181,15 +174,18 @@ fn merge(
     other_version: &Path,
 ) -> anyhow::Result<()> {
     let registration = require_store(configuration, store_name)?;
-    // `--current-version` is the file we both read and write. Hold an
-    // exclusive lock across that read→write window so a manual merge
-    // against a registered live store can't interleave with a funnel
-    // operation (otp show, secret add) on the same file and lose one
-    // of the two writes. In the git-merge-driver case `current_version`
-    // is a private temp file (`%A`) that nothing else touches, so the
-    // lock is simply uncontended. `Ok(None)` (file missing) falls
-    // through to the decrypt error below.
-    let _lock = acquire_store_lock(current_version)?;
+    // `--current-version` is the file we both read and write. When it is
+    // the registered store itself, hold the store lock across that
+    // read→write window so a manual merge can't interleave with a funnel
+    // operation (otp show, secret add) and lose one of the two writes. In
+    // the git-merge-driver case `current_version` is a private temp file
+    // (`%A`) that nothing else touches; taking the store lock there would
+    // deadlock against the pasejo process whose pull hook runs the merge.
+    let _lock = if same_file::is_same_file(current_version, registration.path()).unwrap_or(false) {
+        Some(acquire_store_lock(registration.path())?)
+    } else {
+        None
+    };
     let common_ancestor_store = configuration
         .decrypt_store_from_path(registration, common_ancestor)
         .context(i18n::error_cannot_decrypt_common_ancestor_store())?;

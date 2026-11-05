@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::i18n;
-use crate::commands::store_op::require_store;
+use crate::commands::store_op::{acquire_store_lock, require_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HookCommands;
 use crate::models::configuration::Configuration;
@@ -143,6 +143,7 @@ pub fn run(
     }
     let hooks = HookExecutor::forced(configuration, registration, false);
     if run_pull {
+        let _lock = acquire_store_lock(registration.path())?;
         hooks.execute_pull_commands()?;
     }
     if run_push {
