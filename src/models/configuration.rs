@@ -126,9 +126,11 @@ impl Configuration {
             migrate_table(&mut table);
             let serialized = toml::to_string_pretty(&table)
                 .context(i18n::error_could_not_serialize_migrated_config())?;
+            let configuration =
+                toml::from_str(&serialized).context(i18n::error_could_not_load_migrated_config())?;
             atomic_write::write(config_path, serialized.as_bytes())
                 .context(i18n::error_could_not_store_configuration())?;
-            toml::from_str(&serialized).context(i18n::error_could_not_load_migrated_config())
+            Ok(configuration)
         } else {
             toml::from_str(&content).context(i18n::error_could_not_load_configuration())
         }
@@ -533,14 +535,10 @@ fn migrate_store_table(table: &mut Table) {
     let has_pull_commands = table.contains_key("pull_commands");
     let has_push_commands = table.contains_key("push_commands");
 
-    let (pull_commands, push_commands) = match table.remove("synchronizer") {
-        None => (Vec::new(), Vec::new()),
-        Some(synchronizer) => match synchronizer.as_str() {
-            Some(name) => default_hook_commands(name).unwrap_or_default(),
-            // Non-string synchronizer: drop the key but leave commands untouched.
-            None => return,
-        },
-    };
+    let (pull_commands, push_commands) = table
+        .remove("synchronizer")
+        .and_then(|synchronizer| synchronizer.as_str().and_then(default_hook_commands))
+        .unwrap_or_default();
 
     if !has_pull_commands {
         table.insert(
@@ -1084,7 +1082,7 @@ mod tests {
     }
 
     #[test]
-    fn migrate_table_skips_command_insertion_when_synchronizer_is_not_a_string() {
+    fn migrate_table_inserts_empty_commands_when_synchronizer_is_not_a_string() {
         let mut table = parse_table(
             r#"
             [[stores]]
@@ -1095,11 +1093,9 @@ mod tests {
         );
         migrate_table(&mut table);
         let store = table["stores"].as_array().unwrap()[0].as_table().unwrap();
-        // The non-string synchronizer is still removed, but no command keys are
-        // inserted.
         assert!(!store.contains_key("synchronizer"));
-        assert!(!store.contains_key("pull_commands"));
-        assert!(!store.contains_key("push_commands"));
+        assert_eq!(string_array(&store["pull_commands"]), Vec::<String>::new());
+        assert_eq!(string_array(&store["push_commands"]), Vec::<String>::new());
     }
 
     #[test]
@@ -1316,5 +1312,41 @@ identities = []
         assert!(result.is_err());
         let on_disk = std::fs::read_to_string(config.path()).unwrap();
         assert_eq!(on_disk, bad_type, "the file must not be rewritten");
+    }
+
+    #[test]
+    fn load_from_path_leaves_a_config_needing_migration_unchanged_on_type_failure() {
+        let temp = TempDir::new().unwrap();
+        let config = temp.child("config.toml");
+        let bad_type = "# keep me\nclipboard_timeout = \"abc\"\n";
+        config.write_str(bad_type).unwrap();
+
+        let result = Configuration::load_from_path(config.path());
+
+        assert!(result.is_err());
+        let on_disk = std::fs::read_to_string(config.path()).unwrap();
+        assert_eq!(on_disk, bad_type, "the file must not be rewritten");
+    }
+
+    #[test]
+    fn load_from_path_migrates_a_non_string_synchronizer_in_one_pass() {
+        let temp = TempDir::new().unwrap();
+        let config = temp.child("config.toml");
+        config
+            .write_str(
+                r#"
+                [[stores]]
+                path = "/tmp/store"
+                name = "primary"
+                identities = []
+                synchronizer = 42
+                "#,
+            )
+            .unwrap();
+
+        let loaded = Configuration::load_from_path(config.path()).unwrap();
+
+        assert!(loaded.stores[0].pull_commands.is_empty());
+        assert!(loaded.stores[0].push_commands.is_empty());
     }
 }
