@@ -217,3 +217,4 @@ browser-install-manifest-written = Native-Messaging-Manifest für '{ $browser }'
 browser-install-manifest-print-wrapper-note = Hinweis: Das ausgegebene Manifest verweist auf das Wrapper-Skript unter '{ $path }', das dieser Befehl nicht installiert hat. Verwenden Sie --binary, um stattdessen auf eine vorhandene ausführbare Datei zu verweisen.
 error-browser-install-manifest-invalid-env = --env-Eintrag '{ $entry }' hat nicht die Form KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = --env-Name '{ $name }' ist kein gültiger POSIX-Umgebungsvariablenname (muss mit einem Buchstaben oder Unterstrich beginnen und darf nur Buchstaben, Ziffern und Unterstriche enthalten).
+error-browser-install-manifest-invalid-env-value-windows = Der --env-Wert von '{ $name }' kann nicht in den Windows-Wrapper geschrieben werden: Er enthält ein doppeltes Anführungszeichen oder einen Zeilenumbruch.

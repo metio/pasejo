@@ -217,3 +217,4 @@ browser-install-manifest-written = Wrote '{ $browser }' native-messaging manifes
 browser-install-manifest-print-wrapper-note = Note: the printed manifest references the wrapper script at '{ $path }', which this command did not install. Pass --binary to reference an existing executable instead.
 error-browser-install-manifest-invalid-env = --env entry '{ $entry }' is not in KEY=VALUE form.
 error-browser-install-manifest-invalid-env-name = --env name '{ $name }' is not a valid POSIX environment variable name (must start with a letter or underscore and contain only letters, digits, and underscores).
+error-browser-install-manifest-invalid-env-value-windows = --env value of '{ $name }' cannot be written into the Windows wrapper: it contains a double quote or a line break.

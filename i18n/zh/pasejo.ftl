@@ -217,3 +217,4 @@ browser-install-manifest-written = 已将 '{ $browser }' 的原生消息传递�
 browser-install-manifest-print-wrapper-note = 注意：打印的清单引用了位于 '{ $path }' 的包装脚本，但此命令并未安装它。请改用 --binary 引用现有的可执行文件。
 error-browser-install-manifest-invalid-env = --env 条目 '{ $entry }' 不是 KEY=VALUE 形式。
 error-browser-install-manifest-invalid-env-name = --env 名称 '{ $name }' 不是有效的 POSIX 环境变量名（必须以字母或下划线开头，且仅包含字母、数字和下划线）。
+error-browser-install-manifest-invalid-env-value-windows = 无法将 '{ $name }' 的 --env 值写入 Windows 包装脚本：它包含双引号或换行符。

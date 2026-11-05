@@ -217,3 +217,4 @@ browser-install-manifest-written = '{ $browser }'의 네이티브 메시징 매�
 browser-install-manifest-print-wrapper-note = 참고: 출력된 매니페스트는 '{ $path }'의 래퍼 스크립트를 참조하지만 이 명령은 해당 스크립트를 설치하지 않았습니다. 대신 기존 실행 파일을 참조하려면 --binary를 사용하세요.
 error-browser-install-manifest-invalid-env = --env 항목 '{ $entry }'이(가) KEY=VALUE 형식이 아닙니다.
 error-browser-install-manifest-invalid-env-name = --env 이름 '{ $name }'은(는) 유효한 POSIX 환경 변수 이름이 아닙니다(문자 또는 밑줄로 시작하고 문자, 숫자, 밑줄만 포함해야 합니다).
+error-browser-install-manifest-invalid-env-value-windows = '{ $name }'의 --env 값은 Windows 래퍼에 쓸 수 없습니다. 큰따옴표 또는 줄 바꿈이 포함되어 있습니다.

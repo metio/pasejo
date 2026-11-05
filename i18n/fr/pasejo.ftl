@@ -217,3 +217,4 @@ browser-install-manifest-written = Manifeste de messagerie native pour '{ $brows
 browser-install-manifest-print-wrapper-note = Remarque : le manifeste affiché référence le script wrapper situé à '{ $path }', que cette commande n'a pas installé. Utilisez --binary pour référencer un exécutable existant à la place.
 error-browser-install-manifest-invalid-env = L'entrée --env '{ $entry }' n'est pas au format KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = Le nom --env '{ $name }' n'est pas un nom de variable d'environnement POSIX valide (doit commencer par une lettre ou un trait de soulignement et ne contenir que des lettres, chiffres et traits de soulignement).
+error-browser-install-manifest-invalid-env-value-windows = La valeur --env de '{ $name }' ne peut pas être écrite dans le wrapper Windows : elle contient un guillemet double ou un saut de ligne.

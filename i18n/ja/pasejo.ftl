@@ -217,3 +217,4 @@ browser-install-manifest-written = '{ $browser }' のネイティブメッセー
 browser-install-manifest-print-wrapper-note = 注意: 出力されたマニフェストは '{ $path }' のラッパースクリプトを参照していますが、このコマンドはそれをインストールしていません。既存の実行ファイルを参照するには --binary を使用してください。
 error-browser-install-manifest-invalid-env = --env エントリ '{ $entry }' は KEY=VALUE 形式ではありません。
 error-browser-install-manifest-invalid-env-name = --env 名 '{ $name }' は有効な POSIX 環境変数名ではありません（先頭は英字またはアンダースコアで、英字・数字・アンダースコアのみ使用できます）。
+error-browser-install-manifest-invalid-env-value-windows = '{ $name }' の --env の値は Windows ラッパーに書き込めません。二重引用符または改行が含まれています。
