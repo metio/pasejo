@@ -152,12 +152,18 @@ impl ParsedSecret {
         username_keys: &[String],
         uri_keys: &[String],
     ) -> (String, Vec<BitwardenUri>, Vec<BitwardenField>) {
-        let mut username = String::new();
+        let mut username: Option<(&String, &String)> = None;
         let mut uris: Vec<BitwardenUri> = vec![];
         let mut fields: Vec<BitwardenField> = vec![];
         for (key, value) in &self.fields {
             if username_keys.contains(key) {
-                username.clone_from(value);
+                if let Some((displaced_key, displaced_value)) = username.replace((key, value)) {
+                    fields.push(BitwardenField {
+                        name: displaced_key.clone(),
+                        value: displaced_value.clone(),
+                        field_type: TEXT_FIELD_TYPE,
+                    });
+                }
             } else if uri_keys.contains(key) {
                 uris.push(BitwardenUri {
                     uri_match: None,
@@ -172,6 +178,7 @@ impl ParsedSecret {
             }
         }
 
+        let username = username.map(|(_, value)| value.clone()).unwrap_or_default();
         (username, uris, fields)
     }
 }
@@ -702,6 +709,20 @@ mod tests {
         assert!(collection.get("externalId").is_some());
         assert_eq!(item["organizationId"], "org-123");
         assert_eq!(item["collectionIds"][0], collection["id"]);
+    }
+
+    #[test]
+    fn second_username_key_is_kept_as_a_field() {
+        let store = store_with(&[("login", "pw\nlogin: alice\nemail: alice@example.com")]);
+        let username_keys = vec![String::from("login"), String::from("email")];
+
+        let payload = build_individual(&store, &username_keys, &[]);
+
+        let item = &payload.items[0];
+        assert_eq!(item.login.username, "alice");
+        assert_eq!(item.fields.len(), 1);
+        assert_eq!(item.fields[0].name, "email");
+        assert_eq!(item.fields[0].value, "alice@example.com");
     }
 
     #[test]
