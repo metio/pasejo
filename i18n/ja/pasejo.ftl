@@ -205,6 +205,7 @@ error-browser-install-manifest-no-browser = ネイティブメッセージング
 error-browser-install-manifest-needs-extension-id = Chromium系ブラウザの拡張機能IDは展開された拡張機能の公開鍵から導出されるため、ブラウザ '{ $browser }' には --extension-id が必要です。
 error-browser-install-manifest-extension-id-multiple-browsers = 各ブラウザには固有の拡張機能 ID が必要なため、--extension-id を複数の --browser と組み合わせることはできません。ブラウザごとにコマンドを実行してください。
 error-browser-install-manifest-unsupported-os = ネイティブメッセージングマニフェストのインストールは '{ $os }' ではサポートされていません。
+error-browser-install-manifest-registry-failed = ネイティブメッセージングのレジストリキー '{ $key }' を書き込めませんでした
 error-browser-install-manifest-no-home-dir = ユーザーのホームディレクトリを特定できませんでした。
 error-browser-install-manifest-no-data-dir = ユーザーのデータディレクトリを特定できませんでした。
 error-browser-install-manifest-no-current-exe = 実行中の pasejo バイナリのパスを特定できませんでした。

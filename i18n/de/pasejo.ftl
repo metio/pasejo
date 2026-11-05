@@ -205,6 +205,7 @@ error-browser-install-manifest-no-browser = Geben Sie mindestens einen --browser
 error-browser-install-manifest-needs-extension-id = Browser '{ $browser }' erfordert --extension-id, da Erweiterungs-IDs für Chromium-basierte Browser aus dem öffentlichen Schlüssel der entpackten Erweiterung abgeleitet werden.
 error-browser-install-manifest-extension-id-multiple-browsers = --extension-id kann nicht mit mehr als einem --browser kombiniert werden, da jeder Browser seine eigene Erweiterungs-ID benötigt. Führen Sie den Befehl pro Browser einmal aus.
 error-browser-install-manifest-unsupported-os = Die Installation von Native-Messaging-Manifesten wird unter '{ $os }' nicht unterstützt.
+error-browser-install-manifest-registry-failed = Der Native-Messaging-Registrierungsschlüssel '{ $key }' konnte nicht geschrieben werden
 error-browser-install-manifest-no-home-dir = Das Home-Verzeichnis des Benutzers konnte nicht ermittelt werden.
 error-browser-install-manifest-no-data-dir = Das Daten-Verzeichnis des Benutzers konnte nicht ermittelt werden.
 error-browser-install-manifest-no-current-exe = Der Pfad der laufenden pasejo-Binärdatei konnte nicht ermittelt werden.

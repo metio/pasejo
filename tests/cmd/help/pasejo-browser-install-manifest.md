@@ -5,7 +5,7 @@ Install the native-messaging manifest for one or more browsers
 Usage: pasejo browser install-manifest [OPTIONS] --browser <BROWSERS>
 
 Options:
-      --browser <BROWSERS>            Browser to install the manifest for. Repeatable [possible values: firefox, chrome, chromium, brave, edge, vivaldi]
+      --browser <BROWSERS>            Browser to install the manifest for. Repeatable [possible values: firefox, chrome, chromium, brave, edge, vivaldi, opera]
       --extension-id <EXTENSION_IDS>  Extension id allowed to connect to the host. Repeatable. Required for chromium-family browsers; Firefox defaults to the bundled extension id
       --print                         Print the resulting manifest JSON to stdout instead of writing it to disk. Does not create the wrapper script
       --binary <BINARY>               Override the path written into the manifest. When set, no wrapper script is installed and the supplied path is referenced verbatim — useful for callers that maintain their own launcher
@@ -24,7 +24,7 @@ Install the native-messaging manifest for one or more browsers
 Usage: pasejo browser install-manifest [OPTIONS] --browser <BROWSERS>
 
 Options:
-      --browser <BROWSERS>            Browser to install the manifest for. Repeatable [possible values: firefox, chrome, chromium, brave, edge, vivaldi]
+      --browser <BROWSERS>            Browser to install the manifest for. Repeatable [possible values: firefox, chrome, chromium, brave, edge, vivaldi, opera]
       --extension-id <EXTENSION_IDS>  Extension id allowed to connect to the host. Repeatable. Required for chromium-family browsers; Firefox defaults to the bundled extension id
       --print                         Print the resulting manifest JSON to stdout instead of writing it to disk. Does not create the wrapper script
       --binary <BINARY>               Override the path written into the manifest. When set, no wrapper script is installed and the supplied path is referenced verbatim — useful for callers that maintain their own launcher
@@ -43,7 +43,7 @@ Install the native-messaging manifest for one or more browsers
 Usage: pasejo browser install-manifest [OPTIONS] --browser <BROWSERS>
 
 Options:
-      --browser <BROWSERS>            Browser to install the manifest for. Repeatable [possible values: firefox, chrome, chromium, brave, edge, vivaldi]
+      --browser <BROWSERS>            Browser to install the manifest for. Repeatable [possible values: firefox, chrome, chromium, brave, edge, vivaldi, opera]
       --extension-id <EXTENSION_IDS>  Extension id allowed to connect to the host. Repeatable. Required for chromium-family browsers; Firefox defaults to the bundled extension id
       --print                         Print the resulting manifest JSON to stdout instead of writing it to disk. Does not create the wrapper script
       --binary <BINARY>               Override the path written into the manifest. When set, no wrapper script is installed and the supplied path is referenced verbatim — useful for callers that maintain their own launcher

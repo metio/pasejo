@@ -205,6 +205,7 @@ error-browser-install-manifest-no-browser = Specify at least one --browser to in
 error-browser-install-manifest-needs-extension-id = Browser '{ $browser }' requires --extension-id because chromium-family extension ids are derived from the unpacked extension's public key.
 error-browser-install-manifest-extension-id-multiple-browsers = --extension-id cannot be combined with more than one --browser, because each browser needs its own extension id. Run the command once per browser.
 error-browser-install-manifest-unsupported-os = Installing native-messaging manifests is not supported on '{ $os }'.
+error-browser-install-manifest-registry-failed = Could not write the native-messaging registry key '{ $key }'
 error-browser-install-manifest-no-home-dir = Could not determine the user's home directory.
 error-browser-install-manifest-no-data-dir = Could not determine the user's data directory.
 error-browser-install-manifest-no-current-exe = Could not determine the path of the running pasejo binary.

@@ -41,6 +41,14 @@ jobs:
         run: cargo check --release --target ${{ matrix.target }}
       - name: Test Code
         run: cargo test
+      # The `#[cfg(windows)]` native-messaging registry registration can't run
+      # on Linux/macOS, so verify it end-to-end on the Windows runner: install
+      # the manifest and assert the registry value, manifest JSON, and .cmd
+      # wrapper were created.
+      - name: Verify Windows native-messaging registration
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ./dev/verify-windows-install-manifest.ps1
   build:
     name: Build ${{ matrix.target }}
     needs: check

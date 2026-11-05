@@ -89,5 +89,11 @@ rexpect = { version = "0.7.1" }
 landlock = { version = "0.4.5" }
 libc = { version = "0.2.186" }
 
+# Windows registers native-messaging hosts via the registry rather than a
+# file in a known directory, so `browser::install_manifest` writes an HKCU
+# key there. Used exclusively by the `#[cfg(windows)]` registration path.
+[target.'cfg(windows)'.dependencies]
+winreg = { version = "0.55.0" }
+
 [build-dependencies]
 cc = "1.2.63"

@@ -205,6 +205,7 @@ error-browser-install-manifest-no-browser = Especifique al menos un --browser pa
 error-browser-install-manifest-needs-extension-id = El navegador '{ $browser }' requiere --extension-id porque los ID de extensión de los navegadores basados en Chromium se derivan de la clave pública de la extensión descomprimida.
 error-browser-install-manifest-extension-id-multiple-browsers = --extension-id no puede combinarse con más de un --browser, porque cada navegador necesita su propio id de extensión. Ejecute el comando una vez por navegador.
 error-browser-install-manifest-unsupported-os = La instalación de manifiestos de mensajería nativa no está soportada en '{ $os }'.
+error-browser-install-manifest-registry-failed = No se pudo escribir la clave de registro de native-messaging '{ $key }'
 error-browser-install-manifest-no-home-dir = No se pudo determinar el directorio personal del usuario.
 error-browser-install-manifest-no-data-dir = No se pudo determinar el directorio de datos del usuario.
 error-browser-install-manifest-no-current-exe = No se pudo determinar la ruta del binario de pasejo en ejecución.

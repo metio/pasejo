@@ -205,6 +205,7 @@ error-browser-install-manifest-no-browser = 请至少指定一个 --browser 以�
 error-browser-install-manifest-needs-extension-id = Chromium 系浏览器的扩展 ID 由解压扩展的公钥派生，因此浏览器 '{ $browser }' 需要 --extension-id。
 error-browser-install-manifest-extension-id-multiple-browsers = --extension-id 不能与多个 --browser 一起使用，因为每个浏览器都需要各自的扩展 ID。请为每个浏览器分别运行一次命令。
 error-browser-install-manifest-unsupported-os = '{ $os }' 不支持安装原生消息传递清单。
+error-browser-install-manifest-registry-failed = 无法写入本地消息注册表项 '{ $key }'
 error-browser-install-manifest-no-home-dir = 无法确定用户的主目录。
 error-browser-install-manifest-no-data-dir = 无法确定用户的数据目录。
 error-browser-install-manifest-no-current-exe = 无法确定正在运行的 pasejo 二进制文件的路径。

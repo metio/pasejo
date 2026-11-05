@@ -215,6 +215,7 @@ pub enum InstallManifestBrowser {
     Brave,
     Edge,
     Vivaldi,
+    Opera,
 }
 
 impl InstallManifestBrowser {
@@ -226,6 +227,7 @@ impl InstallManifestBrowser {
             Self::Brave => "brave",
             Self::Edge => "edge",
             Self::Vivaldi => "vivaldi",
+            Self::Opera => "opera",
         }
     }
 }

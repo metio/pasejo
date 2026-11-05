@@ -902,6 +902,17 @@ fl_string!(
     "error-browser-install-manifest-unsupported-os",
     os
 );
+// Reached only by the `#[cfg(windows)]` registry path, so it is unused on the
+// (Linux) primary build — hand-rolled rather than `fl_string!`-generated so the
+// dead-code allowance can be attached off Windows.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn error_browser_install_manifest_registry_failed(key: &str) -> String {
+    fl!(
+        LANGUAGE_LOADER,
+        "error-browser-install-manifest-registry-failed",
+        key = key
+    )
+}
 fl_string!(
     error_browser_install_manifest_no_home_dir,
     "error-browser-install-manifest-no-home-dir"

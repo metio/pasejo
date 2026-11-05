@@ -205,6 +205,7 @@ error-browser-install-manifest-no-browser = 네이티브 메시징 매니페스�
 error-browser-install-manifest-needs-extension-id = Chromium 계열 브라우저의 확장 프로그램 ID는 압축 해제된 확장 프로그램의 공개 키에서 파생되므로 브라우저 '{ $browser }'에는 --extension-id가 필요합니다.
 error-browser-install-manifest-extension-id-multiple-browsers = 각 브라우저에는 고유한 확장 프로그램 ID가 필요하므로 --extension-id는 둘 이상의 --browser와 함께 사용할 수 없습니다. 브라우저마다 명령을 한 번씩 실행하세요.
 error-browser-install-manifest-unsupported-os = '{ $os }'에서는 네이티브 메시징 매니페스트 설치를 지원하지 않습니다.
+error-browser-install-manifest-registry-failed = 네이티브 메시징 레지스트리 키 '{ $key }'를 쓸 수 없습니다
 error-browser-install-manifest-no-home-dir = 사용자의 홈 디렉터리를 확인할 수 없습니다.
 error-browser-install-manifest-no-data-dir = 사용자의 데이터 디렉터리를 확인할 수 없습니다.
 error-browser-install-manifest-no-current-exe = 실행 중인 pasejo 바이너리의 경로를 확인할 수 없습니다.
