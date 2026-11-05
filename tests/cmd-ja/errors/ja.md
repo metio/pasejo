@@ -36,4 +36,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: ワンタイムパスワードのシークレットは空でない base32 文字列 (英字 A-Z と数字 2-7) である必要があります
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: otpauth URL が有効なワンタイムパスワードを表していません
+
 ```

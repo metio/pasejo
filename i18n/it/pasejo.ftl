@@ -128,6 +128,7 @@ error-one-time-password-already-exists = La password monouso esiste già a { $pa
 error-not-allowed-to-remove-one-time-password = Rimozione della password monouso a { $password_path } non consentita. Usare --force per sovrascriverla.
 error-no-one-time-password-found = Nessuna password monouso trovata a '{ $password_path }'
 error-invalid-one-time-password-secret = Il segreto della password monouso deve essere una stringa base32 non vuota (lettere A-Z e cifre 2-7)
+error-invalid-otpauth-url = L'URL otpauth non descrive una password monouso valida
 error-no-store-in-configuration = Nessun archivio trovato nella configurazione. Eseguire prima 'pasejo store add ...' per aggiungerne uno
 error-unknown-store = L'archivio '{ $store_name }' non esiste nella configurazione. Eseguire 'pasejo store list' per vedere gli archivi configurati.
 error-decrypt-requires-yes-i-know = Decifratura rifiutata: stamperà ogni segreto in chiaro su stdout. Passa --yes-i-know per confermare.

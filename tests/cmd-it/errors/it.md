@@ -36,4 +36,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: Il segreto della password monouso deve essere una stringa base32 non vuota (lettere A-Z e cifre 2-7)
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: L'URL otpauth non descrive una password monouso valida
+
 ```

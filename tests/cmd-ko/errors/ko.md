@@ -36,4 +36,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: 일회용 비밀번호의 시크릿은 비어 있지 않은 base32 문자열(문자 A-Z와 숫자 2-7)이어야 합니다
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: otpauth URL이 유효한 일회용 비밀번호를 나타내지 않습니다
+
 ```

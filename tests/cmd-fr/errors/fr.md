@@ -36,4 +36,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: Le secret du mot de passe à usage unique doit être une chaîne base32 non vide (lettres A-Z et chiffres 2-7)
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: L'URL otpauth ne décrit pas un mot de passe à usage unique valide
+
 ```

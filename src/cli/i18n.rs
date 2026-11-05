@@ -587,6 +587,7 @@ fl_string!(
     error_invalid_one_time_password_secret,
     "error-invalid-one-time-password-secret"
 );
+fl_string!(error_invalid_otpauth_url, "error-invalid-otpauth-url");
 fl_string!(
     error_no_store_in_configuration,
     "error-no-store-in-configuration"

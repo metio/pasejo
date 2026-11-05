@@ -7,6 +7,8 @@ use otp_std::{Algorithm, Base, Counter, Digits, Hotp, Period, Secret, Skew, Totp
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use crate::cli::i18n;
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct PasswordStore {
     /// Recipients used in this store
@@ -103,7 +105,10 @@ impl OneTimePassword {
     }
 
     fn base(&self) -> anyhow::Result<Base<'_>> {
-        let secret = Secret::decode(&self.secret)?;
+        // otp-std's decode error embeds the secret, so it is replaced rather
+        // than wrapped.
+        let secret = Secret::decode(&self.secret)
+            .map_err(|_| anyhow::anyhow!(i18n::error_invalid_one_time_password_secret()))?;
         let base = Base::builder()
             .secret(secret)
             .digits(Digits::new(self.digits)?)
@@ -308,6 +313,19 @@ mod tests {
         };
         let code = otp.generate().unwrap();
         assert!(code < 10u32.pow(u32::from(otp.digits)));
+    }
+
+    #[test]
+    fn generate_with_undecodable_secret_does_not_reveal_the_secret() {
+        crate::cli::i18n::init_for_tests();
+        let mut otp = sample_otp();
+        otp.secret = String::from("JBSWY3DPEHPK3PX0");
+        let err = otp.generate().unwrap_err();
+        assert!(!format!("{err:?}").contains("JBSWY3DPEHPK3PX0"), "{err:?}");
+        assert!(
+            err.to_string().contains("base32"),
+            "expected the localized secret error, got: {err}"
+        );
     }
 
     #[test]

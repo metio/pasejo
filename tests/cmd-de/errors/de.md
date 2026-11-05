@@ -44,4 +44,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: Das Geheimnis des Einmalpassworts muss eine nicht leere Base32-Zeichenkette sein (Buchstaben A-Z und Ziffern 2-7)
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: Die otpauth-URL beschreibt kein gültiges Einmalpasswort
+
 ```

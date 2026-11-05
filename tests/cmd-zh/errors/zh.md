@@ -36,4 +36,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: 一次性密码的密钥必须是非空的 base32 字符串（字母 A-Z 和数字 2-7）
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: otpauth URL 未描述有效的一次性密码
+
 ```

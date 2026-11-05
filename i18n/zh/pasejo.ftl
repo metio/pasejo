@@ -128,6 +128,7 @@ error-one-time-password-already-exists = 一次性密码已存在于 { $password
 error-not-allowed-to-remove-one-time-password = 不允许删除 { $password_path } 的一次性密码。使用 --force 覆盖。
 error-no-one-time-password-found = 在 '{ $password_path }' 找不到一次性密码
 error-invalid-one-time-password-secret = 一次性密码的密钥必须是非空的 base32 字符串（字母 A-Z 和数字 2-7）
+error-invalid-otpauth-url = otpauth URL 未描述有效的一次性密码
 error-no-store-in-configuration = 配置中找不到存储。请先运行 'pasejo store add ...' 添加一个
 error-unknown-store = 配置中不存在存储 '{ $store_name }'。运行 'pasejo store list' 查看已配置的存储。
 error-decrypt-requires-yes-i-know = 拒绝解密:这会将每个密钥以明文形式打印到 stdout。请传递 --yes-i-know 以确认。

@@ -128,6 +128,7 @@ error-one-time-password-already-exists = Einmalpasswort existiert bereits bei { 
 error-not-allowed-to-remove-one-time-password = Entfernen des Einmalpassworts bei { $password_path } nicht erlaubt. Verwenden Sie --force zum Überschreiben.
 error-no-one-time-password-found = Kein Einmalpasswort bei '{ $password_path }' gefunden
 error-invalid-one-time-password-secret = Das Geheimnis des Einmalpassworts muss eine nicht leere Base32-Zeichenkette sein (Buchstaben A-Z und Ziffern 2-7)
+error-invalid-otpauth-url = Die otpauth-URL beschreibt kein gültiges Einmalpasswort
 error-no-store-in-configuration = Kein Speicher in der Konfiguration gefunden. Führen Sie zuerst 'pasejo store add ...' aus, um einen hinzuzufügen
 error-unknown-store = Speicher '{ $store_name }' existiert nicht in der Konfiguration. Führen Sie 'pasejo store list' aus, um die konfigurierten Speicher anzuzeigen.
 error-decrypt-requires-yes-i-know = Entschlüsselung verweigert: Dadurch werden alle Geheimnisse im Klartext auf stdout ausgegeben. Übergeben Sie --yes-i-know zur Bestätigung.

@@ -48,7 +48,13 @@ impl OtpAddArgs {
     }
 }
 
+/// otp-std's errors are English and the secret-decode error embeds the
+/// secret, so every failure is replaced by one localized error.
 fn parse_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
+    extract_from_url(url).map_err(|_| anyhow::anyhow!(i18n::error_invalid_otpauth_url()))
+}
+
+fn extract_from_url(url: &str) -> anyhow::Result<OneTimePassword> {
     let url = auth::url::parse(url)?;
     auth::scheme::check_url(&url)?;
     let mut query: Query<'_> = url.query_pairs().collect();
@@ -184,6 +190,23 @@ mod tests {
             ..empty_args()
         };
         assert!(args.parse_password().is_err());
+    }
+
+    #[test]
+    fn url_with_undecodable_secret_is_rejected_without_echoing_it() {
+        crate::cli::i18n::init_for_tests();
+        let args = OtpAddArgs {
+            url: Some(String::from(
+                "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0&algorithm=SHA1&digits=6&period=30",
+            )),
+            ..empty_args()
+        };
+        let err = args.parse_password().unwrap_err();
+        assert!(!format!("{err:?}").contains("JBSWY3DPEHPK3PX0"), "{err:?}");
+        assert!(
+            err.to_string().contains("otpauth"),
+            "expected the localized URL error, got: {err}"
+        );
     }
 
     #[test]

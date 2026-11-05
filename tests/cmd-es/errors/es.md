@@ -36,4 +36,8 @@ $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: El secreto de la contraseña de un solo uso debe ser una cadena base32 no vacía (letras A-Z y dígitos 2-7)
 
+$ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-base32-url
+? 1
+Error: La URL otpauth no describe una contraseña de un solo uso válida
+
 ```
