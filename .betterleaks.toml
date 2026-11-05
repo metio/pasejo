@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fixed age identity shared by the test fixtures; it protects no real data"
+regexTarget = "line"
+regexes = [
+  '''AGE-SECRET-KEY-14LGKWZMHDDWMLCL5EUU2FSQNEX33DZYR3F8VEPZSA670QRC3DA3SNSD535''',
+  '''age1fdalwkzzv0vztxm08gmh6geddk095x0ww9ztfjdtlf673ynwugqssxx8qd''',
+]
