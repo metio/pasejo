@@ -37,13 +37,15 @@ pub fn get(
 /// A line starting with `#` accumulates as the comment for the *next* key
 /// line (multiple comment lines join with a space); a key line with no
 /// preceding comment keeps its own inline comment. Pure, so the
-/// comment-association logic is testable without a tempfile. Unlike the
-/// `.keys` body parser ([`split_keys_body`]), this mirrors the file format
-/// exactly and does not skip blank lines.
+/// comment-association logic is testable without a tempfile. Blank lines
+/// are skipped, as in age's own recipients-file format.
 fn parse_recipient_file_body(content: &str) -> anyhow::Result<Vec<(String, String)>> {
     let mut public_keys = vec![];
     let mut comment = String::new();
     for line in content.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
         if line.starts_with('#') {
             append_comment_line(&mut comment, line);
         } else {
@@ -430,6 +432,18 @@ mod tests {
     fn parse_recipient_file_body_uses_an_ssh_keys_own_inline_comment() {
         let keys = parse_recipient_file_body("ssh-ed25519 AAAA alice@host\n").unwrap();
         assert_eq!(keys[0], ("ssh-ed25519 AAAA".into(), "alice@host".into()));
+    }
+
+    #[test]
+    fn parse_recipient_file_body_skips_blank_lines() {
+        let keys = parse_recipient_file_body("# alice\nage1abc\n\n  \n# bob\nage1def\n").unwrap();
+        assert_eq!(
+            keys,
+            vec![
+                (String::from("age1abc"), String::from("alice")),
+                (String::from("age1def"), String::from("bob")),
+            ]
+        );
     }
 
     #[test]
