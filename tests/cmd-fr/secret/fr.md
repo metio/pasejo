@@ -16,4 +16,8 @@ $ pasejo secret generate --length 2 short
 ? 1
 Error: La longueur du mot de passe est trop courte pour les types de caractères requis
 
+$ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-letters none
+? 1
+Error: Au moins un type de caractère doit être activé
+
 ```

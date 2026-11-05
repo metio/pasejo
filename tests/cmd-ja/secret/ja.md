@@ -16,4 +16,8 @@ $ pasejo secret generate --length 2 short
 ? 1
 Error: パスワードの長さが必要な文字の種類に対して短すぎます
 
+$ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-letters none
+? 1
+Error: 少なくとも 1 種類の文字を有効にする必要があります
+
 ```

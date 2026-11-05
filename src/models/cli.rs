@@ -747,18 +747,40 @@ pub struct SecretGenerateArgs {
 
     /// Passwords are allowed to, or must if the strict is true, contain a
     /// number.
-    #[arg(short, long, default_value_t = true)]
+    #[arg(short, long, default_value_t = true, overrides_with = "no_numbers")]
     pub numbers: bool,
+
+    /// Passwords must not contain a number.
+    #[arg(long, overrides_with = "numbers")]
+    pub no_numbers: bool,
 
     /// Passwords are allowed to, or must if the strict is true, contain a
     /// lowercase letter.
-    #[arg(short = 'j', long, default_value_t = true)]
+    #[arg(
+        short = 'j',
+        long,
+        default_value_t = true,
+        overrides_with = "no_lowercase_letters"
+    )]
     pub lowercase_letters: bool,
+
+    /// Passwords must not contain a lowercase letter.
+    #[arg(long, overrides_with = "lowercase_letters")]
+    pub no_lowercase_letters: bool,
 
     /// Passwords are allowed to, or must if the strict is true, contain an
     /// uppercase letter.
-    #[arg(short, long, default_value_t = true)]
+    #[arg(
+        short,
+        long,
+        default_value_t = true,
+        overrides_with = "no_uppercase_letters"
+    )]
     pub uppercase_letters: bool,
+
+    /// Passwords must not contain an uppercase letter.
+    #[arg(long, overrides_with = "uppercase_letters")]
+    pub no_uppercase_letters: bool,
 
     /// Passwords are allowed to, or must if the strict is true, contain a
     /// symbol.
@@ -771,12 +793,57 @@ pub struct SecretGenerateArgs {
     pub spaces: bool,
 
     /// Whether to exclude similar characters, iI1loO0"'`|`
-    #[arg(short, long, default_value_t = true)]
+    #[arg(
+        short,
+        long,
+        default_value_t = true,
+        overrides_with = "no_exclude_similar_characters"
+    )]
     pub exclude_similar_characters: bool,
 
+    /// Allow similar characters, iI1loO0"'`|`
+    #[arg(long, overrides_with = "exclude_similar_characters")]
+    pub no_exclude_similar_characters: bool,
+
     /// Whether the password rules are strict.
-    #[arg(short = 't', long, default_value_t = true)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = true,
+        overrides_with = "no_strict"
+    )]
     pub strict: bool,
+
+    /// Passwords are allowed to, but do not have to, contain every enabled
+    /// kind of character.
+    #[arg(long, overrides_with = "strict")]
+    pub no_strict: bool,
+}
+
+/// Each positive flag defaults to `true` and its `--no-*` counterpart
+/// overrides it, so the last of the two on the command line wins: an
+/// override resets the losing flag to its default, which leaves the
+/// `--no-*` flag as the deciding value.
+impl SecretGenerateArgs {
+    pub const fn include_numbers(&self) -> bool {
+        self.numbers && !self.no_numbers
+    }
+
+    pub const fn include_lowercase_letters(&self) -> bool {
+        self.lowercase_letters && !self.no_lowercase_letters
+    }
+
+    pub const fn include_uppercase_letters(&self) -> bool {
+        self.uppercase_letters && !self.no_uppercase_letters
+    }
+
+    pub const fn excludes_similar_characters(&self) -> bool {
+        self.exclude_similar_characters && !self.no_exclude_similar_characters
+    }
+
+    pub const fn is_strict(&self) -> bool {
+        self.strict && !self.no_strict
+    }
 }
 
 #[derive(Args)]
@@ -982,5 +1049,55 @@ mod tests {
     fn verify_cli() {
         use clap::CommandFactory;
         Cli::command().debug_assert();
+    }
+
+    fn parse_generate(flags: &[&str]) -> SecretGenerateArgs {
+        let argv = ["pasejo", "secret", "generate", "name"]
+            .iter()
+            .chain(flags)
+            .copied();
+        match Cli::try_parse_from(argv).unwrap().command {
+            Commands::Secret {
+                command: SecretCommands::Generate(args),
+            } => args,
+            _ => panic!("expected `secret generate`"),
+        }
+    }
+
+    #[test]
+    fn generate_character_kinds_default_to_enabled() {
+        let args = parse_generate(&[]);
+        assert!(args.include_numbers());
+        assert!(args.include_lowercase_letters());
+        assert!(args.include_uppercase_letters());
+        assert!(args.excludes_similar_characters());
+        assert!(args.is_strict());
+    }
+
+    #[test]
+    fn generate_negation_flags_disable_their_option() {
+        let args = parse_generate(&[
+            "--no-numbers",
+            "--no-lowercase-letters",
+            "--no-uppercase-letters",
+            "--no-exclude-similar-characters",
+            "--no-strict",
+        ]);
+        assert!(!args.include_numbers());
+        assert!(!args.include_lowercase_letters());
+        assert!(!args.include_uppercase_letters());
+        assert!(!args.excludes_similar_characters());
+        assert!(!args.is_strict());
+    }
+
+    #[test]
+    fn generate_last_of_positive_and_negation_flag_wins() {
+        let args = parse_generate(&["--no-numbers", "--numbers", "--strict", "--no-strict"]);
+        assert!(args.include_numbers());
+        assert!(!args.is_strict());
+
+        let args = parse_generate(&["-n", "--no-numbers", "--no-strict", "-t"]);
+        assert!(!args.include_numbers());
+        assert!(args.is_strict());
     }
 }

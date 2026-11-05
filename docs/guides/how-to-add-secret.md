@@ -34,10 +34,16 @@ This will read the secret from stdin and store it in the store with the name `so
 
 ## Generating a secret
 
-You can also generate a secret using the `--generate` flag. For example, to generate a random password, you can run:
+You can also generate a secret with `secret generate`. For example, to generate a random password, you can run:
 
 ```shell
 $ pasejo secret generate --length 42 some-secret
 ```
 
 This will generate a random password with a length of 42 characters and store it in the store with the name `some-secret`.
+
+Generated passwords contain numbers, lowercase letters and uppercase letters by default, exclude similar-looking characters (`` iI1loO0"'`| ``), and are strict, meaning every enabled kind of character must appear at least once. Symbols (`--symbols`) and spaces (`--spaces`) are off by default. Each of the defaults can be turned off with its negation flag: `--no-numbers`, `--no-lowercase-letters`, `--no-uppercase-letters`, `--no-exclude-similar-characters` and `--no-strict`. When a flag and its negation both appear, the last one on the command line wins. For example, a 6-character PIN made of digits only:
+
+```shell
+$ pasejo secret generate --length 6 --no-lowercase-letters --no-uppercase-letters some-pin
+```

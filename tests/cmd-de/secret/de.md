@@ -16,4 +16,8 @@ $ pasejo secret generate --length 2 short
 ? 1
 Error: Die Passwortlänge ist zu kurz für die geforderten Zeichenarten
 
+$ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-letters none
+? 1
+Error: Mindestens eine Zeichenart muss aktiviert sein
+
 ```

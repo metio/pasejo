@@ -8,20 +8,25 @@ Arguments:
   <SECRET_PATH>  The path of the secret within the selected store
 
 Options:
-  -s, --store <STORE>               Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -f, --force                       Overwrite an existing secrets without prompting
-  -i, --inplace                     Overwrite just the password of an existing secret without prompting
-  -l, --length <LENGTH>             The length of the generated passwords [default: 25]
-  -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
-  -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
-  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
-  -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
-  -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
-  -v, --verbose...                  Increase logging verbosity
-  -q, --quiet...                    Decrease logging verbosity
-  -t, --strict                      Whether the password rules are strict
-  -h, --help                        Print help
+  -s, --store <STORE>                  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -f, --force                          Overwrite an existing secrets without prompting
+  -i, --inplace                        Overwrite just the password of an existing secret without prompting
+  -l, --length <LENGTH>                The length of the generated passwords [default: 25]
+  -n, --numbers                        Passwords are allowed to, or must if the strict is true, contain a number
+      --no-numbers                     Passwords must not contain a number
+  -j, --lowercase-letters              Passwords are allowed to, or must if the strict is true, contain a lowercase letter
+      --no-lowercase-letters           Passwords must not contain a lowercase letter
+  -u, --uppercase-letters              Passwords are allowed to, or must if the strict is true, contain an uppercase letter
+      --no-uppercase-letters           Passwords must not contain an uppercase letter
+  -v, --verbose...                     Increase logging verbosity
+  -q, --quiet...                       Decrease logging verbosity
+  -y, --symbols                        Passwords are allowed to, or must if the strict is true, contain a symbol
+  -w, --spaces                         Passwords are allowed to, or must if the strict is true, contain a space
+  -e, --exclude-similar-characters     Whether to exclude similar characters, iI1loO0"'`|`
+      --no-exclude-similar-characters  Allow similar characters, iI1loO0"'`|`
+  -t, --strict                         Whether the password rules are strict
+      --no-strict                      Passwords are allowed to, but do not have to, contain every enabled kind of character
+  -h, --help                           Print help
 
 ```
 
@@ -35,20 +40,25 @@ Arguments:
   <SECRET_PATH>  The path of the secret within the selected store
 
 Options:
-  -s, --store <STORE>               Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -f, --force                       Overwrite an existing secrets without prompting
-  -i, --inplace                     Overwrite just the password of an existing secret without prompting
-  -l, --length <LENGTH>             The length of the generated passwords [default: 25]
-  -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
-  -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
-  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
-  -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
-  -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
-  -v, --verbose...                  Increase logging verbosity
-  -q, --quiet...                    Decrease logging verbosity
-  -t, --strict                      Whether the password rules are strict
-  -h, --help                        Print help
+  -s, --store <STORE>                  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -f, --force                          Overwrite an existing secrets without prompting
+  -i, --inplace                        Overwrite just the password of an existing secret without prompting
+  -l, --length <LENGTH>                The length of the generated passwords [default: 25]
+  -n, --numbers                        Passwords are allowed to, or must if the strict is true, contain a number
+      --no-numbers                     Passwords must not contain a number
+  -j, --lowercase-letters              Passwords are allowed to, or must if the strict is true, contain a lowercase letter
+      --no-lowercase-letters           Passwords must not contain a lowercase letter
+  -u, --uppercase-letters              Passwords are allowed to, or must if the strict is true, contain an uppercase letter
+      --no-uppercase-letters           Passwords must not contain an uppercase letter
+  -v, --verbose...                     Increase logging verbosity
+  -q, --quiet...                       Decrease logging verbosity
+  -y, --symbols                        Passwords are allowed to, or must if the strict is true, contain a symbol
+  -w, --spaces                         Passwords are allowed to, or must if the strict is true, contain a space
+  -e, --exclude-similar-characters     Whether to exclude similar characters, iI1loO0"'`|`
+      --no-exclude-similar-characters  Allow similar characters, iI1loO0"'`|`
+  -t, --strict                         Whether the password rules are strict
+      --no-strict                      Passwords are allowed to, but do not have to, contain every enabled kind of character
+  -h, --help                           Print help
 
 ```
 
@@ -62,19 +72,24 @@ Arguments:
   <SECRET_PATH>  The path of the secret within the selected store
 
 Options:
-  -s, --store <STORE>               Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
-  -f, --force                       Overwrite an existing secrets without prompting
-  -i, --inplace                     Overwrite just the password of an existing secret without prompting
-  -l, --length <LENGTH>             The length of the generated passwords [default: 25]
-  -n, --numbers                     Passwords are allowed to, or must if the strict is true, contain a number
-  -j, --lowercase-letters           Passwords are allowed to, or must if the strict is true, contain a lowercase letter
-  -u, --uppercase-letters           Passwords are allowed to, or must if the strict is true, contain an uppercase letter
-  -y, --symbols                     Passwords are allowed to, or must if the strict is true, contain a symbol
-  -w, --spaces                      Passwords are allowed to, or must if the strict is true, contain a space
-  -e, --exclude-similar-characters  Whether to exclude similar characters, iI1loO0"'`|`
-  -v, --verbose...                  Increase logging verbosity
-  -q, --quiet...                    Decrease logging verbosity
-  -t, --strict                      Whether the password rules are strict
-  -h, --help                        Print help
+  -s, --store <STORE>                  Optional name of store to use. Defaults to the default store or the first one defined in the local user configuration
+  -f, --force                          Overwrite an existing secrets without prompting
+  -i, --inplace                        Overwrite just the password of an existing secret without prompting
+  -l, --length <LENGTH>                The length of the generated passwords [default: 25]
+  -n, --numbers                        Passwords are allowed to, or must if the strict is true, contain a number
+      --no-numbers                     Passwords must not contain a number
+  -j, --lowercase-letters              Passwords are allowed to, or must if the strict is true, contain a lowercase letter
+      --no-lowercase-letters           Passwords must not contain a lowercase letter
+  -u, --uppercase-letters              Passwords are allowed to, or must if the strict is true, contain an uppercase letter
+      --no-uppercase-letters           Passwords must not contain an uppercase letter
+  -v, --verbose...                     Increase logging verbosity
+  -q, --quiet...                       Decrease logging verbosity
+  -y, --symbols                        Passwords are allowed to, or must if the strict is true, contain a symbol
+  -w, --spaces                         Passwords are allowed to, or must if the strict is true, contain a space
+  -e, --exclude-similar-characters     Whether to exclude similar characters, iI1loO0"'`|`
+      --no-exclude-similar-characters  Allow similar characters, iI1loO0"'`|`
+  -t, --strict                         Whether the password rules are strict
+      --no-strict                      Passwords are allowed to, but do not have to, contain every enabled kind of character
+  -h, --help                           Print help
 
 ```
