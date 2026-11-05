@@ -21,7 +21,7 @@ fn setup_store_with_secret(secret_name: &str, secret_value: &str) -> TempDir {
 
 fn write_request(stdin: &mut impl Write, payload: &[u8]) {
     let len = u32::try_from(payload.len()).unwrap();
-    stdin.write_all(&len.to_le_bytes()).unwrap();
+    stdin.write_all(&len.to_ne_bytes()).unwrap();
     stdin.write_all(payload).unwrap();
     stdin.flush().unwrap();
 }
@@ -29,7 +29,7 @@ fn write_request(stdin: &mut impl Write, payload: &[u8]) {
 fn read_response(stdout: &mut impl Read) -> String {
     let mut len_buf = [0u8; 4];
     stdout.read_exact(&mut len_buf).unwrap();
-    let len = u32::from_le_bytes(len_buf) as usize;
+    let len = u32::from_ne_bytes(len_buf) as usize;
     let mut buf = vec![0u8; len];
     stdout.read_exact(&mut buf).unwrap();
     String::from_utf8(buf).unwrap()
@@ -603,7 +603,7 @@ fn host_translates_the_oversized_message_error() {
 
     let mut child = spawn_host_in(&config, "de");
     let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(&u32::MAX.to_le_bytes()).unwrap();
+    stdin.write_all(&u32::MAX.to_ne_bytes()).unwrap();
     drop(stdin);
 
     let output = child.wait_with_output().unwrap();

@@ -287,6 +287,7 @@ pub fn list_stores_response(configuration: &Configuration) -> ListStoresResponse
     }
 }
 
+// Browsers frame native messages with a 32-bit length in native byte order.
 pub fn read_message<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>> {
     let mut len_buf = [0u8; 4];
     match reader.read_exact(&mut len_buf) {
@@ -294,7 +295,7 @@ pub fn read_message<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>> {
         Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(None),
         Err(e) => return Err(e.into()),
     }
-    let len = u32::from_le_bytes(len_buf) as usize;
+    let len = u32::from_ne_bytes(len_buf) as usize;
     if len > MAX_MESSAGE_LEN {
         bail!(i18n::error_browser_message_too_large(
             &len.to_string(),
@@ -308,7 +309,7 @@ pub fn read_message<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>> {
 
 pub fn write_message<W: Write>(writer: &mut W, bytes: &[u8]) -> Result<()> {
     let len = u32::try_from(bytes.len())?;
-    writer.write_all(&len.to_le_bytes())?;
+    writer.write_all(&len.to_ne_bytes())?;
     writer.write_all(bytes)?;
     writer.flush()?;
     Ok(())
@@ -557,6 +558,24 @@ mod tests {
     }
 
     #[test]
+    fn write_message_prefixes_the_length_in_native_byte_order() {
+        let payload = vec![b'x'; 0x0102];
+        let mut buf = Vec::new();
+        write_message(&mut buf, &payload).unwrap();
+        assert_eq!(buf[..4], 0x0102_u32.to_ne_bytes());
+        assert_eq!(buf[4..], payload[..]);
+    }
+
+    #[test]
+    fn read_message_decodes_a_native_byte_order_length_prefix() {
+        let mut bytes = 0x0102_u32.to_ne_bytes().to_vec();
+        bytes.extend(std::iter::repeat_n(b'x', 0x0102));
+        let mut reader = Cursor::new(bytes);
+        let out = read_message(&mut reader).unwrap().unwrap();
+        assert_eq!(out.len(), 0x0102);
+    }
+
+    #[test]
     fn read_message_returns_none_on_immediate_eof() {
         let mut reader = Cursor::new(Vec::<u8>::new());
         assert!(read_message(&mut reader).unwrap().is_none());
@@ -574,7 +593,7 @@ mod tests {
     #[test]
     fn read_message_errors_on_truncated_payload() {
         // Length prefix claims 10 bytes; only 3 follow.
-        let mut bytes = (10u32).to_le_bytes().to_vec();
+        let mut bytes = (10u32).to_ne_bytes().to_vec();
         bytes.extend_from_slice(b"abc");
         let mut reader = Cursor::new(bytes);
         assert!(read_message(&mut reader).is_err());
@@ -584,7 +603,7 @@ mod tests {
     fn read_message_rejects_oversized_payload() {
         crate::cli::i18n::init_for_tests();
         let oversized = u32::try_from(MAX_MESSAGE_LEN + 1).unwrap();
-        let bytes = oversized.to_le_bytes().to_vec();
+        let bytes = oversized.to_ne_bytes().to_vec();
         let mut reader = Cursor::new(bytes);
         let err = read_message(&mut reader).unwrap_err().to_string();
         assert!(err.contains("exceeds"));
@@ -593,7 +612,7 @@ mod tests {
     #[test]
     fn read_message_accepts_payload_at_size_limit() {
         let max_len = u32::try_from(MAX_MESSAGE_LEN).unwrap();
-        let mut bytes = max_len.to_le_bytes().to_vec();
+        let mut bytes = max_len.to_ne_bytes().to_vec();
         bytes.extend(std::iter::repeat_n(0u8, MAX_MESSAGE_LEN));
         let mut reader = Cursor::new(bytes);
         let out = read_message(&mut reader).unwrap().unwrap();
