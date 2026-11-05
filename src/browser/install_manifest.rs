@@ -259,33 +259,10 @@ fn is_posix_env_name(name: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+/// The wrapper is owner-only and executable on Unix; on Windows a `.cmd` is
+/// executable by extension and ACLs are inherited.
 fn install_wrapper(path: &Path, content: &str) -> Result<()> {
-    use std::fs::OpenOptions;
-    use std::io::Write;
-
-    if let Some(parent) = path.parent() {
-        let parent_display = parent.display().to_string();
-        std::fs::create_dir_all(parent)
-            .with_context(|| i18n::error_failed_to_create_directory(&parent_display))?;
-    }
-    let path_display = path.display().to_string();
-    let mut options = OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    // The wrapper is owner-only on Unix; on Windows a `.cmd` is executable by
-    // extension and ACLs are inherited, so there is no mode to set.
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o700);
-    }
-    let mut file = options
-        .open(path)
-        .with_context(|| i18n::error_failed_to_create_file(&path_display))?;
-    file.write_all(content.as_bytes())
-        .with_context(|| i18n::error_failed_to_write_file(&path_display))?;
-    file.sync_all()
-        .with_context(|| i18n::error_failed_to_fsync_file(&path_display))?;
-    Ok(())
+    atomic_write::write_with_mode(path, content.as_bytes(), 0o700)
 }
 
 fn manifest_path_for_browser(browser: InstallManifestBrowser, host_name: &str) -> Result<PathBuf> {
@@ -712,6 +689,24 @@ mod tests {
             let error = windows_wrapper_content(Path::new(r"C:\p.exe"), &envs).unwrap_err();
             assert!(error.to_string().contains("'X'"), "{value:?}: {error}");
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_wrapper_makes_an_existing_non_executable_wrapper_executable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let path = temp.path().join(HOST_NAME);
+        std::fs::write(&path, "old").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+        install_wrapper(&path, "#!/bin/sh\n").unwrap();
+
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "#!/bin/sh\n");
     }
 
     #[test]

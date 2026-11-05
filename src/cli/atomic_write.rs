@@ -24,6 +24,12 @@ use crate::cli::i18n;
 /// A symlink at `path` is followed and its final target is replaced, so a
 /// store or configuration file managed as a link keeps being a link.
 pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
+    write_with_mode(path, contents, 0o600)
+}
+
+/// [`write`] with the Unix file mode the replaced file ends up with; the mode
+/// is ignored on other platforms.
+pub fn write_with_mode(path: &Path, contents: &[u8], mode: u32) -> Result<()> {
     let resolved = resolve_symlinks(path);
     let path = resolved.as_path();
     let path_display = path.display().to_string();
@@ -40,7 +46,7 @@ pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
     let tmp = temp_path(path);
     let tmp_display = tmp.display().to_string();
     let result = (|| -> Result<()> {
-        let mut file = open_temp(&tmp)?;
+        let mut file = open_temp(&tmp, mode)?;
         file.write_all(contents)
             .with_context(|| i18n::error_failed_to_write_file(&tmp_display))?;
         file.sync_all()
@@ -101,19 +107,19 @@ fn temp_path(path: &Path) -> PathBuf {
 }
 
 #[cfg(unix)]
-fn open_temp(tmp: &Path) -> Result<fs::File> {
+fn open_temp(tmp: &Path, mode: u32) -> Result<fs::File> {
     use std::fs::OpenOptions;
     use std::os::unix::fs::OpenOptionsExt;
     OpenOptions::new()
         .write(true)
         .create_new(true)
-        .mode(0o600)
+        .mode(mode)
         .open(tmp)
         .with_context(|| i18n::error_failed_to_create_file(&tmp.display().to_string()))
 }
 
 #[cfg(not(unix))]
-fn open_temp(tmp: &Path) -> Result<fs::File> {
+fn open_temp(tmp: &Path, _mode: u32) -> Result<fs::File> {
     use std::fs::OpenOptions;
     OpenOptions::new()
         .write(true)
