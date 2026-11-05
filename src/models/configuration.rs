@@ -1276,6 +1276,7 @@ synchronizer = "Git"
         // `migrate_configuration` and report a misleading "could not
         // migrate" message. The current path surfaces the syntax error
         // directly and does not rewrite the user's file.
+        crate::cli::i18n::init_for_tests();
         let temp = TempDir::new().unwrap();
         let config = temp.child("config.toml");
         let broken = "default_store = [oops missing quotes";
