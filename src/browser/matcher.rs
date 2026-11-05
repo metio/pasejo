@@ -240,7 +240,13 @@ fn extract_host(input: &str) -> Option<String> {
     }
 }
 
+/// IP literals have no registrable domain: the public-suffix list's
+/// default rule would treat their last octets as one, so two unrelated
+/// addresses ending in the same octets would compare equal.
 fn registrable_domain(host: &str) -> Option<String> {
+    if host.parse::<std::net::IpAddr>().is_ok() {
+        return None;
+    }
     psl::domain_str(host).map(str::to_lowercase)
 }
 
@@ -654,6 +660,39 @@ mod tests {
         );
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].match_kind, MatchKind::UrlField);
+    }
+
+    #[test]
+    fn ipv4_hosts_sharing_trailing_octets_do_not_match() {
+        let store = store_with(&[("router", "pw\nurl: http://192.168.0.1")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "198.51.0.1",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert!(result.is_empty(), "{result:?}");
+    }
+
+    #[test]
+    fn ip_literals_have_no_registrable_domain() {
+        assert_eq!(registrable_domain("10.0.1.1"), None);
+        assert_eq!(registrable_domain("2001:db8::1"), None);
+    }
+
+    #[test]
+    fn ipv4_url_field_matches_its_exact_host() {
+        let store = store_with(&[("router", "pw\nurl: http://192.168.0.1:8080/")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "192.168.0.1",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1);
+        assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
     }
 
     #[test]
