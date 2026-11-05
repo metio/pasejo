@@ -469,6 +469,21 @@ mod tests {
     }
 
     #[test]
+    fn name_fallback_applies_when_url_field_names_another_host() {
+        let store = store_with(&[("example.com/sso", "hunter2\nurl: https://login.other.org")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].match_kind, MatchKind::Name);
+        assert!(result[0].url.is_none());
+    }
+
+    #[test]
     fn username_field_populates_username_not_fields() {
         let store = store_with(&[(
             "alice",
