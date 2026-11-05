@@ -32,7 +32,8 @@ pub fn encrypt(
 /// is scrubbed from memory when the caller is done with it rather than
 /// lingering in a freed heap page. `String::from_utf8` reuses the
 /// `decrypted` buffer's allocation in place, so the bytes the caller
-/// reads are exactly the bytes the `Zeroizing<String>` owns and clears.
+/// reads are exactly the bytes the `Zeroizing<String>` owns and clears;
+/// on invalid UTF-8 the recovered buffer is scrubbed before returning.
 pub fn decrypt(
     path_to_decrypt: &Path,
     identities: &[Box<dyn age::Identity>],
@@ -41,11 +42,26 @@ pub fn decrypt(
     let encrypted =
         fs::read(path_to_decrypt).with_context(|| i18n::error_cannot_read_file(&path_display))?;
     let decryptor = Decryptor::new_buffered(&encrypted[..])?;
-    let mut reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
-    let mut decrypted = vec![];
-    reader.read_to_end(&mut decrypted)?;
-    let decrypted_text = Zeroizing::new(String::from_utf8(decrypted)?);
-    Ok(decrypted_text)
+    let reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
+    let mut decrypted = read_plaintext(reader, encrypted.len())?;
+    match String::from_utf8(std::mem::take(&mut *decrypted)) {
+        Ok(text) => Ok(Zeroizing::new(text)),
+        Err(error) => {
+            let utf8_error = error.utf8_error();
+            drop(Zeroizing::new(error.into_bytes()));
+            Err(utf8_error.into())
+        }
+    }
+}
+
+/// Reads the whole plaintext into a buffer of `capacity` bytes. Passing the
+/// ciphertext length keeps `read_to_end` from ever reallocating, because an
+/// age plaintext is always shorter than its ciphertext, so no freed
+/// intermediate buffer is left holding a prefix of the store.
+fn read_plaintext(mut reader: impl Read, capacity: usize) -> std::io::Result<Zeroizing<Vec<u8>>> {
+    let mut plaintext = Zeroizing::new(Vec::with_capacity(capacity));
+    reader.read_to_end(&mut plaintext)?;
+    Ok(plaintext)
 }
 
 #[cfg(test)]
@@ -89,6 +105,27 @@ mod tests {
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
         let decrypted = decrypt(&path, &identities).unwrap();
         assert_eq!(decrypted.as_str(), "second");
+    }
+
+    #[test]
+    fn read_plaintext_fills_the_ciphertext_sized_buffer_without_reallocating() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("store.age");
+        let (identity, recipient) = fresh_identity_pair();
+        let recipients: Vec<Box<dyn Recipient + Send>> = vec![Box::new(recipient)];
+        let plaintext = "x".repeat(100 * 1024);
+        encrypt(&plaintext, &path, &recipients).unwrap();
+
+        let encrypted = fs::read(&path).unwrap();
+        let decryptor = Decryptor::new_buffered(&encrypted[..]).unwrap();
+        let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
+        let reader = decryptor
+            .decrypt(identities.iter().map(std::ops::Deref::deref))
+            .unwrap();
+        let decrypted = read_plaintext(reader, encrypted.len()).unwrap();
+
+        assert_eq!(decrypted.as_slice(), plaintext.as_bytes());
+        assert_eq!(decrypted.capacity(), encrypted.len());
     }
 
     #[cfg(unix)]
