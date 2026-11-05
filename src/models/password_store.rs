@@ -33,6 +33,12 @@ impl Zeroize for PasswordStore {
     }
 }
 
+impl Drop for PasswordStore {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 impl ZeroizeOnDrop for PasswordStore {}
 
 impl PasswordStore {
@@ -197,6 +203,13 @@ mod tests {
     #[test]
     fn otp_names_as_list_is_empty_for_default_store() {
         assert!(PasswordStore::default().otp_names_as_list().is_empty());
+    }
+
+    #[test]
+    #[allow(drop_bounds)]
+    fn password_store_scrubs_itself_on_drop() {
+        fn assert_drop<T: Drop>() {}
+        assert_drop::<PasswordStore>();
     }
 
     #[test]
