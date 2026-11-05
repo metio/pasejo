@@ -36,8 +36,14 @@ If the secret contains multiple lines, and you want to show only a specific line
 $ pasejo secret show my-secret --line 2
 ```
 
-If you want to skip lines, you can use a negative number. For example, to skip the first line and show the rest:
+A negative number counts from the end of the secret. For example, to show only the last line:
 
 ```shell
 $ pasejo secret show my-secret --line=-1
+```
+
+To skip lines and show the rest, use `--skip-lines`. For example, to drop the password on the first line and show the remaining metadata:
+
+```shell
+$ pasejo secret show my-secret --skip-lines 1
 ```
