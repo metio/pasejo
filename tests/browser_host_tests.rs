@@ -559,3 +559,58 @@ fn host_runs_pull_hooks_of_stores_sharing_a_directory_one_at_a_time() {
     let status = child.wait().unwrap();
     assert!(status.success());
 }
+
+fn spawn_host_in(config: &std::path::Path, language: &str) -> std::process::Child {
+    StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", config)
+        .env_remove("LANGUAGE")
+        .env("LANG", language)
+        .env("LC_ALL", language)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap()
+}
+
+#[test]
+fn host_translates_the_missing_store_file_hint() {
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+    std::fs::remove_file(temp.path().join("store")).unwrap();
+
+    let mut child = spawn_host_in(&config, "de");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(&mut stdin, br#"{"action":"query","domain":"example.com"}"#);
+    let response = read_response(&mut stdout);
+
+    assert!(
+        response.contains("Speicherdatei existiert nicht: <store>"),
+        "response was: {response}"
+    );
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn host_translates_the_oversized_message_error() {
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = spawn_host_in(&config, "de");
+    let mut stdin = child.stdin.take().unwrap();
+    stdin.write_all(&u32::MAX.to_le_bytes()).unwrap();
+    drop(stdin);
+
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success());
+    assert!(
+        stderr.contains("überschreitet die Native-Messaging-Grenze"),
+        "stderr was: {stderr}"
+    );
+}

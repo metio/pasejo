@@ -890,6 +890,23 @@ fl_string!(
     "error-browser-host-requires-pipe"
 );
 fl_string!(
+    error_browser_store_file_missing,
+    "error-browser-store-file-missing",
+    path
+);
+fl_string!(
+    error_browser_message_too_large,
+    "error-browser-message-too-large",
+    length,
+    limit
+);
+fl_string!(
+    error_browser_response_too_large,
+    "error-browser-response-too-large",
+    length,
+    limit
+);
+fl_string!(
     error_browser_install_manifest_no_browser,
     "error-browser-install-manifest-no-browser"
 );

@@ -139,10 +139,9 @@ fn open_store_for_read(
         Ok(None) => {
             return Err((
                 ErrorKind::StoreUnreachable,
-                anyhow::anyhow!(
-                    "store file does not exist at {}",
-                    registration.path().display()
-                ),
+                anyhow::anyhow!(i18n::error_browser_store_file_missing(
+                    &registration.path().display().to_string()
+                )),
             ));
         }
         Err(err) => return Err((ErrorKind::StoreUnreachable, err)),
@@ -295,7 +294,10 @@ pub fn read_message<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>> {
     }
     let len = u32::from_le_bytes(len_buf) as usize;
     if len > MAX_MESSAGE_LEN {
-        bail!("message length {len} exceeds the {MAX_MESSAGE_LEN}-byte native-messaging limit");
+        bail!(i18n::error_browser_message_too_large(
+            &len.to_string(),
+            &MAX_MESSAGE_LEN.to_string()
+        ));
     }
     let mut buf = vec![0u8; len];
     reader.read_exact(&mut buf)?;
@@ -447,9 +449,9 @@ fn serialize_capped(request_id: Option<u64>, payload: &ResponsePayload) -> Optio
     let too_large = ResponsePayload::Error(ErrorResponse {
         error: ErrorKind::ResponseTooLarge,
         store: None,
-        hint: Some(format!(
-            "response of {} bytes exceeds the {MAX_MESSAGE_LEN}-byte native-messaging limit",
-            response_bytes.len()
+        hint: Some(i18n::error_browser_response_too_large(
+            &response_bytes.len().to_string(),
+            &MAX_MESSAGE_LEN.to_string(),
         )),
     });
     let fallback = ResponseEnvelope {
@@ -578,6 +580,7 @@ mod tests {
 
     #[test]
     fn read_message_rejects_oversized_payload() {
+        crate::cli::i18n::init_for_tests();
         let oversized = u32::try_from(MAX_MESSAGE_LEN + 1).unwrap();
         let bytes = oversized.to_le_bytes().to_vec();
         let mut reader = Cursor::new(bytes);
@@ -815,6 +818,7 @@ mod tests {
 
     #[test]
     fn serialize_capped_downgrades_an_oversized_reply_to_response_too_large() {
+        crate::cli::i18n::init_for_tests();
         // A hint just past the limit pushes the serialized envelope over
         // MAX_MESSAGE_LEN. Writing it would get the connection killed by
         // the browser; the cap converts it into a small per-request
