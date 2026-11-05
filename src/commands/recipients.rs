@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use crate::cli::i18n;
-use crate::commands::store_op::{StoreMutation, require_store, with_store};
+use crate::commands::store_op::{OpenStore, StoreMutation, open_store, require_store, with_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::RecipientCommands;
 use crate::models::configuration::{
@@ -52,7 +52,8 @@ pub fn dispatch(
 /// Recipient `add` is the bootstrap path: if the store file does not yet
 /// exist on disk we cannot pull or decrypt, so we start from an empty
 /// `PasswordStore`. This makes it the one command that can't use
-/// [`with_store`].
+/// [`with_store`]; an existing store still goes through [`open_store`] so
+/// the update happens under the store lock.
 fn add(
     configuration: &Configuration,
     store_name: Option<&String>,
@@ -60,15 +61,21 @@ fn add(
     name: Option<&String>,
     offline: bool,
 ) -> Result<()> {
-    let registration = require_store(configuration, store_name)?;
-    let store_path = registration.path();
-    let hooks = HookExecutor::new(configuration, registration, offline);
-
-    let mut store = if store_path.exists() {
-        hooks.execute_pull_commands()?;
-        configuration.decrypt_store(registration)?
+    let selected = require_store(configuration, store_name)?;
+    let OpenStore {
+        registration,
+        hooks,
+        lock,
+        mut store,
+    } = if selected.path().exists() {
+        open_store(configuration, store_name, offline)?
     } else {
-        PasswordStore::default()
+        OpenStore {
+            registration: selected,
+            hooks: HookExecutor::new(configuration, selected, offline),
+            lock: None,
+            store: PasswordStore::default(),
+        }
     };
 
     for public_key in public_keys {
@@ -89,6 +96,7 @@ fn add(
     }
 
     encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
+    drop(lock);
 
     for public_key in public_keys {
         i18n::recipient_added(&public_key.0);
