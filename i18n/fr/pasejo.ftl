@@ -218,3 +218,4 @@ browser-install-manifest-print-wrapper-note = Remarque : le manifeste affiché r
 error-browser-install-manifest-invalid-env = L'entrée --env '{ $entry }' n'est pas au format KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = Le nom --env '{ $name }' n'est pas un nom de variable d'environnement POSIX valide (doit commencer par une lettre ou un trait de soulignement et ne contenir que des lettres, chiffres et traits de soulignement).
 error-browser-install-manifest-invalid-env-value-windows = La valeur --env de '{ $name }' ne peut pas être écrite dans le wrapper Windows : elle contient un guillemet double ou un saut de ligne.
+error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' n'est pas un nom d'hôte de messagerie native valide pour { $browser } : il doit être composé de parties séparées par des points, faites de lettres, chiffres et traits de soulignement, en minuscules pour tout navigateur sauf firefox.

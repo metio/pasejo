@@ -218,3 +218,4 @@ browser-install-manifest-print-wrapper-note = 注意: 出力されたマニフ�
 error-browser-install-manifest-invalid-env = --env エントリ '{ $entry }' は KEY=VALUE 形式ではありません。
 error-browser-install-manifest-invalid-env-name = --env 名 '{ $name }' は有効な POSIX 環境変数名ではありません（先頭は英字またはアンダースコアで、英字・数字・アンダースコアのみ使用できます）。
 error-browser-install-manifest-invalid-env-value-windows = '{ $name }' の --env の値は Windows ラッパーに書き込めません。二重引用符または改行が含まれています。
+error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' は { $browser } の有効なネイティブメッセージングホスト名ではありません。英字・数字・アンダースコアからなる部分をドットで区切る必要があり、firefox 以外のブラウザーでは小文字でなければなりません。

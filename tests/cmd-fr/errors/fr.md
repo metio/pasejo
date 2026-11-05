@@ -28,4 +28,8 @@ $ pasejo browser install-manifest --browser chrome --print --binary /usr/local/b
 ? 1
 Error: Le navigateur 'chrome' nécessite --extension-id car les identifiants d'extension des navigateurs de la famille Chromium sont dérivés de la clé publique de l'extension décompressée.
 
+$ pasejo browser install-manifest --browser firefox --print --binary /usr/local/bin/pasejo --host-name ../escape
+? 1
+Error: --host-name '../escape' n'est pas un nom d'hôte de messagerie native valide pour firefox : il doit être composé de parties séparées par des points, faites de lettres, chiffres et traits de soulignement, en minuscules pour tout navigateur sauf firefox.
+
 ```

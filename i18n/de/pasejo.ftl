@@ -218,3 +218,4 @@ browser-install-manifest-print-wrapper-note = Hinweis: Das ausgegebene Manifest 
 error-browser-install-manifest-invalid-env = --env-Eintrag '{ $entry }' hat nicht die Form KEY=VALUE.
 error-browser-install-manifest-invalid-env-name = --env-Name '{ $name }' ist kein gültiger POSIX-Umgebungsvariablenname (muss mit einem Buchstaben oder Unterstrich beginnen und darf nur Buchstaben, Ziffern und Unterstriche enthalten).
 error-browser-install-manifest-invalid-env-value-windows = Der --env-Wert von '{ $name }' kann nicht in den Windows-Wrapper geschrieben werden: Er enthält ein doppeltes Anführungszeichen oder einen Zeilenumbruch.
+error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' ist kein gültiger Native-Messaging-Hostname für { $browser }: Er muss aus durch Punkte getrennten Teilen aus Buchstaben, Ziffern und Unterstrichen bestehen, für jeden Browser außer firefox in Kleinbuchstaben.

@@ -100,6 +100,14 @@ fn install(args: &InstallManifestArgs, dirs: &InstallDirs) -> Result<()> {
         bail!(i18n::error_browser_install_manifest_extension_id_multiple_browsers());
     }
     let host_name = args.host_name.as_deref().unwrap_or(HOST_NAME);
+    for browser in &args.browsers {
+        if !is_valid_host_name(*browser, host_name) {
+            bail!(i18n::error_browser_install_manifest_invalid_host_name(
+                host_name,
+                browser.as_str()
+            ));
+        }
+    }
     let binary = resolve_binary(args.binary.as_deref())?;
     let envs = parse_env_pairs(&args.envs)?;
 
@@ -156,6 +164,22 @@ fn install(args: &InstallManifestArgs, dirs: &InstallDirs) -> Result<()> {
         i18n::browser_install_manifest_written(browser.as_str(), target);
     }
     Ok(())
+}
+
+/// The host-name grammar the browser enforces: dot-separated, non-empty
+/// parts of ASCII letters, digits, and underscores. Firefox accepts
+/// uppercase letters; the chromium family accepts lowercase only.
+fn is_valid_host_name(browser: InstallManifestBrowser, name: &str) -> bool {
+    let allow_uppercase = browser == InstallManifestBrowser::Firefox;
+    name.split('.').all(|part| {
+        !part.is_empty()
+            && part.chars().all(|c| {
+                c.is_ascii_lowercase()
+                    || c.is_ascii_digit()
+                    || c == '_'
+                    || (allow_uppercase && c.is_ascii_uppercase())
+            })
+    })
 }
 
 fn resolve_binary(binary_override: Option<&Path>) -> Result<PathBuf> {
@@ -757,6 +781,27 @@ mod tests {
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o700);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "#!/bin/sh\n");
+    }
+
+    #[test]
+    fn host_name_grammar_follows_each_browser() {
+        use clap::ValueEnum;
+
+        for browser in InstallManifestBrowser::value_variants() {
+            assert!(is_valid_host_name(*browser, HOST_NAME), "{browser:?}");
+            assert!(is_valid_host_name(*browser, "a_1.b2"), "{browser:?}");
+            for bad in ["", ".a", "a.", "a..b", "../x", "/tmp/x", "a-b", "a b", "ä"] {
+                assert!(!is_valid_host_name(*browser, bad), "{browser:?} {bad}");
+            }
+        }
+        assert!(is_valid_host_name(
+            InstallManifestBrowser::Firefox,
+            "Wtf.Metio"
+        ));
+        assert!(!is_valid_host_name(
+            InstallManifestBrowser::Chrome,
+            "Wtf.Metio"
+        ));
     }
 
     fn firefox_args() -> InstallManifestArgs {

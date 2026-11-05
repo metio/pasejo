@@ -28,4 +28,8 @@ $ pasejo browser install-manifest --browser chrome --print --binary /usr/local/b
 ? 1
 Error: Chromium 系浏览器的扩展 ID 由解压扩展的公钥派生，因此浏览器 'chrome' 需要 --extension-id。
 
+$ pasejo browser install-manifest --browser firefox --print --binary /usr/local/bin/pasejo --host-name ../escape
+? 1
+Error: --host-name '../escape' 不是 firefox 的有效原生消息主机名：它必须由以点分隔的字母、数字和下划线部分组成，除 firefox 外的所有浏览器都必须使用小写。
+
 ```

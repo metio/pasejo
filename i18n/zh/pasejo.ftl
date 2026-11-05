@@ -218,3 +218,4 @@ browser-install-manifest-print-wrapper-note = 注意：打印的清单引用了�
 error-browser-install-manifest-invalid-env = --env 条目 '{ $entry }' 不是 KEY=VALUE 形式。
 error-browser-install-manifest-invalid-env-name = --env 名称 '{ $name }' 不是有效的 POSIX 环境变量名（必须以字母或下划线开头，且仅包含字母、数字和下划线）。
 error-browser-install-manifest-invalid-env-value-windows = 无法将 '{ $name }' 的 --env 值写入 Windows 包装脚本：它包含双引号或换行符。
+error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' 不是 { $browser } 的有效原生消息主机名：它必须由以点分隔的字母、数字和下划线部分组成，除 firefox 外的所有浏览器都必须使用小写。

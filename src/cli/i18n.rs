@@ -962,6 +962,12 @@ fl_string!(
     "error-browser-install-manifest-invalid-env-value-windows",
     name
 );
+fl_string!(
+    error_browser_install_manifest_invalid_host_name,
+    "error-browser-install-manifest-invalid-host-name",
+    name,
+    browser
+);
 
 fl_log_path!(
     warn,

@@ -28,6 +28,10 @@ $ pasejo browser install-manifest --browser chrome --print --binary /usr/local/b
 ? 1
 Error: Browser 'chrome' erfordert --extension-id, da Erweiterungs-IDs für Chromium-basierte Browser aus dem öffentlichen Schlüssel der entpackten Erweiterung abgeleitet werden.
 
+$ pasejo browser install-manifest --browser firefox --print --binary /usr/local/bin/pasejo --host-name ../escape
+? 1
+Error: --host-name '../escape' ist kein gültiger Native-Messaging-Hostname für firefox: Er muss aus durch Punkte getrennten Teilen aus Buchstaben, Ziffern und Unterstrichen bestehen, für jeden Browser außer firefox in Kleinbuchstaben.
+
 $ pasejo identity remove --file non-existing
 ? 2
 error: ungültiger Wert 'non-existing' für '--file <FILE>': Datei entspricht keiner bekannten Identität

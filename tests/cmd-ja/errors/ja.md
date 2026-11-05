@@ -28,4 +28,8 @@ $ pasejo browser install-manifest --browser chrome --print --binary /usr/local/b
 ? 1
 Error: Chromium系ブラウザの拡張機能IDは展開された拡張機能の公開鍵から導出されるため、ブラウザ 'chrome' には --extension-id が必要です。
 
+$ pasejo browser install-manifest --browser firefox --print --binary /usr/local/bin/pasejo --host-name ../escape
+? 1
+Error: --host-name '../escape' は firefox の有効なネイティブメッセージングホスト名ではありません。英字・数字・アンダースコアからなる部分をドットで区切る必要があり、firefox 以外のブラウザーでは小文字でなければなりません。
+
 ```
