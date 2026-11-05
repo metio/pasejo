@@ -81,6 +81,11 @@ pub struct Configuration {
     /// Global push commands used for all stores
     #[serde(default)]
     pub push_commands: Vec<String>,
+
+    /// Keys this version does not know, kept so saving the configuration
+    /// does not drop options written by a newer pasejo.
+    #[serde(flatten)]
+    pub extra: Table,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -99,6 +104,11 @@ pub struct StoreRegistration {
 
     /// The commands to execute when pushing changes from the store
     pub push_commands: Vec<String>,
+
+    /// Keys this version does not know, kept so saving the configuration
+    /// does not drop options written by a newer pasejo.
+    #[serde(flatten)]
+    pub extra: Table,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -188,11 +198,8 @@ impl Configuration {
     /// Surgically sets (`Some`) or clears (`None`, resetting to the
     /// built-in default) a single top-level key on the config file,
     /// preserving every OTHER key — including keys this binary does not
-    /// recognize, e.g. a field written by a newer pasejo. `config set`
-    /// uses this instead of re-serializing the typed [`Configuration`],
-    /// which would silently drop unknown keys on every edit. Reads the
-    /// on-disk TOML table directly so the round-trip never passes
-    /// through the typed struct's known-fields-only view.
+    /// recognize, e.g. a field written by a newer pasejo. Edits the
+    /// on-disk TOML table directly rather than a typed [`Configuration`].
     pub fn set_top_level_key(key: &str, value: Option<toml::Value>) -> Result<()> {
         let path = Self::config_path()?;
         let mut table = if path.exists() {
@@ -235,9 +242,7 @@ impl Configuration {
         let registration = StoreRegistration {
             path: canonical_path,
             name: store_name.to_owned(),
-            identities: vec![],
-            pull_commands: vec![],
-            push_commands: vec![],
+            ..StoreRegistration::default()
         };
         self.stores.push(registration);
         self.save_configuration()
@@ -641,6 +646,7 @@ mod tests {
             identities: vec![],
             pull_commands: vec![],
             push_commands: vec![],
+            ..StoreRegistration::default()
         }
     }
 
@@ -798,6 +804,7 @@ mod tests {
             ],
             pull_commands: vec![],
             push_commands: vec![],
+            ..StoreRegistration::default()
         }]);
         cfg.identities = vec![
             Identity {
@@ -859,6 +866,7 @@ mod tests {
             }],
             pull_commands: vec![],
             push_commands: vec![],
+            ..StoreRegistration::default()
         }]);
         let identity = Identity {
             file: PathBuf::from("/keys/store"),

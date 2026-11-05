@@ -353,6 +353,7 @@ mod tests {
                     temp.path().join(format!("pulled-{name}")).display()
                 )],
                 push_commands: vec![],
+                ..StoreRegistration::default()
             }
         };
         let first = registration("first");

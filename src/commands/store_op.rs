@@ -236,6 +236,7 @@ mod tests {
             identities: vec![],
             pull_commands: vec![],
             push_commands: vec![],
+            ..StoreRegistration::default()
         }
     }
 

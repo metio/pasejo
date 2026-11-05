@@ -1,0 +1,13 @@
+identities = []
+pull_commands = []
+push_commands = []
+future_option = 1
+future_when = 1979-05-27T07:32:00Z
+
+[[stores]]
+path = "/stores/existing"
+name = "existing"
+identities = []
+pull_commands = []
+push_commands = []
+future_store_option = "kept"
