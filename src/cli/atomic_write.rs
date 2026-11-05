@@ -20,7 +20,12 @@ use crate::cli::i18n;
 /// fsyncs, then renames over the destination. A crash before the rename
 /// leaves the original file untouched. If anything fails after the temp
 /// file is created, the temp file is removed best-effort.
+///
+/// A symlink at `path` is followed and its final target is replaced, so a
+/// store or configuration file managed as a link keeps being a link.
 pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
+    let resolved = resolve_symlinks(path);
+    let path = resolved.as_path();
     let path_display = path.display().to_string();
     let parent = path
         .parent()
@@ -49,6 +54,21 @@ pub fn write(path: &Path, contents: &[u8]) -> Result<()> {
         let _ = fs::remove_file(&tmp);
     }
     result
+}
+
+fn resolve_symlinks(path: &Path) -> PathBuf {
+    const MAX_SYMLINK_HOPS: usize = 40;
+    let mut current = path.to_path_buf();
+    for _ in 0..MAX_SYMLINK_HOPS {
+        let Ok(target) = fs::read_link(&current) else {
+            break;
+        };
+        current = match current.parent() {
+            Some(parent) => parent.join(target),
+            None => target,
+        };
+    }
+    current
 }
 
 fn temp_path(path: &Path) -> PathBuf {
@@ -142,6 +162,56 @@ mod tests {
         write(&path, b"secret").unwrap();
         let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_through_a_symlink_updates_the_target_and_keeps_the_link() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.path().join("target.bin");
+        let link = temp.path().join("link.bin");
+        fs::write(&target, b"old").unwrap();
+        std::os::unix::fs::symlink("target.bin", &link).unwrap();
+
+        write(&link, b"new").unwrap();
+
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_follows_a_chain_of_symlinks_across_directories() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.path().join("real/target.bin");
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(&target, b"old").unwrap();
+        let middle = temp.path().join("middle.bin");
+        let link = temp.path().join("links/link.bin");
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(&target, &middle).unwrap();
+        std::os::unix::fs::symlink("../middle.bin", &link).unwrap();
+
+        write(&link, b"new").unwrap();
+
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(
+            fs::symlink_metadata(&middle)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read(&target).unwrap(), b"new");
     }
 
     #[test]
