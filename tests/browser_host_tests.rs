@@ -506,3 +506,56 @@ fn host_handles_multiple_requests_in_sequence() {
     let status = child.wait().unwrap();
     assert!(status.success());
 }
+
+#[cfg(unix)]
+#[test]
+fn host_runs_pull_hooks_of_stores_sharing_a_directory_one_at_a_time() {
+    let temp = setup_two_stores_with_slow_pull();
+    let config = temp.path().join("config.toml");
+    let contents = std::fs::read_to_string(&config).unwrap();
+    let (global, stores) = contents.split_once("[[stores]]").unwrap();
+    let global_hook = global.replace(
+        "pull_commands = []\n",
+        "pull_commands = [\"sh -c 'mkdir lk && sleep 1 && rmdir lk'\"]\n",
+    );
+    assert_ne!(global, global_hook, "config was:\n{contents}");
+    let stores = stores.replace("pull_commands = [\"sleep 1\"]\n", "pull_commands = []\n");
+    std::fs::write(&config, format!("{global_hook}[[stores]]{stores}")).unwrap();
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", &config)
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"query","store":"slow","domain":"example.com"}"#,
+    );
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"query","store":"fast","domain":"example.com"}"#,
+    );
+
+    let replies = [read_response(&mut stdout), read_response(&mut stdout)];
+    for reply in &replies {
+        assert!(
+            !reply.contains(r#""error":"hook_failed""#),
+            "pull hooks of stores in one directory overlapped: {reply}"
+        );
+    }
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(status.success());
+}

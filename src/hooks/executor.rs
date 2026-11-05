@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, LazyLock, Mutex, PoisonError};
 
 use anyhow::Context;
 
@@ -90,6 +92,10 @@ impl HookExecutor<'_> {
             anyhow::bail!(i18n::error_cannot_determine_store_name())
         };
         let store_name = store_name.as_os_str();
+        let guard = self.registration.path().parent().map(directory_guard);
+        let _held = guard
+            .as_deref()
+            .map(|guard| guard.lock().unwrap_or_else(PoisonError::into_inner));
         if self.force || (!self.offline && self.is_due(phase, store_name)?) {
             match phase {
                 Phase::Pull => i18n::execute_pull_hooks(&self.registration.name),
@@ -184,6 +190,17 @@ impl HookExecutor<'_> {
             Phase::Push => last_push_paths(store_name),
         }
     }
+}
+
+/// The lock serializing hook runs in `directory` within this process. Hooks
+/// run with the store's directory as working directory, so two stores in
+/// one git work tree would otherwise run `git pull` there concurrently when
+/// the browser host answers their queries on parallel workers.
+fn directory_guard(directory: &Path) -> Arc<Mutex<()>> {
+    static GUARDS: LazyLock<Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>> =
+        LazyLock::new(Mutex::default);
+    let mut guards = GUARDS.lock().unwrap_or_else(PoisonError::into_inner);
+    Arc::clone(guards.entry(directory.to_path_buf()).or_default())
 }
 
 /// The throttle-marker file name for the store at `path`: its file name,
