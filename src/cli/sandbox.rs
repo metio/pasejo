@@ -11,13 +11,13 @@
 //! identity files, the encrypted store, anything the user can read.
 //!
 //! On Linux the decode runs in a `fork()`ed child that immediately
-//! installs a Landlock ruleset denying every filesystem access right the
-//! running kernel knows about. The child reads the image bytes off disk
-//! *before* enforcing the ruleset, then runs `image::load_from_memory`
-//! and `rqrr` purely on the in-memory buffer and writes the decoded
-//! `otpauth://` URL (or a structured error message) back to the parent
-//! over a `pipe(2)`. The parent waits for the child and feeds the URL
-//! into the normal OTP parser.
+//! installs a Landlock ruleset denying every filesystem and network access
+//! right and enabling every IPC scope the running kernel knows about. The child
+//! reads the image bytes off disk *before* enforcing the ruleset, then runs
+//! `image::load_from_memory` and `rqrr` purely on the in-memory buffer and
+//! writes the decoded `otpauth://` URL (or a structured error message) back to
+//! the parent over a `pipe(2)`. The parent waits for the child and feeds the
+//! URL into the normal OTP parser.
 //!
 //! Landlock is permanent for the calling process once `restrict_self`
 //! returns, which is why the work has to happen across a `fork(2)` —
@@ -37,9 +37,9 @@ use crate::cli::i18n;
 /// Read the QR code at `path` and return the embedded `otpauth://` URL.
 ///
 /// On Linux the decoding runs in a forked child that has installed a
-/// Landlock ruleset denying all filesystem access. On other platforms
-/// the decoding runs in-process. Either way the public contract is the
-/// same: returns the QR payload string on success, an
+/// Landlock ruleset denying all filesystem and network access. On other
+/// platforms the decoding runs in-process. Either way the public contract is
+/// the same: returns the QR payload string on success, an
 /// [`anyhow::Error`] carrying the localized "no QR code found" /
 /// "failed to decode" message otherwise.
 pub fn decode_qrcode_to_otpauth_url(path: &Path) -> Result<String> {
@@ -97,7 +97,8 @@ mod linux {
 
     use anyhow::{Context, Result, anyhow, bail};
     use landlock::{
-        ABI, Access, AccessFs, CompatLevel, Compatible, Ruleset, RulesetAttr, RulesetStatus,
+        ABI, Access, AccessFs, AccessNet, CompatLevel, Compatible, Ruleset, RulesetAttr,
+        RulesetStatus, Scope,
     };
 
     use super::decode_qrcode_bytes;
@@ -236,18 +237,23 @@ mod linux {
         file.write_all(body)
     }
 
-    /// Install a Landlock ruleset that denies every filesystem access
-    /// right the kernel reports support for. The child has already read
-    /// the QR bytes into memory at this point, so it does not need any
-    /// path access; a successful enforce means an RCE in `image` or
-    /// `rqrr` cannot open `~/.ssh/id_ed25519`, the encrypted store, or
-    /// anything else.
+    /// Install a Landlock ruleset that denies every filesystem and network
+    /// right and enables every scope known to the newest ABI the `landlock`
+    /// crate supports, degrading to whatever subset the running kernel
+    /// implements. The child has already read the QR bytes into memory at
+    /// this point, so it needs no path, socket, or signal access; a
+    /// successful enforce means an RCE in `image` or `rqrr` cannot open or
+    /// truncate `~/.ssh/id_ed25519` or the encrypted store, reach
+    /// `$SSH_AUTH_SOCK`, or open network connections.
     fn apply_landlock() -> Result<()> {
-        let abi = ABI::V1;
-        let access_all = AccessFs::from_all(abi);
+        let abi = ABI::V9;
         let status = Ruleset::default()
             .set_compatibility(CompatLevel::BestEffort)
-            .handle_access(access_all)
+            .handle_access(AccessFs::from_all(abi))
+            .context(i18n::error_qr_sandbox_failed())?
+            .handle_access(AccessNet::from_all(abi))
+            .context(i18n::error_qr_sandbox_failed())?
+            .scope(Scope::from_all(abi))
             .context(i18n::error_qr_sandbox_failed())?
             .create()
             .context(i18n::error_qr_sandbox_failed())?
@@ -343,6 +349,111 @@ mod linux {
             // Exit code 1 left-shifted (the way wait(2) encodes a
             // normal exit): low byte is 0 again → not signalled.
             assert!(!libc_wifsignaled(1 << 8));
+        }
+
+        fn kernel_landlock_abi() -> i64 {
+            // SAFETY: LANDLOCK_CREATE_RULESET_VERSION with a null attribute
+            // and zero size only queries the ABI version.
+            unsafe {
+                libc::syscall(
+                    libc::SYS_landlock_create_ruleset,
+                    std::ptr::null::<libc::c_void>(),
+                    0_usize,
+                    1_u32,
+                )
+            }
+        }
+
+        /// Run `operation` in a forked child after `apply_landlock` and
+        /// report whether the operation was denied.
+        fn denied_under_landlock(operation: impl FnOnce() -> bool) -> bool {
+            crate::cli::i18n::init_for_tests();
+            // SAFETY: the child only installs the ruleset, runs a single
+            // syscall-level operation, and `_exit`s.
+            let pid = unsafe { libc::fork() };
+            assert!(pid >= 0, "fork failed");
+            if pid == 0 {
+                let code = match apply_landlock() {
+                    Ok(()) => i32::from(!operation()),
+                    Err(_) => 2,
+                };
+                // SAFETY: terminate the child without running destructors.
+                unsafe { libc::_exit(code) }
+            }
+            let mut status = 0_i32;
+            // SAFETY: `pid` is the child forked above.
+            let waited = unsafe { libc::waitpid(pid, &raw mut status, 0) };
+            assert_eq!(waited, pid);
+            assert!(!libc_wifsignaled(status), "child died: {status}");
+            let code = (status >> 8) & 0xFF;
+            assert_ne!(code, 2, "apply_landlock failed in child");
+            code == 0
+        }
+
+        fn failed_with_eacces(rc: libc::c_int) -> bool {
+            rc != 0 && std::io::Error::last_os_error().raw_os_error() == Some(libc::EACCES)
+        }
+
+        #[test]
+        fn landlocked_child_cannot_truncate_files() {
+            if kernel_landlock_abi() < 3 {
+                return;
+            }
+            let dir = assert_fs::TempDir::new().unwrap();
+            let file = dir.path().join("store.age");
+            std::fs::write(&file, b"ciphertext").unwrap();
+            let path = std::ffi::CString::new(file.as_os_str().as_encoded_bytes()).unwrap();
+
+            // SAFETY: `path` is a valid NUL-terminated C string.
+            let denied = denied_under_landlock(|| {
+                failed_with_eacces(unsafe { libc::truncate(path.as_ptr(), 0) })
+            });
+
+            assert!(denied, "truncate(2) succeeded inside the sandbox");
+            assert_eq!(std::fs::read(&file).unwrap(), b"ciphertext");
+        }
+
+        #[test]
+        fn landlocked_child_cannot_bind_tcp_ports() {
+            if kernel_landlock_abi() < 4 {
+                return;
+            }
+            let denied = denied_under_landlock(|| {
+                std::net::TcpListener::bind("127.0.0.1:0")
+                    .is_err_and(|err| err.raw_os_error() == Some(libc::EACCES))
+            });
+            assert!(denied, "TCP bind succeeded inside the sandbox");
+        }
+
+        #[test]
+        fn landlocked_child_cannot_connect_to_pathname_unix_sockets() {
+            if kernel_landlock_abi() < 9 {
+                return;
+            }
+            let dir = assert_fs::TempDir::new().unwrap();
+            let socket = dir.path().join("agent.sock");
+            let _listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+            let denied =
+                denied_under_landlock(|| std::os::unix::net::UnixStream::connect(&socket).is_err());
+            assert!(denied, "unix socket connect succeeded inside the sandbox");
+        }
+
+        #[test]
+        fn landlocked_child_cannot_connect_to_abstract_unix_sockets() {
+            use std::os::linux::net::SocketAddrExt;
+            if kernel_landlock_abi() < 6 {
+                return;
+            }
+            let name = format!("pasejo-sandbox-test-{}", std::process::id());
+            let address = std::os::unix::net::SocketAddr::from_abstract_name(&name).unwrap();
+            let _listener = std::os::unix::net::UnixListener::bind_addr(&address).unwrap();
+            let denied = denied_under_landlock(|| {
+                std::os::unix::net::UnixStream::connect_addr(&address).is_err()
+            });
+            assert!(
+                denied,
+                "abstract unix socket connect succeeded inside the sandbox"
+            );
         }
 
         #[test]
