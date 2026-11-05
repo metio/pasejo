@@ -86,9 +86,10 @@ impl HookExecutor<'_> {
         if global_commands.is_empty() && store_commands.is_empty() {
             return Ok(());
         }
-        let Some(store_name) = self.registration.path().file_name() else {
+        let Some(store_name) = marker_name(self.registration.path()) else {
             anyhow::bail!(i18n::error_cannot_determine_store_name())
         };
+        let store_name = store_name.as_os_str();
         if self.force || (!self.offline && self.is_due(phase, store_name)?) {
             match phase {
                 Phase::Pull => i18n::execute_pull_hooks(&self.registration.name),
@@ -185,6 +186,24 @@ impl HookExecutor<'_> {
     }
 }
 
+/// The throttle-marker file name for the store at `path`: its file name,
+/// for readability, plus a hash of the whole path, so stores in different
+/// directories that share a file name keep separate markers.
+fn marker_name(path: &Path) -> Option<OsString> {
+    let mut name = path.file_name()?.to_os_string();
+    name.push(format!(
+        "-{:016x}",
+        fnv1a_64(path.as_os_str().as_encoded_bytes())
+    ));
+    Some(name)
+}
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+    })
+}
+
 /// Resolve `%p` placeholders in a tokenized hook command. A token equal to
 /// `"%p"` is replaced with the raw store path passed as a single argument,
 /// so paths containing shell metacharacters (quotes, semicolons, spaces)
@@ -272,5 +291,71 @@ mod tests {
         assert_eq!(args[1], OsString::from("commit"));
         assert_eq!(args[2], OsString::from("-m"));
         assert_eq!(args[3], OsString::from("changed /tmp/store"));
+    }
+
+    #[test]
+    fn marker_name_keeps_the_file_name_and_differs_per_directory() {
+        let first = marker_name(Path::new("/a/store.age")).unwrap();
+        let second = marker_name(Path::new("/b/store.age")).unwrap();
+        assert_ne!(first, second);
+        assert!(first.to_string_lossy().starts_with("store.age-"));
+        assert_eq!(first, marker_name(Path::new("/a/store.age")).unwrap());
+    }
+
+    #[test]
+    fn fnv1a_64_matches_the_reference_vectors() {
+        assert_eq!(fnv1a_64(b""), 0xcbf2_9ce4_8422_2325);
+        assert_eq!(fnv1a_64(b"a"), 0xaf63_dc4c_8601_ec8c);
+        assert_eq!(fnv1a_64(b"foobar"), 0x8594_4171_f739_67e8);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[serial_test::serial(pasejo_hook_env)]
+    fn stores_sharing_a_file_name_are_throttled_independently() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        // SAFETY: the `pasejo_hook_env` serial group keeps every test that
+        // touches these variables from running concurrently.
+        unsafe {
+            std::env::remove_var(crate::cli::environment_variables::PASEJO_DISABLE_HOOK_THROTTLING);
+            std::env::set_var(
+                crate::cli::environment_variables::PASEJO_DATA_DIR,
+                temp.path().join("data"),
+            );
+        }
+        let registration = |name: &str| {
+            let directory = temp.path().join(name);
+            std::fs::create_dir_all(&directory).unwrap();
+            StoreRegistration {
+                path: directory.join("store.age"),
+                name: name.to_string(),
+                identities: vec![],
+                pull_commands: vec![format!(
+                    "touch {}",
+                    temp.path().join(format!("pulled-{name}")).display()
+                )],
+                push_commands: vec![],
+            }
+        };
+        let first = registration("first");
+        let second = registration("second");
+        let configuration = Configuration::default();
+
+        HookExecutor::new(&configuration, &first, false)
+            .execute_pull_commands()
+            .unwrap();
+        HookExecutor::new(&configuration, &second, false)
+            .execute_pull_commands()
+            .unwrap();
+
+        unsafe {
+            std::env::remove_var(crate::cli::environment_variables::PASEJO_DATA_DIR);
+        }
+        assert!(temp.path().join("pulled-first").exists());
+        assert!(
+            temp.path().join("pulled-second").exists(),
+            "the second store's pull hook was throttled by the first store's marker"
+        );
     }
 }
