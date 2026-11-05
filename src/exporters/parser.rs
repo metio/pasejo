@@ -9,7 +9,11 @@ pub struct ParsedSecret {
     pub fields: BTreeMap<String, String>,
 }
 
-pub fn parse_secret(secret: &str) -> ParsedSecret {
+/// Values of fields named in `username_keys` or `uri_keys` are trimmed,
+/// because stores often align them (`login:    alice`) and the padding
+/// would otherwise reach a login form or an import. The password, the
+/// notes and every other field value are kept verbatim.
+pub fn parse_secret(secret: &str, username_keys: &[String], uri_keys: &[String]) -> ParsedSecret {
     let mut password: Option<String> = None;
     let mut notes: Vec<String> = vec![];
     let mut fields: BTreeMap<String, String> = BTreeMap::new();
@@ -24,10 +28,13 @@ pub fn parse_secret(secret: &str) -> ParsedSecret {
             password = Some(line.to_owned());
         } else if let Some((key, value)) = line.split_once(": ") {
             // Keys are conventional identifiers, so indentation is dropped.
-            // Values are stored verbatim so deliberate whitespace survives
-            // the round-trip (e.g. a password that intentionally trails a
-            // space to satisfy a server's odd validator).
-            fields.insert(key.trim().to_owned(), value.to_owned());
+            let key = key.trim().to_owned();
+            let value = if username_keys.contains(&key) || uri_keys.contains(&key) {
+                value.trim()
+            } else {
+                value
+            };
+            fields.insert(key, value.to_owned());
         } else {
             notes.push(line.to_owned());
         }
@@ -46,7 +53,7 @@ mod tests {
 
     #[test]
     fn empty_input_yields_empty_parsed_secret() {
-        let parsed = parse_secret("");
+        let parsed = parse_secret("", &[], &[]);
         assert!(parsed.password.is_none());
         assert!(parsed.notes.is_empty());
         assert!(parsed.fields.is_empty());
@@ -54,7 +61,7 @@ mod tests {
 
     #[test]
     fn first_non_field_line_becomes_password() {
-        let parsed = parse_secret("hunter2");
+        let parsed = parse_secret("hunter2", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
         assert!(parsed.notes.is_empty());
         assert!(parsed.fields.is_empty());
@@ -62,7 +69,7 @@ mod tests {
 
     #[test]
     fn lines_with_colon_separator_become_fields() {
-        let parsed = parse_secret("hunter2\nuser: alice\nurl: https://example.com");
+        let parsed = parse_secret("hunter2\nuser: alice\nurl: https://example.com", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
         assert_eq!(parsed.fields.get("user").map(String::as_str), Some("alice"));
         assert_eq!(
@@ -74,47 +81,62 @@ mod tests {
 
     #[test]
     fn additional_non_field_lines_become_notes() {
-        let parsed = parse_secret("hunter2\nfirst note\nsecond note");
+        let parsed = parse_secret("hunter2\nfirst note\nsecond note", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
         assert_eq!(parsed.notes, vec!["first note", "second note"]);
     }
 
     #[test]
     fn empty_lines_are_skipped() {
-        let parsed = parse_secret("\n\nhunter2\n\nnote\n");
+        let parsed = parse_secret("\n\nhunter2\n\nnote\n", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
         assert_eq!(parsed.notes, vec!["note"]);
     }
 
     #[test]
     fn password_preserves_deliberate_whitespace() {
-        let parsed = parse_secret("  hunter2  ");
+        let parsed = parse_secret("  hunter2  ", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("  hunter2  "));
     }
 
     #[test]
     fn field_key_is_trimmed_but_value_is_preserved_verbatim() {
-        // Indented keys lose their indentation (keys are conventional
-        // identifiers), but value padding survives so users can store
-        // whitespace-sensitive content like server tokens that pad to a
-        // fixed width.
-        let parsed = parse_secret("hunter2\n  user:   alice   ");
+        let parsed = parse_secret("hunter2\n  token:   abc   ", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("hunter2"));
         assert_eq!(
-            parsed.fields.get("user").map(String::as_str),
-            Some("  alice   ")
+            parsed.fields.get("token").map(String::as_str),
+            Some("  abc   ")
+        );
+    }
+
+    #[test]
+    fn username_and_uri_values_are_trimmed() {
+        let parsed = parse_secret(
+            "  hunter2  \n  user:   alice   \nurl: \thttps://example.com \nnote:  kept  ",
+            &[String::from("user")],
+            &[String::from("url")],
+        );
+        assert_eq!(parsed.password.as_deref(), Some("  hunter2  "));
+        assert_eq!(parsed.fields.get("user").map(String::as_str), Some("alice"));
+        assert_eq!(
+            parsed.fields.get("url").map(String::as_str),
+            Some("https://example.com")
+        );
+        assert_eq!(
+            parsed.fields.get("note").map(String::as_str),
+            Some(" kept  ")
         );
     }
 
     #[test]
     fn notes_preserve_deliberate_whitespace() {
-        let parsed = parse_secret("hunter2\n  indented note  ");
+        let parsed = parse_secret("hunter2\n  indented note  ", &[], &[]);
         assert_eq!(parsed.notes, vec!["  indented note  "]);
     }
 
     #[test]
     fn whitespace_only_lines_are_skipped() {
-        let parsed = parse_secret("\n   \n\thunter2\n \nnote");
+        let parsed = parse_secret("\n   \n\thunter2\n \nnote", &[], &[]);
         // The first non-blank line is "\thunter2" (with a leading tab); the
         // leading tab is part of the password content.
         assert_eq!(parsed.password.as_deref(), Some("\thunter2"));
@@ -125,14 +147,14 @@ mod tests {
     fn line_without_colon_space_is_not_a_field() {
         // The parser specifically looks for ": " (colon + space), so "user:alice"
         // is treated as the password (first non-field line), not a field.
-        let parsed = parse_secret("user:alice");
+        let parsed = parse_secret("user:alice", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("user:alice"));
         assert!(parsed.fields.is_empty());
     }
 
     #[test]
     fn first_line_is_the_password_even_when_it_contains_colon_space() {
-        let parsed = parse_secret("p4ss: w0rd\nnote\nuser: alice");
+        let parsed = parse_secret("p4ss: w0rd\nnote\nuser: alice", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("p4ss: w0rd"));
         assert_eq!(parsed.notes, vec!["note"]);
         assert_eq!(parsed.fields.len(), 1);
@@ -141,7 +163,7 @@ mod tests {
 
     #[test]
     fn single_line_secret_with_colon_space_is_the_password() {
-        let parsed = parse_secret("ab: cd");
+        let parsed = parse_secret("ab: cd", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("ab: cd"));
         assert!(parsed.fields.is_empty());
     }

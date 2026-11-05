@@ -87,7 +87,7 @@ fn match_secret(
     uri_keys: &[String],
     username_keys: &[String],
 ) -> Option<Match> {
-    let parsed = parse_secret(value);
+    let parsed = parse_secret(value, username_keys, uri_keys);
 
     let mut username = String::new();
     let mut other_fields: BTreeMap<String, String> = BTreeMap::new();
@@ -208,11 +208,8 @@ fn has_url_scheme(input: &str) -> bool {
 }
 
 fn extract_host(input: &str) -> Option<String> {
-    // `parse_secret` preserves field values verbatim, so a stored line
-    // like `url:    https://example.com` (extra spaces / a tab after the
-    // key) keeps the leading whitespace. Trim it before scheme detection
-    // and parsing — otherwise a leading space defeats `has_url_scheme`
-    // and the URL silently fails to match.
+    // A leading space defeats `has_url_scheme`, so the value is trimmed
+    // here as well as in `parse_secret`.
     let input = input.trim();
     // The `url` crate's parser is the trust boundary for URL shape:
     // it handles percent-encoded hostnames, IDN punycode, userinfo,
@@ -486,6 +483,29 @@ mod tests {
         );
         assert_eq!(result[0].username, "alice@example.com");
         assert!(!result[0].fields.contains_key("login"));
+    }
+
+    #[test]
+    fn aligned_username_and_url_values_are_trimmed_but_password_and_fields_are_not() {
+        let store = store_with(&[(
+            "alice",
+            " hunter2 \nurl:      https://example.com  \nlogin:    alice\t\nnote:   padded  ",
+        )]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].username, "alice");
+        assert_eq!(result[0].url.as_deref(), Some("https://example.com"));
+        assert_eq!(result[0].password, " hunter2 ");
+        assert_eq!(
+            result[0].fields.get("note").map(String::as_str),
+            Some("  padded  ")
+        );
     }
 
     #[test]

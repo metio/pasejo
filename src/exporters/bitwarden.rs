@@ -126,7 +126,7 @@ impl BitwardenItem {
         username_keys: &[String],
         uri_keys: &[String],
     ) -> Self {
-        let parsed = parse_secret(secret);
+        let parsed = parse_secret(secret, username_keys, uri_keys);
         let (username, uris, fields) = parsed.extract_fields(username_keys, uri_keys);
         Self {
             id: Uuid::now_v7().to_string(),
@@ -439,6 +439,25 @@ mod tests {
         // The user field must not also be in the generic fields list.
         let fields = item["fields"].as_array().unwrap();
         assert!(fields.iter().all(|f| f["name"] != "user"));
+    }
+
+    #[test]
+    fn aligned_username_and_uri_values_are_trimmed_but_password_and_fields_are_not() {
+        let store = store_with(&[(
+            "login",
+            " hunter2 \nuser:    alice\t\nurl:   https://example.com  \nnote:   padded  ",
+        )]);
+        let username_keys = vec![String::from("user")];
+        let uri_keys = vec![String::from("url")];
+
+        let payload = build_individual(&store, &username_keys, &uri_keys);
+
+        let item = &payload.items[0];
+        assert_eq!(item.login.username, "alice");
+        assert_eq!(item.login.uris[0].uri, "https://example.com");
+        assert_eq!(item.login.password, " hunter2 ");
+        assert_eq!(item.fields[0].name, "note");
+        assert_eq!(item.fields[0].value, "  padded  ");
     }
 
     #[test]

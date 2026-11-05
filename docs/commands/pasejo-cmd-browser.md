@@ -21,7 +21,7 @@ Options:
 
 ```
 
-`browser query` searches a single store for credentials matching the given domain and prints the results as JSON on stdout. URL field matches (against any field listed in `--uri-keys`) are scored higher than fallback matches against the secret's path segments.
+`browser query` searches a single store for credentials matching the given domain and prints the results as JSON on stdout. URL field matches (against any field listed in `--uri-keys`) are scored higher than fallback matches against the secret's path segments. Leading and trailing whitespace is removed from the values of fields listed in `--uri-keys` and `--username-keys`, so an aligned `login:    alice` yields the username `alice`; the password and all other fields are returned verbatim.
 
 `browser host` runs the same matching logic as a long-lived native-messaging host: the browser spawns this process per its native-messaging manifest, exchanges length-prefixed JSON messages over stdin/stdout, and closes the pipe when the user closes the browser. The host refuses to start when stdin is a terminal — it is not meant to be run by hand. Store selection follows the same rules as every other pasejo command (`PASEJO_DEFAULT_STORE` env, the config's `default_store` field, then the first store); the manifest pins a specific configuration and store through the `--env` flag of `install-manifest` (below), which bakes them into the generated wrapper.
 
