@@ -6,6 +6,7 @@
 recipient-added = Recipient for '{ $public_key }' added
 recipient-removed = Recipient for '{ $public_key }' removed
 recipient-does-not-exist-ignored = Recipient for '{ $public_key }' does not exist in store - ignoring
+recipient-unsupported-key-skipped = Skipping { $provider } key of type '{ $key_type }' for user '{ $username }': age cannot encrypt to it
 
 ## Secrets
 

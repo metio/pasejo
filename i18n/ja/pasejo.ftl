@@ -6,6 +6,7 @@
 recipient-added = 受信者 '{ $public_key }' を追加しました
 recipient-removed = 受信者 '{ $public_key }' を削除しました
 recipient-does-not-exist-ignored = 受信者 '{ $public_key }' はストアに存在しません - 無視します
+recipient-unsupported-key-skipped = { $provider } ユーザー '{ $username }' の種類 '{ $key_type }' の鍵をスキップします: age はこの鍵に暗号化できません
 
 ## シークレット
 

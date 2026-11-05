@@ -6,6 +6,7 @@
 recipient-added = Destinataire pour '{ $public_key }' ajouté
 recipient-removed = Destinataire pour '{ $public_key }' supprimé
 recipient-does-not-exist-ignored = Le destinataire pour '{ $public_key }' n'existe pas dans le coffre – ignoré
+recipient-unsupported-key-skipped = Clé { $provider } de type '{ $key_type }' de l'utilisateur '{ $username }' ignorée : age ne peut pas chiffrer pour elle
 
 ## Secrets
 

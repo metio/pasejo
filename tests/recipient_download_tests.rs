@@ -29,6 +29,9 @@ const KEY_A: &str =
 const KEY_B: &str =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJgE1240mCyWQRPB6hcGuVqX6wVtrJJZCGh1KSAaODmB";
 
+// An `ecdsa-sha2-nistp256` key, a type age parses but cannot encrypt to.
+const KEY_UNSUPPORTED: &str = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
+
 /// How the fixture server answers a matched route.
 enum Reply {
     /// `200 OK` with this body — a `.keys` payload.
@@ -198,6 +201,38 @@ fn recipient_add_from_account_with_multiple_keys_adds_every_key() {
 }
 
 #[test]
+fn recipient_add_skips_downloaded_keys_age_cannot_encrypt_to() {
+    let base = server_with(
+        "/tester.keys",
+        Reply::Body(format!("{KEY_UNSUPPORTED}\n{KEY_A}\n")),
+    );
+    let (_temp, config) = setup_store();
+
+    add_recipient(&config, "--github", "GITHUB_HOST", &base)
+        .success()
+        .stderr(
+            predicates::str::contains(format!("Recipient for '{KEY_A}' added"))
+                .and(predicates::str::contains("ecdsa-sha2-nistp256"))
+                .and(
+                    predicates::str::contains(format!("Recipient for '{KEY_UNSUPPORTED}' added"))
+                        .not(),
+                ),
+        );
+}
+
+#[test]
+fn recipient_add_fails_when_every_downloaded_key_is_unusable() {
+    let base = server_with("/tester.keys", Reply::Body(format!("{KEY_UNSUPPORTED}\n")));
+    let (_temp, config) = setup_store();
+
+    add_recipient(&config, "--github", "GITHUB_HOST", &base)
+        .failure()
+        .stderr(predicates::str::contains(
+            "github user 'tester' has no public SSH keys to add as recipients",
+        ));
+}
+
+#[test]
 fn recipient_add_from_account_with_no_keys_fails_with_a_clear_error() {
     // R4 regression: an empty `.keys` body must be a clear "no public keys"
     // error, not a downstream `Invalid recipient ''`.
@@ -282,5 +317,25 @@ fn recipient_add_404_message_is_localized() {
         .failure()
         .stderr(predicates::str::contains(
             "codeberg kennt keinen Benutzer 'tester'",
+        ));
+}
+
+#[test]
+fn recipient_add_unsupported_key_warning_is_localized() {
+    let base = server_with(
+        "/tester.keys",
+        Reply::Body(format!("{KEY_UNSUPPORTED}\n{KEY_A}\n")),
+    );
+    let (_temp, config) = setup_store();
+
+    pasejo(&config)
+        .args(["recipient", "add", "--github", "tester"])
+        .env("GITHUB_HOST", &base)
+        .env("LANG", "de")
+        .env("LC_ALL", "de")
+        .assert()
+        .success()
+        .stderr(predicates::str::contains(
+            "github-Schlüssel vom Typ 'ecdsa-sha2-nistp256' für Benutzer 'tester' wird übersprungen",
         ));
 }

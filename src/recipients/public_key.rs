@@ -4,6 +4,8 @@
 use std::fs;
 use std::time::Duration;
 
+use age::ssh::ParseRecipientKeyError;
+
 use crate::cli::i18n;
 use crate::downloader::{Provider, download_public_key};
 use crate::models::cli::RecipientKeysArgs;
@@ -73,7 +75,10 @@ fn download_keys(
     download_timeout: Duration,
 ) -> anyhow::Result<Vec<(String, String)>> {
     let body = download_public_key(provider, username, download_timeout)?;
-    let public_keys = split_keys_body(&body)?;
+    let (public_keys, unsupported_key_types) = partition_encryptable(split_keys_body(&body)?);
+    for key_type in &unsupported_key_types {
+        i18n::recipient_unsupported_key_skipped(provider.name(), key_type, username);
+    }
     if public_keys.is_empty() {
         anyhow::bail!(i18n::error_no_public_keys_for_user(
             provider.name(),
@@ -96,6 +101,28 @@ fn split_keys_body(body: &str) -> anyhow::Result<Vec<(String, String)>> {
         public_keys.push(split_ssh_key(line)?);
     }
     Ok(public_keys)
+}
+
+/// Separates SSH keys that age cannot encrypt to (unsupported key types,
+/// RSA moduli outside age's bounds) from the rest and returns their key
+/// types. Lines age rejects as malformed stay in the first list so they
+/// surface as an encryption error instead of being dropped.
+fn partition_encryptable(keys: Vec<(String, String)>) -> (Vec<(String, String)>, Vec<String>) {
+    let mut encryptable = vec![];
+    let mut unsupported_key_types = vec![];
+    for (key, comment) in keys {
+        match key.parse::<age::ssh::Recipient>() {
+            Err(
+                ParseRecipientKeyError::Unsupported(_)
+                | ParseRecipientKeyError::RsaModulusTooSmall
+                | ParseRecipientKeyError::RsaModulusTooLarge
+                | ParseRecipientKeyError::Ignore,
+            ) => unsupported_key_types
+                .push(key.split_whitespace().next().unwrap_or_default().to_owned()),
+            _ => encryptable.push((key, comment)),
+        }
+    }
+    (encryptable, unsupported_key_types)
 }
 
 fn append_comment_line(buffer: &mut String, line: &str) {
@@ -210,6 +237,25 @@ mod tests {
     fn split_keys_body_propagates_a_malformed_key_line() {
         // A truncated `ssh-…` line is rejected (mirrors split_ssh_key).
         assert!(split_keys_body("ssh-ed25519 AAAA\nssh-rsa").is_err());
+    }
+
+    #[test]
+    fn partition_encryptable_separates_key_types_age_cannot_encrypt_to() {
+        let ed25519 =
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOycTzXsl1jetsf+Ezi/2FCVU8oydXxxJhb9D7n6MlGf";
+        let ecdsa = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
+        let keys = split_keys_body(&format!("{ecdsa}\n{ed25519}\nssh-ed25519 AAAA")).unwrap();
+
+        let (encryptable, unsupported) = partition_encryptable(keys);
+
+        assert_eq!(
+            encryptable,
+            vec![
+                (ed25519.to_owned(), String::new()),
+                ("ssh-ed25519 AAAA".to_owned(), String::new()),
+            ]
+        );
+        assert_eq!(unsupported, vec!["ecdsa-sha2-nistp256".to_owned()]);
     }
 
     #[test]

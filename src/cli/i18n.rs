@@ -243,6 +243,14 @@ macro_rules! fl_string {
 // Status logs — info level
 fl_log!(info, recipient_added, "recipient-added", public_key);
 fl_log!(info, recipient_removed, "recipient-removed", public_key);
+fl_log!(
+    warn,
+    recipient_unsupported_key_skipped,
+    "recipient-unsupported-key-skipped",
+    provider,
+    key_type,
+    username
+);
 fl_log!(info, secret_added, "secret-added", secret_path);
 fl_log!(info, secret_edited, "secret-edited", secret_path);
 fl_log!(info, secret_generated, "secret-generated", secret_path);

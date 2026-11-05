@@ -6,6 +6,7 @@
 recipient-added = 已添加接收者 '{ $public_key }'
 recipient-removed = 已移除接收者 '{ $public_key }'
 recipient-does-not-exist-ignored = 接收者 '{ $public_key }' 在存储中不存在 - 忽略
+recipient-unsupported-key-skipped = 跳过 { $provider } 用户 '{ $username }' 的 '{ $key_type }' 类型密钥：age 无法向其加密
 
 ## 密文
 

@@ -6,6 +6,7 @@
 recipient-added = Empfänger für '{ $public_key }' hinzugefügt
 recipient-removed = Empfänger für '{ $public_key }' entfernt
 recipient-does-not-exist-ignored = Empfänger für '{ $public_key }' existiert nicht im Speicher – wird ignoriert
+recipient-unsupported-key-skipped = { $provider }-Schlüssel vom Typ '{ $key_type }' für Benutzer '{ $username }' wird übersprungen: age kann nicht an ihn verschlüsseln
 
 ## Geheimnisse
 

@@ -6,6 +6,7 @@
 recipient-added = '{ $public_key }' 수신자가 추가되었습니다
 recipient-removed = '{ $public_key }' 수신자가 제거되었습니다
 recipient-does-not-exist-ignored = '{ $public_key }' 수신자가 저장소에 존재하지 않습니다 - 무시합니다
+recipient-unsupported-key-skipped = { $provider } 사용자 '{ $username }'의 '{ $key_type }' 유형 키를 건너뜁니다: age는 이 키로 암호화할 수 없습니다
 
 ## 비밀
 
