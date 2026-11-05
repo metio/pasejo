@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 use std::env::var_os;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf, absolute};
@@ -253,9 +254,13 @@ impl Configuration {
     /// The store name used when none is given: `PASEJO_DEFAULT_STORE`,
     /// else `default_store`.
     pub fn default_store_name(&self) -> Option<String> {
-        var_os(environment_variables::PASEJO_DEFAULT_STORE).map_or_else(
+        self.default_store_name_from(var_os(environment_variables::PASEJO_DEFAULT_STORE))
+    }
+
+    fn default_store_name_from(&self, env_value: Option<OsString>) -> Option<String> {
+        env_value.map_or_else(
             || self.default_store.clone(),
-            |value| value.into_string().ok(),
+            |value| Some(value.to_string_lossy().into_owned()),
         )
     }
 
@@ -892,6 +897,24 @@ mod tests {
             let store = cfg.select_store(None).unwrap();
             assert_eq!(store.name, "alpha");
         }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn default_store_name_keeps_a_non_utf8_environment_value() {
+        use std::os::unix::ffi::OsStringExt;
+
+        let cfg = Configuration {
+            default_store: Some(String::from("beta")),
+            ..configuration_with_stores(vec![
+                registration("alpha", "/tmp/alpha"),
+                registration("beta", "/tmp/beta"),
+            ])
+        };
+        let name = cfg
+            .default_store_name_from(Some(OsString::from_vec(b"w\xffrk".to_vec())))
+            .expect("a set PASEJO_DEFAULT_STORE must not be ignored");
+        assert!(cfg.find_store(&name).is_none());
     }
 
     #[test]
