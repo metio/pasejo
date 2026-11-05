@@ -129,6 +129,7 @@ error-not-allowed-to-remove-one-time-password = Not allowed to remove one-time p
 error-no-one-time-password-found = No one-time password found at '{ $password_path }'
 error-invalid-one-time-password-secret = The one-time password secret must be a non-empty base32 string (letters A-Z and digits 2-7)
 error-invalid-otpauth-url = The otpauth URL does not describe a valid one-time password
+error-hotp-counter-exhausted = The HOTP counter has reached its maximum value and cannot advance
 error-no-store-in-configuration = No store found in configuration. Run 'pasejo store add ...' first to add one
 error-unknown-store = Store '{ $store_name }' does not exist in the configuration. Run 'pasejo store list' to see the configured stores.
 error-decrypt-requires-yes-i-know = Refusing to decrypt: this prints every secret in plaintext to stdout. Pass --yes-i-know to confirm.

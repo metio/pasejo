@@ -129,6 +129,7 @@ error-not-allowed-to-remove-one-time-password = No se permite eliminar la contra
 error-no-one-time-password-found = No se encontró ninguna contraseña de un solo uso en '{ $password_path }'
 error-invalid-one-time-password-secret = El secreto de la contraseña de un solo uso debe ser una cadena base32 no vacía (letras A-Z y dígitos 2-7)
 error-invalid-otpauth-url = La URL otpauth no describe una contraseña de un solo uso válida
+error-hotp-counter-exhausted = El contador HOTP ha alcanzado su valor máximo y no puede avanzar
 error-no-store-in-configuration = No se encontró ningún almacén en la configuración. Ejecute 'pasejo store add ...' primero para añadir uno
 error-unknown-store = El almacén '{ $store_name }' no existe en la configuración. Ejecute 'pasejo store list' para ver los almacenes configurados.
 error-decrypt-requires-yes-i-know = Descifrado rechazado: esto imprimirá todos los secretos en texto plano en stdout. Pase --yes-i-know para confirmar.

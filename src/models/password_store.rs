@@ -95,12 +95,15 @@ impl OneTimePassword {
     }
 
     fn generate_hotp(&mut self) -> anyhow::Result<u32> {
+        let Some(next_counter) = self.counter.checked_add(1) else {
+            anyhow::bail!(i18n::error_hotp_counter_exhausted());
+        };
         let code = Hotp::builder()
             .base(self.base()?)
             .counter(Counter::new(self.counter))
             .build()
             .generate();
-        self.counter += 1;
+        self.counter = next_counter;
         Ok(code)
     }
 
@@ -326,6 +329,16 @@ mod tests {
             err.to_string().contains("base32"),
             "expected the localized secret error, got: {err}"
         );
+    }
+
+    #[test]
+    fn generate_hotp_at_the_maximum_counter_fails_and_keeps_the_counter() {
+        crate::cli::i18n::init_for_tests();
+        let mut otp = sample_otp();
+        otp.otp_type = OneTimePasswordType::Hotp;
+        otp.counter = u64::MAX;
+        assert!(otp.generate().is_err());
+        assert_eq!(otp.counter, u64::MAX);
     }
 
     #[test]

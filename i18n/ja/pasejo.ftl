@@ -129,6 +129,7 @@ error-not-allowed-to-remove-one-time-password = { $password_path } のワンタ�
 error-no-one-time-password-found = '{ $password_path }' にワンタイムパスワードが見つかりません
 error-invalid-one-time-password-secret = ワンタイムパスワードのシークレットは空でない base32 文字列 (英字 A-Z と数字 2-7) である必要があります
 error-invalid-otpauth-url = otpauth URL が有効なワンタイムパスワードを表していません
+error-hotp-counter-exhausted = HOTP カウンターが最大値に達したため、これ以上進められません
 error-no-store-in-configuration = 設定にストアが見つかりません。最初に 'pasejo store add ...' を実行して追加してください
 error-unknown-store = ストア '{ $store_name }' は設定に存在しません。'pasejo store list' を実行して設定済みのストアを確認してください。
 error-decrypt-requires-yes-i-know = 復号を拒否しました: すべてのシークレットが平文で stdout に出力されます。確認のため --yes-i-know を指定してください。

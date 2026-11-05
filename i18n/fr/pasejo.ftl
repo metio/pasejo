@@ -129,6 +129,7 @@ error-not-allowed-to-remove-one-time-password = Suppression du mot de passe à u
 error-no-one-time-password-found = Aucun mot de passe à usage unique trouvé à '{ $password_path }'
 error-invalid-one-time-password-secret = Le secret du mot de passe à usage unique doit être une chaîne base32 non vide (lettres A-Z et chiffres 2-7)
 error-invalid-otpauth-url = L'URL otpauth ne décrit pas un mot de passe à usage unique valide
+error-hotp-counter-exhausted = Le compteur HOTP a atteint sa valeur maximale et ne peut plus avancer
 error-no-store-in-configuration = Aucun coffre trouvé dans la configuration. Exécutez d'abord 'pasejo store add ...' pour en ajouter un
 error-unknown-store = Le magasin '{ $store_name }' n'existe pas dans la configuration. Exécutez 'pasejo store list' pour voir les magasins configurés.
 error-decrypt-requires-yes-i-know = Déchiffrement refusé : cela affichera tous les secrets en clair sur stdout. Passez --yes-i-know pour confirmer.
