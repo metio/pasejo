@@ -113,10 +113,11 @@ impl<C: ClipboardBackend> Drop for ClipboardGuard<C> {
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 static HANDLER_INSTALLED: OnceLock<()> = OnceLock::new();
 
-/// Installs a process-wide Ctrl-C handler on first call. `ctrlc::set_handler`
-/// only allows one handler per process, so we install it lazily once and
-/// reuse the same `INTERRUPTED` flag for every call. If installation fails,
-/// the wait loop will only exit when the configured timeout elapses.
+/// Installs a process-wide handler for Ctrl-C, SIGTERM and SIGHUP on first
+/// call. `ctrlc::set_handler` only allows one handler per process, so we
+/// install it lazily once and reuse the same `INTERRUPTED` flag for every
+/// call. If installation fails, the wait loop will only exit when the
+/// configured timeout elapses.
 fn install_interrupt_handler() {
     HANDLER_INSTALLED.get_or_init(|| {
         if let Err(error) = ctrlc::set_handler(|| INTERRUPTED.store(true, Ordering::Relaxed)) {
@@ -137,10 +138,11 @@ fn install_interrupt_handler() {
 /// - The text is placed on the clipboard with `exclude_from_history` set where
 ///   the platform supports it (macOS, Windows, and Linux clipboard managers
 ///   that honour the hint — many Linux managers do not).
-/// - A process-wide Ctrl-C handler is installed on first call via
-///   `ctrlc::set_handler`. Once installed, SIGINT sets a flag rather than
-///   terminating the process, so the wait loop can exit cleanly and the
-///   clipboard can be cleared. Subsequent calls reuse the same handler.
+/// - A process-wide handler is installed on first call via
+///   `ctrlc::set_handler`. Once installed, SIGINT, SIGTERM and SIGHUP (closing
+///   the terminal) set a flag rather than terminating the process, so the wait
+///   loop can exit cleanly and the clipboard can be cleared. Subsequent calls
+///   reuse the same handler.
 /// - `duration` is clamped to one year so the wait is always bounded.
 /// - On exit, the clipboard is cleared only if it still contains the value we
 ///   wrote — if the user copied something else in the meantime, their new
@@ -183,9 +185,10 @@ pub struct ClipboardSession {
 /// store lock before the (up to 24h, default 45s) wait so it does not
 /// serialize concurrent operations on the same store.
 pub fn place_secret_in_clipboard(text: &str) -> anyhow::Result<ClipboardSession> {
-    // Install the Ctrl-C handler before any secret enters the clipboard, so
-    // SIGINT triggers our handler (which lets the loop exit and Drop run
-    // clear()) instead of the default action that _exit()s without unwinding.
+    // Install the signal handler before any secret enters the clipboard, so
+    // SIGINT, SIGTERM and SIGHUP trigger our handler (which lets the loop exit
+    // and run clear()) instead of the default action that terminates the
+    // process without unwinding.
     install_interrupt_handler();
     // Reset the flag so a Ctrl-C from a prior invocation in the same process
     // doesn't make us skip the wait. The handler itself is `'static` and
@@ -280,6 +283,53 @@ fn notification(outcome: &anyhow::Result<ClearOutcome>, cancelled: bool) -> (Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Raise `signal` in a forked child after installing the interrupt
+    /// handler and report whether the child observed it through
+    /// `INTERRUPTED` instead of dying from the default disposition.
+    #[cfg(target_os = "linux")]
+    fn signal_sets_interrupted_flag(signal: libc::c_int) -> bool {
+        // SAFETY: the child installs the handler, raises one signal, polls
+        // an atomic, and `_exit`s.
+        let pid = unsafe { libc::fork() };
+        assert!(pid >= 0, "fork failed");
+        if pid == 0 {
+            install_interrupt_handler();
+            INTERRUPTED.store(false, Ordering::Relaxed);
+            // SAFETY: raising a signal in the current process.
+            unsafe { libc::raise(signal) };
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !INTERRUPTED.load(Ordering::Relaxed) && Instant::now() < deadline {
+                thread::sleep(Duration::from_millis(10));
+            }
+            let code = i32::from(!INTERRUPTED.load(Ordering::Relaxed));
+            // SAFETY: terminate the child without running destructors.
+            unsafe { libc::_exit(code) }
+        }
+        let mut status = 0_i32;
+        // SAFETY: `pid` is the child forked above.
+        let waited = unsafe { libc::waitpid(pid, &raw mut status, 0) };
+        assert_eq!(waited, pid);
+        status == 0
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn sigint_during_hold_is_turned_into_an_interrupt() {
+        assert!(signal_sets_interrupted_flag(libc::SIGINT));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn sigterm_during_hold_is_turned_into_an_interrupt() {
+        assert!(signal_sets_interrupted_flag(libc::SIGTERM));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn sighup_during_hold_is_turned_into_an_interrupt() {
+        assert!(signal_sets_interrupted_flag(libc::SIGHUP));
+    }
 
     #[test]
     fn max_deadline_does_not_overflow_instant() {
