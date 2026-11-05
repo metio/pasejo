@@ -397,7 +397,9 @@ fn generate(
             exclude_similar_characters,
             strict,
         };
-        let secret = generator.generate_one().map_err(anyhow::Error::msg)?;
+        let secret = generator
+            .generate_one()
+            .map_err(|reason| anyhow::anyhow!(localize_generator_error(reason)))?;
 
         if inplace {
             if let Some(current_value) = store.secrets.get(secret_path) {
@@ -419,6 +421,18 @@ fn generate(
         i18n::secret_generated(secret_path);
         Ok(((), StoreMutation::Modified))
     })
+}
+
+/// Translates the fixed English error strings of the `passwords` generator.
+fn localize_generator_error(reason: &str) -> String {
+    match reason {
+        "The length of passwords cannot be 0." => i18n::error_password_length_zero(),
+        "The length of passwords is too short." => i18n::error_password_length_too_short(),
+        "You need to enable at least one kind of characters." => {
+            i18n::error_password_no_character_kinds()
+        }
+        _ => i18n::error_password_generation_failed(reason),
+    }
 }
 
 fn edit(
@@ -485,9 +499,35 @@ fn grep(
 
 #[cfg(test)]
 mod tests {
-    use super::{LineSelector, Pattern, audit_score, extract_line};
+    use super::{LineSelector, Pattern, audit_score, extract_line, localize_generator_error};
 
     const THREE_LINE_SECRET: &str = "password\nuser: alice\nurl: https://example.com";
+
+    #[test]
+    fn localize_generator_error_covers_every_generator_error() {
+        crate::cli::i18n::init_for_tests();
+        for options in [
+            passwords::PasswordGenerator::new().length(0),
+            passwords::PasswordGenerator::new()
+                .length(2)
+                .numbers(true)
+                .lowercase_letters(true)
+                .uppercase_letters(true)
+                .strict(true),
+            passwords::PasswordGenerator::new()
+                .numbers(false)
+                .lowercase_letters(false)
+                .uppercase_letters(false)
+                .symbols(false)
+                .spaces(false),
+        ] {
+            let reason = options.generate_one().unwrap_err();
+            assert!(
+                !localize_generator_error(reason).contains(reason),
+                "untranslated generator error: {reason}"
+            );
+        }
+    }
 
     #[test]
     fn audit_score_ignores_metadata_lines() {

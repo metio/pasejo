@@ -14,4 +14,12 @@ error: invalid value '-8' for '--length <LENGTH>': invalid digit found in string
 
 For more information, try '--help'.
 
+$ pasejo secret generate some-secret --length 0
+? 1
+Error: The password length must not be 0
+
+$ pasejo secret generate some-secret --length 2
+? 1
+Error: The password length is too short for the required character kinds
+
 ```

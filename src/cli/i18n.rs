@@ -565,6 +565,20 @@ fl_string!(
     "error-secret-already-exists-overwrite-or-inplace",
     secret_path
 );
+fl_string!(error_password_length_zero, "error-password-length-zero");
+fl_string!(
+    error_password_length_too_short,
+    "error-password-length-too-short"
+);
+fl_string!(
+    error_password_no_character_kinds,
+    "error-password-no-character-kinds"
+);
+fl_string!(
+    error_password_generation_failed,
+    "error-password-generation-failed",
+    reason
+);
 fl_string!(error_no_secret_found, "error-no-secret-found", secret_path);
 fl_string!(
     error_not_allowed_to_remove_secret,
