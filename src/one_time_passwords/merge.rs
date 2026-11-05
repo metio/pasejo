@@ -6,19 +6,51 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 
 use crate::cli;
-use crate::models::password_store::OneTimePassword;
+use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 
+/// Three-way merge of the OTP maps. A HOTP entry whose counter both sides
+/// advanced past the ancestor's, with every other field unchanged, merges to
+/// the higher counter: emitting a lower counter again would replay codes the
+/// server has already consumed.
 pub fn merge_one_time_passwords(
     common_ancestor_one_time_passwords: &BTreeMap<String, OneTimePassword>,
     current_version_one_time_passwords: &BTreeMap<String, OneTimePassword>,
     other_version_one_time_passwords: &BTreeMap<String, OneTimePassword>,
 ) -> Result<BTreeMap<String, OneTimePassword>> {
+    let mut current = current_version_one_time_passwords.clone();
+    let mut other = other_version_one_time_passwords.clone();
+    for (key, ancestor) in common_ancestor_one_time_passwords {
+        if let (Some(current_value), Some(other_value)) = (current.get_mut(key), other.get_mut(key))
+            && both_advanced_only_the_hotp_counter(ancestor, current_value, other_value)
+        {
+            let counter = current_value.counter.max(other_value.counter);
+            current_value.counter = counter;
+            other_value.counter = counter;
+        }
+    }
     cli::merger::three_way_merge_map(
         common_ancestor_one_time_passwords,
-        current_version_one_time_passwords,
-        other_version_one_time_passwords,
+        &current,
+        &other,
         "one-time password",
     )
+}
+
+fn both_advanced_only_the_hotp_counter(
+    ancestor: &OneTimePassword,
+    current: &OneTimePassword,
+    other: &OneTimePassword,
+) -> bool {
+    let without_counter = |otp: &OneTimePassword| {
+        let mut otp = otp.clone();
+        otp.counter = 0;
+        otp
+    };
+    ancestor.otp_type == OneTimePasswordType::Hotp
+        && current.counter > ancestor.counter
+        && other.counter > ancestor.counter
+        && without_counter(current) == without_counter(ancestor)
+        && without_counter(other) == without_counter(ancestor)
 }
 
 #[cfg(test)]
@@ -115,6 +147,50 @@ mod tests {
 
         let result = merge_one_time_passwords(&common, &current, &other).unwrap();
         assert_eq!(result.get("github"), Some(&added));
+    }
+
+    fn hotp_with_counter(counter: u64) -> OneTimePassword {
+        let mut otp = sample_otp("AAAA");
+        otp.otp_type = OneTimePasswordType::Hotp;
+        otp.period = 0;
+        otp.counter = counter;
+        otp
+    }
+
+    #[test]
+    fn merge_takes_higher_counter_when_both_sides_advanced_a_hotp_counter() {
+        crate::cli::i18n::init_for_tests();
+        let common = BTreeMap::from([("bank".to_string(), hotp_with_counter(5))]);
+        let current = BTreeMap::from([("bank".to_string(), hotp_with_counter(6))]);
+        let other = BTreeMap::from([("bank".to_string(), hotp_with_counter(7))]);
+
+        let result = merge_one_time_passwords(&common, &current, &other).unwrap();
+        assert_eq!(result.get("bank"), Some(&hotp_with_counter(7)));
+
+        let result = merge_one_time_passwords(&common, &other, &current).unwrap();
+        assert_eq!(result.get("bank"), Some(&hotp_with_counter(7)));
+    }
+
+    #[test]
+    fn merge_reports_conflict_when_a_hotp_counter_advanced_and_another_field_changed() {
+        crate::cli::i18n::init_for_tests();
+        let mut changed_secret = hotp_with_counter(7);
+        changed_secret.secret = String::from("BBBB");
+        let common = BTreeMap::from([("bank".to_string(), hotp_with_counter(5))]);
+        let current = BTreeMap::from([("bank".to_string(), hotp_with_counter(6))]);
+        let other = BTreeMap::from([("bank".to_string(), changed_secret)]);
+
+        assert!(merge_one_time_passwords(&common, &current, &other).is_err());
+    }
+
+    #[test]
+    fn merge_reports_conflict_when_one_side_lowered_a_hotp_counter() {
+        crate::cli::i18n::init_for_tests();
+        let common = BTreeMap::from([("bank".to_string(), hotp_with_counter(5))]);
+        let current = BTreeMap::from([("bank".to_string(), hotp_with_counter(2))]);
+        let other = BTreeMap::from([("bank".to_string(), hotp_with_counter(7))]);
+
+        assert!(merge_one_time_passwords(&common, &current, &other).is_err());
     }
 
     #[test]
