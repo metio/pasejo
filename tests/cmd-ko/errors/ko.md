@@ -32,4 +32,8 @@ $ pasejo browser install-manifest --browser firefox --print --binary /usr/local/
 ? 1
 Error: --host-name '../escape'은(는) firefox에 유효한 네이티브 메시징 호스트 이름이 아닙니다. 문자, 숫자, 밑줄로 된 부분을 점으로 구분해야 하며, firefox를 제외한 모든 브라우저에서는 소문자여야 합니다.
 
+$ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
+? 1
+Error: 일회용 비밀번호의 시크릿은 비어 있지 않은 base32 문자열(문자 A-Z와 숫자 2-7)이어야 합니다
+
 ```

@@ -32,4 +32,8 @@ $ pasejo browser install-manifest --browser firefox --print --binary /usr/local/
 ? 1
 Error: --host-name '../escape' non è un nome host di messaggistica nativa valido per firefox: deve essere composto da parti separate da punti di lettere, cifre e trattini bassi, in minuscolo per ogni browser tranne firefox.
 
+$ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
+? 1
+Error: Il segreto della password monouso deve essere una stringa base32 non vuota (lettere A-Z e cifre 2-7)
+
 ```

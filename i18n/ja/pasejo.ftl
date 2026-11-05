@@ -127,6 +127,7 @@ error-secret-does-not-exist-for-edit = { $secret_path } にシークレットが
 error-one-time-password-already-exists = ワンタイムパスワードは既に { $password_path } に存在します。上書きするには --force を使用してください。
 error-not-allowed-to-remove-one-time-password = { $password_path } のワンタイムパスワードの削除は許可されていません。上書きするには --force を使用してください。
 error-no-one-time-password-found = '{ $password_path }' にワンタイムパスワードが見つかりません
+error-invalid-one-time-password-secret = ワンタイムパスワードのシークレットは空でない base32 文字列 (英字 A-Z と数字 2-7) である必要があります
 error-no-store-in-configuration = 設定にストアが見つかりません。最初に 'pasejo store add ...' を実行して追加してください
 error-unknown-store = ストア '{ $store_name }' は設定に存在しません。'pasejo store list' を実行して設定済みのストアを確認してください。
 error-decrypt-requires-yes-i-know = 復号を拒否しました: すべてのシークレットが平文で stdout に出力されます。確認のため --yes-i-know を指定してください。

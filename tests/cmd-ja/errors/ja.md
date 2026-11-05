@@ -32,4 +32,8 @@ $ pasejo browser install-manifest --browser firefox --print --binary /usr/local/
 ? 1
 Error: --host-name '../escape' は firefox の有効なネイティブメッセージングホスト名ではありません。英字・数字・アンダースコアからなる部分をドットで区切る必要があり、firefox 以外のブラウザーでは小文字でなければなりません。
 
+$ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
+? 1
+Error: ワンタイムパスワードのシークレットは空でない base32 文字列 (英字 A-Z と数字 2-7) である必要があります
+
 ```

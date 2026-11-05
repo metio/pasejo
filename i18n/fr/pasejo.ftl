@@ -127,6 +127,7 @@ error-secret-does-not-exist-for-edit = Le secret à { $secret_path } n'existe pa
 error-one-time-password-already-exists = Un mot de passe à usage unique existe déjà à { $password_path }. Utilisez --force pour l'écraser.
 error-not-allowed-to-remove-one-time-password = Suppression du mot de passe à usage unique à { $password_path } interdite. Utilisez --force pour l'écraser.
 error-no-one-time-password-found = Aucun mot de passe à usage unique trouvé à '{ $password_path }'
+error-invalid-one-time-password-secret = Le secret du mot de passe à usage unique doit être une chaîne base32 non vide (lettres A-Z et chiffres 2-7)
 error-no-store-in-configuration = Aucun coffre trouvé dans la configuration. Exécutez d'abord 'pasejo store add ...' pour en ajouter un
 error-unknown-store = Le magasin '{ $store_name }' n'existe pas dans la configuration. Exécutez 'pasejo store list' pour voir les magasins configurés.
 error-decrypt-requires-yes-i-know = Déchiffrement refusé : cela affichera tous les secrets en clair sur stdout. Passez --yes-i-know pour confirmer.

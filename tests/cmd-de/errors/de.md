@@ -40,4 +40,8 @@ Usage: pasejo identity remove [OPTIONS] --file <FILE>
 
 For more information, try '--help'.
 
+$ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
+? 1
+Error: Das Geheimnis des Einmalpassworts muss eine nicht leere Base32-Zeichenkette sein (Buchstaben A-Z und Ziffern 2-7)
+
 ```

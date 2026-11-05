@@ -6,9 +6,9 @@ use std::borrow::Cow;
 use otp_std::Otp::{Hotp, Totp};
 use otp_std::auth::query::Query;
 use otp_std::base::SECRET;
-use otp_std::{Otp, Type, auth};
+use otp_std::{Otp, Secret, Type, auth};
 
-use crate::cli::sandbox;
+use crate::cli::{i18n, sandbox};
 use crate::models::cli::OtpAddArgs;
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType};
 
@@ -32,8 +32,12 @@ impl OtpAddArgs {
             let content = sandbox::decode_qrcode_to_otpauth_url(qrcode)?;
             return parse_from_url(&content);
         }
+        let secret = self.secret.as_deref().unwrap_or_default().to_uppercase();
+        if !Secret::decode(&secret).is_ok_and(|decoded| !decoded.as_bytes().is_empty()) {
+            anyhow::bail!(i18n::error_invalid_one_time_password_secret());
+        }
         Ok(OneTimePassword {
-            secret: self.secret.clone().unwrap_or_default().to_uppercase(),
+            secret,
             otp_type: self.otp_type.clone().unwrap_or_default(),
             algorithm: self.algorithm.clone().unwrap_or_default(),
             digits: self.digits.unwrap_or(6),
@@ -101,14 +105,45 @@ mod tests {
 
     #[test]
     fn defaults_are_filled_in_for_missing_arguments() {
-        let result = empty_args().parse_password().unwrap();
-        assert_eq!(result.secret, "");
+        let args = OtpAddArgs {
+            secret: Some(String::from("JBSWY3DPEHPK3PXP")),
+            ..empty_args()
+        };
+        let result = args.parse_password().unwrap();
+        assert_eq!(result.secret, "JBSWY3DPEHPK3PXP");
         assert_eq!(result.otp_type, OneTimePasswordType::Totp);
         assert_eq!(result.algorithm, OneTimePasswordAlgorithm::Sha1);
         assert_eq!(result.digits, 6);
         assert_eq!(result.period, 30);
         assert_eq!(result.counter, 0);
         assert_eq!(result.skew, 0);
+    }
+
+    #[test]
+    fn missing_secret_is_rejected() {
+        crate::cli::i18n::init_for_tests();
+        assert!(empty_args().parse_password().is_err());
+    }
+
+    #[test]
+    fn empty_secret_is_rejected() {
+        crate::cli::i18n::init_for_tests();
+        let args = OtpAddArgs {
+            secret: Some(String::new()),
+            ..empty_args()
+        };
+        assert!(args.parse_password().is_err());
+    }
+
+    #[test]
+    fn secret_that_is_not_base32_is_rejected_without_echoing_it() {
+        crate::cli::i18n::init_for_tests();
+        let args = OtpAddArgs {
+            secret: Some(String::from("JBSWY3DPEHPK3PX0")),
+            ..empty_args()
+        };
+        let err = args.parse_password().unwrap_err();
+        assert!(!format!("{err:?}").contains("JBSWY3DPEHPK3PX0"), "{err:?}");
     }
 
     #[test]

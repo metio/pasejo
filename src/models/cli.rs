@@ -411,7 +411,7 @@ pub struct OtpAddArgs {
     pub qrcode: Option<PathBuf>,
 
     /// The base secret of the one-time password
-    #[arg(long, conflicts_with_all = ["url", "qrcode"])]
+    #[arg(long, conflicts_with_all = ["url", "qrcode"], required_unless_present_any = ["url", "qrcode"])]
     pub secret: Option<String>,
 
     /// The type of the one-time password
