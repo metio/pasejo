@@ -47,10 +47,10 @@ pub fn find_matches(
     uri_keys: &[String],
     username_keys: &[String],
 ) -> Vec<Match> {
-    if domain.is_empty() {
+    let query_domain = canonical_host(domain);
+    if query_domain.is_empty() {
         return vec![];
     }
-    let query_domain = domain.to_lowercase();
     let query_registrable = registrable_domain(&query_domain);
 
     let mut matches: Vec<Match> = store
@@ -182,7 +182,11 @@ fn name_matches_domain(name: &str, query_domain: &str, query_registrable: Option
     let dotted = query_registrable.map(|registrable| format!(".{registrable}"));
     let needle = query_registrable.unwrap_or(query_domain);
     name.split(['/', '\\']).any(|segment| {
-        let lower = segment.to_lowercase();
+        let lower = if segment.is_ascii() {
+            segment.to_lowercase()
+        } else {
+            canonical_host(segment)
+        };
         lower == needle || dotted.as_deref().is_some_and(|d| lower.ends_with(d))
     })
 }
@@ -224,20 +228,32 @@ fn extract_host(input: &str) -> Option<String> {
         url::Url::parse(&format!("http://{input}")).ok()?
     };
     // `host()` (not `host_str()`) so IPv6 addresses come back
-    // UNBRACKETED: `host_str()` returns the serialization slice
-    // `[::1]`, but the browser extension strips the brackets from
-    // `URL.hostname` before sending the query domain, and both sides
-    // must agree on one canonical form for the equality check to
-    // fire.
-    let host = match parsed.host()? {
+    // unbracketed, the same form `canonical_host` gives the query.
+    let host = host_string(&parsed.host()?);
+    if host.is_empty() { None } else { Some(host) }
+}
+
+/// The form both sides of every comparison use: IDNA-encoded and
+/// lowercased by the `url` host parser, IPv6 unbracketed, and without
+/// the DNS root dot. Input the parser rejects is only lowercased.
+fn canonical_host(input: &str) -> String {
+    let input = input.trim();
+    url::Host::parse(input).map_or_else(
+        |_| strip_root_dot(&input.to_lowercase()),
+        |host| host_string(&host),
+    )
+}
+
+fn host_string<S: AsRef<str>>(host: &url::Host<S>) -> String {
+    let rendered = match host {
         url::Host::Ipv6(addr) => addr.to_string(),
         other => other.to_string(),
     };
-    if host.is_empty() {
-        None
-    } else {
-        Some(host.to_lowercase())
-    }
+    strip_root_dot(&rendered.to_lowercase())
+}
+
+fn strip_root_dot(host: &str) -> String {
+    host.strip_suffix('.').unwrap_or(host).to_owned()
 }
 
 /// IP literals have no registrable domain: the public-suffix list's
@@ -565,6 +581,59 @@ mod tests {
         let result = find_matches(&store, "personal", "::1", &uri_keys(), &username_keys());
         assert_eq!(result.len(), 1, "IPv6 URL must match the unbracketed query");
         assert_eq!(result[0].match_kind, MatchKind::UrlField);
+    }
+
+    #[test]
+    fn bracketed_ipv6_query_matches_the_stored_address() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://[::1]:8443/x")]);
+        let result = find_matches(&store, "personal", "[::1]", &uri_keys(), &username_keys());
+        assert_eq!(result.len(), 1, "{result:?}");
+        assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn fully_qualified_query_is_an_exact_host_match() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com.",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1, "{result:?}");
+        assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn unicode_query_matches_a_stored_unicode_url() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://bücher.de")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "Bücher.de",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1, "{result:?}");
+        assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn unicode_name_segment_matches_unicode_and_punycode_queries() {
+        let store = store_with(&[("sites/bücher.de/alice", "hunter2")]);
+        for query in ["bücher.de", "xn--bcher-kva.de"] {
+            let result = find_matches(&store, "personal", query, &uri_keys(), &username_keys());
+            assert_eq!(result.len(), 1, "{query}: {result:?}");
+            assert_eq!(result[0].match_kind, MatchKind::Name);
+        }
+    }
+
+    #[test]
+    fn query_of_only_a_dot_returns_no_matches() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        let result = find_matches(&store, "personal", ".", &uri_keys(), &username_keys());
+        assert!(result.is_empty(), "{result:?}");
     }
 
     #[test]
