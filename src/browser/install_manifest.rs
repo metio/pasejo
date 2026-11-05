@@ -53,7 +53,41 @@ struct ManifestJson<'a> {
     allowed_origins: Option<Vec<String>>,
 }
 
+/// The directories and OS the install resolves its paths against.
+struct InstallDirs {
+    os: &'static str,
+    home: Option<PathBuf>,
+    data: Option<PathBuf>,
+}
+
+impl InstallDirs {
+    fn from_env() -> Self {
+        Self {
+            os: std::env::consts::OS,
+            home: UserDirs::new().map(|dirs| dirs.home_dir().to_path_buf()),
+            data: ProjectDirs::from("wtf", "metio", "pasejo")
+                .map(|dirs| dirs.data_dir().to_path_buf()),
+        }
+    }
+
+    fn home(&self) -> Result<&Path> {
+        self.home
+            .as_deref()
+            .context(i18n::error_browser_install_manifest_no_home_dir())
+    }
+
+    fn data(&self) -> Result<&Path> {
+        self.data
+            .as_deref()
+            .context(i18n::error_browser_install_manifest_no_data_dir())
+    }
+}
+
 pub fn run(args: &InstallManifestArgs) -> Result<()> {
+    install(args, &InstallDirs::from_env())
+}
+
+fn install(args: &InstallManifestArgs, dirs: &InstallDirs) -> Result<()> {
     if args.browsers.is_empty() {
         bail!(i18n::error_browser_install_manifest_no_browser());
     }
@@ -70,7 +104,7 @@ pub fn run(args: &InstallManifestArgs) -> Result<()> {
     let envs = parse_env_pairs(&args.envs)?;
 
     let (manifest_path_field, wrapper) =
-        compute_wrapper(args.binary.as_deref(), &binary, host_name, &envs)?;
+        compute_wrapper(dirs, args.binary.as_deref(), &binary, host_name, &envs)?;
 
     if args.print
         && let Some((wrapper_path, _)) = wrapper.as_ref()
@@ -85,9 +119,9 @@ pub fn run(args: &InstallManifestArgs) -> Result<()> {
     }
 
     // Build (and thereby validate, e.g. chromium browsers requiring an
-    // extension id) EVERY manifest before writing any, so a later
-    // browser's validation failure can't leave earlier browsers'
-    // wrappers and manifests half-installed.
+    // extension id) and locate EVERY manifest before writing any, so a later
+    // browser's failure can't leave the wrapper and earlier manifests
+    // half-installed.
     let mut prepared = Vec::with_capacity(args.browsers.len());
     for browser in &args.browsers {
         let manifest = build_manifest_json(
@@ -97,23 +131,29 @@ pub fn run(args: &InstallManifestArgs) -> Result<()> {
             &args.extension_ids,
         )?;
         let json = serde_json::to_string_pretty(&manifest)?;
-        prepared.push((*browser, json));
+        let target = if args.print {
+            None
+        } else {
+            Some(manifest_path_for_browser(dirs, *browser, host_name)?)
+        };
+        prepared.push((*browser, json, target));
     }
 
-    for (browser, json) in &prepared {
-        if args.print {
+    if !args.print
+        && let Some((wrapper_path, content)) = wrapper.as_ref()
+    {
+        install_wrapper(wrapper_path, content)?;
+    }
+    for (browser, json, target) in &prepared {
+        let Some(target) = target else {
             println!("{json}");
             continue;
-        }
-        if let Some((wrapper_path, content)) = wrapper.as_ref() {
-            install_wrapper(wrapper_path, content)?;
-        }
-        let target = manifest_path_for_browser(*browser, host_name)?;
-        atomic_write::write(&target, json.as_bytes())?;
+        };
+        atomic_write::write(target, json.as_bytes())?;
         // No-op on Unix (the manifest already sits in the lookup directory);
         // on Windows this writes the HKCU registry value pointing at it.
-        register_native_host(*browser, host_name, &target)?;
-        i18n::browser_install_manifest_written(browser.as_str(), &target);
+        register_native_host(*browser, host_name, target)?;
+        i18n::browser_install_manifest_written(browser.as_str(), target);
     }
     Ok(())
 }
@@ -131,6 +171,7 @@ fn resolve_binary(binary_override: Option<&Path>) -> Result<PathBuf> {
 /// manifest at the wrapper under the data directory and ship its content
 /// for the writer to install.
 fn compute_wrapper(
+    dirs: &InstallDirs,
     binary_override: Option<&Path>,
     binary: &Path,
     host_name: &str,
@@ -139,7 +180,7 @@ fn compute_wrapper(
     if binary_override.is_some() {
         return Ok((binary.display().to_string(), None));
     }
-    let wrapper_path = wrapper_path(host_name)?;
+    let wrapper_path = wrapper_path(dirs, host_name)?;
     let content = wrapper_content(binary, envs)?;
     Ok((
         wrapper_path.display().to_string(),
@@ -147,9 +188,7 @@ fn compute_wrapper(
     ))
 }
 
-fn wrapper_path(host_name: &str) -> Result<PathBuf> {
-    let dirs = ProjectDirs::from("wtf", "metio", "pasejo")
-        .context(i18n::error_browser_install_manifest_no_data_dir())?;
+fn wrapper_path(dirs: &InstallDirs, host_name: &str) -> Result<PathBuf> {
     // `.cmd` so Windows launches it as a batch script (the manifest's `path`
     // points here); no extension on Unix, where the shebang drives execution.
     let filename = if cfg!(windows) {
@@ -157,7 +196,7 @@ fn wrapper_path(host_name: &str) -> Result<PathBuf> {
     } else {
         host_name.to_owned()
     };
-    Ok(dirs.data_dir().join(filename))
+    Ok(dirs.data()?.join(filename))
 }
 
 /// The wrapper script for the current platform. The wrapper exists because
@@ -265,17 +304,20 @@ fn install_wrapper(path: &Path, content: &str) -> Result<()> {
     atomic_write::write_with_mode(path, content.as_bytes(), 0o700)
 }
 
-fn manifest_path_for_browser(browser: InstallManifestBrowser, host_name: &str) -> Result<PathBuf> {
+fn manifest_path_for_browser(
+    dirs: &InstallDirs,
+    browser: InstallManifestBrowser,
+    host_name: &str,
+) -> Result<PathBuf> {
     // On Windows the manifest is not placed in a magic per-browser directory;
     // a registry value (written by `register_native_host`) points the browser
     // at it. Keep it per-browser under the data dir so each browser's distinct
     // `allowed_origins` / `allowed_extensions` manifest gets its own file.
     if cfg!(windows) {
-        return windows_manifest_path(browser, host_name);
+        return windows_manifest_path(dirs, browser, host_name);
     }
-    let dirs = UserDirs::new().context(i18n::error_browser_install_manifest_no_home_dir())?;
-    let home = dirs.home_dir();
-    let relative = match (std::env::consts::OS, browser) {
+    let home = dirs.home()?;
+    let relative = match (dirs.os, browser) {
         ("linux", InstallManifestBrowser::Firefox) => ".mozilla/native-messaging-hosts",
         ("linux", InstallManifestBrowser::Chrome) => ".config/google-chrome/NativeMessagingHosts",
         ("linux", InstallManifestBrowser::Chromium) => ".config/chromium/NativeMessagingHosts",
@@ -314,11 +356,13 @@ fn manifest_path_for_browser(browser: InstallManifestBrowser, host_name: &str) -
 /// Per-browser manifest path under the user's data directory, used on Windows
 /// where the lookup happens through the registry rather than a fixed directory.
 /// Always compiled (pure path computation) so it is unit-testable off Windows.
-fn windows_manifest_path(browser: InstallManifestBrowser, host_name: &str) -> Result<PathBuf> {
-    let dirs = ProjectDirs::from("wtf", "metio", "pasejo")
-        .context(i18n::error_browser_install_manifest_no_data_dir())?;
+fn windows_manifest_path(
+    dirs: &InstallDirs,
+    browser: InstallManifestBrowser,
+    host_name: &str,
+) -> Result<PathBuf> {
     Ok(dirs
-        .data_dir()
+        .data()?
         .join("native-messaging")
         .join(browser.as_str())
         .join(format!("{host_name}.json")))
@@ -569,7 +613,12 @@ mod tests {
 
     #[test]
     fn manifest_path_for_browser_uses_per_browser_directory() {
-        let path = manifest_path_for_browser(InstallManifestBrowser::Firefox, HOST_NAME).unwrap();
+        let path = manifest_path_for_browser(
+            &InstallDirs::from_env(),
+            InstallManifestBrowser::Firefox,
+            HOST_NAME,
+        )
+        .unwrap();
         let s = path.display().to_string();
         let expected_fragment = match std::env::consts::OS {
             "linux" => ".mozilla/native-messaging-hosts",
@@ -597,9 +646,10 @@ mod tests {
         // per-OS directory arm fails here (it would otherwise fall through to
         // the unsupported-OS bail at runtime) rather than shipping broken.
         for browser in InstallManifestBrowser::value_variants() {
-            let path = manifest_path_for_browser(*browser, HOST_NAME).unwrap_or_else(|error| {
-                panic!("no native-messaging directory for {browser:?} on {os}: {error}")
-            });
+            let path = manifest_path_for_browser(&InstallDirs::from_env(), *browser, HOST_NAME)
+                .unwrap_or_else(|error| {
+                    panic!("no native-messaging directory for {browser:?} on {os}: {error}")
+                });
             let rendered = path.display().to_string();
             assert!(
                 rendered.to_lowercase().contains("nativemessaginghosts")
@@ -709,6 +759,55 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "#!/bin/sh\n");
     }
 
+    fn firefox_args() -> InstallManifestArgs {
+        InstallManifestArgs {
+            browsers: vec![InstallManifestBrowser::Firefox],
+            extension_ids: vec![],
+            print: false,
+            binary: None,
+            host_name: None,
+            envs: vec![],
+        }
+    }
+
+    fn temp_dirs(temp: &assert_fs::TempDir, os: &'static str) -> InstallDirs {
+        InstallDirs {
+            os,
+            home: Some(temp.path().join("home")),
+            data: Some(temp.path().join("data")),
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn install_on_an_unsupported_os_writes_nothing() {
+        i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let dirs = temp_dirs(&temp, "freebsd");
+
+        assert!(install(&firefox_args(), &dirs).is_err());
+
+        assert!(!temp.path().join("data").exists());
+        assert!(!temp.path().join("home").exists());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn install_writes_the_wrapper_and_the_manifest() {
+        i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let dirs = temp_dirs(&temp, "linux");
+
+        install(&firefox_args(), &dirs).unwrap();
+
+        assert!(temp.path().join("data").join(HOST_NAME).is_file());
+        let manifest = temp
+            .path()
+            .join("home/.mozilla/native-messaging-hosts")
+            .join(format!("{HOST_NAME}.json"));
+        assert!(manifest.is_file());
+    }
+
     #[test]
     fn windows_registry_subkey_is_defined_for_every_browser() {
         use clap::ValueEnum;
@@ -736,7 +835,12 @@ mod tests {
 
     #[test]
     fn windows_manifest_path_is_per_browser_under_the_data_dir() {
-        let path = windows_manifest_path(InstallManifestBrowser::Chrome, HOST_NAME).unwrap();
+        let path = windows_manifest_path(
+            &InstallDirs::from_env(),
+            InstallManifestBrowser::Chrome,
+            HOST_NAME,
+        )
+        .unwrap();
         let rendered = path.display().to_string();
         assert!(rendered.contains("native-messaging"), "{rendered}");
         assert!(rendered.contains("chrome"), "{rendered}");
