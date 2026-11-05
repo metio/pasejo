@@ -175,16 +175,16 @@ fn score_url_field(
     None
 }
 
+/// Subdomain segments only count when the query has a registrable domain;
+/// without one (an IP, a public suffix, a single-label host) the suffix
+/// rule would cross site boundaries, so only the exact host matches.
 fn name_matches_domain(name: &str, query_domain: &str, query_registrable: Option<&str>) -> bool {
+    let dotted = query_registrable.map(|registrable| format!(".{registrable}"));
     let needle = query_registrable.unwrap_or(query_domain);
-    let dotted = format!(".{needle}");
-    for segment in name.split(['/', '\\']) {
+    name.split(['/', '\\']).any(|segment| {
         let lower = segment.to_lowercase();
-        if lower == needle || lower.ends_with(&dotted) {
-            return true;
-        }
-    }
-    false
+        lower == needle || dotted.as_deref().is_some_and(|d| lower.ends_with(d))
+    })
 }
 
 /// Reports whether `input` starts with a URL scheme per the RFC 3986
@@ -673,6 +673,33 @@ mod tests {
             &username_keys(),
         );
         assert!(result.is_empty(), "{result:?}");
+    }
+
+    #[test]
+    fn name_fallback_on_a_public_suffix_query_does_not_match_its_subdomains() {
+        let store = store_with(&[("sites/myapp.herokuapp.com/alice", "pw")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "herokuapp.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert!(result.is_empty(), "{result:?}");
+    }
+
+    #[test]
+    fn name_fallback_on_an_ip_query_needs_the_exact_address() {
+        let store = store_with(&[("devices/10.0.0.1", "pw"), ("devices/198.51.0.1", "pw")]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "198.51.0.1",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result.len(), 1, "{result:?}");
+        assert_eq!(result[0].name, "devices/198.51.0.1");
     }
 
     #[test]
