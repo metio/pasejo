@@ -359,9 +359,8 @@ mod tests {
             .expect("B should acquire once A releases");
 
         let (c_acquired_tx, c_acquired_rx) = mpsc::channel();
-        let c_path = path.clone();
         let newcomer_c = std::thread::spawn(move || {
-            let guard_c = acquire_store_lock(&c_path).unwrap();
+            let guard_c = acquire_store_lock(&path).unwrap();
             c_acquired_tx.send(()).unwrap();
             drop(guard_c);
         });

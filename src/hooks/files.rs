@@ -194,7 +194,7 @@ mod tests {
         write_last_execution(Some((dir.clone(), file.clone()))).unwrap();
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let writer = {
-            let (dir, file, stop) = (dir.clone(), file.clone(), stop.clone());
+            let (file, stop) = (file.clone(), stop.clone());
             std::thread::spawn(move || {
                 while !stop.load(std::sync::atomic::Ordering::Relaxed) {
                     write_last_execution(Some((dir.clone(), file.clone()))).unwrap();
