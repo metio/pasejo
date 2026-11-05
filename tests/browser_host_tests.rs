@@ -665,3 +665,103 @@ fn host_runs_no_pull_hook_while_another_process_holds_the_store_lock() {
         "the host ran its pull hook while another process held the store lock"
     );
 }
+
+#[cfg(unix)]
+fn passphrase_protected_identity() -> Vec<u8> {
+    let mut recipient = age::scrypt::Recipient::new(age::secrecy::SecretString::from(
+        String::from("correct horse battery staple"),
+    ));
+    recipient.set_work_factor(10);
+    age::encrypt_and_armor(&recipient, TEST_PRIVATE_KEY.as_bytes())
+        .unwrap()
+        .into_bytes()
+}
+
+#[cfg(unix)]
+fn recording_pinentry(temp: &TempDir, marker: &std::path::Path) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let pinentry = temp.path().join("pinentry");
+    std::fs::write(
+        &pinentry,
+        format!("#!/bin/sh\ntouch '{}'\nexit 1\n", marker.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&pinentry, std::fs::Permissions::from_mode(0o700)).unwrap();
+    pinentry
+}
+
+#[cfg(unix)]
+fn query_with_pinentry(config: &std::path::Path, pinentry: &std::path::Path) -> String {
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .env("PASEJO_CONFIG", config)
+        .env("PINENTRY_PROGRAM", pinentry)
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    write_request(&mut stdin, br#"{"action":"query","domain":"example.com"}"#);
+    let response = read_response(&mut stdout);
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+    response
+}
+
+#[cfg(unix)]
+#[test]
+fn host_reports_a_passphrase_protected_identity_as_locked_without_prompting() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
+    let config = temp.path().join("config.toml");
+    std::fs::write(
+        temp.path().join("identity"),
+        passphrase_protected_identity(),
+    )
+    .unwrap();
+    let marker = temp.path().join("prompted");
+    let pinentry = recording_pinentry(&temp, &marker);
+
+    let response = query_with_pinentry(&config, &pinentry);
+
+    assert!(
+        !marker.exists(),
+        "the host asked for the passphrase of an encrypted identity"
+    );
+    assert!(
+        response.contains(r#""error":"identity_locked""#),
+        "response was: {response}"
+    );
+    assert!(response.contains("passphrase"), "response was: {response}");
+}
+
+#[cfg(unix)]
+#[test]
+fn host_decrypts_with_an_unencrypted_identity_next_to_a_passphrase_protected_one() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
+    let config = temp.path().join("config.toml");
+    let protected = temp.path().join("a-protected-identity");
+    std::fs::write(&protected, passphrase_protected_identity()).unwrap();
+    pasejo(&config)
+        .args(["identity", "add", "--global", "--file"])
+        .arg(&protected)
+        .assert()
+        .success();
+    let marker = temp.path().join("prompted");
+    let pinentry = recording_pinentry(&temp, &marker);
+
+    let response = query_with_pinentry(&config, &pinentry);
+
+    assert!(
+        response.contains(r#""name":"alice""#),
+        "response was: {response}"
+    );
+    assert!(
+        !marker.exists(),
+        "the host asked for the passphrase of an encrypted identity"
+    );
+}

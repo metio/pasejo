@@ -211,6 +211,7 @@ error-failed-to-run-command = Befehl { $binary } konnte nicht ausgeführt werden
 error-command-exited-with = Befehl { $binary } beendet mit { $exit }
 error-browser-host-requires-pipe = Der Browser-Host benötigt eine weitergeleitete Standardeingabe von der verbundenen Browser-Erweiterung. Führen Sie diesen Befehl über das Native-Messaging-Manifest Ihres Browsers aus, nicht direkt in einem Terminal.
 error-browser-store-file-missing = Speicherdatei existiert nicht: { $path }
+error-browser-identity-passphrase-protected = Der Browser-Host kann nicht nach der Passphrase einer verschlüsselten Identität fragen. Verwenden Sie für diesen Speicher eine unverschlüsselte oder Plugin-gestützte Identität.
 error-browser-message-too-large = Nachricht mit { $length } Bytes überschreitet die Native-Messaging-Grenze von { $limit } Bytes
 error-browser-response-too-large = Antwort mit { $length } Bytes überschreitet die Native-Messaging-Grenze von { $limit } Bytes
 error-browser-install-manifest-no-browser = Geben Sie mindestens einen --browser an, für den das Native-Messaging-Manifest installiert werden soll.

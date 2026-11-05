@@ -16,3 +16,7 @@ regexes = [
 description = "Deliberately invalid base32 OTP secret used by the rejection tests"
 regexTarget = "line"
 regexes = ['''JBSWY3DPEHPK3PX0''']
+
+[[allowlists]]
+description = "Throwaway passphrase-protected SSH key that pins the encrypted-identity detection; it protects no real data"
+paths = ['''^tests/fixtures/passphrase-protected-ed25519$''']

@@ -105,8 +105,9 @@ pub enum ErrorKind {
     UnknownAction,
     DecodeError,
     /// The identities could not be read, or none of them decrypts the
-    /// store: a locked age identity that needs ssh-agent, "no identity
-    /// files configured", or "identities don't match recipients."
+    /// store: only passphrase-protected identities (the host cannot prompt
+    /// for a passphrase, so it skips them), "no identity files configured",
+    /// "identities don't match recipients", or a failing age plugin.
     IdentityLocked,
     /// A pull or push hook command returned non-zero or could not be spawned.
     /// The hint carries the underlying anyhow chain so the extension can

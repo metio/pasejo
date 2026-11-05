@@ -82,6 +82,23 @@ pub fn read(
     )?)
 }
 
+/// Whether the identity file at `path` is passphrase-protected: an age file
+/// encrypted to a passphrase, or an encrypted SSH private key. Decrypting
+/// with such an identity asks for its passphrase. Unreadable files and every
+/// other format count as unprotected and are left to [`read`] to report.
+pub fn is_passphrase_protected(path: &Path) -> bool {
+    let Ok(bytes) = std::fs::read(path) else {
+        return false;
+    };
+    let encrypted_age = age::Decryptor::new(age::armor::ArmoredReader::new(bytes.as_slice()))
+        .is_ok_and(|decryptor| decryptor.is_scrypt());
+    encrypted_age
+        || matches!(
+            age::ssh::Identity::from_buffer(bytes.as_slice(), None),
+            Ok(age::ssh::Identity::Encrypted(_))
+        )
+}
+
 /// The device-identifying suffix of an `AGE-PLUGIN-YUBIKEY-…` identity line:
 /// its final `-`-separated segment, which the plugin's `--identity` output
 /// echoes for a connected device. `None` for any line that is not a yubikey
@@ -149,7 +166,91 @@ fn is_executable_file(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use age::secrecy::SecretString;
+    use assert_fs::TempDir;
+
     use super::*;
+
+    fn passphrase_recipient() -> age::scrypt::Recipient {
+        let mut recipient =
+            age::scrypt::Recipient::new(SecretString::from(String::from("correct horse")));
+        recipient.set_work_factor(10);
+        recipient
+    }
+
+    fn write(temp: &TempDir, name: &str, contents: &[u8]) -> PathBuf {
+        let path = temp.path().join(name);
+        std::fs::write(&path, contents).unwrap();
+        path
+    }
+
+    #[test]
+    fn is_passphrase_protected_detects_an_armored_passphrase_encrypted_age_identity() {
+        let temp = TempDir::new().unwrap();
+        let identity = age::x25519::Identity::generate();
+        let armored = age::encrypt_and_armor(
+            &passphrase_recipient(),
+            age::secrecy::ExposeSecret::expose_secret(&identity.to_string()).as_bytes(),
+        )
+        .unwrap();
+        assert!(is_passphrase_protected(&write(
+            &temp,
+            "identity.age",
+            armored.as_bytes()
+        )));
+    }
+
+    #[test]
+    fn is_passphrase_protected_detects_a_binary_passphrase_encrypted_age_identity() {
+        let temp = TempDir::new().unwrap();
+        let binary = age::encrypt(&passphrase_recipient(), b"AGE-SECRET-KEY-1").unwrap();
+        assert!(is_passphrase_protected(&write(
+            &temp,
+            "identity.age",
+            &binary
+        )));
+    }
+
+    #[test]
+    fn is_passphrase_protected_detects_an_encrypted_ssh_key() {
+        let temp = TempDir::new().unwrap();
+        let key = include_str!("../../tests/fixtures/passphrase-protected-ed25519");
+        assert!(is_passphrase_protected(&write(
+            &temp,
+            "id_ed25519",
+            key.as_bytes()
+        )));
+    }
+
+    #[test]
+    fn is_passphrase_protected_accepts_an_unencrypted_age_identity() {
+        let temp = TempDir::new().unwrap();
+        let identity = age::x25519::Identity::generate();
+        let text = age::secrecy::ExposeSecret::expose_secret(&identity.to_string()).to_owned();
+        assert!(!is_passphrase_protected(&write(
+            &temp,
+            "identity",
+            text.as_bytes()
+        )));
+    }
+
+    #[test]
+    fn is_passphrase_protected_accepts_an_age_file_encrypted_to_a_recipient() {
+        let temp = TempDir::new().unwrap();
+        let recipient = age::x25519::Identity::generate().to_public();
+        let ciphertext = age::encrypt(&recipient, b"AGE-SECRET-KEY-1").unwrap();
+        assert!(!is_passphrase_protected(&write(
+            &temp,
+            "identity.age",
+            &ciphertext
+        )));
+    }
+
+    #[test]
+    fn is_passphrase_protected_accepts_a_missing_file() {
+        let temp = TempDir::new().unwrap();
+        assert!(!is_passphrase_protected(&temp.path().join("missing")));
+    }
 
     #[test]
     fn yubikey_device_tag_extracts_the_final_segment() {

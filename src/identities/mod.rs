@@ -3,4 +3,4 @@
 
 mod files;
 
-pub use self::files::read;
+pub use self::files::{is_passphrase_protected, read};

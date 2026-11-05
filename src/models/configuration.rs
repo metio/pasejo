@@ -338,7 +338,15 @@ impl Configuration {
         &self,
         registration: &StoreRegistration,
     ) -> Result<Vec<Box<dyn age::Identity>>> {
-        let identity_files = self.all_identity_files(registration);
+        self.read_identity_files(self.all_identity_files(registration))
+    }
+
+    /// Reads the given identity files, honouring the configured
+    /// `ignore_missing_identities`.
+    pub fn read_identity_files(
+        &self,
+        identity_files: Vec<PathBuf>,
+    ) -> Result<Vec<Box<dyn age::Identity>>> {
         if identity_files.is_empty() {
             anyhow::bail!(i18n::error_no_identity_files_to_decrypt());
         }

@@ -198,7 +198,7 @@ pub struct InstallManifestArgs {
 
     /// Environment variable in `KEY=VALUE` form to bake into the
     /// generated wrapper script. Repeatable. Use this to pin
-    /// `SSH_AUTH_SOCK`, `PASEJO_CONFIG`, `PASEJO_DEFAULT_STORE`, or
+    /// `PASEJO_CONFIG`, `PASEJO_DEFAULT_STORE`, `PINENTRY_PROGRAM`, or
     /// anything else the browser-spawned host won't otherwise inherit.
     /// Has no effect with `--print` (the wrapper isn't generated then)
     /// or with `--binary` (the wrapper isn't generated then).

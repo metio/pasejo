@@ -17,6 +17,7 @@ use crate::browser::protocol::{
 use crate::cli::i18n;
 use crate::commands::store_op::try_acquire_store_lock;
 use crate::hooks::executor::HookExecutor;
+use crate::identities;
 use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration, decrypt_store_with};
 use crate::models::password_store::PasswordStore;
@@ -26,13 +27,13 @@ use crate::models::password_store::PasswordStore;
 // the host into multi-gigabyte allocations.
 pub const MAX_MESSAGE_LEN: usize = 1024 * 1024;
 
-// Bounded worker pool. The workload is I/O-bound (file I/O, ssh-agent
-// stdio, age plugin stdio, sometimes a YubiKey touch), not CPU-bound,
+// Bounded worker pool. The workload is I/O-bound (file I/O, hook
+// subprocesses, age plugin stdio, sometimes a YubiKey touch), not CPU-bound,
 // so the pool size doesn't track `available_parallelism()`. 16 covers
 // the realistic upper bound of concurrent stores a real user has
 // configured (typical: 1–10, aggressive deployments: ~20) with
 // headroom. Adding more workers wouldn't help — they'd all be waiting
-// on the same single physical YubiKey or ssh-agent socket.
+// on the same single physical YubiKey.
 const HOST_WORKER_THREADS: usize = 16;
 
 // Bounded request queue. Without it, a misbehaving caller pipelining
@@ -145,11 +146,33 @@ fn open_store_for_read(
         ));
     }
 
+    // The host has no terminal to ask for a passphrase on, so it decrypts
+    // with the identities that need none and reports `IdentityLocked` when
+    // those are not enough.
+    let (protected, usable): (Vec<_>, Vec<_>) = configuration
+        .all_identity_files(registration)
+        .into_iter()
+        .partition(|file| identities::is_passphrase_protected(file));
+    if usable.is_empty() && !protected.is_empty() {
+        return Err((
+            ErrorKind::IdentityLocked,
+            anyhow::anyhow!(i18n::error_browser_identity_passphrase_protected()),
+        ));
+    }
     let identities = configuration
-        .read_identities(registration)
+        .read_identity_files(usable)
         .map_err(|err| (ErrorKind::IdentityLocked, err))?;
-    let store = decrypt_store_with(registration.path(), &identities)
-        .map_err(|err| (decrypt_error_kind(&err), err))?;
+    let store = decrypt_store_with(registration.path(), &identities).map_err(|err| {
+        let kind = decrypt_error_kind(&err);
+        if kind == ErrorKind::IdentityLocked && !protected.is_empty() {
+            (
+                kind,
+                err.context(i18n::error_browser_identity_passphrase_protected()),
+            )
+        } else {
+            (kind, err)
+        }
+    })?;
     drop(lock);
     Ok(store)
 }

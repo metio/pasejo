@@ -211,6 +211,7 @@ error-failed-to-run-command = コマンド { $binary } の実行に失敗しま�
 error-command-exited-with = コマンド { $binary } は { $exit } で終了しました
 error-browser-host-requires-pipe = ブラウザホストには、接続中のブラウザ拡張機能からのパイプ標準入力が必要です。このコマンドはブラウザのネイティブメッセージングマニフェスト経由で実行してください。ターミナルから直接実行しないでください。
 error-browser-store-file-missing = ストアファイルが存在しません: { $path }
+error-browser-identity-passphrase-protected = ブラウザーホストは暗号化されたアイデンティティのパスフレーズを尋ねることができません。このストアには暗号化されていないアイデンティティかプラグインベースのアイデンティティを使用してください。
 error-browser-message-too-large = { $length } バイトのメッセージがネイティブメッセージングの上限 { $limit } バイトを超えています
 error-browser-response-too-large = { $length } バイトの応答がネイティブメッセージングの上限 { $limit } バイトを超えています
 error-browser-install-manifest-no-browser = ネイティブメッセージングマニフェストをインストールする --browser を少なくとも1つ指定してください。

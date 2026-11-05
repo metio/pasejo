@@ -923,6 +923,10 @@ fl_string!(
     path
 );
 fl_string!(
+    error_browser_identity_passphrase_protected,
+    "error-browser-identity-passphrase-protected"
+);
+fl_string!(
     error_browser_message_too_large,
     "error-browser-message-too-large",
     length,

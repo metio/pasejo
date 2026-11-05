@@ -211,6 +211,7 @@ error-failed-to-run-command = Failed to run command { $binary }
 error-command-exited-with = Command { $binary } exited with { $exit }
 error-browser-host-requires-pipe = Browser host requires a piped stdin from the connecting browser extension. Run this command via your browser's native-messaging manifest, not directly from a terminal.
 error-browser-store-file-missing = Store file does not exist: { $path }
+error-browser-identity-passphrase-protected = The browser host cannot ask for the passphrase of an encrypted identity. Use an unencrypted or plugin-backed identity for this store.
 error-browser-message-too-large = Message of { $length } bytes exceeds the native-messaging limit of { $limit } bytes
 error-browser-response-too-large = Response of { $length } bytes exceeds the native-messaging limit of { $limit } bytes
 error-browser-install-manifest-no-browser = Specify at least one --browser to install the native-messaging manifest for.

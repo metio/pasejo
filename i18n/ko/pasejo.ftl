@@ -211,6 +211,7 @@ error-failed-to-run-command = 명령 { $binary } 실행 실패
 error-command-exited-with = 명령 { $binary }이(가) { $exit }(으)로 종료되었습니다
 error-browser-host-requires-pipe = 브라우저 호스트는 연결된 브라우저 확장으로부터 파이프된 표준 입력이 필요합니다. 이 명령은 브라우저의 네이티브 메시징 매니페스트를 통해 실행하세요. 터미널에서 직접 실행하지 마세요.
 error-browser-store-file-missing = 저장소 파일이 존재하지 않습니다: { $path }
+error-browser-identity-passphrase-protected = 브라우저 호스트는 암호화된 아이덴티티의 암호 문구를 요청할 수 없습니다. 이 저장소에는 암호화되지 않았거나 플러그인 기반인 아이덴티티를 사용하세요.
 error-browser-message-too-large = { $length }바이트 메시지가 네이티브 메시징 한도 { $limit }바이트를 초과합니다
 error-browser-response-too-large = { $length }바이트 응답이 네이티브 메시징 한도 { $limit }바이트를 초과합니다
 error-browser-install-manifest-no-browser = 네이티브 메시징 매니페스트를 설치할 --browser를 최소 하나 이상 지정하세요.
