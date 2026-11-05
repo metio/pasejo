@@ -20,14 +20,14 @@ pub fn parse_secret(secret: &str) -> ParsedSecret {
         if line.trim().is_empty() {
             continue;
         }
-        if let Some((key, value)) = line.split_once(": ") {
+        if password.is_none() {
+            password = Some(line.to_owned());
+        } else if let Some((key, value)) = line.split_once(": ") {
             // Keys are conventional identifiers, so indentation is dropped.
             // Values are stored verbatim so deliberate whitespace survives
             // the round-trip (e.g. a password that intentionally trails a
             // space to satisfy a server's odd validator).
             fields.insert(key.trim().to_owned(), value.to_owned());
-        } else if password.is_none() {
-            password = Some(line.to_owned());
         } else {
             notes.push(line.to_owned());
         }
@@ -127,6 +127,22 @@ mod tests {
         // is treated as the password (first non-field line), not a field.
         let parsed = parse_secret("user:alice");
         assert_eq!(parsed.password.as_deref(), Some("user:alice"));
+        assert!(parsed.fields.is_empty());
+    }
+
+    #[test]
+    fn first_line_is_the_password_even_when_it_contains_colon_space() {
+        let parsed = parse_secret("p4ss: w0rd\nnote\nuser: alice");
+        assert_eq!(parsed.password.as_deref(), Some("p4ss: w0rd"));
+        assert_eq!(parsed.notes, vec!["note"]);
+        assert_eq!(parsed.fields.len(), 1);
+        assert_eq!(parsed.fields.get("user").map(String::as_str), Some("alice"));
+    }
+
+    #[test]
+    fn single_line_secret_with_colon_space_is_the_password() {
+        let parsed = parse_secret("ab: cd");
+        assert_eq!(parsed.password.as_deref(), Some("ab: cd"));
         assert!(parsed.fields.is_empty());
     }
 }
