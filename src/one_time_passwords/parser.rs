@@ -19,10 +19,11 @@ impl OtpAddArgs {
     /// enforces that `--url` and `--qrcode` are mutually exclusive and
     /// that neither coexists with the manual flags.
     ///
-    /// QR-code input is decoded through [`sandbox::decode_qrcode_to_otpauth_url`],
-    /// which on Linux runs the `image` + `rqrr` parsers in a forked
-    /// child process restricted by Landlock so a memory-corruption bug
-    /// in either crate cannot exfiltrate identity files or the store.
+    /// QR-code input is decoded through
+    /// [`sandbox::decode_qrcode_to_otpauth_url`], which on Linux runs the
+    /// `image` + `rqrr` parsers in a forked child process restricted by
+    /// Landlock so a memory-corruption bug in either crate cannot
+    /// exfiltrate identity files or the store.
     pub fn parse_password(&self) -> anyhow::Result<OneTimePassword> {
         if let Some(url) = &self.url {
             return parse_from_url(url);

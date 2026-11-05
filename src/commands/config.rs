@@ -130,9 +130,8 @@ fn parse_bool(option: ConfigurationOption, value: &str) -> anyhow::Result<bool> 
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::i18n;
-
     use super::*;
+    use crate::cli::i18n;
 
     const OPT: ConfigurationOption = ConfigurationOption::ClipboardNotify;
 
