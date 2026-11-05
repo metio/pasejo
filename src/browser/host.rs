@@ -249,9 +249,11 @@ pub fn resolve_store<'a>(
     requested: Option<&str>,
 ) -> std::result::Result<&'a StoreRegistration, ErrorResponse> {
     let owned = requested.map(String::from);
-    configuration
-        .select_store(owned.as_ref())
-        .ok_or_else(|| requested.map_or_else(no_store_configured_error, unknown_store_error))
+    configuration.select_store(owned.as_ref()).ok_or_else(|| {
+        configuration
+            .missing_store_name(owned.as_ref())
+            .map_or_else(no_store_configured_error, |name| unknown_store_error(&name))
+    })
 }
 
 fn unknown_store_error(name: &str) -> ErrorResponse {
@@ -630,6 +632,17 @@ mod tests {
         let cfg = configuration_with(&["personal", "work"], None);
         let reg = resolve_store(&cfg, None).unwrap();
         assert_eq!(reg.name, "personal");
+    }
+
+    #[test]
+    fn resolve_store_with_unregistered_default_returns_unknown_store() {
+        if skip_if_default_store_env_set() {
+            return;
+        }
+        let cfg = configuration_with(&["personal"], Some("work"));
+        let err = resolve_store(&cfg, None).unwrap_err();
+        assert_eq!(err.error, ErrorKind::UnknownStore);
+        assert_eq!(err.store.as_deref(), Some("work"));
     }
 
     #[test]

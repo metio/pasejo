@@ -345,6 +345,16 @@ impl Configuration {
             )
     }
 
+    /// The name `select_store(store_name)` looked up and did not find, or
+    /// `None` when it missed because no store is registered at all.
+    pub fn missing_store_name(&self, store_name: Option<&String>) -> Option<String> {
+        match store_name {
+            Some(name) => Some(name.clone()),
+            None if self.stores.is_empty() => None,
+            None => self.default_store_name(),
+        }
+    }
+
     pub fn select_store_mut(
         &mut self,
         store_name: Option<&String>,

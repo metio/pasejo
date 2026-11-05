@@ -14,12 +14,13 @@ use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::{Configuration, StoreRegistration, encrypt_store};
 use crate::models::password_store::PasswordStore;
 
-/// Selects the store for an operation, distinguishing "you named a store
-/// that doesn't exist" from "you have no stores configured at all" — the
-/// two cases the bare `select_store` `Option` collapses into one
-/// unhelpful "run `pasejo store add`" message even when the user merely
-/// typo'd an existing store's name. Mirrors the host's `unknown_store` vs
-/// `no_store_configured` split so the CLI and the browser host agree.
+/// Selects the store for an operation, distinguishing "the requested or
+/// default store name matches no registration" from "you have no stores
+/// configured at all" — the two cases the bare `select_store` `Option`
+/// collapses into one unhelpful "run `pasejo store add`" message even when
+/// the user merely typo'd an existing store's name. Mirrors the host's
+/// `unknown_store` vs `no_store_configured` split so the CLI and the browser
+/// host agree.
 pub fn require_store<'a>(
     configuration: &'a Configuration,
     store_name: Option<&String>,
@@ -27,11 +28,9 @@ pub fn require_store<'a>(
     if let Some(registration) = configuration.select_store(store_name) {
         return Ok(registration);
     }
-    // In the error path with an explicit name, the name was definitely not
-    // found (a hit would have returned `Some` above).
-    store_name.map_or_else(
+    configuration.missing_store_name(store_name).map_or_else(
         || Err(anyhow::anyhow!(i18n::error_no_store_in_configuration())),
-        |name| Err(anyhow::anyhow!(i18n::error_unknown_store(name))),
+        |name| Err(anyhow::anyhow!(i18n::error_unknown_store(&name))),
     )
 }
 
@@ -274,6 +273,27 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(message.contains("alfa"), "should name the typo: {message}");
+        assert!(
+            !message.contains("store add"),
+            "should not be the empty-config message: {message}"
+        );
+    }
+
+    #[test]
+    fn require_store_names_an_unregistered_default_store() {
+        if std::env::var_os(crate::cli::environment_variables::PASEJO_DEFAULT_STORE).is_some() {
+            return;
+        }
+        crate::cli::i18n::init_for_tests();
+        let cfg = Configuration {
+            default_store: Some(String::from("gone")),
+            ..config_with(vec![registration("alpha")])
+        };
+        let message = require_store(&cfg, None).unwrap_err().to_string();
+        assert!(
+            message.contains("gone"),
+            "should name the default: {message}"
+        );
         assert!(
             !message.contains("store add"),
             "should not be the empty-config message: {message}"
