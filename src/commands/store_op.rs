@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::fs::File;
+use std::fs::{File, TryLockError};
 use std::io;
 use std::path::Path;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 
@@ -50,6 +52,38 @@ pub fn require_store<'a>(
 /// counts once the locked handle is still the file at `path`; otherwise it
 /// is dropped and the open is retried.
 pub fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
+    lock_store_file(path, |file, path_display| {
+        file.lock()
+            .with_context(|| i18n::error_could_not_acquire_store_lock(path_display))
+    })
+}
+
+/// [`acquire_store_lock`] for callers that must not wait on another
+/// process indefinitely: a lock still held after `wait` is an error.
+pub fn try_acquire_store_lock(path: &Path, wait: Duration) -> Result<Option<File>> {
+    let deadline = Instant::now() + wait;
+    lock_store_file(path, |file, path_display| {
+        loop {
+            match file.try_lock() {
+                Ok(()) => return Ok(()),
+                Err(TryLockError::WouldBlock) if Instant::now() < deadline => {
+                    thread::sleep(LOCK_RETRY_INTERVAL);
+                }
+                Err(TryLockError::WouldBlock) => {
+                    anyhow::bail!(i18n::error_store_lock_wait_timed_out(path_display));
+                }
+                Err(TryLockError::Error(error)) => {
+                    return Err(error)
+                        .with_context(|| i18n::error_could_not_acquire_store_lock(path_display));
+                }
+            }
+        }
+    })
+}
+
+const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(50);
+
+fn lock_store_file(path: &Path, lock: impl Fn(&File, &str) -> Result<()>) -> Result<Option<File>> {
     let path_display = path.display().to_string();
     loop {
         let file = match File::open(path) {
@@ -60,8 +94,7 @@ pub fn acquire_store_lock(path: &Path) -> Result<Option<File>> {
                     .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display));
             }
         };
-        file.lock()
-            .with_context(|| i18n::error_could_not_acquire_store_lock(&path_display))?;
+        lock(&file, &path_display)?;
         if is_file_at(&file, path)
             .with_context(|| i18n::error_could_not_open_store_for_lock(&path_display))?
         {

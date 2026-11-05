@@ -197,6 +197,7 @@ error-config-invalid-integer = Ungültiger Wert '{ $value }' für Option '{ $opt
 error-config-invalid-boolean = Ungültiger Wert '{ $value }' für Option '{ $option }': erwartet wird eines von true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Speicherdatei zum Sperren konnte nicht geöffnet werden: { $path }
 error-could-not-acquire-store-lock = Sperre auf Speicherdatei konnte nicht erworben werden: { $path }
+error-store-lock-wait-timed-out = Zeitüberschreitung beim Warten auf die Sperre der Speicherdatei: { $path }
 error-cannot-encrypt-store = Speicher konnte nicht verschlüsselt werden
 error-failed-to-run-command = Befehl { $binary } konnte nicht ausgeführt werden
 error-command-exited-with = Befehl { $binary } beendet mit { $exit }

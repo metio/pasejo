@@ -868,6 +868,11 @@ fl_string!(
     "error-could-not-acquire-store-lock",
     path
 );
+fl_string!(
+    error_store_lock_wait_timed_out,
+    "error-store-lock-wait-timed-out",
+    path
+);
 fl_string!(error_cannot_encrypt_store, "error-cannot-encrypt-store");
 fl_string!(
     error_failed_to_run_command,

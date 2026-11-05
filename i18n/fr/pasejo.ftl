@@ -197,6 +197,7 @@ error-config-invalid-integer = Valeur '{ $value }' invalide pour l'option '{ $op
 error-config-invalid-boolean = Valeur '{ $value }' invalide pour l'option '{ $option }' : attendu l'un de true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Impossible d'ouvrir le fichier du coffre pour le verrouillage : { $path }
 error-could-not-acquire-store-lock = Impossible d'acquérir le verrou sur le fichier du coffre : { $path }
+error-store-lock-wait-timed-out = Délai dépassé en attendant le verrou du fichier du coffre : { $path }
 error-cannot-encrypt-store = Impossible de chiffrer le coffre
 error-failed-to-run-command = Échec de l'exécution de la commande { $binary }
 error-command-exited-with = La commande { $binary } s'est terminée avec { $exit }

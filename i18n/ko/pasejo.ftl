@@ -197,6 +197,7 @@ error-config-invalid-integer = 옵션 '{ $option }'의 값 '{ $value }'이(가) 
 error-config-invalid-boolean = 옵션 '{ $option }'의 값 '{ $value }'이(가) 잘못되었습니다. true, false, 1, 0, yes, no, y, n 중 하나를 입력하세요
 error-could-not-open-store-for-lock = 잠금을 위해 저장소 파일을 열 수 없었습니다: { $path }
 error-could-not-acquire-store-lock = 저장소 파일의 잠금을 획득할 수 없었습니다: { $path }
+error-store-lock-wait-timed-out = 저장소 파일의 잠금을 기다리는 동안 시간이 초과되었습니다: { $path }
 error-cannot-encrypt-store = 저장소를 암호화할 수 없습니다
 error-failed-to-run-command = 명령 { $binary } 실행 실패
 error-command-exited-with = 명령 { $binary }이(가) { $exit }(으)로 종료되었습니다

@@ -197,6 +197,7 @@ error-config-invalid-integer = Invalid value '{ $value }' for option '{ $option 
 error-config-invalid-boolean = Invalid value '{ $value }' for option '{ $option }': expected one of true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Could not open store file for locking: { $path }
 error-could-not-acquire-store-lock = Could not acquire lock on store file: { $path }
+error-store-lock-wait-timed-out = Timed out waiting for the lock on store file: { $path }
 error-cannot-encrypt-store = Cannot encrypt store
 error-failed-to-run-command = Failed to run command { $binary }
 error-command-exited-with = Command { $binary } exited with { $exit }

@@ -113,9 +113,9 @@ pub enum ErrorKind {
     /// surface which hook went wrong.
     HookFailed,
     /// The store file itself could not be opened or locked (missing file,
-    /// permissions, or lock contention that exceeded the kernel's wait).
-    /// Distinct from `IdentityLocked` because the fix is filesystem-side,
-    /// not identity-side.
+    /// permissions, or a lock another operation held for longer than the
+    /// host waits). Distinct from `IdentityLocked` because the fix is
+    /// filesystem-side, not identity-side.
     StoreUnreachable,
     NoStoreConfigured,
     /// The serialized reply would exceed the browser's 1 MiB

@@ -197,6 +197,7 @@ error-config-invalid-integer = 选项 '{ $option }' 的值 '{ $value }' 无效�
 error-config-invalid-boolean = 选项 '{ $option }' 的值 '{ $value }' 无效：应为 true、false、1、0、yes、no、y、n 之一
 error-could-not-open-store-for-lock = 无法打开存储文件进行锁定:{ $path }
 error-could-not-acquire-store-lock = 无法获取存储文件的锁:{ $path }
+error-store-lock-wait-timed-out = 等待存储文件的锁超时:{ $path }
 error-cannot-encrypt-store = 无法加密存储
 error-failed-to-run-command = 无法运行命令 { $binary }
 error-command-exited-with = 命令 { $binary } 以 { $exit } 退出

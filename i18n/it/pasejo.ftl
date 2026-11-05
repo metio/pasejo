@@ -197,6 +197,7 @@ error-config-invalid-integer = Valore '{ $value }' non valido per l'opzione '{ $
 error-config-invalid-boolean = Valore '{ $value }' non valido per l'opzione '{ $option }': atteso uno tra true, false, 1, 0, yes, no, y, n
 error-could-not-open-store-for-lock = Impossibile aprire il file dell'archivio per il blocco: { $path }
 error-could-not-acquire-store-lock = Impossibile acquisire il blocco sul file dell'archivio: { $path }
+error-store-lock-wait-timed-out = Tempo scaduto in attesa del blocco sul file dell'archivio: { $path }
 error-cannot-encrypt-store = Impossibile cifrare l'archivio
 error-failed-to-run-command = Esecuzione del comando { $binary } fallita
 error-command-exited-with = Il comando { $binary } è terminato con { $exit }

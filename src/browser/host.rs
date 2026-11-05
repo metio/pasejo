@@ -5,6 +5,7 @@ use std::io::{IsTerminal, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
+use std::time::Duration;
 
 use anyhow::{Result, bail};
 
@@ -14,7 +15,7 @@ use crate::browser::protocol::{
     RequestEnvelope, ResponseEnvelope, ResponsePayload, StoreEntry,
 };
 use crate::cli::i18n;
-use crate::commands::store_op::acquire_store_lock;
+use crate::commands::store_op::try_acquire_store_lock;
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration};
@@ -43,6 +44,12 @@ const HOST_WORKER_THREADS: usize = 16;
 // a worker drains a slot, and the caller has to slow down rather
 // than the host having to drop work.
 const HOST_WORKER_QUEUE_DEPTH: usize = 32;
+
+// `secret edit` holds the store lock for a whole editor session. A query
+// that cannot get the lock within this window answers `store_unreachable`
+// instead of pinning a worker until the editor closes and running into the
+// extension's own request timeout.
+const STORE_LOCK_WAIT: Duration = Duration::from_secs(5);
 
 /// Borrowed by every request handler. Owns its keys (rather than
 /// borrowing from `HostArgs`) so the same value can ride an `Arc` into
@@ -113,7 +120,7 @@ fn handle_query(
 /// `anyhow::Error`, which would collapse those into a single chain and
 /// leave the user guessing.
 ///
-/// `acquire_store_lock` returning `Ok(None)` (the bootstrap path — a
+/// `try_acquire_store_lock` returning `Ok(None)` (the bootstrap path — a
 /// store registered in the config but with no file on disk yet) is
 /// mapped to `StoreUnreachable`; the browser host is never the right
 /// entry point for bootstrapping, and letting `decrypt_store` fail
@@ -128,7 +135,7 @@ fn open_store_for_read(
         .execute_pull_commands()
         .map_err(|err| (ErrorKind::HookFailed, err))?;
 
-    let lock = match acquire_store_lock(registration.path()) {
+    let lock = match try_acquire_store_lock(registration.path(), STORE_LOCK_WAIT) {
         Ok(Some(lock)) => Some(lock),
         Ok(None) => {
             return Err((
@@ -975,6 +982,34 @@ mod tests {
             "per-store identity leaked: {hint}"
         );
         assert_eq!(hint.matches("<identity>").count(), 2);
+    }
+
+    #[test]
+    fn open_store_for_read_reports_store_unreachable_while_the_store_lock_is_held() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let store_path = temp.path().join("personal.age");
+        std::fs::write(&store_path, b"locked").unwrap();
+        let held = std::fs::File::open(&store_path).unwrap();
+        held.lock().unwrap();
+
+        let mut reg = registration("personal");
+        reg.path = store_path;
+        let cfg = Configuration {
+            stores: vec![reg.clone()],
+            ..Configuration::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let kind = open_store_for_read(&cfg, &reg, true)
+                .err()
+                .map(|(kind, _)| kind);
+            let _ = tx.send(kind);
+        });
+
+        let outcome = rx.recv_timeout(STORE_LOCK_WAIT * 2);
+        drop(held);
+        assert_eq!(outcome, Ok(Some(ErrorKind::StoreUnreachable)));
     }
 
     #[test]

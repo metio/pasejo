@@ -197,6 +197,7 @@ error-config-invalid-integer = オプション '{ $option }' の値 '{ $value }'
 error-config-invalid-boolean = オプション '{ $option }' の値 '{ $value }' が無効です。true, false, 1, 0, yes, no, y, n のいずれかを指定してください
 error-could-not-open-store-for-lock = ロック用にストアファイルを開けませんでした: { $path }
 error-could-not-acquire-store-lock = ストアファイルのロックを取得できませんでした: { $path }
+error-store-lock-wait-timed-out = ストアファイルのロック待機がタイムアウトしました: { $path }
 error-cannot-encrypt-store = ストアを暗号化できません
 error-failed-to-run-command = コマンド { $binary } の実行に失敗しました
 error-command-exited-with = コマンド { $binary } は { $exit } で終了しました
