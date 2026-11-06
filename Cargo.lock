@@ -2346,7 +2346,6 @@ dependencies = [
  "crossterm 0.29.0",
  "dyn-clone",
  "fuzzy-matcher",
- "tempfile",
  "unicode-segmentation",
  "unicode-width 0.2.3",
 ]

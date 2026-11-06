@@ -106,6 +106,12 @@ clipboard-notification-failed = { $cancelled ->
 
 prompt-enter-secret = Geheimnis für { $secret_path } eingeben:
 prompt-could-not-read-secret = Konnte Geheimnis für { $secret_path } nicht lesen
+error-editor-launch-failed = Konnte den Editor '{ $editor }' nicht starten
+error-editor-exited-unsuccessfully = Der Editor '{ $editor }' wurde nicht erfolgreich beendet, daher bleibt das Geheimnis unverändert
+error-editor-file-not-utf8 = Das bearbeitete Geheimnis ist kein gültiges UTF-8
+error-editor-file-create-failed = Konnte keine temporäre Datei für den Editor in '{ $path }' anlegen
+editor-file-in-temp-dir = Weder $XDG_RUNTIME_DIR noch /dev/shm ist verfügbar, daher wird das Geheimnis während der Bearbeitung in eine Datei in '{ $path }' geschrieben. Dieses Verzeichnis liegt möglicherweise auf der Festplatte.
+editor-file-cleanup-failed = Konnte die temporäre Editor-Datei '{ $path }' nicht überschreiben und entfernen: { $error }
 prompt-overwrite-secret = Bestehendes Geheimnis überschreiben?
 prompt-remove-secret = Bestehendes Geheimnis entfernen?
 prompt-overwrite-one-time-password = Bestehendes Einmalpasswort überschreiben?

@@ -5,6 +5,7 @@ pub mod atomic_write;
 pub mod clipboard;
 pub mod completer;
 pub mod constants;
+pub mod editor;
 pub mod environment_variables;
 pub mod errors;
 pub mod i18n;

@@ -20,4 +20,15 @@ $ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-lett
 ? 1
 Error: 少なくとも 1 種類の文字を有効にする必要があります
 
+$ pasejo secret generate edited
+[..]
+
+$ pasejo secret edit edited
+? 1
+...
+Error: edited のシークレットを読み込めませんでした
+
+Caused by:
+    エディター 'false' が正常に終了しなかったため、シークレットは変更されていません
+
 ```

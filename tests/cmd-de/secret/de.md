@@ -20,4 +20,15 @@ $ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-lett
 ? 1
 Error: Mindestens eine Zeichenart muss aktiviert sein
 
+$ pasejo secret generate edited
+[..]
+
+$ pasejo secret edit edited
+? 1
+...
+Error: Konnte Geheimnis für edited nicht lesen
+
+Caused by:
+    Der Editor 'false' wurde nicht erfolgreich beendet, daher bleibt das Geheimnis unverändert
+
 ```

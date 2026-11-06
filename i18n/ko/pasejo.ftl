@@ -106,6 +106,12 @@ clipboard-notification-failed = { $cancelled ->
 
 prompt-enter-secret = { $secret_path }의 비밀을 입력하세요:
 prompt-could-not-read-secret = { $secret_path }의 비밀을 읽을 수 없습니다
+error-editor-launch-failed = 편집기 '{ $editor }'을(를) 시작할 수 없습니다
+error-editor-exited-unsuccessfully = 편집기 '{ $editor }'이(가) 정상적으로 종료되지 않아 비밀이 변경되지 않았습니다
+error-editor-file-not-utf8 = 편집된 비밀이 유효한 UTF-8이 아닙니다
+error-editor-file-create-failed = '{ $path }'에 편집기용 임시 파일을 만들 수 없습니다
+editor-file-in-temp-dir = $XDG_RUNTIME_DIR와 /dev/shm을 모두 사용할 수 없으므로 편집기가 실행되는 동안 비밀이 '{ $path }'의 파일에 기록됩니다. 이 디렉터리는 디스크에 저장될 수 있습니다.
+editor-file-cleanup-failed = 편집기 임시 파일 '{ $path }'을(를) 덮어쓰고 제거할 수 없습니다: { $error }
 prompt-overwrite-secret = 기존 비밀을 덮어쓰시겠습니까?
 prompt-remove-secret = 기존 비밀을 제거하시겠습니까?
 prompt-overwrite-one-time-password = 기존 일회용 비밀번호를 덮어쓰시겠습니까?

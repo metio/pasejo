@@ -106,6 +106,12 @@ clipboard-notification-failed = { $cancelled ->
 
 prompt-enter-secret = 输入 { $secret_path } 的密钥：
 prompt-could-not-read-secret = 无法读取 { $secret_path } 的密钥
+error-editor-launch-failed = 无法启动编辑器 '{ $editor }'
+error-editor-exited-unsuccessfully = 编辑器 '{ $editor }' 未成功退出，因此密钥保持不变
+error-editor-file-not-utf8 = 编辑后的密钥不是有效的 UTF-8
+error-editor-file-create-failed = 无法在 '{ $path }' 中为编辑器创建临时文件
+editor-file-in-temp-dir = $XDG_RUNTIME_DIR 和 /dev/shm 均不可用，因此编辑器运行期间密钥会写入 '{ $path }' 中的文件。该目录可能位于磁盘上。
+editor-file-cleanup-failed = 无法覆盖并删除编辑器临时文件 '{ $path }'：{ $error }
 prompt-overwrite-secret = 是否覆盖现有密钥？
 prompt-remove-secret = 是否删除现有密钥？
 prompt-overwrite-one-time-password = 是否覆盖现有的一次性密码？

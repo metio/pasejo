@@ -451,4 +451,173 @@ mod interactive_tests {
 
         Ok(())
     }
+
+    /// Writes an `$EDITOR` stand-in that records where it was asked to edit,
+    /// keeps a hard link to the edited inode so the cleanup can be observed
+    /// after the file is unlinked, replaces the content and exits with
+    /// `exit_code`.
+    fn fake_editor(temp: &TempDir, exit_code: i32) -> anyhow::Result<std::path::PathBuf> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let markers = temp.path().join("markers");
+        std::fs::create_dir_all(&markers)?;
+        let script = temp.path().join("fake-editor");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\n\
+                 dirname \"$1\" > '{markers}/dir'\n\
+                 cat \"$1\" > '{markers}/before'\n\
+                 ln \"$1\" '{markers}/link'\n\
+                 printf 'edited-password\\nurl: https://example.com\\n\\n' > \"$1\"\n\
+                 exit {exit_code}\n",
+                markers = markers.display(),
+            ),
+        )?;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))?;
+        Ok(script)
+    }
+
+    fn runtime_dir(temp: &TempDir) -> anyhow::Result<std::path::PathBuf> {
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime)?;
+        Ok(runtime)
+    }
+
+    fn assert_editor_file_scrubbed(
+        temp: &TempDir,
+        runtime: &std::path::Path,
+    ) -> anyhow::Result<()> {
+        assert_eq!(
+            std::fs::read_dir(runtime)?.count(),
+            0,
+            "editor file left in {}",
+            runtime.display()
+        );
+        let leftover = std::fs::read(temp.path().join("markers/link"))?;
+        assert!(!leftover.is_empty());
+        assert!(
+            leftover.iter().all(|byte| *byte == 0),
+            "editor file was not overwritten before removal: {leftover:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn secret_edit_uses_private_runtime_dir_and_scrubs_the_file() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            key.to_string().expose_secret(),
+        )?;
+        let editor = fake_editor(&temp, 0)?;
+        let runtime = runtime_dir(&temp)?;
+
+        assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "add", "alice"])
+            .write_stdin("original-password\nlogin: alice")
+            .assert()
+            .success();
+
+        assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "edit", "alice"])
+            .env("EDITOR", &editor)
+            .env_remove("VISUAL")
+            .env("XDG_RUNTIME_DIR", &runtime)
+            .assert()
+            .success();
+
+        assert_eq!(
+            std::fs::read_to_string(temp.path().join("markers/dir"))?.trim_end(),
+            runtime.display().to_string()
+        );
+        assert_eq!(
+            std::fs::read_to_string(temp.path().join("markers/before"))?,
+            "original-password\nlogin: alice"
+        );
+        assert_editor_file_scrubbed(&temp, &runtime)?;
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "show", "alice"])
+            .assert()
+            .stdout(predicate::eq("edited-password\nurl: https://example.com\n"))
+            .success();
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn secret_edit_keeps_the_secret_and_scrubs_the_file_when_the_editor_fails() -> anyhow::Result<()>
+    {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            key.to_string().expose_secret(),
+        )?;
+        let editor = fake_editor(&temp, 3)?;
+        let runtime = runtime_dir(&temp)?;
+
+        assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "add", "alice"])
+            .write_stdin("original-password")
+            .assert()
+            .success();
+
+        assert_cmd::Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "edit", "alice"])
+            .env("EDITOR", &editor)
+            .env_remove("VISUAL")
+            .env("XDG_RUNTIME_DIR", &runtime)
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("did not exit successfully"));
+
+        assert_editor_file_scrubbed(&temp, &runtime)?;
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "show", "alice"])
+            .assert()
+            .stdout(predicate::eq("original-password\n"))
+            .success();
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn secret_add_multiline_uses_private_runtime_dir_and_scrubs_the_file() -> anyhow::Result<()> {
+        let key = age::x25519::Identity::generate();
+        let temp = prepare_environment(
+            &key.to_public().to_string(),
+            key.to_string().expose_secret(),
+        )?;
+        let editor = fake_editor(&temp, 0)?;
+        let runtime = runtime_dir(&temp)?;
+
+        let mut spawn_cmd = std::process::Command::new(cargo_bin(env!("CARGO_PKG_NAME")));
+        spawn_cmd
+            .args(["secret", "add", "--multiline", "alice"])
+            .env("EDITOR", &editor)
+            .env_remove("VISUAL")
+            .env("XDG_RUNTIME_DIR", &runtime);
+        let mut process = rexpect::session::spawn_command(spawn_cmd, Some(10_000))?;
+        process.exp_eof()?;
+
+        assert_eq!(
+            std::fs::read_to_string(temp.path().join("markers/dir"))?.trim_end(),
+            runtime.display().to_string()
+        );
+        assert_eq!(
+            std::fs::read_to_string(temp.path().join("markers/before"))?,
+            ""
+        );
+        assert_editor_file_scrubbed(&temp, &runtime)?;
+
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+            .args(["secret", "show", "alice"])
+            .assert()
+            .stdout(predicate::eq("edited-password\nurl: https://example.com\n"))
+            .success();
+        Ok(())
+    }
 }

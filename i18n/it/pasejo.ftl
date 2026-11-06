@@ -106,6 +106,12 @@ clipboard-notification-failed = { $cancelled ->
 
 prompt-enter-secret = Inserire il segreto per { $secret_path }:
 prompt-could-not-read-secret = Impossibile leggere il segreto per { $secret_path }
+error-editor-launch-failed = Impossibile avviare l'editor '{ $editor }'
+error-editor-exited-unsuccessfully = L'editor '{ $editor }' non è terminato correttamente, quindi il segreto non è stato modificato
+error-editor-file-not-utf8 = Il segreto modificato non è UTF-8 valido
+error-editor-file-create-failed = Impossibile creare un file temporaneo per l'editor in '{ $path }'
+editor-file-in-temp-dir = Né $XDG_RUNTIME_DIR né /dev/shm sono disponibili, quindi il segreto viene scritto in un file in '{ $path }' mentre l'editor è aperto. Quella directory potrebbe trovarsi su disco.
+editor-file-cleanup-failed = Impossibile sovrascrivere e rimuovere il file temporaneo dell'editor '{ $path }': { $error }
 prompt-overwrite-secret = Sovrascrivere il segreto esistente?
 prompt-remove-secret = Rimuovere il segreto esistente?
 prompt-overwrite-one-time-password = Sovrascrivere la password monouso esistente?

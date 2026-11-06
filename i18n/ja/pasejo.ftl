@@ -106,6 +106,12 @@ clipboard-notification-failed = { $cancelled ->
 
 prompt-enter-secret = { $secret_path } のシークレットを入力:
 prompt-could-not-read-secret = { $secret_path } のシークレットを読み込めませんでした
+error-editor-launch-failed = エディター '{ $editor }' を起動できませんでした
+error-editor-exited-unsuccessfully = エディター '{ $editor }' が正常に終了しなかったため、シークレットは変更されていません
+error-editor-file-not-utf8 = 編集されたシークレットは有効な UTF-8 ではありません
+error-editor-file-create-failed = '{ $path }' にエディター用の一時ファイルを作成できませんでした
+editor-file-in-temp-dir = $XDG_RUNTIME_DIR も /dev/shm も利用できないため、エディターの実行中はシークレットが '{ $path }' 内のファイルに書き込まれます。このディレクトリはディスク上にある可能性があります。
+editor-file-cleanup-failed = エディターの一時ファイル '{ $path }' を上書きして削除できませんでした: { $error }
 prompt-overwrite-secret = 既存のシークレットを上書きしますか？
 prompt-remove-secret = 既存のシークレットを削除しますか？
 prompt-overwrite-one-time-password = 既存のワンタイムパスワードを上書きしますか？

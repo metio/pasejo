@@ -20,7 +20,7 @@ You can add a multi-line secret to your store like this:
 $ pasejo secret add some-secret --multiline
 ```
 
-`pasejo` will open your configured editor, and you can enter the secret in the editor. When you save and close the editor, the secret will be stored in the store with the name `some-secret`.
+`pasejo` will open your configured editor, and you can enter the secret in the editor. When you save and close the editor, the secret will be stored in the store with the name `some-secret`. Exiting the editor with a non-zero status, for example `:cq` in vim, stores nothing. See [secret](../commands/pasejo-cmd-secret.md) for where the temporary file lives while the editor is open.
 
 ## Add secret from stdin
 

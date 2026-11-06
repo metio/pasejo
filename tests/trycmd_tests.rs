@@ -41,6 +41,11 @@ fn test_cases(lang: &str) -> trycmd::TestCases {
         // between tests (and between `cargo test` runs), making the
         // suite flaky.
         .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        // Make every editor session fail immediately, so `secret edit` and
+        // `secret add --multiline` never open the developer's editor. An
+        // empty `VISUAL` is ignored, which leaves `EDITOR` in charge.
+        .env("VISUAL", "")
+        .env("EDITOR", "false")
         // Pin the locale so snapshots never depend on the developer's
         // environment. The i18n loader follows gettext precedence
         // (`LANGUAGE` > `LC_ALL` > `LC_MESSAGES` > `LANG`), so a host

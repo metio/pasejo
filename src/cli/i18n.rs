@@ -518,6 +518,48 @@ fl_string!(
     secret_path
 );
 fl_string!(prompt_overwrite_secret, "prompt-overwrite-secret");
+fl_string!(
+    error_editor_launch_failed,
+    "error-editor-launch-failed",
+    editor
+);
+fl_string!(
+    error_editor_exited_unsuccessfully,
+    "error-editor-exited-unsuccessfully",
+    editor
+);
+fl_string!(error_editor_file_not_utf8, "error-editor-file-not-utf8");
+
+pub fn error_editor_file_create_failed(path: &Path) -> String {
+    let path = path_string(path);
+    fl!(
+        LANGUAGE_LOADER,
+        "error-editor-file-create-failed",
+        path = path.as_str()
+    )
+}
+
+fl_log_path!(
+    warn,
+    editor_file_in_temp_dir,
+    "editor-file-in-temp-dir",
+    path
+);
+
+pub fn editor_file_cleanup_failed(path: &Path, error: &impl std::fmt::Display) {
+    let path = path_string(path);
+    let error = error.to_string();
+    warn!(
+        "{}",
+        fl!(
+            LANGUAGE_LOADER,
+            "editor-file-cleanup-failed",
+            path = path.as_str(),
+            error = error.as_str()
+        )
+    );
+}
+
 fl_string!(prompt_remove_secret, "prompt-remove-secret");
 fl_string!(
     prompt_overwrite_one_time_password,
@@ -1157,6 +1199,18 @@ mod tests {
                 "`{lang}` key set diverges from English — missing: {missing:?}, orphan: {orphan:?}"
             );
         }
+    }
+
+    #[test]
+    fn editor_temp_dir_warning_keeps_the_literal_variable_name() {
+        super::init_for_tests();
+        let message = super::fl!(
+            super::LANGUAGE_LOADER,
+            "editor-file-in-temp-dir",
+            path = "/some/temp"
+        );
+        assert!(message.contains("$XDG_RUNTIME_DIR"), "{message}");
+        assert!(message.contains("/some/temp"), "{message}");
     }
 
     #[test]

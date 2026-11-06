@@ -54,7 +54,8 @@ Each trycmd test has companion `.in/` and `.out/` directories that trycmd copies
 - `cli/` — shared CLI utilities:
   - `parser.rs` — clap value parsers and validators (store name, line number, file existence)
   - `completer.rs` — dynamic shell completers (case-insensitive store-name prefix matching)
-  - `prompts.rs` — inquire wrappers for password / confirmation / editor prompts
+  - `prompts.rs` — inquire wrappers for password / confirmation prompts, plus the secret-editing entry points that delegate to `editor.rs`
+  - `editor.rs` — opens a secret in `$VISUAL` / `$EDITOR` through a `0600` file in `$XDG_RUNTIME_DIR`, else `/dev/shm`, else the temp dir with a localized warning; the file is zero-filled and removed on drop, so error paths clean up too. A non-zero editor exit aborts the edit. trycmd suites pin `EDITOR=false` and an empty `VISUAL` so no real editor is ever spawned
   - `clipboard.rs` — copy + auto-clear with a Drop guard and desktop notifications
   - `atomic_write.rs` — sibling-tempfile + fsync + rename, with file mode `0600` on Unix
   - `i18n.rs` — Fluent-based user-facing string seam (see [Internationalization](#internationalization))
@@ -195,7 +196,7 @@ A few wrappers are hand-written because they mix argument types (`list_store` ta
 - `age` — encryption, with `armor`, `cli-common`, `plugin`, `ssh` features.
 - `clap` derive + `clap_complete` (`unstable-dynamic`) for shell completion.
 - `i18n-embed` + `i18n-embed-fl` + `rust-embed` (with `debug-embed`) — Fluent integration.
-- `inquire` — terminal prompts with editor support.
+- `inquire` — terminal prompts (password, confirmation). Its `editor` feature is not used: `inquire::Editor` writes the predefined text into `std::env::temp_dir()`, so secret editing goes through `cli/editor.rs` instead.
 - `otp-std` — HOTP / TOTP generation with `unsafe-length` to allow non-standard digit counts (the `otp add --digits` parser accepts 6–8; 6 is the RFC default).
 - `qr2term` + `image` + `rqrr` — QR display and QR-from-image OTP import.
 - `psl` — compile-time-embedded public suffix list. Used exclusively by `browser::matcher` to compute the registrable domain so URL matching is cross-eTLD-safe.

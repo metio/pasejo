@@ -20,4 +20,15 @@ $ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-lett
 ? 1
 Error: 必须至少启用一种字符类型
 
+$ pasejo secret generate edited
+[..]
+
+$ pasejo secret edit edited
+? 1
+...
+Error: 无法读取 edited 的密钥
+
+Caused by:
+    编辑器 'false' 未成功退出，因此密钥保持不变
+
 ```

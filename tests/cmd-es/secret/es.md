@@ -20,4 +20,15 @@ $ pasejo secret generate --no-numbers --no-lowercase-letters --no-uppercase-lett
 ? 1
 Error: Debe habilitarse al menos un tipo de carácter
 
+$ pasejo secret generate edited
+[..]
+
+$ pasejo secret edit edited
+? 1
+...
+Error: No se pudo leer el secreto para edited
+
+Caused by:
+    El editor 'false' no terminó correctamente, por lo que el secreto no se modificó
+
 ```
