@@ -5,6 +5,6 @@ mod age;
 mod format;
 mod merge;
 
-pub use self::age::{decrypt, encrypt};
+pub use self::age::{decrypt_bytes, encrypt, read_encrypted};
 pub use self::format::format_as_tree;
 pub use self::merge::merge_secrets;

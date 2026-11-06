@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command as StdCommand, Stdio};
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use age::secrecy::ExposeSecret;
 use age_core::format::{FileKey, Stanza};
@@ -309,6 +309,14 @@ fn credential(request_id: u32, store: &str) -> String {
     )
 }
 
+fn wait_until(condition: impl Fn() -> bool) {
+    let deadline = Instant::now() + REPLY_TIMEOUT;
+    while !condition() {
+        assert!(Instant::now() < deadline, "condition not met in time");
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
 #[test]
 fn host_runs_the_plugin_once_per_query_and_once_per_reveal() {
     let world = World::new().store("key", true);
@@ -338,6 +346,26 @@ fn host_answers_another_store_while_a_plugin_waits_for_a_touch() {
 
     std::fs::write(&touch, b"").unwrap();
     assert_eq!(host.reply(), credential(1, "key"));
+}
+
+#[test]
+fn host_releases_the_store_lock_while_a_plugin_waits_for_a_touch() {
+    let world = World::new().store("key", true);
+    let touch = world.path("touched");
+    let mut host = world.host(&[("PASEJO_TEST_PLUGIN_TOUCH", &touch)]);
+
+    host.send(&reveal(1, "key"));
+    wait_until(|| world.plugin_runs() == 1);
+
+    let lock = std::fs::File::open(world.path("key.store.lock")).unwrap();
+    let locked_by_host = lock.try_lock().is_err();
+    drop(lock);
+    std::fs::write(&touch, b"").unwrap();
+    assert_eq!(host.reply(), credential(1, "key"));
+    assert!(
+        !locked_by_host,
+        "the host held the store lock while the plugin waited for a touch"
+    );
 }
 
 #[test]

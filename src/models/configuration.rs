@@ -451,7 +451,15 @@ pub fn decrypt_store_with(
     store_path: &Path,
     identities: &[Box<dyn age::Identity>],
 ) -> Result<PasswordStore> {
-    let decrypted_store = secrets::decrypt(store_path, identities)?;
+    decrypt_store_bytes(&secrets::read_encrypted(store_path)?, identities)
+}
+
+/// Decrypts a store file already read into memory.
+pub fn decrypt_store_bytes(
+    encrypted: &[u8],
+    identities: &[Box<dyn age::Identity>],
+) -> Result<PasswordStore> {
+    let decrypted_store = secrets::decrypt_bytes(encrypted, identities)?;
     let store: PasswordStore = toml::from_str(&decrypted_store)?;
     Ok(store)
 }

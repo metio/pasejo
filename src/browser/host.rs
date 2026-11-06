@@ -20,8 +20,9 @@ use crate::commands::store_op::try_acquire_store_lock;
 use crate::hooks::executor::HookExecutor;
 use crate::identities;
 use crate::models::cli::HostArgs;
-use crate::models::configuration::{Configuration, StoreRegistration, decrypt_store_with};
+use crate::models::configuration::{Configuration, StoreRegistration, decrypt_store_bytes};
 use crate::models::password_store::PasswordStore;
+use crate::secrets;
 
 // Chrome's documented native-messaging maximum is 1 MiB per direction.
 // Rejecting larger length prefixes prevents a malformed peer from driving
@@ -231,8 +232,8 @@ fn handle_reveal(
 /// Hand-rolled equivalent of the read-only prefix of `store_op::with_store`
 /// (minus the encrypt + push tail, which a read-only operation never
 /// needs). The store lock is acquired, pull hooks fire (throttled), the
-/// identities are read and the store decrypted, the lock is released, and
-/// the decrypted store is returned. Each step's failure is classified into a
+/// store file is read and the lock released, then the identities are read
+/// and the store decrypted. Each step's failure is classified into a
 /// distinct `ErrorKind` so the extension can surface the right fix — the funnel
 /// itself returns `anyhow::Error`, which would collapse those into a single
 /// chain and leave the user guessing.
@@ -261,6 +262,12 @@ fn open_store_for_read(
             )),
         ));
     }
+    // A plugin identity may wait for a touch or a PIN for as long as its
+    // dialog stays open, so only the read happens under the lock: CLI edits
+    // and other requests for this store need not wait for the user.
+    let encrypted = secrets::read_encrypted(registration.path())
+        .map_err(|err| (ErrorKind::StoreUnreachable, err))?;
+    drop(lock);
 
     // The host has no terminal to ask for a passphrase on, so it decrypts
     // with the identities that need none and reports `IdentityLocked` when
@@ -278,7 +285,7 @@ fn open_store_for_read(
     let identities = configuration
         .read_identity_files(usable)
         .map_err(|err| (ErrorKind::IdentityLocked, err))?;
-    let store = decrypt_store_with(registration.path(), &identities).map_err(|err| {
+    decrypt_store_bytes(&encrypted, &identities).map_err(|err| {
         let kind = decrypt_error_kind(&err);
         if kind == ErrorKind::IdentityLocked && !protected.is_empty() {
             (
@@ -288,9 +295,7 @@ fn open_store_for_read(
         } else {
             (kind, err)
         }
-    })?;
-    drop(lock);
-    Ok(store)
+    })
 }
 
 /// Decryption fails on the identity side when none of the identities

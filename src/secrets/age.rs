@@ -27,6 +27,13 @@ pub fn encrypt(
     Ok(())
 }
 
+/// Reads an encrypted file into memory, so that it can be decrypted with
+/// [`decrypt_bytes`] after whatever guards the file has been released.
+pub fn read_encrypted(path: &Path) -> anyhow::Result<Vec<u8>> {
+    let path_display = path.display().to_string();
+    fs::read(path).with_context(|| i18n::error_cannot_read_file(&path_display))
+}
+
 /// Returns the decrypted store body wrapped in `Zeroizing` so the
 /// plaintext — the entire store: every secret, recipient, and OTP seed —
 /// is scrubbed from memory when the caller is done with it rather than
@@ -34,14 +41,11 @@ pub fn encrypt(
 /// `decrypted` buffer's allocation in place, so the bytes the caller
 /// reads are exactly the bytes the `Zeroizing<String>` owns and clears;
 /// on invalid UTF-8 the recovered buffer is scrubbed before returning.
-pub fn decrypt(
-    path_to_decrypt: &Path,
+pub fn decrypt_bytes(
+    encrypted: &[u8],
     identities: &[Box<dyn age::Identity>],
 ) -> anyhow::Result<Zeroizing<String>> {
-    let path_display = path_to_decrypt.display().to_string();
-    let encrypted =
-        fs::read(path_to_decrypt).with_context(|| i18n::error_cannot_read_file(&path_display))?;
-    let decryptor = Decryptor::new_buffered(&encrypted[..])?;
+    let decryptor = Decryptor::new_buffered(encrypted)?;
     let reader = decryptor.decrypt(identities.iter().map(std::ops::Deref::deref))?;
     let mut decrypted = read_plaintext(reader, encrypted.len())?;
     match String::from_utf8(std::mem::take(&mut *decrypted)) {
@@ -88,7 +92,7 @@ mod tests {
         encrypt(plaintext, &path, &recipients).unwrap();
 
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
-        let decrypted = decrypt(&path, &identities).unwrap();
+        let decrypted = decrypt_bytes(&read_encrypted(&path).unwrap(), &identities).unwrap();
         assert_eq!(decrypted.as_str(), plaintext);
     }
 
@@ -103,7 +107,7 @@ mod tests {
         encrypt("second", &path, &recipients).unwrap();
 
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(identity)];
-        let decrypted = decrypt(&path, &identities).unwrap();
+        let decrypted = decrypt_bytes(&read_encrypted(&path).unwrap(), &identities).unwrap();
         assert_eq!(decrypted.as_str(), "second");
     }
 
