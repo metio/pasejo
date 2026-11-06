@@ -68,9 +68,12 @@ fn host_answers_query_with_matching_secret() {
     assert!(response.contains(r#""store":"test""#));
     assert!(response.contains(r#""url":"https://example.com""#));
     assert!(response.contains(r#""username":"alice@example.com""#));
-    assert!(response.contains(r#""password":"hunter2""#));
     assert!(response.contains(r#""match_kind":"url_field""#));
     assert!(response.contains(r#""score":1.0"#));
+    assert!(
+        !response.contains("hunter2"),
+        "a query must not carry the password; response was: {response}"
+    );
 
     drop(stdin);
     let status = child.wait().unwrap();
@@ -139,7 +142,7 @@ fn host_lists_stores_with_default_marker() {
     );
     assert!(response.contains(r#""default":true"#));
     assert!(
-        response.contains(r#""protocol_version":1"#),
+        response.contains(r#""protocol_version":2"#),
         "list_stores must include protocol_version so the extension can refuse a mismatched host; response was: {response}"
     );
 
@@ -572,6 +575,85 @@ fn spawn_host_in(config: &std::path::Path, language: &str) -> std::process::Chil
         .stderr(Stdio::piped())
         .spawn()
         .unwrap()
+}
+
+#[test]
+fn host_reveals_the_credential_only_for_the_domain_the_secret_matches() {
+    let temp = setup_store_with_secret(
+        "alice",
+        "hunter2\nurl: https://example.com\nlogin: alice@example.com\n",
+    );
+    let config = temp.path().join("config.toml");
+
+    let mut child = spawn_host_in(&config, "en");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"reveal","store":"test","name":"alice","domain":"example.com"}"#,
+    );
+    let revealed = read_response(&mut stdout);
+    assert_eq!(
+        revealed,
+        r#"{"request_id":1,"credential":{"name":"alice","store":"test","username":"alice@example.com","password":"hunter2"}}"#
+    );
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"reveal","store":"test","name":"alice","domain":"example.org"}"#,
+    );
+    let refused = read_response(&mut stdout);
+    assert_eq!(
+        refused,
+        r#"{"request_id":2,"error":"not_matched","store":"test"}"#
+    );
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn host_reveals_a_totp_code_only_on_an_exact_host_match() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://login.example.com\n");
+    let config = temp.path().join("config.toml");
+    pasejo(&config)
+        .args([
+            "otp",
+            "add",
+            "--type",
+            "totp",
+            "--secret",
+            "JEQDYMZAN5YGK3RAONXXK4TDMU",
+            "alice",
+        ])
+        .assert()
+        .success();
+
+    let mut child = spawn_host_in(&config, "en");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"action":"reveal","store":"test","name":"alice","domain":"login.example.com"}"#,
+    );
+    let exact = read_response(&mut stdout);
+    assert!(exact.contains(r#""otp":""#), "response was: {exact}");
+
+    write_request(
+        &mut stdin,
+        br#"{"action":"reveal","store":"test","name":"alice","domain":"www.example.com"}"#,
+    );
+    let sibling = read_response(&mut stdout);
+    assert!(
+        sibling.contains(r#""password":"hunter2""#),
+        "response was: {sibling}"
+    );
+    assert!(!sibling.contains("otp"), "response was: {sibling}");
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
 }
 
 #[test]

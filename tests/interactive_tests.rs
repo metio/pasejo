@@ -362,7 +362,7 @@ mod interactive_tests {
                     .and(predicate::str::contains(
                         r#""username":"alice@example.com""#,
                     ))
-                    .and(predicate::str::contains(r#""password":"hunter2""#))
+                    .and(predicate::str::contains("hunter2").not())
                     .and(predicate::str::contains(r#""match_kind":"url_field""#))
                     .and(predicate::str::contains(r#""score":1.0"#)),
             )

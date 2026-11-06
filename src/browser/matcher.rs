@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
-use std::collections::BTreeMap;
-
 use serde::Serialize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::exporters::parser::parse_secret;
+use crate::exporters::parser::{ParsedSecret, parse_secret};
 use crate::models::password_store::{OneTimePasswordType, PasswordStore};
 
 const SCORE_URL_EXACT_HOST: f64 = 1.0;
@@ -19,25 +18,59 @@ pub enum MatchKind {
     Name,
 }
 
+/// What a query discloses about a matching secret: enough to list and pick
+/// it, never its password, other field values or one-time code.
 #[derive(Debug, Serialize, Clone)]
 #[allow(clippy::struct_field_names)]
 pub struct Match {
     pub name: String,
     pub store: String,
     pub username: String,
-    pub password: String,
     pub url: Option<String>,
     pub match_kind: MatchKind,
     pub score: f64,
-    pub fields: BTreeMap<String, String>,
-    /// Current TOTP code if `store.otp` has a TOTP entry under the same
-    /// name as the matched secret. HOTP entries are deliberately
-    /// excluded: emitting an HOTP code without bumping the counter
-    /// breaks RFC 4226's single-use contract, and bumping it would turn
-    /// the browser query path (currently read-only) into a writer that
-    /// has to re-encrypt the store on every popup open.
+    /// A URL field names the queried host itself. Only such a match
+    /// releases a one-time code, so a sibling subdomain or a secret that
+    /// merely carries the domain in its name cannot obtain one.
+    #[serde(skip)]
+    pub exact_host: bool,
+}
+
+/// The secret material `reveal` releases for one matching secret.
+#[derive(Debug, Serialize, Zeroize, ZeroizeOnDrop)]
+pub struct Credential {
+    pub name: String,
+    pub store: String,
+    pub username: String,
+    pub password: String,
+    /// Current TOTP code, present only for an exact-host match whose
+    /// secret has a TOTP entry under the same name. HOTP entries are
+    /// excluded: emitting an HOTP code without bumping the counter breaks
+    /// RFC 4226's single-use contract, and bumping it would turn the
+    /// read-only browser path into a writer.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub otp: Option<String>,
+}
+
+/// The canonical query host and its registrable domain. `parse` yields
+/// `None` when the query has no host to compare against.
+struct Query {
+    domain: String,
+    registrable: Option<String>,
+}
+
+impl Query {
+    fn parse(domain: &str) -> Option<Self> {
+        let domain = canonical_host(domain);
+        if domain.is_empty() {
+            return None;
+        }
+        let registrable = registrable_domain(&domain);
+        Some(Self {
+            domain,
+            registrable,
+        })
+    }
 }
 
 pub fn find_matches(
@@ -47,27 +80,15 @@ pub fn find_matches(
     uri_keys: &[String],
     username_keys: &[String],
 ) -> Vec<Match> {
-    let query_domain = canonical_host(domain);
-    if query_domain.is_empty() {
+    let Some(query) = Query::parse(domain) else {
         return vec![];
-    }
-    let query_registrable = registrable_domain(&query_domain);
-
+    };
     let mut matches: Vec<Match> = store
         .secrets
         .iter()
         .filter_map(|(name, value)| {
-            let mut m = match_secret(
-                name,
-                value,
-                store_name,
-                &query_domain,
-                query_registrable.as_deref(),
-                uri_keys,
-                username_keys,
-            )?;
-            m.otp = totp_code_for(store, name);
-            Some(m)
+            let parsed = parse_secret(value, username_keys, uri_keys);
+            match_secret(name, &parsed, store_name, &query, uri_keys, username_keys)
         })
         .collect();
     matches.sort_by(|a, b| {
@@ -78,19 +99,52 @@ pub fn find_matches(
     matches
 }
 
+/// Releases the credential of `secret_name` only when that secret is one
+/// `find_matches` returns for `domain`. A missing secret and a secret that
+/// does not match both yield `None`, so the answer reveals nothing about
+/// which names exist.
+pub fn reveal(
+    store: &PasswordStore,
+    store_name: &str,
+    domain: &str,
+    secret_name: &str,
+    uri_keys: &[String],
+    username_keys: &[String],
+) -> Option<Credential> {
+    let query = Query::parse(domain)?;
+    let value = store.secrets.get(secret_name)?;
+    let parsed = parse_secret(value, username_keys, uri_keys);
+    let matched = match_secret(
+        secret_name,
+        &parsed,
+        store_name,
+        &query,
+        uri_keys,
+        username_keys,
+    )?;
+    let otp = if matched.exact_host {
+        totp_code_for(store, secret_name)
+    } else {
+        None
+    };
+    Some(Credential {
+        name: matched.name,
+        store: matched.store,
+        username: matched.username,
+        password: parsed.password.unwrap_or_default(),
+        otp,
+    })
+}
+
 fn match_secret(
     name: &str,
-    value: &str,
+    parsed: &ParsedSecret,
     store_name: &str,
-    query_domain: &str,
-    query_registrable: Option<&str>,
+    query: &Query,
     uri_keys: &[String],
     username_keys: &[String],
 ) -> Option<Match> {
-    let parsed = parse_secret(value, username_keys, uri_keys);
-
     let mut username = String::new();
-    let mut other_fields: BTreeMap<String, String> = BTreeMap::new();
     let mut best_url: Option<(f64, String)> = None;
 
     for (key, field_value) in &parsed.fields {
@@ -98,18 +152,15 @@ fn match_secret(
             username.clone_from(field_value);
             continue;
         }
-        if uri_keys.contains(key) {
-            if let Some((score, url)) =
-                score_url_field(field_value, query_domain, query_registrable)
-                && best_url
-                    .as_ref()
-                    .is_none_or(|(current_score, _)| score > *current_score)
-            {
-                best_url = Some((score, url));
-            }
-            continue;
+        if uri_keys.contains(key)
+            && let Some((score, url)) =
+                score_url_field(field_value, &query.domain, query.registrable.as_deref())
+            && best_url
+                .as_ref()
+                .is_none_or(|(current_score, _)| score > *current_score)
+        {
+            best_url = Some((score, url));
         }
-        other_fields.insert(key.clone(), field_value.clone());
     }
 
     if let Some((score, url)) = best_url {
@@ -117,26 +168,22 @@ fn match_secret(
             name: name.to_owned(),
             store: store_name.to_owned(),
             username,
-            password: parsed.password.unwrap_or_default(),
             url: Some(url),
             match_kind: MatchKind::UrlField,
+            exact_host: score >= SCORE_URL_EXACT_HOST,
             score,
-            fields: other_fields,
-            otp: None,
         });
     }
 
-    if name_matches_domain(name, query_domain, query_registrable) {
+    if name_matches_domain(name, &query.domain, query.registrable.as_deref()) {
         return Some(Match {
             name: name.to_owned(),
             store: store_name.to_owned(),
             username,
-            password: parsed.password.unwrap_or_default(),
             url: None,
             match_kind: MatchKind::Name,
             score: SCORE_NAME,
-            fields: other_fields,
-            otp: None,
+            exact_host: false,
         });
     }
 
@@ -145,7 +192,7 @@ fn match_secret(
 
 /// Look up a TOTP entry stored under the same name as the matched
 /// secret and render its current code. Returns `None` for non-existent
-/// entries, for HOTP entries (see the doc comment on `Match::otp`), and
+/// entries, for HOTP entries (see the doc comment on `Credential::otp`), and
 /// when code generation itself fails (a broken `otpauth://` secret
 /// shouldn't crash the whole query).
 fn totp_code_for(store: &PasswordStore, secret_name: &str) -> Option<String> {
@@ -339,7 +386,6 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].match_kind, MatchKind::UrlField);
         assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
-        assert_eq!(result[0].password, "hunter2");
         assert_eq!(result[0].url.as_deref(), Some("https://example.com/login"));
         assert_eq!(result[0].store, "personal");
     }
@@ -484,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn username_field_populates_username_not_fields() {
+    fn username_field_populates_username() {
         let store = store_with(&[(
             "alice",
             "hunter2\nurl: https://example.com\nlogin: alice@example.com",
@@ -497,11 +543,10 @@ mod tests {
             &username_keys(),
         );
         assert_eq!(result[0].username, "alice@example.com");
-        assert!(!result[0].fields.contains_key("login"));
     }
 
     #[test]
-    fn aligned_username_and_url_values_are_trimmed_but_password_and_fields_are_not() {
+    fn aligned_username_and_url_values_are_trimmed() {
         let store = store_with(&[(
             "alice",
             " hunter2 \nurl:      https://example.com  \nlogin:    alice\t\nnote:   padded  ",
@@ -516,19 +561,34 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].username, "alice");
         assert_eq!(result[0].url.as_deref(), Some("https://example.com"));
-        assert_eq!(result[0].password, " hunter2 ");
-        assert_eq!(
-            result[0].fields.get("note").map(String::as_str),
-            Some("  padded  ")
-        );
     }
 
     #[test]
-    fn custom_fields_outside_username_and_uri_keys_appear_in_fields() {
+    fn revealed_password_is_kept_verbatim() {
         let store = store_with(&[(
             "alice",
-            "hunter2\nurl: https://example.com\nnote: backup codes here",
+            " hunter2 \nurl:      https://example.com  \nlogin:    alice\t",
         )]);
+        let credential = reveal(
+            &store,
+            "personal",
+            "example.com",
+            "alice",
+            &uri_keys(),
+            &username_keys(),
+        )
+        .expect("alice matches example.com");
+        assert_eq!(credential.password, " hunter2 ");
+        assert_eq!(credential.username, "alice");
+    }
+
+    #[test]
+    fn query_matches_carry_no_secret_material_on_the_wire() {
+        let mut store = store_with(&[(
+            "alice",
+            "hunter2\nurl: https://example.com\nlogin: alice\nnote: backup codes here",
+        )]);
+        store.otp.insert("alice".into(), totp_entry());
         let result = find_matches(
             &store,
             "personal",
@@ -536,10 +596,21 @@ mod tests {
             &uri_keys(),
             &username_keys(),
         );
+        let json = serde_json::to_value(&result[0]).unwrap();
+        let keys: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
         assert_eq!(
-            result[0].fields.get("note").map(String::as_str),
-            Some("backup codes here")
+            keys,
+            ["match_kind", "name", "score", "store", "url", "username"],
+            "{json}"
         );
+        let text = json.to_string();
+        assert!(!text.contains("hunter2"), "{text}");
+        assert!(!text.contains("backup codes"), "{text}");
     }
 
     #[test]
@@ -826,49 +897,153 @@ mod tests {
         assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
     }
 
-    #[test]
-    fn match_includes_totp_code_when_otp_entry_exists_for_secret_name() {
-        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
-        store.otp.insert("alice".into(), totp_entry());
-        let result = find_matches(
-            &store,
+    fn reveal_for(store: &PasswordStore, domain: &str, name: &str) -> Option<Credential> {
+        reveal(
+            store,
             "personal",
-            "example.com",
+            domain,
+            name,
             &uri_keys(),
             &username_keys(),
-        );
-        assert_eq!(result.len(), 1);
-        let otp = result[0].otp.as_deref().expect("expected TOTP code");
+        )
+    }
+
+    #[test]
+    fn reveal_returns_the_credential_of_a_matching_secret() {
+        let store = store_with(&[(
+            "alice",
+            "hunter2\nurl: https://www.example.com\nlogin: alice@example.com",
+        )]);
+        let credential =
+            reveal_for(&store, "mail.example.com", "alice").expect("registrable match");
+        assert_eq!(credential.name, "alice");
+        assert_eq!(credential.store, "personal");
+        assert_eq!(credential.username, "alice@example.com");
+        assert_eq!(credential.password, "hunter2");
+    }
+
+    #[test]
+    fn reveal_refuses_a_secret_that_does_not_match_the_domain() {
+        let store = store_with(&[
+            ("alice", "hunter2\nurl: https://example.com"),
+            ("bob", "hunter3\nurl: https://example.org"),
+        ]);
+        assert!(reveal_for(&store, "example.com", "bob").is_none());
+        assert!(reveal_for(&store, "example.org", "alice").is_none());
+    }
+
+    #[test]
+    fn reveal_refuses_a_secret_that_does_not_exist() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        assert!(reveal_for(&store, "example.com", "carol").is_none());
+    }
+
+    #[test]
+    fn reveal_refuses_an_empty_domain() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        assert!(reveal_for(&store, "", "alice").is_none());
+    }
+
+    #[test]
+    fn reveal_admits_exactly_the_secrets_the_query_returns() {
+        let store = store_with(&[
+            ("sites/example.com/alice", "pw1"),
+            ("bob", "pw2\nurl: https://www.example.com"),
+            ("carol", "pw3\nurl: https://example.com"),
+            ("dave", "pw4\nurl: https://example.org"),
+            ("example.com_archive", "pw5"),
+            (
+                "sites/attacker.co.uk/eve",
+                "pw6\nurl: https://attacker.co.uk",
+            ),
+        ]);
+        for domain in [
+            "example.com",
+            "www.example.com",
+            "example.org",
+            "victim.co.uk",
+            "attacker.co.uk",
+            "",
+        ] {
+            let matched: Vec<String> =
+                find_matches(&store, "personal", domain, &uri_keys(), &username_keys())
+                    .into_iter()
+                    .map(|m| m.name)
+                    .collect();
+            for name in store.secrets.keys() {
+                assert_eq!(
+                    reveal_for(&store, domain, name).is_some(),
+                    matched.contains(name),
+                    "{domain} / {name}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reveal_includes_totp_code_on_an_exact_host_match() {
+        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        store.otp.insert("alice".into(), totp_entry());
+        let credential = reveal_for(&store, "example.com", "alice").expect("exact match");
+        let otp = credential.otp.as_deref().expect("expected TOTP code");
         assert_eq!(otp.len(), 6, "TOTP should be zero-padded to digit width");
         assert!(otp.chars().all(|c| c.is_ascii_digit()));
     }
 
     #[test]
-    fn match_omits_otp_for_hotp_entry_to_preserve_counter() {
-        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
-        store.otp.insert("alice".into(), hotp_entry());
-        let result = find_matches(
-            &store,
-            "personal",
-            "example.com",
-            &uri_keys(),
-            &username_keys(),
-        );
-        assert!(result[0].otp.is_none());
+    fn reveal_omits_totp_code_on_a_registrable_domain_match() {
+        let mut store = store_with(&[("alice", "hunter2\nurl: https://www.example.com")]);
+        store.otp.insert("alice".into(), totp_entry());
+        let credential =
+            reveal_for(&store, "mail.example.com", "alice").expect("registrable match");
+        assert_eq!(credential.password, "hunter2");
+        assert!(credential.otp.is_none());
     }
 
     #[test]
-    fn match_omits_otp_when_no_otp_entry_matches_secret_name() {
+    fn reveal_omits_totp_code_on_a_name_match() {
+        let mut store = store_with(&[("sites/example.com/alice", "hunter2")]);
+        store
+            .otp
+            .insert("sites/example.com/alice".into(), totp_entry());
+        let credential =
+            reveal_for(&store, "example.com", "sites/example.com/alice").expect("name match");
+        assert!(credential.otp.is_none());
+    }
+
+    #[test]
+    fn reveal_omits_otp_for_hotp_entry_to_preserve_counter() {
+        let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        store.otp.insert("alice".into(), hotp_entry());
+        let credential = reveal_for(&store, "example.com", "alice").expect("exact match");
+        assert!(credential.otp.is_none());
+    }
+
+    #[test]
+    fn reveal_omits_otp_when_no_otp_entry_matches_secret_name() {
         let mut store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
         store.otp.insert("bob".into(), totp_entry());
-        let result = find_matches(
-            &store,
-            "personal",
-            "example.com",
-            &uri_keys(),
-            &username_keys(),
-        );
-        assert!(result[0].otp.is_none());
+        let credential = reveal_for(&store, "example.com", "alice").expect("exact match");
+        assert!(credential.otp.is_none());
+    }
+
+    #[test]
+    fn credential_serializes_without_an_absent_otp() {
+        let credential = Credential {
+            name: "alice".into(),
+            store: "personal".into(),
+            username: "alice@example.com".into(),
+            password: "hunter2".into(),
+            otp: None,
+        };
+        let json = serde_json::to_value(&credential).unwrap();
+        let keys: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(keys, ["name", "password", "store", "username"], "{json}");
     }
 
     #[test]

@@ -3,17 +3,15 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::browser::matcher::Match;
+use crate::browser::matcher::{Credential, Match};
 
 /// Wire-format version emitted in `ListStoresResponse::protocol_version`.
 /// The extension refuses to operate against any host that doesn't
 /// report the exact same value, so bumping this number is the
 /// single mechanism we have for signalling a breaking change to the
-/// request or response shapes. We carry it from day one even though
-/// only one shape exists today — that way the very first
-/// incompatible change can ship without also having to teach old
-/// extensions and old hosts how to negotiate.
-pub const PROTOCOL_VERSION: u32 = 1;
+/// request or response shapes. Version 2 is the two-phase shape: `query`
+/// answers with metadata only and `reveal` releases one credential.
+pub const PROTOCOL_VERSION: u32 = 2;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
@@ -22,6 +20,15 @@ pub enum Request {
         domain: String,
         #[serde(default)]
         store: Option<String>,
+    },
+    /// Releases the credential of one secret, after the host re-runs the
+    /// matcher and finds `name` among the matches for `domain`. `store` is
+    /// mandatory so a default store that changed since the query cannot
+    /// redirect the reveal to a different secret of the same name.
+    Reveal {
+        store: String,
+        name: String,
+        domain: String,
     },
     ListStores,
 }
@@ -62,6 +69,7 @@ pub struct ResponseEnvelope<'a> {
 #[serde(untagged)]
 pub enum ResponsePayload {
     Query(QueryResponse),
+    Reveal(RevealResponse),
     ListStores(ListStoresResponse),
     Error(ErrorResponse),
 }
@@ -69,6 +77,11 @@ pub enum ResponsePayload {
 #[derive(Debug, Serialize)]
 pub struct QueryResponse {
     pub results: Vec<Match>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RevealResponse {
+    pub credential: Credential,
 }
 
 #[derive(Debug, Serialize)]
@@ -125,12 +138,14 @@ pub enum ErrorKind {
     /// in-flight request — so the host downgrades the oversized reply
     /// to this per-request error instead.
     ResponseTooLarge,
+    /// A `reveal` named a secret that is not among the matches for the
+    /// requested domain, or a secret that does not exist; the two are
+    /// indistinguishable so the reply cannot probe for secret names.
+    NotMatched,
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use serde_json::Value;
 
     use super::*;
@@ -141,12 +156,10 @@ mod tests {
             name: "alice".into(),
             store: "personal".into(),
             username: "alice@example.com".into(),
-            password: "hunter2".into(),
             url: Some("https://example.com".into()),
             match_kind: MatchKind::UrlField,
             score: 1.0,
-            fields: BTreeMap::new(),
-            otp: None,
+            exact_host: true,
         }
     }
 
@@ -167,10 +180,6 @@ mod tests {
             Some("alice@example.com")
         );
         assert_eq!(
-            first.get("password").and_then(Value::as_str),
-            Some("hunter2")
-        );
-        assert_eq!(
             first.get("url").and_then(Value::as_str),
             Some("https://example.com")
         );
@@ -179,7 +188,78 @@ mod tests {
             Some("url_field")
         );
         assert_eq!(first.get("score").and_then(Value::as_f64), Some(1.0));
-        assert!(first.get("fields").unwrap().is_object());
+        for absent in ["password", "fields", "otp", "exact_host"] {
+            assert!(first.get(absent).is_none(), "{absent} leaked: {json}");
+        }
+    }
+
+    #[test]
+    fn reveal_response_nests_the_credential() {
+        let payload = ResponsePayload::Reveal(RevealResponse {
+            credential: Credential {
+                name: "alice".into(),
+                store: "personal".into(),
+                username: "alice@example.com".into(),
+                password: "hunter2".into(),
+                otp: Some("123456".into()),
+            },
+        });
+        let envelope = ResponseEnvelope {
+            request_id: Some(9),
+            payload: &payload,
+        };
+        let parsed: Value = serde_json::to_value(&envelope).unwrap();
+        assert_eq!(
+            parsed,
+            serde_json::json!({
+                "request_id": 9,
+                "credential": {
+                    "name": "alice",
+                    "store": "personal",
+                    "username": "alice@example.com",
+                    "password": "hunter2",
+                    "otp": "123456",
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn not_matched_serializes_as_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ErrorKind::NotMatched).unwrap(),
+            "\"not_matched\""
+        );
+    }
+
+    #[test]
+    fn request_reveal_round_trips() {
+        let raw =
+            r#"{"action": "reveal", "store": "work", "name": "alice", "domain": "example.com"}"#;
+        let request: Request = serde_json::from_str(raw).unwrap();
+        match request {
+            Request::Reveal {
+                store,
+                name,
+                domain,
+            } => {
+                assert_eq!(store, "work");
+                assert_eq!(name, "alice");
+                assert_eq!(domain, "example.com");
+            }
+            other => panic!("expected Reveal variant, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn request_reveal_requires_store_name_and_domain() {
+        for raw in [
+            r#"{"action": "reveal", "name": "alice", "domain": "example.com"}"#,
+            r#"{"action": "reveal", "store": "work", "domain": "example.com"}"#,
+            r#"{"action": "reveal", "store": "work", "name": "alice"}"#,
+        ] {
+            assert!(serde_json::from_str::<Request>(raw).is_err(), "{raw}");
+        }
     }
 
     #[test]

@@ -18,11 +18,9 @@ $ pasejo browser query example.com --pretty
       "name": "sites/example.com/alice",
       "store": "personal",
       "username": "",
-      "password": "[..]",
       "url": null,
       "match_kind": "name",
-      "score": 0.5,
-      "fields": {}
+      "score": 0.5
     }
   ]
 }

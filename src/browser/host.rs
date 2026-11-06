@@ -9,10 +9,10 @@ use std::time::Duration;
 
 use anyhow::{Result, bail};
 
-use crate::browser::matcher::find_matches;
+use crate::browser::matcher::{find_matches, reveal};
 use crate::browser::protocol::{
     ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
-    RequestEnvelope, ResponseEnvelope, ResponsePayload, StoreEntry,
+    RequestEnvelope, ResponseEnvelope, ResponsePayload, RevealResponse, StoreEntry,
 };
 use crate::cli::i18n;
 use crate::commands::store_op::try_acquire_store_lock;
@@ -80,6 +80,11 @@ pub fn handle_request(
         Request::Query { domain, store } => {
             handle_query(configuration, context, store.as_deref(), domain, offline)
         }
+        Request::Reveal {
+            store,
+            name,
+            domain,
+        } => handle_reveal(configuration, context, store, name, domain, offline),
         Request::ListStores => ResponsePayload::ListStores(list_stores_response(configuration)),
     }
 }
@@ -110,6 +115,46 @@ fn handle_query(
         &context.username_keys,
     );
     ResponsePayload::Query(QueryResponse { results })
+}
+
+/// Decrypts the store again rather than trusting an earlier query, so the
+/// domain check runs against the store as it is at the moment of the reveal.
+fn handle_reveal(
+    configuration: &Configuration,
+    context: &HostContext,
+    requested_store: &str,
+    secret_name: &str,
+    domain: &str,
+    offline: bool,
+) -> ResponsePayload {
+    let registration = match resolve_store(configuration, Some(requested_store)) {
+        Ok(reg) => reg,
+        Err(err) => return ResponsePayload::Error(err),
+    };
+
+    let store = match open_store_for_read(configuration, registration, offline) {
+        Ok(store) => store,
+        Err((kind, err)) => return error_response(kind, configuration, registration, &err),
+    };
+
+    reveal(
+        &store,
+        &registration.name,
+        domain,
+        secret_name,
+        &context.uri_keys,
+        &context.username_keys,
+    )
+    .map_or_else(
+        || {
+            ResponsePayload::Error(ErrorResponse {
+                error: ErrorKind::NotMatched,
+                store: Some(registration.name.clone()),
+                hint: None,
+            })
+        },
+        |credential| ResponsePayload::Reveal(RevealResponse { credential }),
+    )
 }
 
 /// Hand-rolled equivalent of the read-only prefix of `store_op::with_store`
@@ -847,11 +892,11 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_in_list_stores_is_one() {
+    fn protocol_version_in_list_stores_is_two() {
         let cfg = configuration_with(&["personal"], None);
         let response = list_stores_response(&cfg);
         assert_eq!(response.protocol_version, PROTOCOL_VERSION);
-        assert_eq!(PROTOCOL_VERSION, 1);
+        assert_eq!(PROTOCOL_VERSION, 2);
     }
 
     // --- serialize_capped (review8 item D) --------------------------------
@@ -1169,6 +1214,144 @@ mod tests {
             open_store_for_read_error_kind(&cfg),
             Some(ErrorKind::StoreUnreachable)
         );
+    }
+
+    // --- reveal --------------------------------------------------------------
+
+    fn configuration_with_encrypted_store(
+        temp: &assert_fs::TempDir,
+        secrets: &[(&str, &str)],
+    ) -> Configuration {
+        let store_path = temp.path().join("personal.age");
+        let cfg = configuration_with_identity(temp, store_path.clone());
+        let identity_text = std::fs::read_to_string(&cfg.identities[0].file).unwrap();
+        let identity: age::x25519::Identity = identity_text.trim().parse().unwrap();
+        let recipients: Vec<Box<dyn age::Recipient + Send>> = vec![Box::new(identity.to_public())];
+        let mut store = PasswordStore::default();
+        for (name, value) in secrets {
+            store
+                .secrets
+                .insert((*name).to_owned(), (*value).to_owned());
+        }
+        let plaintext = toml::to_string(&store).unwrap();
+        crate::secrets::encrypt(&plaintext, &store_path, &recipients).unwrap();
+        cfg
+    }
+
+    fn uri_and_username_context() -> HostContext {
+        HostContext {
+            uri_keys: crate::cli::constants::default_uri_keys(),
+            username_keys: crate::cli::constants::default_username_keys(),
+        }
+    }
+
+    fn reveal_request(store: &str, name: &str, domain: &str) -> Request {
+        Request::Reveal {
+            store: store.to_owned(),
+            name: name.to_owned(),
+            domain: domain.to_owned(),
+        }
+    }
+
+    #[test]
+    fn reveal_returns_the_credential_of_a_secret_matching_the_domain() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com\nlogin: alice")],
+        );
+        let response = handle_request(
+            &reveal_request("personal", "alice", "example.com"),
+            &cfg,
+            &uri_and_username_context(),
+            true,
+        );
+        let ResponsePayload::Reveal(reveal) = response else {
+            panic!("expected a reveal response, got {response:?}");
+        };
+        assert_eq!(reveal.credential.name, "alice");
+        assert_eq!(reveal.credential.store, "personal");
+        assert_eq!(reveal.credential.username, "alice");
+        assert_eq!(reveal.credential.password, "hunter2");
+    }
+
+    #[test]
+    fn reveal_reports_not_matched_for_a_secret_of_another_domain() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com")],
+        );
+        let response = handle_request(
+            &reveal_request("personal", "alice", "attacker.example.org"),
+            &cfg,
+            &uri_and_username_context(),
+            true,
+        );
+        let ResponsePayload::Error(err) = response else {
+            panic!("expected an error response, got {response:?}");
+        };
+        assert_eq!(err.error, ErrorKind::NotMatched);
+        assert_eq!(err.store.as_deref(), Some("personal"));
+        assert!(err.hint.is_none());
+    }
+
+    #[test]
+    fn reveal_reports_a_missing_secret_like_a_mismatched_one() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com")],
+        );
+        let response = handle_request(
+            &reveal_request("personal", "carol", "example.com"),
+            &cfg,
+            &uri_and_username_context(),
+            true,
+        );
+        let ResponsePayload::Error(err) = response else {
+            panic!("expected an error response, got {response:?}");
+        };
+        assert_eq!(err.error, ErrorKind::NotMatched);
+    }
+
+    #[test]
+    fn reveal_reports_an_unknown_store() {
+        let cfg = configuration_with(&["personal"], None);
+        let response = handle_request(
+            &reveal_request("ghost", "alice", "example.com"),
+            &cfg,
+            &empty_context(),
+            true,
+        );
+        let ResponsePayload::Error(err) = response else {
+            panic!("expected an error response, got {response:?}");
+        };
+        assert_eq!(err.error, ErrorKind::UnknownStore);
+        assert_eq!(err.store.as_deref(), Some("ghost"));
+    }
+
+    #[test]
+    fn query_returns_metadata_without_the_password() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com")],
+        );
+        let (_, response) = process_message(
+            br#"{"action":"query","domain":"example.com"}"#,
+            &cfg,
+            &uri_and_username_context(),
+            true,
+        );
+        let bytes = serialize_capped(None, &response).unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        assert!(text.contains(r#""name":"alice""#), "{text}");
+        assert!(!text.contains("hunter2"), "{text}");
     }
 
     #[test]
