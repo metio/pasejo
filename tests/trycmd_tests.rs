@@ -41,6 +41,9 @@ fn test_cases(lang: &str) -> trycmd::TestCases {
         // between tests (and between `cargo test` runs), making the
         // suite flaky.
         .env("PASEJO_DISABLE_HOOK_THROTTLING", "1")
+        // Keep local state such as the browser release log inside the
+        // case's sandbox instead of the developer's data directory.
+        .env("PASEJO_DATA_DIR", "data")
         // Make every editor session fail immediately, so `secret edit` and
         // `secret add --multiline` never open the developer's editor. An
         // empty `VISUAL` is ignored, which leaves `EDITOR` in charge.

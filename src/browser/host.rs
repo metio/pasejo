@@ -7,13 +7,14 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 
 use crate::browser::matcher::{find_matches, reveal};
 use crate::browser::protocol::{
     ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
     RequestEnvelope, ResponseEnvelope, ResponsePayload, RevealResponse, StoreEntry,
 };
+use crate::browser::release_log::{Release, ReleaseLog};
 use crate::cli::i18n;
 use crate::commands::store_op::try_acquire_store_lock;
 use crate::hooks::executor::HookExecutor;
@@ -59,14 +60,44 @@ const STORE_LOCK_WAIT: Duration = Duration::from_secs(5);
 pub struct HostContext {
     pub uri_keys: Vec<String>,
     pub username_keys: Vec<String>,
+    /// The extension the browser started this host for, as far as the
+    /// browser's arguments name it.
+    pub caller: Option<String>,
+    /// Every released credential is recorded here before it is sent.
+    /// `None` only in tests that do not exercise the log.
+    pub release_log: Option<ReleaseLog>,
 }
 
 impl HostContext {
-    pub fn from_args(args: &HostArgs) -> Self {
+    pub fn from_args(args: &HostArgs, release_log: ReleaseLog) -> Self {
         Self {
             uri_keys: args.uri_keys.clone(),
             username_keys: args.username_keys.clone(),
+            caller: caller_from_browser_args(&args.browser_args),
+            release_log: Some(release_log),
         }
+    }
+}
+
+/// Chromium-family browsers pass the calling extension's origin
+/// (`chrome-extension://<id>/`); Firefox passes the manifest path followed
+/// by the add-on id. Anything else leaves the caller unknown.
+fn caller_from_browser_args(args: &[String]) -> Option<String> {
+    if let Some(origin) = args
+        .iter()
+        .find(|arg| arg.starts_with("chrome-extension://"))
+    {
+        return Some(origin.clone());
+    }
+    match args {
+        [manifest, add_on_id, ..]
+            if Path::new(manifest)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("json")) =>
+        {
+            Some(add_on_id.clone())
+        }
+        _ => None,
     }
 }
 
@@ -119,6 +150,8 @@ fn handle_query(
 
 /// Decrypts the store again rather than trusting an earlier query, so the
 /// domain check runs against the store as it is at the moment of the reveal.
+/// A credential is sent only after its release is recorded in the release
+/// log; when that fails, the reply is `release_log_failed` instead.
 fn handle_reveal(
     configuration: &Configuration,
     context: &HostContext,
@@ -153,7 +186,25 @@ fn handle_reveal(
                 hint: None,
             })
         },
-        |credential| ResponsePayload::Reveal(RevealResponse { credential }),
+        |credential| {
+            if let Some(log) = &context.release_log {
+                let release = Release::now(
+                    domain,
+                    &credential.store,
+                    &credential.name,
+                    context.caller.as_deref(),
+                );
+                if let Err(err) = log.append(&release) {
+                    eprintln!("pasejo browser host: {err:#}");
+                    return ResponsePayload::Error(ErrorResponse {
+                        error: ErrorKind::ReleaseLogFailed,
+                        store: Some(registration.name.clone()),
+                        hint: Some(i18n::error_browser_release_log_failed()),
+                    });
+                }
+            }
+            ResponsePayload::Reveal(RevealResponse { credential })
+        },
     )
 }
 
@@ -386,8 +437,10 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         bail!(i18n::error_browser_host_requires_pipe());
     }
 
+    let release_log =
+        ReleaseLog::in_data_dir().context(i18n::error_browser_release_log_no_data_dir())?;
     let configuration = Arc::new(configuration.clone());
-    let context = Arc::new(HostContext::from_args(args));
+    let context = Arc::new(HostContext::from_args(args, release_log));
     let stdout = Arc::new(Mutex::new(std::io::stdout()));
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
@@ -683,6 +736,50 @@ mod tests {
         let mut reader = Cursor::new(bytes);
         let out = read_message(&mut reader).unwrap().unwrap();
         assert_eq!(out.len(), MAX_MESSAGE_LEN);
+    }
+
+    // --- caller -------------------------------------------------------------
+
+    fn args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|v| (*v).to_owned()).collect()
+    }
+
+    #[test]
+    fn caller_of_a_chromium_browser_is_the_extension_origin() {
+        assert_eq!(
+            caller_from_browser_args(&args(&["chrome-extension://abcdefgh/"])).as_deref(),
+            Some("chrome-extension://abcdefgh/")
+        );
+    }
+
+    #[test]
+    fn caller_of_a_chromium_browser_on_windows_skips_the_parent_window_flag() {
+        assert_eq!(
+            caller_from_browser_args(&args(&[
+                "chrome-extension://abcdefgh/",
+                "--parent-window=0"
+            ]))
+            .as_deref(),
+            Some("chrome-extension://abcdefgh/")
+        );
+    }
+
+    #[test]
+    fn caller_of_firefox_is_the_add_on_id_after_the_manifest_path() {
+        assert_eq!(
+            caller_from_browser_args(&args(&[
+                "/home/alice/.mozilla/native-messaging-hosts/wtf.metio.pasejo.json",
+                "pasejo@metio.wtf"
+            ]))
+            .as_deref(),
+            Some("pasejo@metio.wtf")
+        );
+    }
+
+    #[test]
+    fn caller_is_unknown_without_browser_arguments() {
+        assert_eq!(caller_from_browser_args(&[]), None);
+        assert_eq!(caller_from_browser_args(&args(&["something"])), None);
     }
 
     // --- resolve_store ----------------------------------------------------
@@ -1242,6 +1339,7 @@ mod tests {
         HostContext {
             uri_keys: crate::cli::constants::default_uri_keys(),
             username_keys: crate::cli::constants::default_username_keys(),
+            ..HostContext::default()
         }
     }
 
@@ -1420,6 +1518,106 @@ mod tests {
         assert_eq!(query.results.len(), 1);
         assert_eq!(query.results[0].name, "alice");
         assert!(query.results[0].confirm);
+    }
+
+    fn logging_context(temp: &assert_fs::TempDir) -> HostContext {
+        HostContext {
+            caller: Some("chrome-extension://abcdefgh/".into()),
+            release_log: Some(ReleaseLog::new(temp.path().join("releases.jsonl"))),
+            ..uri_and_username_context()
+        }
+    }
+
+    #[test]
+    fn reveal_records_the_release_without_the_secret() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com\nlogin: alice")],
+        );
+        let context = logging_context(&temp);
+        let response = handle_request(
+            &reveal_request("personal", "alice", "example.com"),
+            &cfg,
+            &context,
+            true,
+        );
+        assert!(
+            matches!(response, ResponsePayload::Reveal(_)),
+            "{response:?}"
+        );
+        let log = context.release_log.as_ref().unwrap();
+        let entries = log.read().unwrap();
+        assert_eq!(entries.releases.len(), 1);
+        let release = &entries.releases[0];
+        assert_eq!(release.domain, "example.com");
+        assert_eq!(release.store, "personal");
+        assert_eq!(release.name, "alice");
+        assert_eq!(
+            release.caller.as_deref(),
+            Some("chrome-extension://abcdefgh/")
+        );
+        let raw = std::fs::read_to_string(log.path()).unwrap();
+        assert!(!raw.contains("hunter2"), "{raw}");
+    }
+
+    #[test]
+    fn query_and_refused_reveal_record_nothing() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com")],
+        );
+        let context = logging_context(&temp);
+        handle_request(
+            &Request::Query {
+                domain: "example.com".into(),
+                store: None,
+            },
+            &cfg,
+            &context,
+            true,
+        );
+        handle_request(
+            &reveal_request("personal", "alice", "example.org"),
+            &cfg,
+            &context,
+            true,
+        );
+        let entries = context.release_log.as_ref().unwrap().read().unwrap();
+        assert!(entries.releases.is_empty());
+    }
+
+    #[test]
+    fn reveal_withholds_the_credential_when_the_release_cannot_be_recorded() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[("alice", "hunter2\nurl: https://example.com")],
+        );
+        let log_path = temp.path().join("releases.jsonl");
+        std::fs::create_dir(&log_path).unwrap();
+        let context = HostContext {
+            release_log: Some(ReleaseLog::new(log_path)),
+            ..uri_and_username_context()
+        };
+        let response = handle_request(
+            &reveal_request("personal", "alice", "example.com"),
+            &cfg,
+            &context,
+            true,
+        );
+        let ResponsePayload::Error(err) = response else {
+            panic!("expected an error response, got {response:?}");
+        };
+        assert_eq!(err.error, ErrorKind::ReleaseLogFailed);
+        assert_eq!(err.store.as_deref(), Some("personal"));
+        let hint = err.hint.unwrap();
+        assert!(hint.contains("release log"), "{hint}");
+        assert!(!hint.contains(temp.path().to_str().unwrap()), "{hint}");
     }
 
     #[test]

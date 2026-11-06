@@ -247,7 +247,7 @@ fn posix_wrapper_content(binary: &Path, envs: &[(String, String)]) -> String {
     }
     body.push_str("exec ");
     body.push_str(&shell_quote_str(&binary.display().to_string()));
-    body.push_str(" browser host\n");
+    body.push_str(" browser host \"$@\"\n");
     body
 }
 
@@ -516,7 +516,7 @@ mod tests {
     fn posix_wrapper_content_includes_exec_browser_host() {
         let content = posix_wrapper_content(Path::new("/usr/local/bin/pasejo"), &[]);
         assert!(content.starts_with("#!/bin/sh\n"));
-        assert!(content.contains("exec '/usr/local/bin/pasejo' browser host\n"));
+        assert!(content.contains("exec '/usr/local/bin/pasejo' browser host \"$@\"\n"));
         assert!(!content.contains("export "));
     }
 

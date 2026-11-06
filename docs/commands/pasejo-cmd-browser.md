@@ -12,6 +12,7 @@ Commands:
   query             Search a store for credentials matching a domain
   host              Run a native-messaging host that browser extensions connect to
   install-manifest  Install the native-messaging manifest for one or more browsers
+  log               Show which credentials the native-messaging host released to which site
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -40,7 +41,18 @@ pasejo-confirm: always
 
 The host decrypts the store on every query and every reveal and cannot ask for a passphrase, since the browser gives it no terminal. It therefore skips passphrase-protected identities — age identity files encrypted with a passphrase (`age --passphrase`) and encrypted SSH private keys — and answers `identity_locked` when the remaining identities cannot decrypt the store. An ssh-agent does not help here, because pasejo reads SSH keys from their files and never asks an agent. For browser use, register an unencrypted identity file (protected by restrictive file permissions and disk encryption) or a plugin-backed identity such as one from `age-plugin-yubikey`. A plugin that asks for a PIN does so through pinentry when one is available and falls back to the terminal otherwise; for the browser-spawned host, set `PINENTRY_PROGRAM` to a graphical pinentry, e.g. `--env PINENTRY_PROGRAM=/usr/bin/pinentry-gnome3`.
 
-`browser install-manifest` writes the per-user native-messaging manifest a browser needs before it will spawn `pasejo browser host`. Pass `--browser firefox` and/or one or more chromium-family entries (`chrome`, `chromium`, `brave`, `edge`, `vivaldi`, `opera`); for chromium-family browsers, also pass `--extension-id` because their extension ids are derived from the unpacked extension's public key. The Firefox build of the [pasejo web extension][ext] ships with a stable add-on id, so `--extension-id` is optional there. The command also drops a tiny wrapper script under the user's data directory that invokes `pasejo browser host` on behalf of the browser; pass `--binary` to point the manifest at your own launcher instead. Use `--print` to emit the JSON to stdout (no files written) for inspection or templating.
+Every credential the host releases is recorded first in a local release log, and `browser log` prints it. Each entry names the time (UTC), the domain the credential was released for, the store, the secret's name and the calling extension: the `chrome-extension://…` origin for chromium-family browsers, or the add-on id for Firefox, and `-` when the browser's arguments did not reach the host. Passwords, one-time codes and other field values are never written to the log. When an entry cannot be written, the host withholds the credential and answers `release_log_failed`, so no release goes unrecorded. Queries and refused reveals are not logged.
+
+```console
+$ pasejo browser log
+Time	Domain	Store	Secret	Caller
+2025-11-06T12:00:00Z	example.com	personal	alice	chrome-extension://abcdefgh/
+
+```
+
+The columns are separated by tabs, so the output can be piped into `column -t` or `cut`. The log lives at `pasejo/browser-releases.jsonl` in the local data directory (`~/.local/share` on Linux, or the directory named by `PASEJO_DATA_DIR`), one JSON object per line, readable by its owner only on Unix. It is never synchronised by hooks. Once it would grow beyond 1 MiB it is renamed to `browser-releases.jsonl.1`, replacing the previous rotation, and `browser log` reads both files.
+
+`browser install-manifest` writes the per-user native-messaging manifest a browser needs before it will spawn `pasejo browser host`. Pass `--browser firefox` and/or one or more chromium-family entries (`chrome`, `chromium`, `brave`, `edge`, `vivaldi`, `opera`); for chromium-family browsers, also pass `--extension-id` because their extension ids are derived from the unpacked extension's public key. The Firefox build of the [pasejo web extension][ext] ships with a stable add-on id, so `--extension-id` is optional there. The command also drops a tiny wrapper script under the user's data directory that invokes `pasejo browser host` on behalf of the browser and passes on the arguments the browser adds, which name the calling extension; pass `--binary` to point the manifest at your own launcher instead, and have it forward its arguments to `pasejo browser host` as well. Use `--print` to emit the JSON to stdout (no files written) for inspection or templating.
 
 This works on Linux, macOS, and Windows. On Linux and macOS the manifest is written into the browser's per-user lookup directory; on Windows — where browsers find native-messaging hosts through the registry — the manifest is written under the data directory and an `HKEY_CURRENT_USER` value is registered to point at it, and the wrapper is a `.cmd` batch file rather than a shell script.
 

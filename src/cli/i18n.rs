@@ -1050,6 +1050,32 @@ fl_string!(
     browser
 );
 
+fl_string!(
+    error_browser_release_log_lock,
+    "error-browser-release-log-lock",
+    path
+);
+fl_string!(
+    error_browser_release_log_no_data_dir,
+    "error-browser-release-log-no-data-dir"
+);
+fl_string!(
+    error_browser_release_log_failed,
+    "error-browser-release-log-failed"
+);
+fl_log!(info, browser_log_empty, "browser-log-empty");
+fl_log!(
+    warn,
+    browser_log_unreadable_lines,
+    "browser-log-unreadable-lines",
+    count
+);
+fl_string!(browser_log_header_time, "browser-log-header-time");
+fl_string!(browser_log_header_domain, "browser-log-header-domain");
+fl_string!(browser_log_header_store, "browser-log-header-store");
+fl_string!(browser_log_header_secret, "browser-log-header-secret");
+fl_string!(browser_log_header_caller, "browser-log-header-caller");
+
 fl_log_path!(
     warn,
     browser_install_manifest_print_wrapper_note,

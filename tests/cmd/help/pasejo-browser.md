@@ -8,6 +8,7 @@ Commands:
   query             Search a store for credentials matching a domain
   host              Run a native-messaging host that browser extensions connect to
   install-manifest  Install the native-messaging manifest for one or more browsers
+  log               Show which credentials the native-messaging host released to which site
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -27,6 +28,7 @@ Commands:
   query             Search a store for credentials matching a domain
   host              Run a native-messaging host that browser extensions connect to
   install-manifest  Install the native-messaging manifest for one or more browsers
+  log               Show which credentials the native-messaging host released to which site
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -46,6 +48,7 @@ Commands:
   query             Search a store for credentials matching a domain
   host              Run a native-messaging host that browser extensions connect to
   install-manifest  Install the native-messaging manifest for one or more browsers
+  log               Show which credentials the native-messaging host released to which site
   help              Print this message or the help of the given subcommand(s)
 
 Options:

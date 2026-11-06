@@ -142,6 +142,9 @@ pub enum ErrorKind {
     /// requested domain, or a secret that does not exist; the two are
     /// indistinguishable so the reply cannot probe for secret names.
     NotMatched,
+    /// A `reveal` matched, but its release could not be recorded in the
+    /// local release log, so the credential was withheld.
+    ReleaseLogFailed,
 }
 
 #[cfg(test)]
@@ -231,6 +234,14 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ErrorKind::NotMatched).unwrap(),
             "\"not_matched\""
+        );
+    }
+
+    #[test]
+    fn release_log_failed_serializes_as_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ErrorKind::ReleaseLogFailed).unwrap(),
+            "\"release_log_failed\""
         );
     }
 

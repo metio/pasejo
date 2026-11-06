@@ -165,6 +165,10 @@ pub enum BrowserCommands {
 
     /// Install the native-messaging manifest for one or more browsers
     InstallManifest(InstallManifestArgs),
+
+    /// Show which credentials the native-messaging host released to which
+    /// site
+    Log,
 }
 
 #[derive(Args)]
@@ -258,6 +262,13 @@ pub struct HostArgs {
 
     #[arg(long, default_values_t = default_uri_keys())]
     pub uri_keys: Vec<String>,
+
+    /// The arguments a browser appends when it starts a native-messaging
+    /// host: the calling extension's origin for chromium-family browsers
+    /// (plus `--parent-window=<id>` on Windows), the manifest path and the
+    /// add-on id for Firefox.
+    #[arg(hide = true, trailing_var_arg = true, allow_hyphen_values = true)]
+    pub browser_args: Vec<String>,
 }
 
 #[derive(Subcommand)]

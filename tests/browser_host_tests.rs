@@ -563,10 +563,13 @@ fn host_runs_pull_hooks_of_stores_sharing_a_directory_one_at_a_time() {
     assert!(status.success());
 }
 
+/// The release log goes to the directory holding `config`, never to the
+/// developer's data directory.
 fn spawn_host_in(config: &std::path::Path, language: &str) -> std::process::Child {
     StdCommand::new(cargo_bin("pasejo"))
         .args(["browser", "host"])
         .env("PASEJO_CONFIG", config)
+        .env("PASEJO_DATA_DIR", config.parent().unwrap())
         .env_remove("LANGUAGE")
         .env("LANG", language)
         .env("LC_ALL", language)
@@ -888,4 +891,145 @@ fn host_honours_the_fill_and_confirm_policies_stored_in_secrets() {
 
     drop(stdin);
     assert!(child.wait().unwrap().success());
+}
+
+fn host_with_browser_args_answers_list_stores(browser_args: &[&str]) {
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .args(browser_args)
+        .env("PASEJO_CONFIG", &config)
+        .env("PASEJO_DATA_DIR", temp.path())
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(&mut stdin, br#"{"request_id":1,"action":"list_stores"}"#);
+    let response = read_response(&mut stdout);
+    assert!(
+        response.contains(r#""protocol_version""#),
+        "response was: {response}"
+    );
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn host_accepts_the_origin_argument_chromium_browsers_pass() {
+    host_with_browser_args_answers_list_stores(&[
+        "chrome-extension://abcdefgh/",
+        "--parent-window=0",
+    ]);
+}
+
+#[test]
+fn host_accepts_the_manifest_and_add_on_arguments_firefox_passes() {
+    host_with_browser_args_answers_list_stores(&[
+        "/home/alice/.mozilla/native-messaging-hosts/wtf.metio.pasejo.json",
+        "pasejo@metio.wtf",
+    ]);
+}
+
+#[test]
+fn host_records_each_release_and_browser_log_prints_it() {
+    let temp = setup_store_with_secret(
+        "alice",
+        "hunter2\nurl: https://example.com\nlogin: alice@example.com\n",
+    );
+    let config = temp.path().join("config.toml");
+
+    let mut child = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host", "chrome-extension://abcdefgh/"])
+        .env("PASEJO_CONFIG", &config)
+        .env("PASEJO_DATA_DIR", temp.path())
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"reveal","store":"test","name":"alice","domain":"example.com"}"#,
+    );
+    let revealed = read_response(&mut stdout);
+    assert!(revealed.contains(r#""credential""#), "{revealed}");
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"reveal","store":"test","name":"alice","domain":"example.org"}"#,
+    );
+    let refused = read_response(&mut stdout);
+    assert!(refused.contains("not_matched"), "{refused}");
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+
+    let raw =
+        std::fs::read_to_string(temp.path().join("pasejo").join("browser-releases.jsonl")).unwrap();
+    assert_eq!(raw.lines().count(), 1, "{raw}");
+    assert!(!raw.contains("hunter2"), "{raw}");
+
+    let output = pasejo(&config)
+        .args(["browser", "log"])
+        .env("PASEJO_DATA_DIR", temp.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let printed = String::from_utf8(output.stdout).unwrap();
+    let lines: Vec<&str> = printed.lines().collect();
+    assert_eq!(lines.len(), 2, "{printed}");
+    assert_eq!(lines[0], "Time\tDomain\tStore\tSecret\tCaller");
+    let columns: Vec<&str> = lines[1].split('\t').collect();
+    assert_eq!(
+        columns[1..],
+        [
+            "example.com",
+            "test",
+            "alice",
+            "chrome-extension://abcdefgh/"
+        ],
+        "{printed}"
+    );
+    assert!(columns[0].ends_with('Z'), "{printed}");
+}
+
+#[test]
+fn host_withholds_a_credential_whose_release_cannot_be_recorded() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
+    let config = temp.path().join("config.toml");
+    std::fs::create_dir_all(temp.path().join("pasejo").join("browser-releases.jsonl")).unwrap();
+
+    let mut child = spawn_host_in(&config, "de");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"reveal","store":"test","name":"alice","domain":"example.com"}"#,
+    );
+    let response = read_response(&mut stdout);
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+
+    assert!(!response.contains("hunter2"), "response was: {response}");
+    assert!(
+        response.contains(r#""error":"release_log_failed""#),
+        "response was: {response}"
+    );
+    assert!(
+        response.contains("Browser-Freigabeprotokoll"),
+        "response was: {response}"
+    );
 }
