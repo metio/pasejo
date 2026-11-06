@@ -220,6 +220,7 @@ error-command-exited-with = La commande { $binary } s'est terminée avec { $exit
 error-browser-host-requires-pipe = L'hôte du navigateur nécessite une entrée standard redirigée depuis l'extension du navigateur connectée. Exécutez cette commande via le manifeste de messagerie native de votre navigateur, et non directement depuis un terminal.
 error-browser-store-file-missing = Le fichier du coffre n'existe pas : { $path }
 error-browser-identity-passphrase-protected = L'hôte du navigateur ne peut pas demander la phrase de passe d'une identité chiffrée. Utilisez une identité non chiffrée ou gérée par un plugin pour ce coffre.
+prompt-browser-host-pinentry = PIN ou phrase de passe
 error-browser-message-too-large = Le message de { $length } octets dépasse la limite de messagerie native de { $limit } octets
 error-browser-response-too-large = La réponse de { $length } octets dépasse la limite de messagerie native de { $limit } octets
 error-browser-install-manifest-no-browser = Spécifiez au moins un --browser pour lequel installer le manifeste de messagerie native.

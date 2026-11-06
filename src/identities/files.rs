@@ -7,13 +7,74 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use age::cli_common::{StdinGuard, read_identities};
+use age::cli_common::{ReadError, StdinGuard, read_identities};
+use anyhow::Context;
+
+use super::callbacks::PinentryCallbacks;
+use crate::cli::i18n;
 
 pub fn read(
     identity_files: Vec<PathBuf>,
     ignore_missing_identities: bool,
 ) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
-    let existing_identities = if ignore_missing_identities {
+    let filenames = usable_files(identity_files, ignore_missing_identities)
+        .iter()
+        .map(|file| format!("{}", file.display()))
+        .collect();
+
+    Ok(read_identities(
+        filenames,
+        None,
+        &mut StdinGuard::new(true),
+    )?)
+}
+
+/// Reads identity files like [`read`], except that a plugin's requests for a
+/// PIN or a confirmation go to pinentry and never to the terminal or stdin
+/// (see [`PinentryCallbacks`]). Passphrase-protected age identity files are
+/// not supported; callers filter them out with [`is_passphrase_protected`].
+pub fn read_without_terminal(
+    identity_files: Vec<PathBuf>,
+    ignore_missing_identities: bool,
+) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
+    let mut identities: Vec<Box<dyn age::Identity>> = vec![];
+    for file in usable_files(identity_files, ignore_missing_identities) {
+        let path_display = file.display().to_string();
+        let bytes =
+            std::fs::read(&file).with_context(|| i18n::error_cannot_read_file(&path_display))?;
+        identities.extend(parse_with_pinentry(&bytes, &path_display)?);
+    }
+    Ok(identities)
+}
+
+/// Parses one identity file as an SSH private key or, failing that, as a
+/// list of age identities, in the order age's own reader tries them.
+fn parse_with_pinentry(
+    bytes: &[u8],
+    filename: &str,
+) -> anyhow::Result<Vec<Box<dyn age::Identity>>> {
+    match age::ssh::Identity::from_buffer(bytes, Some(filename.to_owned())) {
+        Ok(age::ssh::Identity::Unsupported(key)) => {
+            return Err(ReadError::UnsupportedKey(filename.to_owned(), key).into());
+        }
+        Ok(identity) => return Ok(vec![Box::new(identity.with_callbacks(PinentryCallbacks))]),
+        Err(_) => {}
+    }
+    let identities = age::IdentityFile::from_buffer(bytes)?
+        .with_callbacks(PinentryCallbacks)
+        .into_identities()?;
+    Ok(identities
+        .into_iter()
+        .map(|identity| identity as Box<dyn age::Identity>)
+        .collect())
+}
+
+/// The identity files worth reading. With `ignore_missing_identities`,
+/// missing files and `age-plugin-yubikey` identity files whose device is not
+/// plugged in are left out; otherwise every file is kept, so the reader
+/// reports them.
+fn usable_files(identity_files: Vec<PathBuf>, ignore_missing_identities: bool) -> Vec<PathBuf> {
+    if ignore_missing_identities {
         let age_plugin_yubikey_output: LazyCell<io::Result<String>> = LazyCell::new(|| {
             let Some(plugin_binary) = find_in_path("age-plugin-yubikey") else {
                 return Ok(String::new());
@@ -68,18 +129,7 @@ pub fn read(
         files
     } else {
         identity_files
-    };
-
-    let filenames = existing_identities
-        .iter()
-        .map(|file| format!("{}", file.display()))
-        .collect();
-
-    Ok(read_identities(
-        filenames,
-        None,
-        &mut StdinGuard::new(true),
-    )?)
+    }
 }
 
 /// Whether the identity file at `path` is passphrase-protected: an age file
@@ -182,6 +232,92 @@ mod tests {
         let path = temp.path().join(name);
         std::fs::write(&path, contents).unwrap();
         path
+    }
+
+    fn decrypts(identities: &[Box<dyn age::Identity>], recipient: &impl age::Recipient) -> bool {
+        let ciphertext = age::encrypt(recipient, b"plaintext").unwrap();
+        crate::secrets::decrypt_bytes(&ciphertext, identities)
+            .is_ok_and(|plaintext| plaintext.as_str() == "plaintext")
+    }
+
+    #[test]
+    fn read_without_terminal_reads_an_age_identity_file() {
+        let temp = TempDir::new().unwrap();
+        let identity = age::x25519::Identity::generate();
+        let file = write(
+            &temp,
+            "identity",
+            age::secrecy::ExposeSecret::expose_secret(&identity.to_string()).as_bytes(),
+        );
+
+        let identities = read_without_terminal(vec![file], false).unwrap();
+
+        assert_eq!(identities.len(), 1);
+        assert!(decrypts(&identities, &identity.to_public()));
+    }
+
+    #[test]
+    fn read_without_terminal_reads_an_unencrypted_ssh_key() {
+        use ssh_key::rand_core::OsRng;
+        use ssh_key::{Algorithm, LineEnding, PrivateKey};
+
+        let temp = TempDir::new().unwrap();
+        let key = PrivateKey::random(&mut OsRng, Algorithm::Ed25519).unwrap();
+        let file = write(
+            &temp,
+            "id_ed25519",
+            key.to_openssh(LineEnding::default()).unwrap().as_bytes(),
+        );
+        let recipient: age::ssh::Recipient =
+            key.public_key().to_openssh().unwrap().parse().unwrap();
+
+        let identities = read_without_terminal(vec![file], false).unwrap();
+
+        assert_eq!(identities.len(), 1);
+        assert!(decrypts(&identities, &recipient));
+    }
+
+    #[test]
+    fn read_without_terminal_reports_a_plugin_that_is_not_installed() {
+        crate::cli::i18n::init_for_tests();
+        let temp = TempDir::new().unwrap();
+        let file = write(
+            &temp,
+            "identity",
+            b"AGE-PLUGIN-PASEJOTEST-1WPSHXET2DUKHGETNWSKKKETE0JLNWH\n",
+        );
+
+        let error = read_without_terminal(vec![file], false).err().unwrap();
+
+        assert!(
+            format!("{error:#}").contains("age-plugin-pasejotest"),
+            "error was: {error:#}"
+        );
+    }
+
+    #[test]
+    fn read_without_terminal_rejects_a_file_that_holds_no_identity() {
+        crate::cli::i18n::init_for_tests();
+        let temp = TempDir::new().unwrap();
+        let file = write(&temp, "identity", b"not an identity\n");
+
+        assert!(read_without_terminal(vec![file], false).is_err());
+    }
+
+    #[test]
+    fn read_without_terminal_skips_a_missing_file_when_told_to() {
+        let temp = TempDir::new().unwrap();
+        let identity = age::x25519::Identity::generate();
+        let present = write(
+            &temp,
+            "identity",
+            age::secrecy::ExposeSecret::expose_secret(&identity.to_string()).as_bytes(),
+        );
+        let missing = temp.path().join("missing");
+
+        let identities = read_without_terminal(vec![missing, present], true).unwrap();
+
+        assert_eq!(identities.len(), 1);
     }
 
     #[test]

@@ -220,6 +220,7 @@ error-command-exited-with = El comando { $binary } terminó con { $exit }
 error-browser-host-requires-pipe = El host del navegador requiere una entrada estándar redirigida desde la extensión del navegador conectada. Ejecute este comando a través del manifiesto de mensajería nativa de su navegador, no directamente desde una terminal.
 error-browser-store-file-missing = El archivo del almacén no existe: { $path }
 error-browser-identity-passphrase-protected = El host del navegador no puede pedir la frase de contraseña de una identidad cifrada. Usa una identidad sin cifrar o respaldada por un plugin para este almacén.
+prompt-browser-host-pinentry = PIN o frase de contraseña
 error-browser-message-too-large = El mensaje de { $length } bytes supera el límite de mensajería nativa de { $limit } bytes
 error-browser-response-too-large = La respuesta de { $length } bytes supera el límite de mensajería nativa de { $limit } bytes
 error-browser-install-manifest-no-browser = Especifique al menos un --browser para el que instalar el manifiesto de mensajería nativa.

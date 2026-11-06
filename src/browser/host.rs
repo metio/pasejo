@@ -269,9 +269,9 @@ fn open_store_for_read(
         .map_err(|err| (ErrorKind::StoreUnreachable, err))?;
     drop(lock);
 
-    // The host has no terminal to ask for a passphrase on, so it decrypts
-    // with the identities that need none and reports `IdentityLocked` when
-    // those are not enough.
+    // The host has no terminal: it decrypts with the identities that need no
+    // passphrase, lets plugins ask for a PIN or a confirmation through
+    // pinentry only, and reports `IdentityLocked` when that is not enough.
     let (protected, usable): (Vec<_>, Vec<_>) = configuration
         .all_identity_files(registration)
         .into_iter()
@@ -283,7 +283,7 @@ fn open_store_for_read(
         ));
     }
     let identities = configuration
-        .read_identity_files(usable)
+        .read_identity_files_without_terminal(usable)
         .map_err(|err| (ErrorKind::IdentityLocked, err))?;
     decrypt_store_bytes(&encrypted, &identities).map_err(|err| {
         let kind = decrypt_error_kind(&err);

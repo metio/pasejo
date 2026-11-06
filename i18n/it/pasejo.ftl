@@ -220,6 +220,7 @@ error-command-exited-with = Il comando { $binary } è terminato con { $exit }
 error-browser-host-requires-pipe = L'host del browser richiede uno stdin reindirizzato dall'estensione del browser connessa. Eseguire questo comando tramite il manifest di messaggistica nativa del browser, non direttamente da un terminale.
 error-browser-store-file-missing = Il file dell'archivio non esiste: { $path }
 error-browser-identity-passphrase-protected = L'host del browser non può chiedere la passphrase di un'identità cifrata. Usa un'identità non cifrata o basata su un plugin per questo archivio.
+prompt-browser-host-pinentry = PIN o passphrase
 error-browser-message-too-large = Il messaggio di { $length } byte supera il limite di messaggistica nativa di { $limit } byte
 error-browser-response-too-large = La risposta di { $length } byte supera il limite di messaggistica nativa di { $limit } byte
 error-browser-install-manifest-no-browser = Specificare almeno un --browser per cui installare il manifest di messaggistica nativa.

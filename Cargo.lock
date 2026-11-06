@@ -3166,6 +3166,7 @@ dependencies = [
  "notify-rust",
  "otp-std",
  "passwords",
+ "pinentry",
  "predicates",
  "psl",
  "qr2term",

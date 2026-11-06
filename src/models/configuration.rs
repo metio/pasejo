@@ -357,6 +357,23 @@ impl Configuration {
         )
     }
 
+    /// Reads the given identity files like [`Self::read_identity_files`],
+    /// with plugin requests answered through pinentry alone, for a process
+    /// that has no terminal of its own.
+    pub fn read_identity_files_without_terminal(
+        &self,
+        identity_files: Vec<PathBuf>,
+    ) -> Result<Vec<Box<dyn age::Identity>>> {
+        if identity_files.is_empty() {
+            anyhow::bail!(i18n::error_no_identity_files_to_decrypt());
+        }
+        identities::read_without_terminal(
+            identity_files,
+            self.ignore_missing_identities
+                .unwrap_or(DEFAULT_IGNORE_MISSING_IDENTITIES),
+        )
+    }
+
     pub fn select_store(&self, store_name: Option<&String>) -> Option<&StoreRegistration> {
         store_name
             .cloned()

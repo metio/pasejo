@@ -220,6 +220,7 @@ error-command-exited-with = 命令 { $binary } 以 { $exit } 退出
 error-browser-host-requires-pipe = 浏览器主机需要来自连接的浏览器扩展的管道标准输入。请通过浏览器的原生消息传递清单运行此命令，而不是直接从终端运行。
 error-browser-store-file-missing = 存储文件不存在:{ $path }
 error-browser-identity-passphrase-protected = 浏览器主机无法请求加密身份的密码短语。请为此存储使用未加密或基于插件的身份。
+prompt-browser-host-pinentry = PIN 或密码短语
 error-browser-message-too-large = { $length } 字节的消息超出了 { $limit } 字节的原生消息限制
 error-browser-response-too-large = { $length } 字节的响应超出了 { $limit } 字节的原生消息限制
 error-browser-install-manifest-no-browser = 请至少指定一个 --browser 以安装其原生消息传递清单。

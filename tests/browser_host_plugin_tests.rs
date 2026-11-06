@@ -33,6 +33,10 @@ const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
 const PLUGIN_IDENTITY: &str = "AGE-PLUGIN-PASEJOTEST-1WPSHXET2DUKHGETNWSKKKETE0JLNWH";
 const PLUGIN_STANZA_TAG: &str = "pasejo-test";
 
+/// The base64 encoding (unpadded) of the PIN `123456` the fake pinentry
+/// answers with.
+const PIN_BASE64: &str = "MTIzNDU2";
+
 /// The identity side of the age plugin protocol. Every stanza body it sends
 /// is a single base64 line shorter than 64 characters, the only shape this
 /// script needs. The file key travels in clear inside the `pasejo-test`
@@ -100,6 +104,31 @@ send '-> file-key 0' "$key"
 read_stanza
 send '-> done' ''
 "#;
+
+/// A pinentry that answers every request with `OK`, `GETPIN` with the PIN
+/// `123456`, and appends each request line to `log`.
+fn fake_pinentry(dir: &Path, log: &Path) -> PathBuf {
+    let path = dir.join("pinentry-fake");
+    write_executable(
+        &path,
+        &format!(
+            r#"#!/bin/sh
+echo OK
+while IFS= read -r line; do
+  printf '%s\n' "$line" >> '{}'
+  set -- $line
+  case "$1" in
+    GETPIN) echo 'D 123456'; echo OK ;;
+    BYE) echo OK; exit 0 ;;
+    *) echo OK ;;
+  esac
+done
+"#,
+            log.display()
+        ),
+    );
+    path
+}
 
 fn write_executable(path: &Path, contents: &str) {
     std::fs::write(path, contents).unwrap();
@@ -184,6 +213,10 @@ impl World {
     }
 
     fn host(&self, env: &[(&str, &Path)]) -> Host {
+        self.host_in("en", env)
+    }
+
+    fn host_in(&self, language: &str, env: &[(&str, &Path)]) -> Host {
         let mut command = StdCommand::new(cargo_bin("pasejo"));
         command
             .args(["browser", "host"])
@@ -192,8 +225,8 @@ impl World {
             .env("HOME", self.temp.path())
             .env("PASEJO_CONFIG", &self.config)
             .env("PASEJO_DATA_DIR", self.temp.path())
-            .env("LANG", "en")
-            .env("LC_ALL", "en")
+            .env("LANG", language)
+            .env("LC_ALL", language)
             .env("PASEJO_TEST_PLUGIN_LOG", self.path("plugin.log"))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -382,4 +415,113 @@ fn host_reports_a_plugin_error_as_identity_locked() {
         "reply was: {reply}"
     );
     assert!(reply.contains("touch timed out!"), "reply was: {reply}");
+}
+
+#[test]
+fn host_asks_for_a_plugin_pin_through_the_configured_pinentry() {
+    let world = World::new().store("key", true);
+    let pinentry_log = world.path("pinentry.log");
+    let pinentry = fake_pinentry(&world.path("bin"), &pinentry_log);
+    let mut host = world.host(&[
+        ("PASEJO_TEST_PLUGIN_PIN", Path::new(PIN_BASE64)),
+        ("PINENTRY_PROGRAM", &pinentry),
+    ]);
+
+    host.send(&reveal(1, "key"));
+
+    assert_eq!(host.reply(), credential(1, "key"));
+    let log = std::fs::read_to_string(&pinentry_log).unwrap();
+    assert!(log.lines().any(|line| line == "GETPIN"), "log was: {log}");
+    assert!(
+        log.lines().any(|line| line == "SETDESC PIN"),
+        "the dialog does not show the plugin's request; log was: {log}"
+    );
+    assert!(
+        log.lines()
+            .any(|line| line == "SETPROMPT PIN or passphrase"),
+        "log was: {log}"
+    );
+}
+
+#[test]
+fn host_labels_the_pinentry_prompt_in_the_user_language() {
+    let world = World::new().store("key", true);
+    let pinentry_log = world.path("pinentry.log");
+    let pinentry = fake_pinentry(&world.path("bin"), &pinentry_log);
+    let mut host = world.host_in(
+        "de",
+        &[
+            ("PASEJO_TEST_PLUGIN_PIN", Path::new(PIN_BASE64)),
+            ("PINENTRY_PROGRAM", &pinentry),
+        ],
+    );
+
+    host.send(&reveal(1, "key"));
+
+    assert_eq!(host.reply(), credential(1, "key"));
+    let log = std::fs::read_to_string(&pinentry_log).unwrap();
+    assert!(
+        log.lines()
+            .any(|line| line == "SETPROMPT PIN oder Passphrase"),
+        "log was: {log}"
+    );
+}
+
+#[test]
+fn host_asks_for_a_plugin_confirmation_through_the_configured_pinentry() {
+    let world = World::new().store("key", true);
+    let pinentry_log = world.path("pinentry.log");
+    let pinentry = fake_pinentry(&world.path("bin"), &pinentry_log);
+    let mut host = world.host(&[
+        ("PASEJO_TEST_PLUGIN_CONFIRM", Path::new("1")),
+        ("PINENTRY_PROGRAM", &pinentry),
+    ]);
+
+    host.send(&reveal(1, "key"));
+
+    assert_eq!(host.reply(), credential(1, "key"));
+    let log = std::fs::read_to_string(&pinentry_log).unwrap();
+    assert!(log.lines().any(|line| line == "CONFIRM"), "log was: {log}");
+    assert!(
+        log.lines().any(|line| line == "SETDESC Insert the key"),
+        "log was: {log}"
+    );
+    assert!(
+        log.lines().any(|line| line == "SETOK Continue"),
+        "log was: {log}"
+    );
+    assert!(
+        log.lines().any(|line| line == "SETCANCEL Skip"),
+        "log was: {log}"
+    );
+}
+
+#[test]
+fn host_declines_a_plugin_confirmation_when_no_pinentry_is_available() {
+    let world = World::new().store("key", true);
+    let mut host = world.host(&[("PASEJO_TEST_PLUGIN_CONFIRM", Path::new("1"))]);
+
+    host.send(&reveal(1, "key"));
+    let reply = host.reply();
+
+    assert!(
+        reply.starts_with(r#"{"request_id":1,"error":"identity_locked","store":"key""#),
+        "reply was: {reply}"
+    );
+    assert!(reply.contains("Key not found"), "reply was: {reply}");
+}
+
+#[test]
+fn host_declines_a_plugin_pin_request_when_no_pinentry_is_available() {
+    let world = World::new().store("key", true);
+    let mut host = world.host(&[("PASEJO_TEST_PLUGIN_PIN", Path::new(PIN_BASE64))]);
+
+    host.send(&reveal(1, "key"));
+    let reply = host.reply();
+
+    assert!(
+        reply.starts_with(r#"{"request_id":1,"error":"identity_locked","store":"key""#),
+        "reply was: {reply}"
+    );
+    assert!(reply.contains("PIN rejected"), "reply was: {reply}");
 }
