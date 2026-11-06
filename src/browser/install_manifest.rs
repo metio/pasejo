@@ -527,15 +527,15 @@ mod tests {
             ("SSH_AUTH_SOCK".to_owned(), "/run/user/1000/ssh".to_owned()),
         ];
         let content = posix_wrapper_content(Path::new("/usr/local/bin/pasejo"), &envs);
-        let export_idx = content
+        let store_export = content
             .find("export PASEJO_DEFAULT_STORE='work'")
             .expect("first export missing");
-        let export2_idx = content
+        let socket_export = content
             .find("export SSH_AUTH_SOCK='/run/user/1000/ssh'")
             .expect("second export missing");
         let exec_idx = content.find("exec ").expect("exec missing");
         assert!(
-            export_idx < exec_idx && export2_idx < exec_idx,
+            store_export < exec_idx && socket_export < exec_idx,
             "exports must precede exec so the host inherits them",
         );
     }
@@ -567,7 +567,7 @@ mod tests {
         for bad in ["", "1FOO", "FOO-BAR", "foo bar", "$X"] {
             let entry = format!("{bad}=value");
             assert!(
-                parse_env_pairs(&[entry.clone()]).is_err(),
+                parse_env_pairs(std::slice::from_ref(&entry)).is_err(),
                 "expected `{entry}` to be rejected",
             );
         }
@@ -579,7 +579,7 @@ mod tests {
         for good in ["FOO", "_FOO", "FOO_BAR", "F0O", "_"] {
             let entry = format!("{good}=value");
             assert!(
-                parse_env_pairs(&[entry.clone()]).is_ok(),
+                parse_env_pairs(std::slice::from_ref(&entry)).is_ok(),
                 "expected `{entry}` to be accepted",
             );
         }
