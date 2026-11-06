@@ -159,6 +159,7 @@ mod tests {
             url: Some("https://example.com".into()),
             match_kind: MatchKind::UrlField,
             score: 1.0,
+            confirm: false,
             exact_host: true,
         }
     }
@@ -188,6 +189,7 @@ mod tests {
             Some("url_field")
         );
         assert_eq!(first.get("score").and_then(Value::as_f64), Some(1.0));
+        assert_eq!(first.get("confirm").and_then(Value::as_bool), Some(false));
         for absent in ["password", "fields", "otp", "exact_host"] {
             assert!(first.get(absent).is_none(), "{absent} leaked: {json}");
         }

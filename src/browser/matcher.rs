@@ -4,6 +4,7 @@
 use serde::Serialize;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use crate::browser::policy::{FillPolicy, Policy};
 use crate::exporters::parser::{ParsedSecret, parse_secret};
 use crate::models::password_store::{OneTimePasswordType, PasswordStore};
 
@@ -29,6 +30,9 @@ pub struct Match {
     pub url: Option<String>,
     pub match_kind: MatchKind,
     pub score: f64,
+    /// The secret's `pasejo-confirm` policy asks the extension to confirm
+    /// with the user before it fills.
+    pub confirm: bool,
     /// A URL field names the queried host itself. Only such a match
     /// releases a one-time code, so a sibling subdomain or a secret that
     /// merely carries the domain in its name cannot obtain one.
@@ -88,7 +92,16 @@ pub fn find_matches(
         .iter()
         .filter_map(|(name, value)| {
             let parsed = parse_secret(value, username_keys, uri_keys);
-            match_secret(name, &parsed, store_name, &query, uri_keys, username_keys)
+            let policy = Policy::from_secret(value);
+            match_secret(
+                name,
+                &parsed,
+                policy,
+                store_name,
+                &query,
+                uri_keys,
+                username_keys,
+            )
         })
         .collect();
     matches.sort_by(|a, b| {
@@ -117,6 +130,7 @@ pub fn reveal(
     let matched = match_secret(
         secret_name,
         &parsed,
+        Policy::from_secret(value),
         store_name,
         &query,
         uri_keys,
@@ -136,14 +150,21 @@ pub fn reveal(
     })
 }
 
+/// Applies the secret's fill policy on top of the domain match: `never`
+/// matches nothing, and `exact-host` keeps only a URL field naming the
+/// queried host itself.
 fn match_secret(
     name: &str,
     parsed: &ParsedSecret,
+    policy: Policy,
     store_name: &str,
     query: &Query,
     uri_keys: &[String],
     username_keys: &[String],
 ) -> Option<Match> {
+    if policy.fill == FillPolicy::Never {
+        return None;
+    }
     let mut username = String::new();
     let mut best_url: Option<(f64, String)> = None;
 
@@ -164,18 +185,25 @@ fn match_secret(
     }
 
     if let Some((score, url)) = best_url {
+        let exact_host = score >= SCORE_URL_EXACT_HOST;
+        if policy.fill == FillPolicy::ExactHost && !exact_host {
+            return None;
+        }
         return Some(Match {
             name: name.to_owned(),
             store: store_name.to_owned(),
             username,
             url: Some(url),
             match_kind: MatchKind::UrlField,
-            exact_host: score >= SCORE_URL_EXACT_HOST,
+            exact_host,
             score,
+            confirm: policy.confirm,
         });
     }
 
-    if name_matches_domain(name, &query.domain, query.registrable.as_deref()) {
+    if policy.fill == FillPolicy::AnyMatch
+        && name_matches_domain(name, &query.domain, query.registrable.as_deref())
+    {
         return Some(Match {
             name: name.to_owned(),
             store: store_name.to_owned(),
@@ -184,6 +212,7 @@ fn match_secret(
             match_kind: MatchKind::Name,
             score: SCORE_NAME,
             exact_host: false,
+            confirm: policy.confirm,
         });
     }
 
@@ -605,7 +634,15 @@ mod tests {
             .collect();
         assert_eq!(
             keys,
-            ["match_kind", "name", "score", "store", "url", "username"],
+            [
+                "confirm",
+                "match_kind",
+                "name",
+                "score",
+                "store",
+                "url",
+                "username"
+            ],
             "{json}"
         );
         let text = json.to_string();
@@ -1044,6 +1081,134 @@ mod tests {
             .map(String::as_str)
             .collect();
         assert_eq!(keys, ["name", "password", "store", "username"], "{json}");
+    }
+
+    fn matched_names(store: &PasswordStore, domain: &str) -> Vec<String> {
+        find_matches(store, "personal", domain, &uri_keys(), &username_keys())
+            .into_iter()
+            .map(|m| m.name)
+            .collect()
+    }
+
+    #[test]
+    fn fill_never_excludes_the_secret_from_query_and_reveal() {
+        let store = store_with(&[
+            (
+                "alice",
+                "hunter2\nurl: https://example.com\npasejo-fill: never",
+            ),
+            ("sites/example.com/bob", "hunter3\npasejo-fill: never"),
+        ]);
+        assert!(matched_names(&store, "example.com").is_empty());
+        assert!(reveal_for(&store, "example.com", "alice").is_none());
+        assert!(reveal_for(&store, "example.com", "sites/example.com/bob").is_none());
+    }
+
+    #[test]
+    fn fill_exact_host_admits_only_exact_host_url_matches() {
+        let store = store_with(&[
+            (
+                "alice",
+                "hunter2\nurl: https://login.example.com\npasejo-fill: exact-host",
+            ),
+            ("sites/example.com/bob", "hunter3\npasejo-fill: exact-host"),
+        ]);
+        assert_eq!(matched_names(&store, "login.example.com"), ["alice"]);
+        assert!(reveal_for(&store, "login.example.com", "alice").is_some());
+        assert!(matched_names(&store, "www.example.com").is_empty());
+        assert!(reveal_for(&store, "www.example.com", "alice").is_none());
+        assert!(matched_names(&store, "example.com").is_empty());
+        assert!(reveal_for(&store, "example.com", "sites/example.com/bob").is_none());
+    }
+
+    #[test]
+    fn fill_exact_host_falls_back_to_no_match_when_only_a_sibling_url_matches() {
+        let store = store_with(&[(
+            "sites/example.com/alice",
+            "hunter2\nurl: https://www.example.com\npasejo-fill: exact-host",
+        )]);
+        assert!(matched_names(&store, "mail.example.com").is_empty());
+    }
+
+    #[test]
+    fn an_unrecognised_fill_policy_excludes_the_secret() {
+        let store = store_with(&[(
+            "alice",
+            "hunter2\nurl: https://example.com\npasejo-fill: exact_host",
+        )]);
+        assert!(matched_names(&store, "example.com").is_empty());
+        assert!(reveal_for(&store, "example.com", "alice").is_none());
+    }
+
+    #[test]
+    fn reveal_admits_exactly_the_secrets_the_query_returns_under_policies() {
+        let store = store_with(&[
+            ("a", "pw\nurl: https://example.com\npasejo-fill: exact-host"),
+            (
+                "b",
+                "pw\nurl: https://www.example.com\npasejo-fill: exact-host",
+            ),
+            ("c", "pw\nurl: https://example.com\npasejo-fill: never"),
+            ("sites/example.com/d", "pw\npasejo-fill: exact-host"),
+            ("e", "pw\nurl: https://example.com\npasejo-confirm: always"),
+        ]);
+        for domain in ["example.com", "www.example.com", "mail.example.com"] {
+            let matched = matched_names(&store, domain);
+            for name in store.secrets.keys() {
+                assert_eq!(
+                    reveal_for(&store, domain, name).is_some(),
+                    matched.contains(name),
+                    "{domain} / {name}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn confirm_policy_is_reported_in_the_query_metadata() {
+        let store = store_with(&[
+            (
+                "alice",
+                "hunter2\nurl: https://example.com\npasejo-confirm: always",
+            ),
+            ("bob", "hunter3\nurl: https://example.com"),
+        ]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        let confirm_of = |name: &str| {
+            result
+                .iter()
+                .find(|m| m.name == name)
+                .map(|m| m.confirm)
+                .unwrap()
+        };
+        assert!(confirm_of("alice"));
+        assert!(!confirm_of("bob"));
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json[0]["confirm"], serde_json::Value::Bool(true), "{json}");
+        assert_eq!(json[1]["confirm"], serde_json::Value::Bool(false), "{json}");
+    }
+
+    #[test]
+    fn reserved_policy_fields_are_never_taken_as_the_username_or_url() {
+        let store = store_with(&[(
+            "alice",
+            "hunter2\nurl: https://example.com\npasejo-confirm: always",
+        )]);
+        let result = find_matches(
+            &store,
+            "personal",
+            "example.com",
+            &uri_keys(),
+            &username_keys(),
+        );
+        assert_eq!(result[0].username, "");
+        assert_eq!(result[0].url.as_deref(), Some("https://example.com"));
     }
 
     #[test]

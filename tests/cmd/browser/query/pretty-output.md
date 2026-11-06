@@ -20,7 +20,8 @@ $ pasejo browser query example.com --pretty
       "username": "",
       "url": null,
       "match_kind": "name",
-      "score": 0.5
+      "score": 0.5,
+      "confirm": false
     }
   ]
 }

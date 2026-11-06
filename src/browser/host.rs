@@ -1335,6 +1335,94 @@ mod tests {
     }
 
     #[test]
+    fn reveal_refuses_a_secret_whose_fill_policy_is_never() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[(
+                "alice",
+                "hunter2\nurl: https://example.com\npasejo-fill: never",
+            )],
+        );
+        let response = handle_request(
+            &reveal_request("personal", "alice", "example.com"),
+            &cfg,
+            &uri_and_username_context(),
+            true,
+        );
+        let ResponsePayload::Error(err) = response else {
+            panic!("expected an error response, got {response:?}");
+        };
+        assert_eq!(err.error, ErrorKind::NotMatched);
+    }
+
+    #[test]
+    fn reveal_refuses_a_sibling_host_under_the_exact_host_policy() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[(
+                "alice",
+                "hunter2\nurl: https://login.example.com\npasejo-fill: exact-host",
+            )],
+        );
+        let context = uri_and_username_context();
+        let sibling = handle_request(
+            &reveal_request("personal", "alice", "www.example.com"),
+            &cfg,
+            &context,
+            true,
+        );
+        assert!(
+            matches!(&sibling, ResponsePayload::Error(err) if err.error == ErrorKind::NotMatched),
+            "{sibling:?}"
+        );
+        let exact = handle_request(
+            &reveal_request("personal", "alice", "login.example.com"),
+            &cfg,
+            &context,
+            true,
+        );
+        assert!(matches!(exact, ResponsePayload::Reveal(_)), "{exact:?}");
+    }
+
+    #[test]
+    fn query_omits_never_secrets_and_flags_confirm_secrets() {
+        crate::cli::i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let cfg = configuration_with_encrypted_store(
+            &temp,
+            &[
+                (
+                    "alice",
+                    "hunter2\nurl: https://example.com\npasejo-confirm: always",
+                ),
+                (
+                    "bob",
+                    "hunter3\nurl: https://example.com\npasejo-fill: never",
+                ),
+            ],
+        );
+        let response = handle_request(
+            &Request::Query {
+                domain: "example.com".into(),
+                store: None,
+            },
+            &cfg,
+            &uri_and_username_context(),
+            true,
+        );
+        let ResponsePayload::Query(query) = response else {
+            panic!("expected a query response, got {response:?}");
+        };
+        assert_eq!(query.results.len(), 1);
+        assert_eq!(query.results[0].name, "alice");
+        assert!(query.results[0].confirm);
+    }
+
+    #[test]
     fn query_returns_metadata_without_the_password() {
         crate::cli::i18n::init_for_tests();
         let temp = assert_fs::TempDir::new().unwrap();

@@ -12,6 +12,6 @@ $ pasejo secret generate sites/example.com/alice
 Generated secret at 'sites/example.com/alice'
 
 $ pasejo browser query example.com
-{"results":[{"name":"sites/example.com/alice","store":"personal","username":"","url":null,"match_kind":"name","score":0.5}]}
+{"results":[{"name":"sites/example.com/alice","store":"personal","username":"","url":null,"match_kind":"name","score":0.5,"confirm":false}]}
 
 ```

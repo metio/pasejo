@@ -616,6 +616,24 @@ mod tests {
     }
 
     #[test]
+    fn browser_policy_fields_are_exported_as_custom_fields_unchanged() {
+        let store = store_with(&[(
+            "login",
+            "hunter2\npasejo-confirm: always\npasejo-fill: exact-host",
+        )]);
+
+        let output = json(&store, None, None, None, &[], &[], false).unwrap();
+
+        let parsed: Value = serde_json::from_str(&output).unwrap();
+        let fields = parsed["items"][0]["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0]["name"], "pasejo-confirm");
+        assert_eq!(fields[0]["value"], "always");
+        assert_eq!(fields[1]["name"], "pasejo-fill");
+        assert_eq!(fields[1]["value"], "exact-host");
+    }
+
+    #[test]
     fn notes_are_joined_with_newlines() {
         let store = store_with(&[("login", "hunter2\nfirst note\nsecond note")]);
 

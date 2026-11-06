@@ -847,3 +847,45 @@ fn host_decrypts_with_an_unencrypted_identity_next_to_a_passphrase_protected_one
         "the host asked for the passphrase of an encrypted identity"
     );
 }
+
+#[test]
+fn host_honours_the_fill_and_confirm_policies_stored_in_secrets() {
+    let scaffold = common::StoreScaffold::new()
+        .store("test")
+        .identity()
+        .recipient()
+        .secret(
+            "alice",
+            "hunter2\nurl: https://example.com\npasejo-confirm: always\n",
+        )
+        .secret(
+            "bob",
+            "hunter3\nurl: https://example.com\npasejo-fill: never\n",
+        );
+    let mut child = spawn_host_in(&scaffold.config, "en");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"query","domain":"example.com"}"#,
+    );
+    let query = read_response(&mut stdout);
+    assert_eq!(
+        query,
+        r#"{"request_id":1,"results":[{"name":"alice","store":"test","username":"","url":"https://example.com","match_kind":"url_field","score":1.0,"confirm":true}]}"#
+    );
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"reveal","store":"test","name":"bob","domain":"example.com"}"#,
+    );
+    let refused = read_response(&mut stdout);
+    assert_eq!(
+        refused,
+        r#"{"request_id":2,"error":"not_matched","store":"test"}"#
+    );
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
