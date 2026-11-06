@@ -8,9 +8,7 @@ use std::io;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use directories::BaseDirs;
-
-use crate::cli::{atomic_write, environment_variables};
+use crate::cli::{atomic_write, data_dir, environment_variables};
 use crate::models::configuration;
 
 /// Decides whether a throttled hook is due to run. PURE: it never writes
@@ -89,12 +87,8 @@ fn last_paths(store_name: &OsStr, directory: &str) -> Option<(PathBuf, PathBuf)>
         return None;
     }
 
-    let data_local_dir: Option<PathBuf> = env::var_os(environment_variables::PASEJO_DATA_DIR)
-        .map(PathBuf::from)
-        .or_else(|| BaseDirs::new().map(|base_dirs| base_dirs.data_local_dir().to_path_buf()));
-
-    data_local_dir.map(|dir| {
-        let last_pulls_directory = dir.join(env!("CARGO_PKG_NAME")).join(directory);
+    data_dir::local_data_dir().map(|dir| {
+        let last_pulls_directory = dir.join(directory);
         let last_pull_file = last_pulls_directory.join(store_name);
         (last_pulls_directory, last_pull_file)
     })
