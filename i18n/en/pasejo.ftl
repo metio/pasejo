@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = --env entry '{ $entry }' is not in 
 error-browser-install-manifest-invalid-env-name = --env name '{ $name }' is not a valid POSIX environment variable name (must start with a letter or underscore and contain only letters, digits, and underscores).
 error-browser-install-manifest-invalid-env-value-windows = --env value of '{ $name }' cannot be written into the Windows wrapper: it contains a double quote or a line break.
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' is not a valid native-messaging host name for { $browser }: it must be dot-separated parts of letters, digits, and underscores, in lowercase for every browser except firefox.
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }' is not a valid extension id: it may contain only ASCII letters, digits, '@', '.', '_', '-' and curly braces.
 error-browser-release-log-lock = Could not lock the browser release log: { $path }
 error-browser-release-log-no-data-dir = Could not determine the data directory for the browser release log.
 error-browser-release-log-failed = The release could not be recorded in the browser release log, so the credential was not sent.

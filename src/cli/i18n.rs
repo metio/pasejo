@@ -1044,6 +1044,11 @@ fl_string!(
     name
 );
 fl_string!(
+    error_browser_install_manifest_invalid_extension_id,
+    "error-browser-install-manifest-invalid-extension-id",
+    id
+);
+fl_string!(
     error_browser_install_manifest_invalid_host_name,
     "error-browser-install-manifest-invalid-host-name",
     name,

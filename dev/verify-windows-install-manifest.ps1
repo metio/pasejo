@@ -14,8 +14,8 @@
 $ErrorActionPreference = 'Stop'
 
 $HostName = 'wtf.metio.pasejo.citest'
-# A chromium extension id is 32 chars in a-p; the value is never validated, it
-# only has to land in the manifest's allowed_origins.
+# A chromium extension id is 32 chars in a-p; it has to land in the manifest's
+# allowed_origins and in the wrapper's --allowed-caller.
 $ExtensionId = 'abcdefghijklmnopabcdefghijklmnop'
 $RegistryKey = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$HostName"
 
@@ -77,10 +77,11 @@ try {
     if (-not (Test-Path -LiteralPath $wrapperPath)) {
         throw ".cmd wrapper missing: $wrapperPath"
     }
-    if (-not (Select-String -LiteralPath $wrapperPath -Pattern 'browser host' -Quiet)) {
-        throw "wrapper $wrapperPath does not invoke 'browser host'"
+    $expectedCall = "browser host --allowed-caller `"chrome-extension://$ExtensionId/`" %*"
+    if (-not (Select-String -LiteralPath $wrapperPath -Pattern $expectedCall -SimpleMatch -Quiet)) {
+        throw "wrapper $wrapperPath does not invoke '$expectedCall'"
     }
-    Write-Host "[ok] .cmd wrapper invokes 'browser host'"
+    Write-Host "[ok] .cmd wrapper invokes 'browser host' for the allowed caller only"
 
     Write-Host '==> PASS: native-messaging host registered (registry + manifest + .cmd wrapper)'
 }

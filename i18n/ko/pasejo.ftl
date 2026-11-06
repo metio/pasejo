@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = --env 항목 '{ $entry }'이(가) K
 error-browser-install-manifest-invalid-env-name = --env 이름 '{ $name }'은(는) 유효한 POSIX 환경 변수 이름이 아닙니다(문자 또는 밑줄로 시작하고 문자, 숫자, 밑줄만 포함해야 합니다).
 error-browser-install-manifest-invalid-env-value-windows = '{ $name }'의 --env 값은 Windows 래퍼에 쓸 수 없습니다. 큰따옴표 또는 줄 바꿈이 포함되어 있습니다.
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }'은(는) { $browser }에 유효한 네이티브 메시징 호스트 이름이 아닙니다. 문자, 숫자, 밑줄로 된 부분을 점으로 구분해야 하며, firefox를 제외한 모든 브라우저에서는 소문자여야 합니다.
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }'은(는) 올바른 확장 프로그램 ID가 아닙니다. ASCII 문자, 숫자, '@', '.', '_', '-', 중괄호만 사용할 수 있습니다.
 error-browser-release-log-lock = 브라우저 제공 기록을 잠글 수 없습니다: { $path }
 error-browser-release-log-no-data-dir = 브라우저 제공 기록의 데이터 디렉터리를 확인할 수 없습니다.
 error-browser-release-log-failed = 브라우저 제공 기록에 남길 수 없어 자격 증명을 보내지 않았습니다.

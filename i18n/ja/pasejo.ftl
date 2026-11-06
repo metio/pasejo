@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = --env エントリ '{ $entry }' は
 error-browser-install-manifest-invalid-env-name = --env 名 '{ $name }' は有効な POSIX 環境変数名ではありません（先頭は英字またはアンダースコアで、英字・数字・アンダースコアのみ使用できます）。
 error-browser-install-manifest-invalid-env-value-windows = '{ $name }' の --env の値は Windows ラッパーに書き込めません。二重引用符または改行が含まれています。
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' は { $browser } の有効なネイティブメッセージングホスト名ではありません。英字・数字・アンダースコアからなる部分をドットで区切る必要があり、firefox 以外のブラウザーでは小文字でなければなりません。
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }' は有効な拡張機能IDではありません。使用できるのは ASCII 英字、数字、'@'、'.'、'_'、'-'、波括弧のみです。
 error-browser-release-log-lock = ブラウザー提供ログをロックできませんでした: { $path }
 error-browser-release-log-no-data-dir = ブラウザー提供ログのデータディレクトリを特定できませんでした。
 error-browser-release-log-failed = ブラウザー提供ログに記録できなかったため、認証情報は送信されませんでした。

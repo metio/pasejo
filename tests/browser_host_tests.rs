@@ -1158,3 +1158,71 @@ fn host_refuses_an_unnamed_caller_when_allowed_callers_are_set() {
         "{response}"
     );
 }
+
+#[cfg(target_os = "linux")]
+fn spawn_installed_wrapper(
+    wrapper: &std::path::Path,
+    browser_args: &[&str],
+) -> std::process::Child {
+    StdCommand::new(wrapper)
+        .args(browser_args)
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap()
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn installed_wrapper_admits_only_the_extension_its_manifest_lists() {
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+    let home = temp.path().join("home");
+    let extension_id = "abcdefghijklmnopabcdefghijklmnop";
+
+    let status = StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "install-manifest", "--browser", "chromium"])
+        .args(["--extension-id", extension_id])
+        .arg(format!("--env=PASEJO_CONFIG={}", config.display()))
+        .arg(format!("--env=PASEJO_DATA_DIR={}", temp.path().display()))
+        .env("HOME", &home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("XDG_DATA_HOME", home.join(".local/share"))
+        .env("PASEJO_CONFIG", &config)
+        .env_remove("LANGUAGE")
+        .env("LANG", "en")
+        .env("LC_ALL", "en")
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let manifest: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            home.join(".config/chromium/NativeMessagingHosts/wtf.metio.pasejo.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let wrapper = std::path::PathBuf::from(manifest["path"].as_str().unwrap());
+
+    let allowed_origin = format!("chrome-extension://{extension_id}/");
+    for (origin, expected) in [
+        (allowed_origin.as_str(), r#""protocol_version":2"#),
+        (
+            "chrome-extension://ponmlkjihgfedcbaponmlkjihgfedcba/",
+            r#""error":"caller_not_allowed""#,
+        ),
+    ] {
+        let mut child = spawn_installed_wrapper(&wrapper, &[origin]);
+        let mut stdin = child.stdin.take().unwrap();
+        let mut stdout = child.stdout.take().unwrap();
+        write_request(&mut stdin, br#"{"request_id":1,"action":"list_stores"}"#);
+        let response = read_response(&mut stdout);
+        drop(stdin);
+        assert!(child.wait().unwrap().success());
+        assert!(response.contains(expected), "{origin}: {response}");
+    }
+}

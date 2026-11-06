@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = La entrada --env '{ $entry }' no ti
 error-browser-install-manifest-invalid-env-name = El nombre --env '{ $name }' no es un nombre de variable de entorno POSIX válido (debe comenzar con una letra o guion bajo y contener solo letras, dígitos y guiones bajos).
 error-browser-install-manifest-invalid-env-value-windows = El valor --env de '{ $name }' no se puede escribir en el wrapper de Windows: contiene una comilla doble o un salto de línea.
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' no es un nombre de host de mensajería nativa válido para { $browser }: debe estar formado por partes separadas por puntos de letras, dígitos y guiones bajos, en minúsculas para todos los navegadores excepto firefox.
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }' no es un ID de extensión válido: solo puede contener letras ASCII, dígitos, '@', '.', '_', '-' y llaves.
 error-browser-release-log-lock = No se pudo bloquear el registro de entregas al navegador: { $path }
 error-browser-release-log-no-data-dir = No se pudo determinar el directorio de datos del registro de entregas al navegador.
 error-browser-release-log-failed = No se pudo anotar la entrega en el registro de entregas al navegador, así que no se enviaron las credenciales.

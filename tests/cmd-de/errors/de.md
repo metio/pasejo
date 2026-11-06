@@ -32,6 +32,10 @@ $ pasejo browser install-manifest --browser firefox --print --binary /usr/local/
 ? 1
 Error: --host-name '../escape' ist kein gültiger Native-Messaging-Hostname für firefox: Er muss aus durch Punkte getrennten Teilen aus Buchstaben, Ziffern und Unterstrichen bestehen, für jeden Browser außer firefox in Kleinbuchstaben.
 
+$ pasejo browser install-manifest --browser firefox --extension-id 'evil" & calc' --print --binary /usr/local/bin/pasejo
+? 1
+Error: --extension-id 'evil" & calc' ist keine gültige Erweiterungs-ID: Sie darf nur ASCII-Buchstaben, Ziffern, '@', '.', '_', '-' und geschweifte Klammern enthalten.
+
 $ pasejo identity remove --file non-existing
 ? 2
 error: ungültiger Wert 'non-existing' für '--file <FILE>': Datei entspricht keiner bekannten Identität

@@ -18,7 +18,8 @@ artifacts the registration must produce:
   value pointing at a manifest file,
 - the manifest JSON (correct `name`, `type=stdio`, `allowed_origins`, and a
   `.cmd` `path`), and
-- the `.cmd` wrapper that launches `pasejo browser host`.
+- the `.cmd` wrapper that launches `pasejo browser host` with the extension's
+  origin as `--allowed-caller`.
 
 `cargo test` also runs natively on the Windows runner, where the
 `cfg!(windows)` branches of `wrapper_path`, `wrapper_content` and
@@ -45,8 +46,9 @@ field for a site you can log into.
 - [ ] **`pasejo browser host` launches and speaks the protocol.** With the
       extension installed, opening the popup must reach the host — confirm the
       popup lists matches rather than a connection error. (This is the real
-      test of the `.cmd` wrapper ↔ binary-stdio handshake, which CI cannot
-      cover.)
+      test of the `.cmd` wrapper ↔ binary-stdio handshake, and of the
+      `chrome-extension://<id>/` and `--parent-window=<handle>` arguments
+      reaching the host through `%*`, which CI cannot cover.)
 - [ ] **Popup fill** injects username + password into a login form.
 - [ ] **Per-host store memory**: pick a non-default store for a site, fill,
       reopen the popup on that site — the store is restored.

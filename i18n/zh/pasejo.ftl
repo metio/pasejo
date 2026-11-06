@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = --env 条目 '{ $entry }' 不是 KE
 error-browser-install-manifest-invalid-env-name = --env 名称 '{ $name }' 不是有效的 POSIX 环境变量名（必须以字母或下划线开头，且仅包含字母、数字和下划线）。
 error-browser-install-manifest-invalid-env-value-windows = 无法将 '{ $name }' 的 --env 值写入 Windows 包装脚本：它包含双引号或换行符。
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' 不是 { $browser } 的有效原生消息主机名：它必须由以点分隔的字母、数字和下划线部分组成，除 firefox 外的所有浏览器都必须使用小写。
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }' 不是有效的扩展 ID：只能包含 ASCII 字母、数字、'@'、'.'、'_'、'-' 和花括号。
 error-browser-release-log-lock = 无法锁定浏览器发放日志：{ $path }
 error-browser-release-log-no-data-dir = 无法确定浏览器发放日志的数据目录。
 error-browser-release-log-failed = 无法在浏览器发放日志中记录本次发放，因此未发送凭据。

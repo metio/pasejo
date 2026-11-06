@@ -32,6 +32,10 @@ $ pasejo browser install-manifest --browser firefox --print --binary /usr/local/
 ? 1
 Error: --host-name '../escape' 不是 firefox 的有效原生消息主机名：它必须由以点分隔的字母、数字和下划线部分组成，除 firefox 外的所有浏览器都必须使用小写。
 
+$ pasejo browser install-manifest --browser firefox --extension-id 'evil" & calc' --print --binary /usr/local/bin/pasejo
+? 1
+Error: --extension-id 'evil" & calc' 不是有效的扩展 ID：只能包含 ASCII 字母、数字、'@'、'.'、'_'、'-' 和花括号。
+
 $ pasejo otp add --type totp --secret JBSWY3DPEHPK3PX0 not-base32
 ? 1
 Error: 一次性密码的密钥必须是非空的 base32 字符串（字母 A-Z 和数字 2-7）

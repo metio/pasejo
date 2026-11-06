@@ -4,12 +4,13 @@
 //! Writes the per-user native-messaging manifest that browsers consult
 //! before they will spawn `pasejo browser host`. Two layers ship together:
 //!
-//! 1. A tiny wrapper script under the user's data directory. Native-messaging
-//!    manifests can only point at an executable path — they cannot pass
-//!    arguments — so the wrapper exists to invoke `pasejo browser host` on
-//!    behalf of the browser. Callers who already maintain their own wrapper can
-//!    pass `--binary` to skip wrapper creation; the supplied path is written
-//!    into the manifest verbatim.
+//! 1. A tiny wrapper script per browser under the user's data directory.
+//!    Native-messaging manifests can only point at an executable path — they
+//!    cannot pass arguments — so the wrapper exists to invoke `pasejo browser
+//!    host` on behalf of the browser, with one `--allowed-caller` per extension
+//!    the browser's manifest admits. Callers who already maintain their own
+//!    wrapper can pass `--binary` to skip wrapper creation; the supplied path
+//!    is written into the manifest verbatim.
 //! 2. The JSON manifest itself, written atomically into the browser's
 //!    documented per-user lookup directory (Linux: under `~/.config` or
 //!    `~/.mozilla`; macOS: under `~/Library/Application Support`). On Windows
@@ -58,6 +59,18 @@ struct InstallDirs {
     os: &'static str,
     home: Option<PathBuf>,
     data: Option<PathBuf>,
+}
+
+impl ManifestJson<'_> {
+    /// The extension identities this manifest admits, in the form the browser
+    /// passes them to the host: origins for chromium-family browsers, add-on
+    /// ids for Firefox.
+    fn allowed_callers(&self) -> &[String] {
+        self.allowed_extensions
+            .as_deref()
+            .or(self.allowed_origins.as_deref())
+            .unwrap_or_default()
+    }
 }
 
 impl InstallDirs {
@@ -111,59 +124,94 @@ fn install(args: &InstallManifestArgs, dirs: &InstallDirs) -> Result<()> {
     let binary = resolve_binary(args.binary.as_deref())?;
     let envs = parse_env_pairs(&args.envs)?;
 
-    let (manifest_path_field, wrapper) =
-        compute_wrapper(dirs, args.binary.as_deref(), &binary, host_name, &envs)?;
-
-    if args.print
-        && let Some((wrapper_path, _)) = wrapper.as_ref()
-    {
-        // `--print` skips wrapper installation, but the printed
-        // manifest's `path` field still references the wrapper under
-        // the data directory. A user piping the JSON into the manifest
-        // location by hand would end up pointing the browser at a
-        // script that doesn't exist — say so on stderr (the JSON on
-        // stdout stays pipeable).
-        i18n::browser_install_manifest_print_wrapper_note(wrapper_path);
-    }
-
     // Build (and thereby validate, e.g. chromium browsers requiring an
-    // extension id) and locate EVERY manifest before writing any, so a later
-    // browser's failure can't leave the wrapper and earlier manifests
+    // extension id) and locate EVERY manifest and wrapper before writing any,
+    // so a later browser's validation failure can't leave earlier browsers
     // half-installed.
     let mut prepared = Vec::with_capacity(args.browsers.len());
     for browser in &args.browsers {
-        let manifest = build_manifest_json(
-            *browser,
-            host_name,
-            &manifest_path_field,
-            &args.extension_ids,
-        )?;
-        let json = serde_json::to_string_pretty(&manifest)?;
-        let target = if args.print {
-            None
-        } else {
-            Some(manifest_path_for_browser(dirs, *browser, host_name)?)
-        };
-        prepared.push((*browser, json, target));
+        prepared.push(prepare(args, dirs, *browser, host_name, &binary, &envs)?);
     }
 
-    if !args.print
-        && let Some((wrapper_path, content)) = wrapper.as_ref()
-    {
-        install_wrapper(wrapper_path, content)?;
-    }
-    for (browser, json, target) in &prepared {
-        let Some(target) = target else {
-            println!("{json}");
+    for item in &prepared {
+        let Some(target) = &item.target else {
+            if let Some((wrapper_path, _)) = &item.wrapper {
+                // `--print` skips wrapper installation, but the printed
+                // manifest's `path` field still references the wrapper under
+                // the data directory. A user piping the JSON into the
+                // manifest location by hand would end up pointing the browser
+                // at a script that doesn't exist — say so on stderr (the JSON
+                // on stdout stays pipeable).
+                i18n::browser_install_manifest_print_wrapper_note(wrapper_path);
+            }
+            println!("{}", item.json);
             continue;
         };
-        atomic_write::write(target, json.as_bytes())?;
+        if let Some((wrapper_path, content)) = &item.wrapper {
+            install_wrapper(wrapper_path, content)?;
+        }
+        atomic_write::write(target, item.json.as_bytes())?;
         // No-op on Unix (the manifest already sits in the lookup directory);
         // on Windows this writes the HKCU registry value pointing at it.
-        register_native_host(*browser, host_name, target)?;
-        i18n::browser_install_manifest_written(browser.as_str(), target);
+        register_native_host(item.browser, host_name, target)?;
+        i18n::browser_install_manifest_written(item.browser.as_str(), target);
     }
     Ok(())
+}
+
+/// Everything one browser's installation writes, computed without touching
+/// the filesystem.
+struct PreparedInstall {
+    browser: InstallManifestBrowser,
+    json: String,
+    /// `None` with `--print`.
+    target: Option<PathBuf>,
+    /// The wrapper's path and content; `None` with `--binary`.
+    wrapper: Option<(PathBuf, String)>,
+}
+
+/// Each browser gets its own wrapper, because the wrapper admits exactly the
+/// extensions that browser's manifest lists: a shared wrapper would be
+/// rewritten by the next `install-manifest` run for another browser and
+/// refuse the first browser's extension. With `--binary` the manifest
+/// references that path and no wrapper is written.
+fn prepare(
+    args: &InstallManifestArgs,
+    dirs: &InstallDirs,
+    browser: InstallManifestBrowser,
+    host_name: &str,
+    binary: &Path,
+    envs: &[(String, String)],
+) -> Result<PreparedInstall> {
+    let wrapper_path = if args.binary.is_some() {
+        None
+    } else {
+        Some(wrapper_path(dirs, browser, host_name)?)
+    };
+    let path_field = wrapper_path
+        .as_deref()
+        .unwrap_or(binary)
+        .display()
+        .to_string();
+    let manifest = build_manifest_json(browser, host_name, &path_field, &args.extension_ids)?;
+    let wrapper = match wrapper_path {
+        Some(path) => Some((
+            path,
+            wrapper_content(binary, envs, manifest.allowed_callers())?,
+        )),
+        None => None,
+    };
+    let target = if args.print {
+        None
+    } else {
+        Some(manifest_path_for_browser(dirs, browser, host_name)?)
+    };
+    Ok(PreparedInstall {
+        browser,
+        json: serde_json::to_string_pretty(&manifest)?,
+        target,
+        wrapper,
+    })
 }
 
 /// The host-name grammar the browser enforces: dot-separated, non-empty
@@ -189,30 +237,11 @@ fn resolve_binary(binary_override: Option<&Path>) -> Result<PathBuf> {
     std::env::current_exe().context(i18n::error_browser_install_manifest_no_current_exe())
 }
 
-/// Returns `(path-to-write-into-manifest, optional-wrapper-to-install)`.
-/// When the caller supplies their own `--binary`, no wrapper is created
-/// and the manifest references that path directly. Otherwise we point the
-/// manifest at the wrapper under the data directory and ship its content
-/// for the writer to install.
-fn compute_wrapper(
+fn wrapper_path(
     dirs: &InstallDirs,
-    binary_override: Option<&Path>,
-    binary: &Path,
+    browser: InstallManifestBrowser,
     host_name: &str,
-    envs: &[(String, String)],
-) -> Result<(String, Option<(PathBuf, String)>)> {
-    if binary_override.is_some() {
-        return Ok((binary.display().to_string(), None));
-    }
-    let wrapper_path = wrapper_path(dirs, host_name)?;
-    let content = wrapper_content(binary, envs)?;
-    Ok((
-        wrapper_path.display().to_string(),
-        Some((wrapper_path, content)),
-    ))
-}
-
-fn wrapper_path(dirs: &InstallDirs, host_name: &str) -> Result<PathBuf> {
+) -> Result<PathBuf> {
     // `.cmd` so Windows launches it as a batch script (the manifest's `path`
     // points here); no extension on Unix, where the shebang drives execution.
     let filename = if cfg!(windows) {
@@ -220,23 +249,38 @@ fn wrapper_path(dirs: &InstallDirs, host_name: &str) -> Result<PathBuf> {
     } else {
         host_name.to_owned()
     };
-    Ok(dirs.data()?.join(filename))
+    Ok(browser_data_dir(dirs, browser)?.join(filename))
+}
+
+fn browser_data_dir(dirs: &InstallDirs, browser: InstallManifestBrowser) -> Result<PathBuf> {
+    Ok(dirs.data()?.join("native-messaging").join(browser.as_str()))
 }
 
 /// The wrapper script for the current platform. The wrapper exists because
 /// native-messaging manifests carry no `args` field, so something has to
-/// invoke `pasejo browser host` (with the user's `--env` variables) on the
-/// browser's behalf. Both generators are pure and always compiled, so each
-/// is unit-testable regardless of the host OS.
-fn wrapper_content(binary: &Path, envs: &[(String, String)]) -> Result<String> {
+/// invoke `pasejo browser host` (with the user's `--env` variables and the
+/// manifest's extensions as `--allowed-caller`) on the browser's behalf. Both
+/// generators are pure and always compiled, so each is unit-testable
+/// regardless of the host OS.
+fn wrapper_content(
+    binary: &Path,
+    envs: &[(String, String)],
+    allowed_callers: &[String],
+) -> Result<String> {
     if cfg!(windows) {
-        windows_wrapper_content(binary, envs)
+        windows_wrapper_content(binary, envs, allowed_callers)
     } else {
-        Ok(posix_wrapper_content(binary, envs))
+        Ok(posix_wrapper_content(binary, envs, allowed_callers))
     }
 }
 
-fn posix_wrapper_content(binary: &Path, envs: &[(String, String)]) -> String {
+/// The `--allowed-caller` values precede `"$@"`, because the host reads the
+/// browser's arguments as trailing values once the first of them appears.
+fn posix_wrapper_content(
+    binary: &Path,
+    envs: &[(String, String)],
+    allowed_callers: &[String],
+) -> String {
     let mut body = String::from("#!/bin/sh\n# Generated by `pasejo browser install-manifest`.\n");
     for (key, value) in envs {
         body.push_str("export ");
@@ -247,23 +291,35 @@ fn posix_wrapper_content(binary: &Path, envs: &[(String, String)]) -> String {
     }
     body.push_str("exec ");
     body.push_str(&shell_quote_str(&binary.display().to_string()));
-    body.push_str(" browser host \"$@\"\n");
+    body.push_str(" browser host");
+    for caller in allowed_callers {
+        body.push_str(" --allowed-caller ");
+        body.push_str(&shell_quote_str(caller));
+    }
+    body.push_str(" \"$@\"\n");
     body
 }
 
 /// A `.cmd` wrapper for Windows. The browser launches the host via `cmd /c`,
 /// so the batch file sets any `--env` variables and then runs the binary with
-/// `browser host`; `%*` forwards the `chrome-extension://…` origin the browser
-/// appends. `@echo off` keeps command echoes out of the stdio stream the
-/// native-messaging protocol owns. Values are wrapped in `set "KEY=VALUE"`
-/// (tolerating spaces and most metacharacters); a value with `"` or a line
-/// break cannot be quoted that way and is rejected. Batch expands `%` inside
-/// quotes too, so every `%` — in values and in the binary path — is doubled
-/// to `%%`; a Windows path can never contain `"`, so quoting the binary is
-/// safe. cmd decodes each batch line in the console's current code page, so
-/// a wrapper with non-ASCII bytes switches to UTF-8 (65001) before reaching
-/// them.
-fn windows_wrapper_content(binary: &Path, envs: &[(String, String)]) -> Result<String> {
+/// `browser host`, the `--allowed-caller` values, and `%*`, which forwards the
+/// arguments the browser appends (the `chrome-extension://…` origin and
+/// `--parent-window=…`, or Firefox's manifest path and add-on id). `@echo off`
+/// keeps command echoes out of the stdio stream the native-messaging protocol
+/// owns. Values are wrapped in `set "KEY=VALUE"` (tolerating spaces and most
+/// metacharacters); a value with `"` or a line break cannot be quoted that way
+/// and is rejected. Allowed callers are extension ids, which
+/// `resolve_extension_ids` limits to characters that need no escaping inside
+/// double quotes. Batch expands `%` inside quotes too, so every `%` — in
+/// values, callers and the binary path — is doubled to `%%`; a Windows path
+/// can never contain `"`, so quoting the binary is safe. cmd decodes each
+/// batch line in the console's current code page, so a wrapper with non-ASCII
+/// bytes switches to UTF-8 (65001) before reaching them.
+fn windows_wrapper_content(
+    binary: &Path,
+    envs: &[(String, String)],
+    allowed_callers: &[String],
+) -> Result<String> {
     let header = "@echo off\r\nrem Generated by `pasejo browser install-manifest`.\r\n";
     let mut body = String::new();
     for (key, value) in envs {
@@ -278,7 +334,13 @@ fn windows_wrapper_content(binary: &Path, envs: &[(String, String)]) -> Result<S
     }
     body.push('"');
     body.push_str(&binary.display().to_string().replace('%', "%%"));
-    body.push_str("\" browser host %*\r\n");
+    body.push_str("\" browser host");
+    for caller in allowed_callers {
+        body.push_str(" --allowed-caller \"");
+        body.push_str(&caller.replace('%', "%%"));
+        body.push('"');
+    }
+    body.push_str(" %*\r\n");
     if body.is_ascii() {
         Ok(format!("{header}{body}"))
     } else {
@@ -385,11 +447,7 @@ fn windows_manifest_path(
     browser: InstallManifestBrowser,
     host_name: &str,
 ) -> Result<PathBuf> {
-    Ok(dirs
-        .data()?
-        .join("native-messaging")
-        .join(browser.as_str())
-        .join(format!("{host_name}.json")))
+    Ok(browser_data_dir(dirs, browser)?.join(format!("{host_name}.json")))
 }
 
 /// The `HKEY_CURRENT_USER` subkey under which `browser` looks up
@@ -481,6 +539,11 @@ fn resolve_extension_ids(
     supplied: &[String],
 ) -> Result<Vec<String>> {
     if !supplied.is_empty() {
+        if let Some(invalid) = supplied.iter().find(|id| !is_valid_extension_id(id)) {
+            bail!(i18n::error_browser_install_manifest_invalid_extension_id(
+                invalid
+            ));
+        }
         return Ok(supplied.to_vec());
     }
     match browser {
@@ -489,6 +552,17 @@ fn resolve_extension_ids(
             other.as_str()
         )),
     }
+}
+
+/// Chromium extension ids are 32 letters `a`–`p`; Firefox add-on ids are
+/// either `name@domain` of ASCII letters, digits, `-`, `.` and `_`, or a GUID
+/// in curly braces. Admitting only the union of those characters keeps every
+/// id safe to quote in both wrapper formats.
+fn is_valid_extension_id(id: &str) -> bool {
+    !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '@' | '.' | '_' | '-' | '{' | '}'))
 }
 
 #[cfg(test)]
@@ -514,7 +588,7 @@ mod tests {
 
     #[test]
     fn posix_wrapper_content_includes_exec_browser_host() {
-        let content = posix_wrapper_content(Path::new("/usr/local/bin/pasejo"), &[]);
+        let content = posix_wrapper_content(Path::new("/usr/local/bin/pasejo"), &[], &[]);
         assert!(content.starts_with("#!/bin/sh\n"));
         assert!(content.contains("exec '/usr/local/bin/pasejo' browser host \"$@\"\n"));
         assert!(!content.contains("export "));
@@ -526,7 +600,7 @@ mod tests {
             ("PASEJO_DEFAULT_STORE".to_owned(), "work".to_owned()),
             ("SSH_AUTH_SOCK".to_owned(), "/run/user/1000/ssh".to_owned()),
         ];
-        let content = posix_wrapper_content(Path::new("/usr/local/bin/pasejo"), &envs);
+        let content = posix_wrapper_content(Path::new("/usr/local/bin/pasejo"), &envs, &[]);
         let store_export = content
             .find("export PASEJO_DEFAULT_STORE='work'")
             .expect("first export missing");
@@ -543,7 +617,7 @@ mod tests {
     #[test]
     fn posix_wrapper_content_quotes_env_values_with_specials() {
         let envs = vec![("MY_VAR".to_owned(), "needs 'escape'".to_owned())];
-        let content = posix_wrapper_content(Path::new("/bin/pasejo"), &envs);
+        let content = posix_wrapper_content(Path::new("/bin/pasejo"), &envs, &[]);
         assert!(content.contains("export MY_VAR='needs '\\''escape'\\'''"));
     }
 
@@ -687,7 +761,8 @@ mod tests {
     #[test]
     fn windows_wrapper_content_runs_browser_host_via_cmd() {
         let content =
-            windows_wrapper_content(Path::new(r"C:\Program Files\pasejo\pasejo.exe"), &[]).unwrap();
+            windows_wrapper_content(Path::new(r"C:\Program Files\pasejo\pasejo.exe"), &[], &[])
+                .unwrap();
         assert!(content.starts_with("@echo off\r\n"));
         assert!(
             content.contains("\"C:\\Program Files\\pasejo\\pasejo.exe\" browser host %*\r\n"),
@@ -699,7 +774,7 @@ mod tests {
     #[test]
     fn windows_wrapper_content_quotes_env_and_doubles_percent() {
         let envs = vec![(String::from("PASEJO_DEFAULT_STORE"), String::from("wo%rk"))];
-        let content = windows_wrapper_content(Path::new(r"C:\pasejo.exe"), &envs).unwrap();
+        let content = windows_wrapper_content(Path::new(r"C:\pasejo.exe"), &envs, &[]).unwrap();
         // `%` is doubled for batch and the value is quoted; the `set` line must
         // precede the exec so the variable is in scope for the host.
         assert!(
@@ -713,7 +788,8 @@ mod tests {
 
     #[test]
     fn windows_wrapper_content_doubles_percent_in_binary_path() {
-        let content = windows_wrapper_content(Path::new(r"C:\Users\a%b%\pasejo.exe"), &[]).unwrap();
+        let content =
+            windows_wrapper_content(Path::new(r"C:\Users\a%b%\pasejo.exe"), &[], &[]).unwrap();
         assert!(
             content.contains("\"C:\\Users\\a%%b%%\\pasejo.exe\" browser host %*\r\n"),
             "{content}"
@@ -732,9 +808,12 @@ mod tests {
 
     #[test]
     fn windows_wrapper_content_switches_to_utf8_for_a_non_ascii_binary_path() {
-        let content =
-            windows_wrapper_content(Path::new(r"C:\Users\Jürgen\.cargo\bin\pasejo.exe"), &[])
-                .unwrap();
+        let content = windows_wrapper_content(
+            Path::new(r"C:\Users\Jürgen\.cargo\bin\pasejo.exe"),
+            &[],
+            &[],
+        )
+        .unwrap();
         assert_utf8_code_page_precedes_non_ascii(&content);
         assert!(
             content.contains("\"C:\\Users\\Jürgen\\.cargo\\bin\\pasejo.exe\" browser host %*\r\n"),
@@ -745,13 +824,13 @@ mod tests {
     #[test]
     fn windows_wrapper_content_switches_to_utf8_for_a_non_ascii_env_value() {
         let envs = vec![(String::from("PASEJO_DEFAULT_STORE"), String::from("büro"))];
-        let content = windows_wrapper_content(Path::new(r"C:\pasejo.exe"), &envs).unwrap();
+        let content = windows_wrapper_content(Path::new(r"C:\pasejo.exe"), &envs, &[]).unwrap();
         assert_utf8_code_page_precedes_non_ascii(&content);
     }
 
     #[test]
     fn windows_wrapper_content_keeps_the_code_page_for_ascii_content() {
-        let content = windows_wrapper_content(Path::new(r"C:\pasejo.exe"), &[]).unwrap();
+        let content = windows_wrapper_content(Path::new(r"C:\pasejo.exe"), &[], &[]).unwrap();
         assert!(!content.contains("chcp"), "{content}");
     }
 
@@ -760,7 +839,7 @@ mod tests {
         i18n::init_for_tests();
         for value in ["a\r\necho pwned", "a\necho pwned", "a\"&calc&\""] {
             let envs = vec![(String::from("X"), value.to_owned())];
-            let error = windows_wrapper_content(Path::new(r"C:\p.exe"), &envs).unwrap_err();
+            let error = windows_wrapper_content(Path::new(r"C:\p.exe"), &envs, &[]).unwrap_err();
             assert!(error.to_string().contains("'X'"), "{value:?}: {error}");
         }
     }
@@ -845,12 +924,203 @@ mod tests {
 
         install(&firefox_args(), &dirs).unwrap();
 
-        assert!(temp.path().join("data").join(HOST_NAME).is_file());
+        let wrapper = temp
+            .path()
+            .join("data/native-messaging/firefox")
+            .join(HOST_NAME);
+        assert!(wrapper.is_file());
         let manifest = temp
             .path()
             .join("home/.mozilla/native-messaging-hosts")
             .join(format!("{HOST_NAME}.json"));
-        assert!(manifest.is_file());
+        let json: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(manifest).unwrap()).unwrap();
+        assert_eq!(json["path"], wrapper.display().to_string());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn each_browser_keeps_a_wrapper_that_admits_only_its_own_extensions() {
+        i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let dirs = temp_dirs(&temp, "linux");
+
+        install(&firefox_args(), &dirs).unwrap();
+        install(
+            &InstallManifestArgs {
+                browsers: vec![InstallManifestBrowser::Chrome],
+                extension_ids: vec!["abcdefghijklmnop".to_owned()],
+                ..firefox_args()
+            },
+            &dirs,
+        )
+        .unwrap();
+
+        let firefox = std::fs::read_to_string(
+            temp.path()
+                .join("data/native-messaging/firefox")
+                .join(HOST_NAME),
+        )
+        .unwrap();
+        let chrome = std::fs::read_to_string(
+            temp.path()
+                .join("data/native-messaging/chrome")
+                .join(HOST_NAME),
+        )
+        .unwrap();
+        assert!(
+            firefox.contains("browser host --allowed-caller 'pasejo@metio.wtf' \"$@\""),
+            "{firefox}"
+        );
+        assert!(!firefox.contains("chrome-extension"), "{firefox}");
+        assert!(
+            chrome.contains(
+                "browser host --allowed-caller 'chrome-extension://abcdefghijklmnop/' \"$@\""
+            ),
+            "{chrome}"
+        );
+        assert!(!chrome.contains("pasejo@metio.wtf"), "{chrome}");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn install_with_a_binary_writes_no_wrapper() {
+        i18n::init_for_tests();
+        let temp = assert_fs::TempDir::new().unwrap();
+        let dirs = temp_dirs(&temp, "linux");
+
+        install(
+            &InstallManifestArgs {
+                binary: Some(PathBuf::from("/opt/launcher")),
+                ..firefox_args()
+            },
+            &dirs,
+        )
+        .unwrap();
+
+        assert!(!temp.path().join("data").exists());
+        let manifest = temp
+            .path()
+            .join("home/.mozilla/native-messaging-hosts")
+            .join(format!("{HOST_NAME}.json"));
+        let json: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(manifest).unwrap()).unwrap();
+        assert_eq!(json["path"], "/opt/launcher");
+    }
+
+    #[test]
+    fn wrapper_path_is_per_browser_under_the_data_dir() {
+        let path = wrapper_path(
+            &InstallDirs::from_env(),
+            InstallManifestBrowser::Edge,
+            HOST_NAME,
+        )
+        .unwrap();
+        let parent = path.parent().unwrap();
+        assert!(
+            parent.ends_with(Path::new("native-messaging").join("edge")),
+            "{}",
+            path.display()
+        );
+        let file_name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let expected = if cfg!(windows) {
+            format!("{HOST_NAME}.cmd")
+        } else {
+            HOST_NAME.to_owned()
+        };
+        assert_eq!(file_name, expected);
+    }
+
+    #[test]
+    fn allowed_callers_are_the_identities_the_manifest_admits() {
+        let firefox =
+            build_manifest_json(InstallManifestBrowser::Firefox, HOST_NAME, "/x", &[]).unwrap();
+        assert_eq!(firefox.allowed_callers(), [FIREFOX_DEFAULT_EXTENSION_ID]);
+        let chrome = build_manifest_json(
+            InstallManifestBrowser::Brave,
+            HOST_NAME,
+            "/x",
+            &["abcdefghijklmnop".to_owned(), "ponmlkjihgfedcba".to_owned()],
+        )
+        .unwrap();
+        assert_eq!(
+            chrome.allowed_callers(),
+            [
+                "chrome-extension://abcdefghijklmnop/",
+                "chrome-extension://ponmlkjihgfedcba/"
+            ]
+        );
+    }
+
+    #[test]
+    fn posix_wrapper_passes_each_allowed_caller_before_the_browser_arguments() {
+        let content = posix_wrapper_content(
+            Path::new("/usr/local/bin/pasejo"),
+            &[],
+            &[
+                "pasejo@metio.wtf".to_owned(),
+                "{0a1b2c3d-0000-4000-8000-0123456789ab}".to_owned(),
+            ],
+        );
+        assert!(
+            content.ends_with(
+                "exec '/usr/local/bin/pasejo' browser host --allowed-caller 'pasejo@metio.wtf' \
+                 --allowed-caller '{0a1b2c3d-0000-4000-8000-0123456789ab}' \"$@\"\n"
+            ),
+            "{content}"
+        );
+    }
+
+    #[test]
+    fn windows_wrapper_passes_each_allowed_caller_before_the_browser_arguments() {
+        let content = windows_wrapper_content(
+            Path::new(r"C:\pasejo.exe"),
+            &[],
+            &["chrome-extension://abcdefghijklmnop/".to_owned()],
+        )
+        .unwrap();
+        assert!(
+            content.ends_with(
+                "\"C:\\pasejo.exe\" browser host --allowed-caller \
+                 \"chrome-extension://abcdefghijklmnop/\" %*\r\n"
+            ),
+            "{content}"
+        );
+    }
+
+    #[test]
+    fn extension_ids_are_limited_to_the_characters_browsers_use() {
+        i18n::init_for_tests();
+        for good in [
+            "abcdefghijklmnopabcdefghijklmnop",
+            "pasejo@metio.wtf",
+            "my-addon_1@example.org",
+            "{0a1b2c3d-0000-4000-8000-0123456789ab}",
+        ] {
+            assert!(
+                build_manifest_json(
+                    InstallManifestBrowser::Firefox,
+                    HOST_NAME,
+                    "/x",
+                    &[good.to_owned()]
+                )
+                .is_ok(),
+                "{good}"
+            );
+        }
+        for bad in ["", "a b", "a\"b", "a%b", "a'b", "a\nb", "a/b", "ä@b"] {
+            for browser in [
+                InstallManifestBrowser::Firefox,
+                InstallManifestBrowser::Chrome,
+            ] {
+                let error =
+                    build_manifest_json(browser, HOST_NAME, "/x", &[bad.to_owned()]).unwrap_err();
+                assert!(
+                    error.to_string().contains("--extension-id"),
+                    "{bad:?}: {error}"
+                );
+            }
+        }
     }
 
     #[test]

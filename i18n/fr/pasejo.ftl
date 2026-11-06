@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = L'entrée --env '{ $entry }' n'est 
 error-browser-install-manifest-invalid-env-name = Le nom --env '{ $name }' n'est pas un nom de variable d'environnement POSIX valide (doit commencer par une lettre ou un trait de soulignement et ne contenir que des lettres, chiffres et traits de soulignement).
 error-browser-install-manifest-invalid-env-value-windows = La valeur --env de '{ $name }' ne peut pas être écrite dans le wrapper Windows : elle contient un guillemet double ou un saut de ligne.
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' n'est pas un nom d'hôte de messagerie native valide pour { $browser } : il doit être composé de parties séparées par des points, faites de lettres, chiffres et traits de soulignement, en minuscules pour tout navigateur sauf firefox.
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }' n'est pas un identifiant d'extension valide : il ne peut contenir que des lettres ASCII, des chiffres, '@', '.', '_', '-' et des accolades.
 error-browser-release-log-lock = Impossible de verrouiller le journal des transmissions au navigateur : { $path }
 error-browser-release-log-no-data-dir = Impossible de déterminer le répertoire de données du journal des transmissions au navigateur.
 error-browser-release-log-failed = La transmission n'a pas pu être consignée dans le journal des transmissions au navigateur ; les identifiants n'ont donc pas été envoyés.

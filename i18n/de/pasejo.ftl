@@ -236,6 +236,7 @@ error-browser-install-manifest-invalid-env = --env-Eintrag '{ $entry }' hat nich
 error-browser-install-manifest-invalid-env-name = --env-Name '{ $name }' ist kein gültiger POSIX-Umgebungsvariablenname (muss mit einem Buchstaben oder Unterstrich beginnen und darf nur Buchstaben, Ziffern und Unterstriche enthalten).
 error-browser-install-manifest-invalid-env-value-windows = Der --env-Wert von '{ $name }' kann nicht in den Windows-Wrapper geschrieben werden: Er enthält ein doppeltes Anführungszeichen oder einen Zeilenumbruch.
 error-browser-install-manifest-invalid-host-name = --host-name '{ $name }' ist kein gültiger Native-Messaging-Hostname für { $browser }: Er muss aus durch Punkte getrennten Teilen aus Buchstaben, Ziffern und Unterstrichen bestehen, für jeden Browser außer firefox in Kleinbuchstaben.
+error-browser-install-manifest-invalid-extension-id = --extension-id '{ $id }' ist keine gültige Erweiterungs-ID: Sie darf nur ASCII-Buchstaben, Ziffern, '@', '.', '_', '-' und geschweifte Klammern enthalten.
 error-browser-release-log-lock = Das Browser-Freigabeprotokoll konnte nicht gesperrt werden: { $path }
 error-browser-release-log-no-data-dir = Das Daten-Verzeichnis für das Browser-Freigabeprotokoll konnte nicht ermittelt werden.
 error-browser-release-log-failed = Die Freigabe konnte nicht im Browser-Freigabeprotokoll vermerkt werden, daher wurden die Zugangsdaten nicht gesendet.
