@@ -20,3 +20,8 @@ regexes = ['''JBSWY3DPEHPK3PX0''']
 [[allowlists]]
 description = "Throwaway passphrase-protected SSH key that pins the encrypted-identity detection; it protects no real data"
 paths = ['''^tests/fixtures/passphrase-protected-ed25519$''']
+
+[[allowlists]]
+description = "Placeholder password the browser protocol tests expect in a reveal reply; it protects no real data"
+regexTarget = "line"
+regexes = ['''"password": ?"hunter2"''']
