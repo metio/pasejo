@@ -263,6 +263,12 @@ pub struct HostArgs {
     #[arg(long, default_values_t = default_uri_keys())]
     pub uri_keys: Vec<String>,
 
+    /// Extension allowed to use this host, exactly as the browser names it:
+    /// `chrome-extension://<id>/` for chromium-family browsers, the add-on
+    /// id for Firefox. Repeatable. Without it, every caller is accepted.
+    #[arg(long = "allowed-caller", value_name = "CALLER")]
+    pub allowed_callers: Vec<String>,
+
     /// The arguments a browser appends when it starts a native-messaging
     /// host: the calling extension's origin for chromium-family browsers
     /// (plus `--parent-window=<id>` on Windows), the manifest path and the

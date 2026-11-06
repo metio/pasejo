@@ -63,6 +63,8 @@ pub struct HostContext {
     /// The extension the browser started this host for, as far as the
     /// browser's arguments name it.
     pub caller: Option<String>,
+    /// The callers `--allowed-caller` admits. Empty admits every caller.
+    pub allowed_callers: Vec<String>,
     /// Every released credential is recorded here before it is sent.
     /// `None` only in tests that do not exercise the log.
     pub release_log: Option<ReleaseLog>,
@@ -74,22 +76,41 @@ impl HostContext {
             uri_keys: args.uri_keys.clone(),
             username_keys: args.username_keys.clone(),
             caller: caller_from_browser_args(&args.browser_args),
+            allowed_callers: args.allowed_callers.clone(),
             release_log: Some(release_log),
         }
+    }
+
+    /// The reply every request gets when allowed callers are configured and
+    /// the browser named a different extension, or none at all. The
+    /// comparison is exact because the browser passes the identity in the
+    /// same form the native-messaging manifest lists it.
+    pub fn caller_refusal(&self) -> Option<ErrorResponse> {
+        if self.allowed_callers.is_empty() {
+            return None;
+        }
+        let hint = match self.caller.as_deref() {
+            Some(caller) if self.allowed_callers.iter().any(|allowed| allowed == caller) => {
+                return None;
+            }
+            Some(caller) => i18n::error_browser_caller_not_allowed(caller),
+            None => i18n::error_browser_caller_unnamed(),
+        };
+        Some(ErrorResponse {
+            error: ErrorKind::CallerNotAllowed,
+            store: None,
+            hint: Some(hint),
+        })
     }
 }
 
 /// Chromium-family browsers pass the calling extension's origin
-/// (`chrome-extension://<id>/`); Firefox passes the manifest path followed
-/// by the add-on id. Anything else leaves the caller unknown.
+/// (`chrome-extension://<id>/`) as the first argument, followed on Windows by
+/// `--parent-window=<handle>`; Firefox passes the manifest path followed by
+/// the add-on id on every OS. Anything else leaves the caller unknown.
 fn caller_from_browser_args(args: &[String]) -> Option<String> {
-    if let Some(origin) = args
-        .iter()
-        .find(|arg| arg.starts_with("chrome-extension://"))
-    {
-        return Some(origin.clone());
-    }
     match args {
+        [origin, ..] if origin.starts_with("chrome-extension://") => Some(origin.clone()),
         [manifest, add_on_id, ..]
             if Path::new(manifest)
                 .extension()
@@ -441,6 +462,11 @@ pub fn run(configuration: &Configuration, args: &HostArgs, offline: bool) -> Res
         ReleaseLog::in_data_dir().context(i18n::error_browser_release_log_no_data_dir())?;
     let configuration = Arc::new(configuration.clone());
     let context = Arc::new(HostContext::from_args(args, release_log));
+    if let Some(refusal) = context.caller_refusal()
+        && let Some(hint) = &refusal.hint
+    {
+        eprintln!("pasejo browser host: {hint}");
+    }
     let stdout = Arc::new(Mutex::new(std::io::stdout()));
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
@@ -595,6 +621,12 @@ fn process_message(
     context: &HostContext,
     offline: bool,
 ) -> (Option<u64>, ResponsePayload) {
+    if let Some(refusal) = context.caller_refusal() {
+        return (
+            decode_error_request_id(bytes),
+            ResponsePayload::Error(refusal),
+        );
+    }
     match serde_json::from_slice::<RequestEnvelope>(bytes) {
         Ok(envelope) => (
             envelope.request_id,
@@ -780,6 +812,129 @@ mod tests {
     fn caller_is_unknown_without_browser_arguments() {
         assert_eq!(caller_from_browser_args(&[]), None);
         assert_eq!(caller_from_browser_args(&args(&["something"])), None);
+    }
+
+    #[test]
+    fn caller_is_unknown_when_the_origin_is_not_the_first_argument() {
+        assert_eq!(
+            caller_from_browser_args(&args(&[
+                "--parent-window=0",
+                "chrome-extension://abcdefgh/"
+            ])),
+            None
+        );
+        assert_eq!(
+            caller_from_browser_args(&args(&[
+                "/home/alice/.mozilla/native-messaging-hosts/wtf.metio.pasejo.json",
+                "pasejo@metio.wtf",
+                "chrome-extension://abcdefgh/"
+            ]))
+            .as_deref(),
+            Some("pasejo@metio.wtf")
+        );
+    }
+
+    fn context_for(caller: Option<&str>, allowed: &[&str]) -> HostContext {
+        HostContext {
+            caller: caller.map(str::to_owned),
+            allowed_callers: args(allowed),
+            ..HostContext::default()
+        }
+    }
+
+    #[test]
+    fn every_caller_is_accepted_without_allowed_callers() {
+        assert!(context_for(None, &[]).caller_refusal().is_none());
+        assert!(
+            context_for(Some("chrome-extension://abcdefgh/"), &[])
+                .caller_refusal()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_caller_among_the_allowed_callers_is_accepted() {
+        let allowed = ["pasejo@metio.wtf", "chrome-extension://abcdefgh/"];
+        assert!(
+            context_for(Some("chrome-extension://abcdefgh/"), &allowed)
+                .caller_refusal()
+                .is_none()
+        );
+        assert!(
+            context_for(Some("pasejo@metio.wtf"), &allowed)
+                .caller_refusal()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_caller_missing_from_the_allowed_callers_is_refused_by_name() {
+        crate::cli::i18n::init_for_tests();
+        let refusal = context_for(
+            Some("chrome-extension://ponmlkji/"),
+            &["chrome-extension://abcdefgh/"],
+        )
+        .caller_refusal()
+        .unwrap();
+        assert_eq!(refusal.error, ErrorKind::CallerNotAllowed);
+        assert_eq!(refusal.store, None);
+        let hint = refusal.hint.unwrap();
+        assert!(hint.contains("chrome-extension://ponmlkji/"), "{hint}");
+    }
+
+    #[test]
+    fn a_caller_is_compared_exactly() {
+        crate::cli::i18n::init_for_tests();
+        for caller in [
+            "chrome-extension://abcdefgh",
+            "CHROME-EXTENSION://ABCDEFGH/",
+            "chrome-extension://abcdefgh/ ",
+        ] {
+            assert!(
+                context_for(Some(caller), &["chrome-extension://abcdefgh/"])
+                    .caller_refusal()
+                    .is_some(),
+                "{caller}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unnamed_caller_is_refused_when_allowed_callers_are_set() {
+        crate::cli::i18n::init_for_tests();
+        let refusal = context_for(None, &["pasejo@metio.wtf"])
+            .caller_refusal()
+            .unwrap();
+        assert_eq!(refusal.error, ErrorKind::CallerNotAllowed);
+        assert!(refusal.hint.is_some());
+    }
+
+    #[test]
+    fn process_message_refuses_every_request_of_a_refused_caller() {
+        crate::cli::i18n::init_for_tests();
+        let cfg = configuration_with(&["personal"], None);
+        let context = context_for(Some("evil@example.org"), &["pasejo@metio.wtf"]);
+        for (bytes, expected_id) in [
+            (&br#"{"request_id":3,"action":"list_stores"}"#[..], Some(3)),
+            (
+                &br#"{"request_id":4,"action":"query","domain":"example.com"}"#[..],
+                Some(4),
+            ),
+            (
+                &br#"{"request_id":5,"action":"reveal","store":"personal","name":"a","domain":"example.com"}"#[..],
+                Some(5),
+            ),
+            (&b"not json"[..], None),
+        ] {
+            let (request_id, response) = process_message(bytes, &cfg, &context, true);
+            assert_eq!(request_id, expected_id);
+            match response {
+                ResponsePayload::Error(err) => {
+                    assert_eq!(err.error, ErrorKind::CallerNotAllowed);
+                }
+                other => panic!("expected CallerNotAllowed, got {other:?}"),
+            }
+        }
     }
 
     // --- resolve_store ----------------------------------------------------

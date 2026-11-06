@@ -7,6 +7,7 @@ Usage: pasejo browser host [OPTIONS]
 Options:
       --username-keys <USERNAME_KEYS>  [default: login email username]
       --uri-keys <URI_KEYS>            [default: uri url link site]
+      --allowed-caller <CALLER>        Extension allowed to use this host, exactly as the browser names it: `chrome-extension://<id>/` for chromium-family browsers, the add-on id for Firefox. Repeatable. Without it, every caller is accepted
   -v, --verbose...                     Increase logging verbosity
   -q, --quiet...                       Decrease logging verbosity
   -h, --help                           Print help
@@ -22,6 +23,7 @@ Usage: pasejo browser host [OPTIONS]
 Options:
       --username-keys <USERNAME_KEYS>  [default: login email username]
       --uri-keys <URI_KEYS>            [default: uri url link site]
+      --allowed-caller <CALLER>        Extension allowed to use this host, exactly as the browser names it: `chrome-extension://<id>/` for chromium-family browsers, the add-on id for Firefox. Repeatable. Without it, every caller is accepted
   -v, --verbose...                     Increase logging verbosity
   -q, --quiet...                       Decrease logging verbosity
   -h, --help                           Print help
@@ -37,6 +39,7 @@ Usage: pasejo browser host [OPTIONS]
 Options:
       --username-keys <USERNAME_KEYS>  [default: login email username]
       --uri-keys <URI_KEYS>            [default: uri url link site]
+      --allowed-caller <CALLER>        Extension allowed to use this host, exactly as the browser names it: `chrome-extension://<id>/` for chromium-family browsers, the add-on id for Firefox. Repeatable. Without it, every caller is accepted
   -v, --verbose...                     Increase logging verbosity
   -q, --quiet...                       Decrease logging verbosity
   -h, --help                           Print help

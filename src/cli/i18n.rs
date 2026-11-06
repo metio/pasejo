@@ -1063,6 +1063,12 @@ fl_string!(
     error_browser_release_log_failed,
     "error-browser-release-log-failed"
 );
+fl_string!(
+    error_browser_caller_not_allowed,
+    "error-browser-caller-not-allowed",
+    caller
+);
+fl_string!(error_browser_caller_unnamed, "error-browser-caller-unnamed");
 fl_log!(info, browser_log_empty, "browser-log-empty");
 fl_log!(
     warn,

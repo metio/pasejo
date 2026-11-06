@@ -1033,3 +1033,128 @@ fn host_withholds_a_credential_whose_release_cannot_be_recorded() {
         "response was: {response}"
     );
 }
+
+fn spawn_host_with_args(
+    config: &std::path::Path,
+    host_args: &[&str],
+    language: &str,
+) -> std::process::Child {
+    StdCommand::new(cargo_bin("pasejo"))
+        .args(["browser", "host"])
+        .args(host_args)
+        .env("PASEJO_CONFIG", config)
+        .env("PASEJO_DATA_DIR", config.parent().unwrap())
+        .env_remove("LANGUAGE")
+        .env("LANG", language)
+        .env("LC_ALL", language)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap()
+}
+
+#[test]
+fn host_answers_callers_among_its_allowed_callers() {
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+    let allowed = [
+        "--allowed-caller",
+        "chrome-extension://abcdefgh/",
+        "--allowed-caller",
+        "pasejo@metio.wtf",
+    ];
+
+    for browser_args in [
+        &["chrome-extension://abcdefgh/", "--parent-window=0"][..],
+        &[
+            "/home/alice/.mozilla/native-messaging-hosts/wtf.metio.pasejo.json",
+            "pasejo@metio.wtf",
+        ][..],
+    ] {
+        let host_args: Vec<&str> = allowed.iter().chain(browser_args).copied().collect();
+        let mut child = spawn_host_with_args(&config, &host_args, "en");
+        let mut stdin = child.stdin.take().unwrap();
+        let mut stdout = child.stdout.take().unwrap();
+        write_request(&mut stdin, br#"{"request_id":1,"action":"list_stores"}"#);
+        let response = read_response(&mut stdout);
+        assert_eq!(
+            response,
+            r#"{"request_id":1,"protocol_version":2,"stores":[{"name":"test","default":true}]}"#,
+            "{browser_args:?}"
+        );
+        drop(stdin);
+        assert!(child.wait().unwrap().success());
+    }
+}
+
+#[test]
+fn host_refuses_a_caller_missing_from_its_allowed_callers() {
+    let temp = setup_store_with_secret("alice", "hunter2\nurl: https://example.com\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = spawn_host_with_args(
+        &config,
+        &[
+            "--allowed-caller",
+            "chrome-extension://abcdefgh/",
+            "chrome-extension://ponmlkji/",
+        ],
+        "de",
+    );
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    write_request(&mut stdin, br#"{"request_id":1,"action":"list_stores"}"#);
+    let listed = read_response(&mut stdout);
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"reveal","store":"test","name":"alice","domain":"example.com"}"#,
+    );
+    let revealed = read_response(&mut stdout);
+    drop(stdin);
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+
+    for response in [&listed, &revealed] {
+        assert!(!response.contains("hunter2"), "{response}");
+        assert!(!response.contains(r#""test""#), "{response}");
+        assert!(
+            response.contains(r#""error":"caller_not_allowed""#),
+            "{response}"
+        );
+        assert!(
+            response.contains("Die Browser-Erweiterung 'chrome-extension://ponmlkji/'"),
+            "{response}"
+        );
+    }
+    assert!(listed.starts_with(r#"{"request_id":1,"#), "{listed}");
+    assert!(revealed.starts_with(r#"{"request_id":2,"#), "{revealed}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("chrome-extension://ponmlkji/"), "{stderr}");
+    assert!(
+        !temp
+            .path()
+            .join("pasejo")
+            .join("browser-releases.jsonl")
+            .exists()
+    );
+}
+
+#[test]
+fn host_refuses_an_unnamed_caller_when_allowed_callers_are_set() {
+    let temp = setup_store_with_secret("alice", "hunter2\n");
+    let config = temp.path().join("config.toml");
+
+    let mut child = spawn_host_with_args(&config, &["--allowed-caller", "pasejo@metio.wtf"], "en");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    write_request(&mut stdin, br#"{"request_id":1,"action":"list_stores"}"#);
+    let response = read_response(&mut stdout);
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+
+    assert!(
+        response.starts_with(r#"{"request_id":1,"error":"caller_not_allowed","hint":"#),
+        "{response}"
+    );
+}

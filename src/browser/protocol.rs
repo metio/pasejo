@@ -145,6 +145,11 @@ pub enum ErrorKind {
     /// A `reveal` matched, but its release could not be recorded in the
     /// local release log, so the credential was withheld.
     ReleaseLogFailed,
+    /// The browser started this host for an extension that is not among
+    /// the host's `--allowed-caller` values. Every request is answered with
+    /// this kind and nothing else, so an unknown extension learns neither
+    /// store names nor credentials.
+    CallerNotAllowed,
 }
 
 #[cfg(test)]
@@ -165,6 +170,19 @@ mod tests {
             confirm: false,
             exact_host: true,
         }
+    }
+
+    #[test]
+    fn caller_not_allowed_serializes_in_snake_case() {
+        let response = ErrorResponse {
+            error: ErrorKind::CallerNotAllowed,
+            store: None,
+            hint: Some("refused".into()),
+        };
+        assert_eq!(
+            serde_json::to_string(&response).unwrap(),
+            r#"{"error":"caller_not_allowed","hint":"refused"}"#
+        );
     }
 
     #[test]
