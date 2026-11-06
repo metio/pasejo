@@ -3143,6 +3143,7 @@ name = "pasejo"
 version = "1.0.0"
 dependencies = [
  "age",
+ "age-core",
  "anyhow",
  "arboard",
  "assert_cmd",
