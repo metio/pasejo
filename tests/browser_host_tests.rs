@@ -893,6 +893,65 @@ fn host_honours_the_fill_and_confirm_policies_stored_in_secrets() {
     assert!(child.wait().unwrap().success());
 }
 
+#[test]
+fn host_names_stored_lookalike_domains_when_a_query_finds_nothing() {
+    let scaffold = common::StoreScaffold::new()
+        .store("test")
+        .identity()
+        .recipient()
+        .secret("alice", "hunter2\nurl: https://login.example.com\n")
+        .secret(
+            "bob",
+            "hunter3\nurl: https://example.net\npasejo-fill: never\n",
+        );
+    let mut child = spawn_host_in(&scaffold.config, "en");
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":1,"action":"query","domain":"www.examp1e.com"}"#,
+    );
+    assert_eq!(
+        read_response(&mut stdout),
+        r#"{"request_id":1,"results":[],"lookalikes":["example.com"]}"#
+    );
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":2,"action":"query","domain":"unrelated.org"}"#,
+    );
+    assert_eq!(
+        read_response(&mut stdout),
+        r#"{"request_id":2,"results":[]}"#
+    );
+
+    write_request(
+        &mut stdin,
+        br#"{"request_id":3,"action":"query","domain":"example.com"}"#,
+    );
+    let matched = read_response(&mut stdout);
+    assert!(matched.contains(r#""name":"alice""#), "{matched}");
+    assert!(!matched.contains("lookalikes"), "{matched}");
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn browser_query_names_stored_lookalike_domains_when_nothing_matches() {
+    let scaffold = common::StoreScaffold::new()
+        .store("test")
+        .identity()
+        .recipient()
+        .secret("alice", "hunter2\nurl: https://example.com\n");
+    pasejo(&scaffold.config)
+        .args(["browser", "query", "examp1e.com"])
+        .assert()
+        .success()
+        .stdout("{\"results\":[],\"lookalikes\":[\"example.com\"]}\n");
+}
+
 fn host_with_browser_args_answers_list_stores(browser_args: &[&str]) {
     let temp = setup_store_with_secret("alice", "hunter2\n");
     let config = temp.path().join("config.toml");

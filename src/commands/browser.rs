@@ -5,7 +5,6 @@ use anyhow::Context;
 
 use crate::browser::host;
 use crate::browser::install_manifest;
-use crate::browser::matcher::find_matches;
 use crate::browser::protocol::QueryResponse;
 use crate::browser::release_log::{Release, ReleaseLog};
 use crate::cli::i18n;
@@ -32,14 +31,14 @@ fn query(args: &QueryArgs, configuration: &Configuration, offline: bool) -> anyh
         args.store_selection.store.as_ref(),
         offline,
         |registration, store| {
-            let results = find_matches(
+            let response = QueryResponse::search(
                 store,
                 &registration.name,
                 &args.domain,
                 &args.uri_keys,
                 &args.username_keys,
             );
-            Ok((QueryResponse { results }, StoreMutation::Unchanged))
+            Ok((response, StoreMutation::Unchanged))
         },
     )?;
     let json = if args.pretty.unwrap_or(false) {

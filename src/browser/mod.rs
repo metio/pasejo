@@ -3,6 +3,7 @@
 
 pub mod host;
 pub mod install_manifest;
+pub mod lookalike;
 pub mod matcher;
 pub mod policy;
 pub mod protocol;

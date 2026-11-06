@@ -4,6 +4,7 @@
 use serde::Serialize;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use crate::browser::lookalike::lookalikes;
 use crate::browser::policy::{FillPolicy, Policy};
 use crate::exporters::parser::{ParsedSecret, parse_secret};
 use crate::models::password_store::{OneTimePasswordType, PasswordStore};
@@ -110,6 +111,33 @@ pub fn find_matches(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     matches
+}
+
+/// The registrable domains of the store's URL fields that could be mistaken
+/// for `domain`; see `lookalike::lookalikes`. Secret names are not consulted,
+/// and a secret with `pasejo-fill: never` contributes nothing, so the browser
+/// learns no more about it than a query would.
+pub fn find_lookalikes(
+    store: &PasswordStore,
+    domain: &str,
+    uri_keys: &[String],
+    username_keys: &[String],
+) -> Vec<String> {
+    let Some(query) = Query::parse(domain) else {
+        return vec![];
+    };
+    let stored_hosts = store
+        .secrets
+        .values()
+        .filter(|value| Policy::from_secret(value).fill != FillPolicy::Never)
+        .flat_map(|value| {
+            parse_secret(value, username_keys, uri_keys)
+                .fields
+                .into_iter()
+                .filter(|(key, _)| uri_keys.contains(key))
+                .filter_map(|(_, field_value)| extract_host(&field_value))
+        });
+    lookalikes(&query.domain, stored_hosts)
 }
 
 /// Releases the credential of `secret_name` only when that secret is one
@@ -1227,5 +1255,71 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert!((result[0].score - SCORE_URL_EXACT_HOST).abs() < f64::EPSILON);
         assert_eq!(result[0].url.as_deref(), Some("https://example.com"));
+    }
+
+    fn lookalikes_in(store: &PasswordStore, domain: &str) -> Vec<String> {
+        find_lookalikes(store, domain, &uri_keys(), &username_keys())
+    }
+
+    #[test]
+    fn lookalikes_name_stored_url_domains_resembling_the_query() {
+        let store = store_with(&[
+            ("alice", "hunter2\nurl: https://login.example.com"),
+            ("bob", "hunter3\nurl: https://unrelated.org"),
+        ]);
+        assert_eq!(lookalikes_in(&store, "www.examp1e.com"), ["example.com"]);
+    }
+
+    #[test]
+    fn lookalikes_consider_every_url_field_of_a_secret() {
+        let store = store_with(&[(
+            "alice",
+            "hunter2\nurl: https://unrelated.org\nlink: example.com/login",
+        )]);
+        assert_eq!(lookalikes_in(&store, "examp1e.com"), ["example.com"]);
+    }
+
+    #[test]
+    fn lookalikes_ignore_fields_outside_the_uri_keys_and_secret_names() {
+        let store = store_with(&[
+            ("alice", "hunter2\nnotes: https://example.com"),
+            ("sites/example.com/bob", "hunter3"),
+        ]);
+        assert!(lookalikes_in(&store, "examp1e.com").is_empty());
+    }
+
+    #[test]
+    fn lookalikes_ignore_secrets_the_browser_may_never_fill() {
+        let store = store_with(&[(
+            "alice",
+            "hunter2\nurl: https://example.com\npasejo-fill: never",
+        )]);
+        assert!(lookalikes_in(&store, "examp1e.com").is_empty());
+    }
+
+    #[test]
+    fn lookalikes_are_empty_for_a_query_without_a_host() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        assert!(lookalikes_in(&store, "").is_empty());
+        assert!(lookalikes_in(&store, ".").is_empty());
+    }
+
+    #[test]
+    fn lookalikes_compare_the_canonical_query_host() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        assert_eq!(lookalikes_in(&store, " EXAMP1E.com. "), ["example.com"]);
+    }
+
+    #[test]
+    fn a_secret_held_back_by_its_fill_policy_keeps_its_own_domain_quiet() {
+        let store = store_with(&[
+            (
+                "alice",
+                "hunter2\nurl: https://www.example.com\npasejo-fill: exact-host",
+            ),
+            ("bob", "hunter3\nurl: https://example.net"),
+        ]);
+        assert!(matched_names(&store, "login.example.com").is_empty());
+        assert!(lookalikes_in(&store, "login.example.com").is_empty());
     }
 }

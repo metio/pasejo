@@ -3,7 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::browser::matcher::{Credential, Match};
+use crate::browser::matcher::{Credential, Match, find_lookalikes, find_matches};
+use crate::models::password_store::PasswordStore;
 
 /// Wire-format version emitted in `ListStoresResponse::protocol_version`.
 /// The extension refuses to operate against any host that doesn't
@@ -77,6 +78,33 @@ pub enum ResponsePayload {
 #[derive(Debug, Serialize)]
 pub struct QueryResponse {
     pub results: Vec<Match>,
+    /// Registrable domains of stored URLs that resemble the queried domain,
+    /// present only when `results` is empty: the page may be imitating a
+    /// site the user has an account for.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub lookalikes: Vec<String>,
+}
+
+impl QueryResponse {
+    /// The answer to a query for `domain` against one decrypted store.
+    pub fn search(
+        store: &PasswordStore,
+        store_name: &str,
+        domain: &str,
+        uri_keys: &[String],
+        username_keys: &[String],
+    ) -> Self {
+        let results = find_matches(store, store_name, domain, uri_keys, username_keys);
+        let lookalikes = if results.is_empty() {
+            find_lookalikes(store, domain, uri_keys, username_keys)
+        } else {
+            vec![]
+        };
+        Self {
+            results,
+            lookalikes,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -158,6 +186,7 @@ mod tests {
 
     use super::*;
     use crate::browser::matcher::MatchKind;
+    use crate::cli::constants::{default_uri_keys, default_username_keys};
 
     fn sample_match() -> Match {
         Match {
@@ -189,6 +218,7 @@ mod tests {
     fn query_response_serializes_to_expected_shape() {
         let response = QueryResponse {
             results: vec![sample_match()],
+            lookalikes: vec![],
         };
         let json = serde_json::to_string(&response).unwrap();
         let parsed: Value = serde_json::from_str(&json).unwrap();
@@ -214,6 +244,69 @@ mod tests {
         for absent in ["password", "fields", "otp", "exact_host"] {
             assert!(first.get(absent).is_none(), "{absent} leaked: {json}");
         }
+    }
+
+    fn store_with(secrets: &[(&str, &str)]) -> PasswordStore {
+        let mut store = PasswordStore::default();
+        for (name, value) in secrets {
+            store
+                .secrets
+                .insert((*name).to_owned(), (*value).to_owned());
+        }
+        store
+    }
+
+    fn search(store: &PasswordStore, domain: &str) -> QueryResponse {
+        QueryResponse::search(
+            store,
+            "personal",
+            domain,
+            &default_uri_keys(),
+            &default_username_keys(),
+        )
+    }
+
+    #[test]
+    fn query_response_without_lookalikes_omits_the_field() {
+        let response = QueryResponse {
+            results: vec![],
+            lookalikes: vec![],
+        };
+        assert_eq!(
+            serde_json::to_string(&response).unwrap(),
+            r#"{"results":[]}"#
+        );
+    }
+
+    #[test]
+    fn query_response_lists_its_lookalikes_after_the_results() {
+        let response = QueryResponse {
+            results: vec![],
+            lookalikes: vec!["example.com".into(), "example.net".into()],
+        };
+        assert_eq!(
+            serde_json::to_string(&response).unwrap(),
+            r#"{"results":[],"lookalikes":["example.com","example.net"]}"#
+        );
+    }
+
+    #[test]
+    fn search_names_lookalikes_when_nothing_matches() {
+        let store = store_with(&[("alice", "hunter2\nurl: https://example.com")]);
+        let response = search(&store, "examp1e.com");
+        assert!(response.results.is_empty());
+        assert_eq!(response.lookalikes, ["example.com"]);
+    }
+
+    #[test]
+    fn search_names_no_lookalikes_next_to_a_match() {
+        let store = store_with(&[
+            ("sites/example.com/alice", "hunter2"),
+            ("bob", "hunter3\nurl: https://example.net"),
+        ]);
+        let response = search(&store, "example.com");
+        assert_eq!(response.results.len(), 1);
+        assert!(response.lookalikes.is_empty());
     }
 
     #[test]

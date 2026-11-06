@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 
-use crate::browser::matcher::{find_matches, reveal};
+use crate::browser::matcher::reveal;
 use crate::browser::protocol::{
     ErrorKind, ErrorResponse, ListStoresResponse, PROTOCOL_VERSION, QueryResponse, Request,
     RequestEnvelope, ResponseEnvelope, ResponsePayload, RevealResponse, StoreEntry,
@@ -159,14 +159,13 @@ fn handle_query(
         Err((kind, err)) => return error_response(kind, configuration, registration, &err),
     };
 
-    let results = find_matches(
+    ResponsePayload::Query(QueryResponse::search(
         &store,
         &store_name,
         domain,
         &context.uri_keys,
         &context.username_keys,
-    );
-    ResponsePayload::Query(QueryResponse { results })
+    ))
 }
 
 /// Decrypts the store again rather than trusting an earlier query, so the
