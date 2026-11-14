@@ -210,7 +210,7 @@ impl ParsedSecret {
             }
         }
 
-        let username = username.map(|(_, value)| value.clone()).unwrap_or_default();
+        let username = username.map_or_default(|(_, value)| value.clone());
         (username, uris, fields)
     }
 }

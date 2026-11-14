@@ -9,7 +9,6 @@ authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license = "0BSD"
 edition = "2024"
 rust-version = "1.100"
-homepage = "https://github.com/metio/pasejo"
 repository = "https://github.com/metio/pasejo"
 keywords = ["password", "manager", "age", "passage", "pass"]
 categories = ["command-line-utilities"]
@@ -60,7 +59,6 @@ same-file = { version = "1.0.6" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.150" }
 shlex = { version = "2.0.1" }
-ssh-key = { version = "0.6.7", features = ["ed25519", "encryption"] }
 termtree = { version = "1.0.0" }
 toml = { version = "1.1.0" }
 unic-langid = { version = "0.9" }
@@ -78,7 +76,7 @@ assert_fs = { version = "1.1.4" }
 predicates = "3.1.4"
 regex = { version = "1.12.4" }
 serial_test = { version = "4.0.0" }
-ssh-key = { version = "0.6.7", features = ["ed25519", "rsa"] }
+ssh-key = { version = "0.6.7", features = ["ed25519", "encryption", "rsa"] }
 trycmd = { version = "1.2.0" }
 
 [target.'cfg(unix)'.dev-dependencies]
@@ -99,5 +97,3 @@ libc = { version = "0.2.186" }
 [target.'cfg(windows)'.dependencies]
 winreg = { version = "0.55.0" }
 
-[build-dependencies]
-cc = "1.2.63"

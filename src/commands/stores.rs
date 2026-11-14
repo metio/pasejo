@@ -151,7 +151,7 @@ fn decrypt(
     // The full plaintext store; wrap so the buffer is scrubbed after it is
     // printed instead of left in a freed heap page.
     let content = Zeroizing::new(toml::to_string(&store)?);
-    println!("{}", &*content);
+    println!("{}", *content);
 
     Ok(())
 }

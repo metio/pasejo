@@ -3148,7 +3148,6 @@ dependencies = [
  "arboard",
  "assert_cmd",
  "assert_fs",
- "cc",
  "clap",
  "clap-verbosity-flag",
  "clap_complete",

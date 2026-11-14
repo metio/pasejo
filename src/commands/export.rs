@@ -58,7 +58,7 @@ fn export_as_json(
         atomic_write::write(out_path, json.as_bytes())?;
         i18n::export_written_to_file(out_path);
     } else {
-        println!("{}", &*json);
+        println!("{}", *json);
     }
 
     Ok(())

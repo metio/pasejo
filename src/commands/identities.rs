@@ -60,20 +60,19 @@ fn add(
             ErrorKind::InvalidValue,
             &i18n::error_identity_file_already_added(&identity_file.display().to_string()),
         )
-    } else {
-        if global {
-            configuration.identities.push(identity);
-            configuration.save_configuration()?;
-        } else if let Some(store) = configuration.select_store_mut(store_name) {
-            store.identities.push(identity);
-            configuration.save_configuration()?;
-        } else {
-            anyhow::bail!(i18n::error_cannot_identify_store());
-        }
-
-        i18n::identity_added(absolute_path.as_path());
-        Ok(())
     }
+    if global {
+        configuration.identities.push(identity);
+        configuration.save_configuration()?;
+    } else if let Some(store) = configuration.select_store_mut(store_name) {
+        store.identities.push(identity);
+        configuration.save_configuration()?;
+    } else {
+        anyhow::bail!(i18n::error_cannot_identify_store());
+    }
+
+    i18n::identity_added(absolute_path.as_path());
+    Ok(())
 }
 
 fn remove(
