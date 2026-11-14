@@ -3,4 +3,5 @@
 
 pub mod cli;
 pub mod configuration;
+pub mod environment;
 pub mod password_store;

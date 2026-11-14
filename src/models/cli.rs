@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::cli::completer;
 use crate::cli::constants::{default_uri_keys, default_username_keys};
 use crate::cli::parser;
+use crate::models::environment::EnvAssignment;
 use crate::models::password_store::{OneTimePasswordAlgorithm, OneTimePasswordType};
 
 /// age-backed password manager for teams
@@ -41,6 +42,9 @@ pub enum Commands {
         #[command(subcommand)]
         command: ConfigCommands,
     },
+
+    /// Run a command with values from secrets in its environment
+    Exec(ExecArgs),
 
     /// Export passwords
     Export {
@@ -686,8 +690,45 @@ pub enum SecretCommands {
     /// Remove an existing secret
     Remove(SecretRemoveArgs),
 
+    /// Print values from secrets as JSON, for references read from stdin
+    Resolve(SecretResolveArgs),
+
     /// Show secret
     Show(SecretShowArgs),
+}
+
+#[derive(Args)]
+pub struct SecretResolveArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct ExecArgs {
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+
+    /// Set VARIABLE to the first line of SECRET, the conventional place of
+    /// its password. Repeatable
+    #[arg(short, long = "env", value_name = "VARIABLE=SECRET", value_parser = parser::env_assignment)]
+    pub env: Vec<EnvAssignment>,
+
+    /// Set VARIABLE to the value of the FIELD field of SECRET. Repeatable
+    #[arg(long = "env-field", value_name = "VARIABLE=SECRET=FIELD", value_parser = parser::env_field_assignment)]
+    pub env_field: Vec<EnvAssignment>,
+
+    /// Replace the values in the command's output with ${VARIABLE}
+    #[arg(long)]
+    pub redact: bool,
+
+    /// The command to run, followed by its arguments
+    #[arg(
+        required = true,
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        value_name = "COMMAND"
+    )]
+    pub command: Vec<String>,
 }
 
 #[derive(Args)]
@@ -940,8 +981,14 @@ pub struct SecretShowArgs {
     /// Show everything except the first N lines. Useful with the convention
     /// that the password lives on the first line: `--skip-lines 1` returns
     /// just the metadata.
-    #[arg(long, value_parser = parser::positive_u64)]
+    #[arg(long, value_parser = parser::positive_u64, conflicts_with = "field")]
     pub skip_lines: Option<u64>,
+
+    /// Show only the value of the `KEY: value` field named KEY, without
+    /// surrounding whitespace. The key compares exactly; when it repeats,
+    /// the last field wins.
+    #[arg(short, long, value_name = "KEY", conflicts_with = "line")]
+    pub field: Option<String>,
 
     /// The path of the secret within the selected store
     pub secret_path: String,

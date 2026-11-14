@@ -44,4 +44,16 @@ $ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-
 ? 1
 Error: L'URL otpauth ne décrit pas un mot de passe à usage unique valide
 
+$ pasejo exec --env 1TOKEN=api/token -- true
+? 2
+error: invalid value '1TOKEN=api/token' for '--env <VARIABLE=SECRET>': '1TOKEN' n'est pas un nom de variable d'environnement valide. Utilisez des lettres, des chiffres et des tirets bas, sans commencer par un chiffre
+
+For more information, try '--help'.
+
+$ pasejo exec --env-field USER=database -- true
+? 2
+error: invalid value 'USER=database' for '--env-field <VARIABLE=SECRET=FIELD>': 'USER=database' n'est pas de la forme VARIABLE=SECRET=CHAMP
+
+For more information, try '--help'.
+
 ```

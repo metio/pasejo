@@ -963,6 +963,56 @@ fl_string!(
     exit
 );
 fl_string!(
+    error_no_field_found,
+    "error-no-field-found",
+    secret_path,
+    field
+);
+fl_string!(
+    error_no_line_found,
+    "error-no-line-found",
+    secret_path,
+    line
+);
+fl_string!(
+    error_env_variable_unresolved,
+    "error-env-variable-unresolved",
+    variable
+);
+fl_string!(
+    error_env_assignment_invalid,
+    "error-env-assignment-invalid",
+    input
+);
+fl_string!(
+    error_env_field_assignment_invalid,
+    "error-env-field-assignment-invalid",
+    input
+);
+fl_string!(
+    error_env_variable_name_invalid,
+    "error-env-variable-name-invalid",
+    variable
+);
+fl_string!(
+    error_env_variable_duplicate,
+    "error-env-variable-duplicate",
+    variable
+);
+fl_string!(
+    error_env_reference_line_and_field,
+    "error-env-reference-line-and-field",
+    variable
+);
+fl_string!(error_resolve_input_invalid, "error-resolve-input-invalid");
+fl_log!(
+    warn,
+    exec_value_too_short_to_redact,
+    "exec-value-too-short-to-redact",
+    variable,
+    length
+);
+fl_string!(
     error_browser_host_requires_pipe,
     "error-browser-host-requires-pipe"
 );

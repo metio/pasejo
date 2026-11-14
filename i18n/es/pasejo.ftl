@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = Se agotó el tiempo de espera del bloqueo del 
 error-cannot-encrypt-store = No se puede cifrar el almacén
 error-failed-to-run-command = Falló la ejecución del comando { $binary }
 error-command-exited-with = El comando { $binary } terminó con { $exit }
+error-no-field-found = El secreto '{ $secret_path }' no tiene el campo '{ $field }'
+error-no-line-found = El secreto '{ $secret_path }' no tiene la línea { $line }
+error-env-variable-unresolved = No se puede resolver el valor de la variable de entorno { $variable }
+error-env-assignment-invalid = '{ $input }' no tiene la forma VARIABLE=SECRETO
+error-env-field-assignment-invalid = '{ $input }' no tiene la forma VARIABLE=SECRETO=CAMPO
+error-env-variable-name-invalid = '{ $variable }' no es un nombre de variable de entorno válido. Use letras, dígitos y guiones bajos, y no empiece con un dígito
+error-env-variable-duplicate = La variable de entorno { $variable } se asigna más de una vez
+error-env-reference-line-and-field = La referencia para { $variable } define tanto 'line' como 'field'
+error-resolve-input-invalid = No se pueden leer las referencias a secretos desde la entrada estándar
+exec-value-too-short-to-redact = El valor de { $variable } tiene menos de { $length } caracteres y no se oculta
 error-browser-host-requires-pipe = El host del navegador requiere una entrada estándar redirigida desde la extensión del navegador conectada. Ejecute este comando a través del manifiesto de mensajería nativa de su navegador, no directamente desde una terminal.
 error-browser-store-file-missing = El archivo del almacén no existe: { $path }
 error-browser-identity-passphrase-protected = El host del navegador no puede pedir la frase de contraseña de una identidad cifrada. Usa una identidad sin cifrar o respaldada por un plugin para este almacén.

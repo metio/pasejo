@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = Zeitüberschreitung beim Warten auf die Sperre
 error-cannot-encrypt-store = Speicher konnte nicht verschlüsselt werden
 error-failed-to-run-command = Befehl { $binary } konnte nicht ausgeführt werden
 error-command-exited-with = Befehl { $binary } beendet mit { $exit }
+error-no-field-found = Das Geheimnis '{ $secret_path }' hat kein Feld '{ $field }'
+error-no-line-found = Das Geheimnis '{ $secret_path }' hat keine Zeile { $line }
+error-env-variable-unresolved = Der Wert der Umgebungsvariable { $variable } kann nicht ermittelt werden
+error-env-assignment-invalid = '{ $input }' hat nicht die Form VARIABLE=GEHEIMNIS
+error-env-field-assignment-invalid = '{ $input }' hat nicht die Form VARIABLE=GEHEIMNIS=FELD
+error-env-variable-name-invalid = '{ $variable }' ist kein gültiger Name für eine Umgebungsvariable. Verwenden Sie Buchstaben, Ziffern und Unterstriche, und beginnen Sie nicht mit einer Ziffer
+error-env-variable-duplicate = Die Umgebungsvariable { $variable } wird mehr als einmal zugewiesen
+error-env-reference-line-and-field = Der Verweis für { $variable } setzt sowohl 'line' als auch 'field'
+error-resolve-input-invalid = Die Verweise auf Geheimnisse können nicht von der Standardeingabe gelesen werden
+exec-value-too-short-to-redact = Der Wert von { $variable } ist kürzer als { $length } Zeichen und wird nicht geschwärzt
 error-browser-host-requires-pipe = Der Browser-Host benötigt eine weitergeleitete Standardeingabe von der verbundenen Browser-Erweiterung. Führen Sie diesen Befehl über das Native-Messaging-Manifest Ihres Browsers aus, nicht direkt in einem Terminal.
 error-browser-store-file-missing = Speicherdatei existiert nicht: { $path }
 error-browser-identity-passphrase-protected = Der Browser-Host kann nicht nach der Passphrase einer verschlüsselten Identität fragen. Verwenden Sie für diesen Speicher eine unverschlüsselte oder Plugin-gestützte Identität.

@@ -91,6 +91,12 @@ fn cli_tests_config_migrations() {
 
 #[test]
 #[cfg(not(windows))]
+fn cli_tests_exec() {
+    english_test_cases().case("tests/cmd/exec/*.md");
+}
+
+#[test]
+#[cfg(not(windows))]
 fn cli_tests_export() {
     english_test_cases().case("tests/cmd/export/*/*.md");
 }

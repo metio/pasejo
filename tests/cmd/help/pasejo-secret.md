@@ -14,6 +14,7 @@ Commands:
   list      List all secrets
   move      Move secret from old-path to new-path
   remove    Remove an existing secret
+  resolve   Print values from secrets as JSON, for references read from stdin
   show      Show secret
   help      Print this message or the help of the given subcommand(s)
 
@@ -40,6 +41,7 @@ Commands:
   list      List all secrets
   move      Move secret from old-path to new-path
   remove    Remove an existing secret
+  resolve   Print values from secrets as JSON, for references read from stdin
   show      Show secret
   help      Print this message or the help of the given subcommand(s)
 
@@ -65,6 +67,7 @@ Commands:
   list      List all secrets
   move      Move secret from old-path to new-path
   remove    Remove an existing secret
+  resolve   Print values from secrets as JSON, for references read from stdin
   show      Show secret
   help      Print this message or the help of the given subcommand(s)
 

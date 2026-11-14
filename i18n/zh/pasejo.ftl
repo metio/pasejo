@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = 等待存储文件的锁超时:{ $path }
 error-cannot-encrypt-store = 无法加密存储
 error-failed-to-run-command = 无法运行命令 { $binary }
 error-command-exited-with = 命令 { $binary } 以 { $exit } 退出
+error-no-field-found = 密钥 '{ $secret_path }' 没有字段 '{ $field }'
+error-no-line-found = 密钥 '{ $secret_path }' 没有第 { $line } 行
+error-env-variable-unresolved = 无法解析环境变量 { $variable } 的值
+error-env-assignment-invalid = '{ $input }' 不是 VARIABLE=SECRET 的形式
+error-env-field-assignment-invalid = '{ $input }' 不是 VARIABLE=SECRET=FIELD 的形式
+error-env-variable-name-invalid = '{ $variable }' 不是有效的环境变量名。请使用字母、数字和下划线,且不要以数字开头
+error-env-variable-duplicate = 环境变量 { $variable } 被赋值了多次
+error-env-reference-line-and-field = { $variable } 的引用同时设置了 'line' 和 'field'
+error-resolve-input-invalid = 无法从标准输入读取密钥引用
+exec-value-too-short-to-redact = { $variable } 的值短于 { $length } 个字符,不会被遮盖
 error-browser-host-requires-pipe = 浏览器主机需要来自连接的浏览器扩展的管道标准输入。请通过浏览器的原生消息传递清单运行此命令，而不是直接从终端运行。
 error-browser-store-file-missing = 存储文件不存在:{ $path }
 error-browser-identity-passphrase-protected = 浏览器主机无法请求加密身份的密码短语。请为此存储使用未加密或基于插件的身份。

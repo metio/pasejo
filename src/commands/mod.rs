@@ -3,6 +3,7 @@
 
 pub mod browser;
 pub mod config;
+pub mod environment;
 pub mod export;
 pub mod hooks;
 pub mod identities;

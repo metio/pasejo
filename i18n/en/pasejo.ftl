@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = Timed out waiting for the lock on store file: 
 error-cannot-encrypt-store = Cannot encrypt store
 error-failed-to-run-command = Failed to run command { $binary }
 error-command-exited-with = Command { $binary } exited with { $exit }
+error-no-field-found = Secret '{ $secret_path }' has no field '{ $field }'
+error-no-line-found = Secret '{ $secret_path }' has no line { $line }
+error-env-variable-unresolved = Cannot resolve the value of the environment variable { $variable }
+error-env-assignment-invalid = '{ $input }' is not of the form VARIABLE=SECRET
+error-env-field-assignment-invalid = '{ $input }' is not of the form VARIABLE=SECRET=FIELD
+error-env-variable-name-invalid = '{ $variable }' is not a valid environment variable name. Use letters, digits and underscores, and do not start with a digit
+error-env-variable-duplicate = The environment variable { $variable } is assigned more than once
+error-env-reference-line-and-field = The reference for { $variable } sets both 'line' and 'field'
+error-resolve-input-invalid = Cannot read the secret references from stdin
+exec-value-too-short-to-redact = The value of { $variable } is shorter than { $length } characters and is not redacted
 error-browser-host-requires-pipe = Browser host requires a piped stdin from the connecting browser extension. Run this command via your browser's native-messaging manifest, not directly from a terminal.
 error-browser-store-file-missing = Store file does not exist: { $path }
 error-browser-identity-passphrase-protected = The browser host cannot ask for the passphrase of an encrypted identity. Use an unencrypted or plugin-backed identity for this store.

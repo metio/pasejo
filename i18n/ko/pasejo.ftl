@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = 저장소 파일의 잠금을 기다리는 동
 error-cannot-encrypt-store = 저장소를 암호화할 수 없습니다
 error-failed-to-run-command = 명령 { $binary } 실행 실패
 error-command-exited-with = 명령 { $binary }이(가) { $exit }(으)로 종료되었습니다
+error-no-field-found = 비밀 '{ $secret_path }'에 필드 '{ $field }'이(가) 없습니다
+error-no-line-found = 비밀 '{ $secret_path }'에 { $line }번째 줄이 없습니다
+error-env-variable-unresolved = 환경 변수 { $variable }의 값을 확인할 수 없습니다
+error-env-assignment-invalid = '{ $input }'은(는) VARIABLE=SECRET 형식이 아닙니다
+error-env-field-assignment-invalid = '{ $input }'은(는) VARIABLE=SECRET=FIELD 형식이 아닙니다
+error-env-variable-name-invalid = '{ $variable }'은(는) 유효한 환경 변수 이름이 아닙니다. 문자, 숫자, 밑줄을 사용하고 숫자로 시작하지 마세요
+error-env-variable-duplicate = 환경 변수 { $variable }이(가) 두 번 이상 지정되었습니다
+error-env-reference-line-and-field = { $variable }의 참조에 'line'과 'field'가 모두 설정되어 있습니다
+error-resolve-input-invalid = 표준 입력에서 비밀 참조를 읽을 수 없습니다
+exec-value-too-short-to-redact = { $variable }의 값은 { $length }자보다 짧아서 가려지지 않습니다
 error-browser-host-requires-pipe = 브라우저 호스트는 연결된 브라우저 확장으로부터 파이프된 표준 입력이 필요합니다. 이 명령은 브라우저의 네이티브 메시징 매니페스트를 통해 실행하세요. 터미널에서 직접 실행하지 마세요.
 error-browser-store-file-missing = 저장소 파일이 존재하지 않습니다: { $path }
 error-browser-identity-passphrase-protected = 브라우저 호스트는 암호화된 아이덴티티의 암호 문구를 요청할 수 없습니다. 이 저장소에는 암호화되지 않았거나 플러그인 기반인 아이덴티티를 사용하세요.

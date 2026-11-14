@@ -52,4 +52,16 @@ $ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-
 ? 1
 Error: Die otpauth-URL beschreibt kein gültiges Einmalpasswort
 
+$ pasejo exec --env 1TOKEN=api/token -- true
+? 2
+error: invalid value '1TOKEN=api/token' for '--env <VARIABLE=SECRET>': '1TOKEN' ist kein gültiger Name für eine Umgebungsvariable. Verwenden Sie Buchstaben, Ziffern und Unterstriche, und beginnen Sie nicht mit einer Ziffer
+
+For more information, try '--help'.
+
+$ pasejo exec --env-field USER=database -- true
+? 2
+error: invalid value 'USER=database' for '--env-field <VARIABLE=SECRET=FIELD>': 'USER=database' hat nicht die Form VARIABLE=GEHEIMNIS=FELD
+
+For more information, try '--help'.
+
 ```

@@ -44,4 +44,16 @@ $ pasejo otp add --url otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PX0 not-
 ? 1
 Error: otpauth URL が有効なワンタイムパスワードを表していません
 
+$ pasejo exec --env 1TOKEN=api/token -- true
+? 2
+error: invalid value '1TOKEN=api/token' for '--env <VARIABLE=SECRET>': '1TOKEN' は有効な環境変数名ではありません。英字、数字、アンダースコアを使用し、数字で始めないでください
+
+For more information, try '--help'.
+
+$ pasejo exec --env-field USER=database -- true
+? 2
+error: invalid value 'USER=database' for '--env-field <VARIABLE=SECRET=FIELD>': 'USER=database' は VARIABLE=SECRET=FIELD の形式ではありません
+
+For more information, try '--help'.
+
 ```

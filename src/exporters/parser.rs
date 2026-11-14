@@ -9,6 +9,30 @@ pub struct ParsedSecret {
     pub fields: BTreeMap<String, String>,
 }
 
+/// The `key: value` fields of a secret, in order: every non-blank line after
+/// the first non-blank one (the password) that contains `": "`. Keys are
+/// trimmed, values are verbatim. This is the one definition of the field
+/// grammar; the parser, the browser policies and field selection all read
+/// fields through it.
+pub fn fields(secret: &str) -> impl Iterator<Item = (&str, &str)> {
+    secret
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .skip(1)
+        .filter_map(|line| line.split_once(": "))
+        .map(|(key, value)| (key.trim(), value))
+}
+
+/// The value of the field named `key`, with surrounding whitespace removed,
+/// since stores often align values (`login:    alice`). Keys compare
+/// exactly. When a field repeats, the last one wins, as in [`parse_secret`].
+pub fn field<'a>(secret: &'a str, key: &str) -> Option<&'a str> {
+    fields(secret)
+        .filter(|(name, _)| *name == key)
+        .last()
+        .map(|(_, value)| value.trim())
+}
+
 /// Values of fields named in `username_keys` or `uri_keys` are trimmed,
 /// because stores often align them (`login:    alice`) and the padding
 /// would otherwise reach a login form or an import. The password, the
@@ -166,5 +190,37 @@ mod tests {
         let parsed = parse_secret("ab: cd", &[], &[]);
         assert_eq!(parsed.password.as_deref(), Some("ab: cd"));
         assert!(parsed.fields.is_empty());
+    }
+
+    #[test]
+    fn fields_yields_every_key_value_line_after_the_password() {
+        let secret = "p4ss: w0rd\nnote\n  user: alice\n\ntoken:  abc ";
+        assert_eq!(
+            fields(secret).collect::<Vec<_>>(),
+            vec![("user", "alice"), ("token", " abc ")]
+        );
+    }
+
+    #[test]
+    fn field_returns_the_trimmed_value_of_the_named_field() {
+        assert_eq!(field("hunter2\nlogin:    alice  ", "login"), Some("alice"));
+    }
+
+    #[test]
+    fn field_compares_keys_exactly() {
+        assert_eq!(field("hunter2\nLogin: alice", "login"), None);
+    }
+
+    #[test]
+    fn field_prefers_the_last_of_repeated_fields() {
+        assert_eq!(
+            field("hunter2\nuser: alice\nuser: bob", "user"),
+            Some("bob")
+        );
+    }
+
+    #[test]
+    fn field_never_reads_the_password_line() {
+        assert_eq!(field("user: alice", "user"), None);
     }
 }

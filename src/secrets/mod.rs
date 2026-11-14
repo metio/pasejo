@@ -4,6 +4,7 @@
 mod age;
 mod format;
 mod merge;
+pub mod selection;
 
 pub use self::age::{decrypt_bytes, encrypt, read_encrypted};
 pub use self::format::format_as_tree;

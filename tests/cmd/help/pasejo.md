@@ -7,6 +7,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 Commands:
   browser    Browser integration
   config     Manage pasejo configuration
+  exec       Run a command with values from secrets in its environment
   export     Export passwords
   hook       Manage hooks
   identity   Manage identities
@@ -34,6 +35,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 Commands:
   browser    Browser integration
   config     Manage pasejo configuration
+  exec       Run a command with values from secrets in its environment
   export     Export passwords
   hook       Manage hooks
   identity   Manage identities
@@ -61,6 +63,7 @@ Usage: pasejo [OPTIONS] <COMMAND>
 Commands:
   browser    Browser integration
   config     Manage pasejo configuration
+  exec       Run a command with values from secrets in its environment
   export     Export passwords
   hook       Manage hooks
   identity   Manage identities

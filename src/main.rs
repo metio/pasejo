@@ -52,6 +52,7 @@ fn main() -> Result<()> {
             commands::browser::dispatch(command, configuration, cli.offline)
         }
         Commands::Config { command } => commands::config::dispatch(command, configuration),
+        Commands::Exec(args) => commands::environment::exec(configuration, args, cli.offline),
         Commands::Export { command } => {
             commands::export::dispatch(command, configuration, cli.offline)
         }

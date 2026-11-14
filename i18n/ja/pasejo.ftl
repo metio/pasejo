@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = ストアファイルのロック待機がタ�
 error-cannot-encrypt-store = ストアを暗号化できません
 error-failed-to-run-command = コマンド { $binary } の実行に失敗しました
 error-command-exited-with = コマンド { $binary } は { $exit } で終了しました
+error-no-field-found = シークレット '{ $secret_path }' にフィールド '{ $field }' がありません
+error-no-line-found = シークレット '{ $secret_path }' に { $line } 行目がありません
+error-env-variable-unresolved = 環境変数 { $variable } の値を解決できません
+error-env-assignment-invalid = '{ $input }' は VARIABLE=SECRET の形式ではありません
+error-env-field-assignment-invalid = '{ $input }' は VARIABLE=SECRET=FIELD の形式ではありません
+error-env-variable-name-invalid = '{ $variable }' は有効な環境変数名ではありません。英字、数字、アンダースコアを使用し、数字で始めないでください
+error-env-variable-duplicate = 環境変数 { $variable } が複数回割り当てられています
+error-env-reference-line-and-field = { $variable } の参照で 'line' と 'field' の両方が設定されています
+error-resolve-input-invalid = 標準入力からシークレットの参照を読み取れません
+exec-value-too-short-to-redact = { $variable } の値は { $length } 文字未満のため、伏せ字にされません
 error-browser-host-requires-pipe = ブラウザホストには、接続中のブラウザ拡張機能からのパイプ標準入力が必要です。このコマンドはブラウザのネイティブメッセージングマニフェスト経由で実行してください。ターミナルから直接実行しないでください。
 error-browser-store-file-missing = ストアファイルが存在しません: { $path }
 error-browser-identity-passphrase-protected = ブラウザーホストは暗号化されたアイデンティティのパスフレーズを尋ねることができません。このストアには暗号化されていないアイデンティティかプラグインベースのアイデンティティを使用してください。

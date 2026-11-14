@@ -5,6 +5,8 @@
 //! encrypted secret so they travel with the store and cannot be changed by
 //! anyone without the store's identities.
 
+use crate::exporters::parser;
+
 /// Field that limits which matches release the secret to a browser.
 pub const FILL_FIELD: &str = "pasejo-fill";
 
@@ -41,21 +43,13 @@ pub struct Policy {
 }
 
 impl Policy {
-    /// Reads the reserved fields from a raw secret, using the same line
-    /// grammar as `exporters::parser::parse_secret`: the first non-blank
-    /// line is the password, later `key: value` lines are fields. Keys
-    /// compare case-insensitively, and when a field repeats, the strictest
-    /// value wins. Any `pasejo-confirm` value requests confirmation, since
-    /// `always` is the only one defined.
+    /// Reads the reserved fields from a raw secret through
+    /// [`parser::fields`]. Keys compare case-insensitively, and when a field
+    /// repeats, the strictest value wins. Any `pasejo-confirm` value
+    /// requests confirmation, since `always` is the only one defined.
     pub fn from_secret(secret: &str) -> Self {
         let mut policy = Self::default();
-        let fields = secret
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .skip(1)
-            .filter_map(|line| line.split_once(": "));
-        for (key, value) in fields {
-            let key = key.trim();
+        for (key, value) in parser::fields(secret) {
             if key.eq_ignore_ascii_case(FILL_FIELD) {
                 policy.fill = policy.fill.max(FillPolicy::parse(value));
             } else if key.eq_ignore_ascii_case(CONFIRM_FIELD) {

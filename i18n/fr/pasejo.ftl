@@ -217,6 +217,16 @@ error-store-lock-wait-timed-out = Délai dépassé en attendant le verrou du fic
 error-cannot-encrypt-store = Impossible de chiffrer le coffre
 error-failed-to-run-command = Échec de l'exécution de la commande { $binary }
 error-command-exited-with = La commande { $binary } s'est terminée avec { $exit }
+error-no-field-found = Le secret '{ $secret_path }' n'a pas de champ '{ $field }'
+error-no-line-found = Le secret '{ $secret_path }' n'a pas de ligne { $line }
+error-env-variable-unresolved = Impossible de résoudre la valeur de la variable d'environnement { $variable }
+error-env-assignment-invalid = '{ $input }' n'est pas de la forme VARIABLE=SECRET
+error-env-field-assignment-invalid = '{ $input }' n'est pas de la forme VARIABLE=SECRET=CHAMP
+error-env-variable-name-invalid = '{ $variable }' n'est pas un nom de variable d'environnement valide. Utilisez des lettres, des chiffres et des tirets bas, sans commencer par un chiffre
+error-env-variable-duplicate = La variable d'environnement { $variable } est affectée plus d'une fois
+error-env-reference-line-and-field = La référence pour { $variable } définit à la fois 'line' et 'field'
+error-resolve-input-invalid = Impossible de lire les références aux secrets depuis l'entrée standard
+exec-value-too-short-to-redact = La valeur de { $variable } fait moins de { $length } caractères et n'est pas masquée
 error-browser-host-requires-pipe = L'hôte du navigateur nécessite une entrée standard redirigée depuis l'extension du navigateur connectée. Exécutez cette commande via le manifeste de messagerie native de votre navigateur, et non directement depuis un terminal.
 error-browser-store-file-missing = Le fichier du coffre n'existe pas : { $path }
 error-browser-identity-passphrase-protected = L'hôte du navigateur ne peut pas demander la phrase de passe d'une identité chiffrée. Utilisez une identité non chiffrée ou gérée par un plugin pour ce coffre.

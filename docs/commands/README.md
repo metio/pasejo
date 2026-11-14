@@ -6,6 +6,7 @@ The following commands are available in `pasejo`:
 
 - [browser](./pasejo-cmd-browser.md): Browser integration (query, native-messaging host, manifest install)
 - [config](./pasejo-cmd-config.md): Manage `pasejo` configuration
+- [exec](./pasejo-cmd-exec.md): Run a command with values from secrets in its environment
 - [export](./pasejo-cmd-export.md): Export passwords to another password manager
 - [hook](./pasejo-cmd-hook.md): Manage synchronization hooks
 - [identity](./pasejo-cmd-identity.md): Manage identities

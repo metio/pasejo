@@ -8,6 +8,8 @@ use anyhow::Result;
 
 use crate::cli::i18n;
 use crate::models::configuration::Configuration;
+use crate::models::environment::{EnvAssignment, SecretReference, is_valid_variable_name};
+use crate::secrets::selection::Selection;
 
 pub fn store_name(input: &str) -> Result<String> {
     let configuration =
@@ -46,6 +48,46 @@ pub fn existing_file(input: &str) -> Result<PathBuf> {
     } else {
         anyhow::bail!(i18n::error_file_does_not_exist(input))
     }
+}
+
+/// `VARIABLE=SECRET`: the variable receives the first line of the secret,
+/// the conventional place of its password. Everything after the first `=`
+/// is the secret's path.
+pub fn env_assignment(input: &str) -> Result<EnvAssignment> {
+    let (variable, secret) = input
+        .split_once('=')
+        .filter(|(_, secret)| !secret.is_empty())
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_env_assignment_invalid(input)))?;
+    assignment(variable, secret, Selection::Line(1))
+}
+
+/// `VARIABLE=SECRET=FIELD`: the variable receives the value of the field.
+/// The path runs from the first `=` to the last one, so it may contain `=`
+/// while the field key may not.
+pub fn env_field_assignment(input: &str) -> Result<EnvAssignment> {
+    let (variable, secret, field) = input
+        .split_once('=')
+        .and_then(|(variable, rest)| {
+            rest.rsplit_once('=')
+                .map(|(secret, field)| (variable, secret, field))
+        })
+        .filter(|(_, secret, field)| !secret.is_empty() && !field.is_empty())
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_env_field_assignment_invalid(input)))?;
+    assignment(variable, secret, Selection::Field(field.to_owned()))
+}
+
+fn assignment(variable: &str, secret: &str, selection: Selection) -> Result<EnvAssignment> {
+    if !is_valid_variable_name(variable) {
+        anyhow::bail!(i18n::error_env_variable_name_invalid(variable));
+    }
+    Ok(EnvAssignment {
+        variable: variable.to_owned(),
+        reference: SecretReference {
+            store: None,
+            secret: secret.to_owned(),
+            selection,
+        },
+    })
 }
 
 #[cfg(test)]
@@ -103,5 +145,59 @@ mod tests {
         let path_str = temp.path().to_str().unwrap();
 
         assert!(existing_file(path_str).is_err());
+    }
+
+    #[test]
+    fn env_assignment_binds_the_first_line_of_the_secret() {
+        let assignment = env_assignment("TOKEN=api/github.com/token").unwrap();
+        assert_eq!(assignment.variable, "TOKEN");
+        assert_eq!(assignment.reference.secret, "api/github.com/token");
+        assert_eq!(assignment.reference.selection, Selection::Line(1));
+        assert_eq!(assignment.reference.store, None);
+    }
+
+    #[test]
+    fn env_assignment_keeps_later_equals_signs_in_the_path() {
+        let assignment = env_assignment("TOKEN=a=b").unwrap();
+        assert_eq!(assignment.reference.secret, "a=b");
+    }
+
+    #[test]
+    fn env_assignment_refuses_malformed_input() {
+        crate::cli::i18n::init_for_tests();
+        for input in [
+            "TOKEN",
+            "TOKEN=",
+            "=secret",
+            "1TOKEN=secret",
+            "TO KEN=secret",
+        ] {
+            assert!(env_assignment(input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn env_field_assignment_splits_the_field_off_at_the_last_equals_sign() {
+        let assignment = env_field_assignment("USER=db/a=b=username").unwrap();
+        assert_eq!(assignment.variable, "USER");
+        assert_eq!(assignment.reference.secret, "db/a=b");
+        assert_eq!(
+            assignment.reference.selection,
+            Selection::Field(String::from("username"))
+        );
+    }
+
+    #[test]
+    fn env_field_assignment_refuses_malformed_input() {
+        crate::cli::i18n::init_for_tests();
+        for input in [
+            "USER=db",
+            "USER==username",
+            "USER=db=",
+            "=db=username",
+            "1U=db=x",
+        ] {
+            assert!(env_field_assignment(input).is_err(), "{input}");
+        }
     }
 }
