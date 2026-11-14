@@ -38,8 +38,8 @@ pub fn is_valid_variable_name(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
-/// One entry of the JSON object `secret resolve` reads: the variable name is
-/// the key, this is the value.
+/// One entry of the JSON object `secret resolve` reads: the caller's name
+/// for the value is the key, this is the value.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReferenceSpec {
@@ -52,21 +52,20 @@ struct ReferenceSpec {
     field: Option<String>,
 }
 
-/// Parses the JSON object `secret resolve` reads, mapping each variable
-/// name to a reference. A reference without `line` or `field` selects the
-/// first line, the conventional place of the password.
+/// Parses the JSON object `secret resolve` reads, mapping each name to a
+/// reference. Names are the caller's labels, echoed in the output and in
+/// errors, so any string will do; only `exec`, which sets them as
+/// environment variables, restricts them. A reference without `line` or
+/// `field` selects the first line, the conventional place of the password.
 pub fn parse_references(json: &str) -> anyhow::Result<BTreeMap<String, SecretReference>> {
     let specs: BTreeMap<String, ReferenceSpec> =
         serde_json::from_str(json).map_err(|error| anyhow::anyhow!(error.to_string()))?;
     specs
         .into_iter()
-        .map(|(variable, spec)| {
-            if !is_valid_variable_name(&variable) {
-                anyhow::bail!(i18n::error_env_variable_name_invalid(&variable));
-            }
+        .map(|(name, spec)| {
             let selection = match (spec.line, spec.field) {
                 (Some(_), Some(_)) => {
-                    anyhow::bail!(i18n::error_env_reference_line_and_field(&variable))
+                    anyhow::bail!(i18n::error_env_reference_line_and_field(&name))
                 }
                 (Some(0), None) => anyhow::bail!(i18n::error_line_number_must_not_be_zero()),
                 (Some(line), None) => Selection::Line(line),
@@ -78,7 +77,7 @@ pub fn parse_references(json: &str) -> anyhow::Result<BTreeMap<String, SecretRef
                 secret: spec.secret,
                 selection,
             };
-            Ok((variable, reference))
+            Ok((name, reference))
         })
         .collect()
 }
@@ -163,13 +162,18 @@ mod tests {
             "not json",
             r#"{"TOKEN": {"secret": "a", "line": 1, "field": "b"}}"#,
             r#"{"TOKEN": {"secret": "a", "line": 0}}"#,
-            r#"{"1TOKEN": {"secret": "a"}}"#,
             r#"{"TOKEN": {"secret": "a", "unknown": true}}"#,
             r#"{"TOKEN": {}}"#,
             r#"["TOKEN"]"#,
         ] {
             assert!(parse_references(json).is_err(), "{json}");
         }
+    }
+
+    #[test]
+    fn parse_references_accepts_any_name() {
+        let references = parse_references(r#"{"api/token#user": {"secret": "a"}}"#).unwrap();
+        assert!(references.contains_key("api/token#user"));
     }
 
     #[test]

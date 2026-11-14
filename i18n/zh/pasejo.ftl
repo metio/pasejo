@@ -219,7 +219,7 @@ error-failed-to-run-command = 无法运行命令 { $binary }
 error-command-exited-with = 命令 { $binary } 以 { $exit } 退出
 error-no-field-found = 密钥 '{ $secret_path }' 没有字段 '{ $field }'
 error-no-line-found = 密钥 '{ $secret_path }' 没有第 { $line } 行
-error-env-variable-unresolved = 无法解析环境变量 { $variable } 的值
+error-value-unresolved = 无法解析 '{ $name }' 的值
 error-env-assignment-invalid = '{ $input }' 不是 VARIABLE=SECRET 的形式
 error-env-field-assignment-invalid = '{ $input }' 不是 VARIABLE=SECRET=FIELD 的形式
 error-env-variable-name-invalid = '{ $variable }' 不是有效的环境变量名。请使用字母、数字和下划线,且不要以数字开头

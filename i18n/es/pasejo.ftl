@@ -219,7 +219,7 @@ error-failed-to-run-command = Falló la ejecución del comando { $binary }
 error-command-exited-with = El comando { $binary } terminó con { $exit }
 error-no-field-found = El secreto '{ $secret_path }' no tiene el campo '{ $field }'
 error-no-line-found = El secreto '{ $secret_path }' no tiene la línea { $line }
-error-env-variable-unresolved = No se puede resolver el valor de la variable de entorno { $variable }
+error-value-unresolved = No se puede resolver el valor de '{ $name }'
 error-env-assignment-invalid = '{ $input }' no tiene la forma VARIABLE=SECRETO
 error-env-field-assignment-invalid = '{ $input }' no tiene la forma VARIABLE=SECRETO=CAMPO
 error-env-variable-name-invalid = '{ $variable }' no es un nombre de variable de entorno válido. Use letras, dígitos y guiones bajos, y no empiece con un dígito

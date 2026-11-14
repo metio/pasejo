@@ -974,11 +974,7 @@ fl_string!(
     secret_path,
     line
 );
-fl_string!(
-    error_env_variable_unresolved,
-    "error-env-variable-unresolved",
-    variable
-);
+fl_string!(error_value_unresolved, "error-value-unresolved", name);
 fl_string!(
     error_env_assignment_invalid,
     "error-env-assignment-invalid",

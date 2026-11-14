@@ -21,14 +21,15 @@ use crate::models::environment::{SecretReference, collect_assignments, parse_ref
 use crate::models::password_store::PasswordStore;
 use crate::secrets::selection::Selection;
 
-/// Values keyed by variable name. Each value is wiped when the map drops.
+/// Values keyed by the caller's names (variable names for `exec`). Each
+/// value is wiped when the map drops.
 pub type ResolvedValues = BTreeMap<String, Zeroizing<String>>;
 
 /// Resolves every reference, decrypting each store once and running its
 /// pull hooks as any read does. References without a store use
 /// `default_store`, else the store `--store` would select by default. Stores
 /// are opened one after another, each under its own lock, so the result is
-/// all values or an error naming the first variable that failed.
+/// all values or an error naming the first reference that failed.
 pub fn resolve(
     configuration: &Configuration,
     references: &BTreeMap<String, SecretReference>,
@@ -39,7 +40,7 @@ pub fn resolve(
     for (variable, reference) in references {
         let store_name = reference.store.as_ref().or(default_store);
         let registration = require_store(configuration, store_name)
-            .with_context(|| i18n::error_env_variable_unresolved(variable))?;
+            .with_context(|| i18n::error_value_unresolved(variable))?;
         by_store
             .entry(registration.name.clone())
             .or_default()
@@ -53,7 +54,7 @@ pub fn resolve(
                 .iter()
                 .map(|(variable, reference)| {
                     lookup(store, reference)
-                        .with_context(|| i18n::error_env_variable_unresolved(variable))
+                        .with_context(|| i18n::error_value_unresolved(variable))
                         .map(|value| ((*variable).clone(), value))
                 })
                 .collect::<Result<Vec<_>>>()?;
@@ -87,7 +88,7 @@ fn lookup(store: &PasswordStore, reference: &SecretReference) -> Result<Zeroizin
 }
 
 /// `secret resolve`: reads a JSON object of references from stdin and
-/// prints a JSON object of the same keys with their values.
+/// prints a JSON object of the same names with their values.
 pub fn resolve_from_stdin(
     configuration: &Configuration,
     default_store: Option<&String>,

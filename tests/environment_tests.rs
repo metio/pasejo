@@ -122,7 +122,7 @@ fn secret_resolve_prints_nothing_when_one_reference_fails() {
         .failure()
         .stdout("")
         .stderr(predicate::str::contains(
-            "Cannot resolve the value of the environment variable PORT",
+            "Cannot resolve the value of 'PORT'",
         ))
         .stderr(predicate::str::contains(
             "Secret 'database' has no field 'port'",
@@ -223,7 +223,7 @@ fn exec_does_not_run_the_command_when_a_value_is_missing() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Cannot resolve the value of the environment variable TOKEN",
+            "Cannot resolve the value of 'TOKEN'",
         ))
         .stderr(predicate::str::contains(
             "No secret found at 'missing/secret'",

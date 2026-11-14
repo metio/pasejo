@@ -219,7 +219,7 @@ error-failed-to-run-command = コマンド { $binary } の実行に失敗しま�
 error-command-exited-with = コマンド { $binary } は { $exit } で終了しました
 error-no-field-found = シークレット '{ $secret_path }' にフィールド '{ $field }' がありません
 error-no-line-found = シークレット '{ $secret_path }' に { $line } 行目がありません
-error-env-variable-unresolved = 環境変数 { $variable } の値を解決できません
+error-value-unresolved = '{ $name }' の値を解決できません
 error-env-assignment-invalid = '{ $input }' は VARIABLE=SECRET の形式ではありません
 error-env-field-assignment-invalid = '{ $input }' は VARIABLE=SECRET=FIELD の形式ではありません
 error-env-variable-name-invalid = '{ $variable }' は有効な環境変数名ではありません。英字、数字、アンダースコアを使用し、数字で始めないでください

@@ -219,7 +219,7 @@ error-failed-to-run-command = Failed to run command { $binary }
 error-command-exited-with = Command { $binary } exited with { $exit }
 error-no-field-found = Secret '{ $secret_path }' has no field '{ $field }'
 error-no-line-found = Secret '{ $secret_path }' has no line { $line }
-error-env-variable-unresolved = Cannot resolve the value of the environment variable { $variable }
+error-value-unresolved = Cannot resolve the value of '{ $name }'
 error-env-assignment-invalid = '{ $input }' is not of the form VARIABLE=SECRET
 error-env-field-assignment-invalid = '{ $input }' is not of the form VARIABLE=SECRET=FIELD
 error-env-variable-name-invalid = '{ $variable }' is not a valid environment variable name. Use letters, digits and underscores, and do not start with a digit

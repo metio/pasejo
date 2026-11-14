@@ -14,6 +14,7 @@ Here are some step-by-step guides to help you get started with `pasejo`:
 - [Create age recipient files](./how-to-create-age-recipient.md): Learn how to create age recipient files.
 - [Use pasejo with Git](./how-to-use-pasejo-with-git.md): Learn how to use `pasejo` with Git.
 - [Use pasejo with systemd](./how-to-use-pasejo-with-systemd.md): Learn how to use `pasejo` with systemd.
+- [Use pasejo with fnox](./how-to-use-pasejo-with-fnox.md): Learn how to give commands secrets from a pasejo store through fnox.
 - [Using Yubikeys](./how-to-use-yubikeys.md): Learn how to use `pasejo` with Yubikeys, including confirming each credential the browser extension fills with a touch.
 
 Still feeling lost? Request a new guide by opening a [ticket](https://github.com/metio/pasejo/issues)!

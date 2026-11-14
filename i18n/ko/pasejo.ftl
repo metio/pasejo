@@ -219,7 +219,7 @@ error-failed-to-run-command = 명령 { $binary } 실행 실패
 error-command-exited-with = 명령 { $binary }이(가) { $exit }(으)로 종료되었습니다
 error-no-field-found = 비밀 '{ $secret_path }'에 필드 '{ $field }'이(가) 없습니다
 error-no-line-found = 비밀 '{ $secret_path }'에 { $line }번째 줄이 없습니다
-error-env-variable-unresolved = 환경 변수 { $variable }의 값을 확인할 수 없습니다
+error-value-unresolved = '{ $name }'의 값을 확인할 수 없습니다
 error-env-assignment-invalid = '{ $input }'은(는) VARIABLE=SECRET 형식이 아닙니다
 error-env-field-assignment-invalid = '{ $input }'은(는) VARIABLE=SECRET=FIELD 형식이 아닙니다
 error-env-variable-name-invalid = '{ $variable }'은(는) 유효한 환경 변수 이름이 아닙니다. 문자, 숫자, 밑줄을 사용하고 숫자로 시작하지 마세요
