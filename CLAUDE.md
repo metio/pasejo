@@ -185,7 +185,7 @@ A few wrappers are hand-written because they mix argument types (`list_store` ta
 
 ## Code Conventions
 
-- Rust edition 2024, MSRV 1.92, stable toolchain.
+- Rust edition 2024, MSRV 1.100, stable toolchain.
 - `rustfmt.toml` enables unstable features, wraps comments, and groups imports as `StdExternalCrate`.
 - Every file must start with SPDX headers:
   ```rust

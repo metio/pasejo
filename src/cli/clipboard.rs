@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: The pasejo Authors
 // SPDX-License-Identifier: 0BSD
 
+use std::mem::DropGuard;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -57,25 +58,21 @@ impl ClipboardBackend for arboard::Clipboard {
     }
 }
 
-/// RAII guard: clears the clipboard on drop, but only if it still contains
-/// the secret we wrote. If the user has copied something else in the
-/// meantime, we leave their new clipboard contents alone. The expected
-/// value is held in `Zeroizing` so it's wiped from memory on drop.
-struct ClipboardGuard<C: ClipboardBackend> {
+/// A secret we wrote into the clipboard. The expected value is held in
+/// `Zeroizing` so it's wiped from memory once the secret is dropped.
+struct PlacedSecret<C: ClipboardBackend> {
     clipboard: C,
     expected: Zeroizing<String>,
-    /// Set once `clear_if_unchanged` has been called. When true, `Drop`
-    /// skips its fallback so we don't repeat the (potentially blocking)
-    /// clipboard read on platforms like X11.
-    cleared: bool,
 }
 
-impl<C: ClipboardBackend> ClipboardGuard<C> {
-    /// Performs the clear-if-unchanged logic and returns the outcome so the
+impl<C: ClipboardBackend> PlacedSecret<C> {
+    /// Clears the clipboard, but only if it still contains the secret we
+    /// wrote: if the user has copied something else in the meantime, we
+    /// leave their new clipboard contents alone. Returns the outcome so the
     /// caller can react (e.g. tailor a notification, log a failure).
-    fn clear_if_unchanged(&mut self) -> anyhow::Result<ClearOutcome> {
-        // Mark first so Drop becomes a no-op even if an early `?` propagates.
-        self.cleared = true;
+    /// Consuming `self` runs the clear at most once, so the (potentially
+    /// blocking) clipboard read on platforms like X11 is never repeated.
+    fn clear_if_unchanged(mut self) -> anyhow::Result<ClearOutcome> {
         match self.clipboard.current_text() {
             Ok(current) if current.as_str() == self.expected.as_str() => {
                 self.clipboard.clear()?;
@@ -93,20 +90,21 @@ impl<C: ClipboardBackend> ClipboardGuard<C> {
     }
 }
 
-impl<C: ClipboardBackend> Drop for ClipboardGuard<C> {
-    fn drop(&mut self) {
-        // Best-effort fallback for panic / early-return paths. The explicit
-        // call site sets `cleared = true` so this becomes a no-op there.
-        // We log Drop-path failures at debug level so a `-vv` run leaves a
-        // breadcrumb when triaging an unwind that wiped the clipboard
-        // imperfectly; the user-visible notification path covers happy /
-        // explicit-failure outcomes elsewhere.
-        if self.cleared {
-            return;
-        }
-        if let Err(error) = self.clear_if_unchanged() {
-            i18n::clipboard_drop_clear_failed(&error);
-        }
+/// Clears the clipboard when dropped on a panic or early-return path. The
+/// explicit path dismisses the guard and calls `clear_if_unchanged` itself
+/// to learn the outcome.
+type ClipboardGuard<C> = DropGuard<PlacedSecret<C>, fn(PlacedSecret<C>)>;
+
+fn clipboard_guard<C: ClipboardBackend>(secret: PlacedSecret<C>) -> ClipboardGuard<C> {
+    DropGuard::new(secret, clear_on_drop)
+}
+
+/// Failures are logged at debug level so a `-vv` run leaves a breadcrumb
+/// when triaging an unwind that wiped the clipboard imperfectly; the
+/// user-visible notification covers the explicit path.
+fn clear_on_drop<C: ClipboardBackend>(secret: PlacedSecret<C>) {
+    if let Err(error) = secret.clear_if_unchanged() {
+        i18n::clipboard_drop_clear_failed(&error);
     }
 }
 
@@ -200,11 +198,10 @@ pub fn place_secret_in_clipboard(text: &str) -> anyhow::Result<ClipboardSession>
     let mut clipboard = arboard::Clipboard::new()?;
     clipboard.set().exclude_from_history().text(text)?;
     Ok(ClipboardSession {
-        guard: ClipboardGuard {
+        guard: clipboard_guard(PlacedSecret {
             clipboard,
             expected: Zeroizing::new(text.to_owned()),
-            cleared: false,
-        },
+        }),
     })
 }
 
@@ -214,7 +211,7 @@ impl ClipboardSession {
     /// run this AFTER releasing any store lock. Clear / notify failures
     /// are logged and surfaced via the notification, not returned — the
     /// secret is already delivered by the time this runs.
-    pub fn hold_until_cleared(mut self, duration: Duration, notify: bool) {
+    pub fn hold_until_cleared(self, duration: Duration, notify: bool) {
         // Poll so we respond to Ctrl-C promptly, clamping each tick so we
         // never oversleep the requested duration. Clamping `duration` to
         // `MAX_DEADLINE` both guarantees loop termination and keeps
@@ -232,8 +229,8 @@ impl ClipboardSession {
             thread::sleep(remaining.min(POLL_TICK));
         };
 
-        let outcome = self.guard.clear_if_unchanged();
-        drop(self.guard); // wipes the secret from memory even on early-return paths
+        // Clearing consumes the secret, which wipes it from memory.
+        let outcome = DropGuard::dismiss(self.guard).clear_if_unchanged();
 
         if let Err(error) = &outcome {
             // Critical path: the user's secret may still be in the clipboard.
@@ -428,12 +425,11 @@ mod tests {
 
     // ---- ClipboardGuard / Drop-path coverage ----------------------------
     //
-    // The Drop fallback only fires when the explicit `clear_if_unchanged`
-    // call never ran (panic between guard creation and the explicit call,
-    // or an early `?`). The tests below construct a `ClipboardGuard`
-    // directly with a fake backend so we can observe whether `clear` was
-    // attempted, without needing a real platform clipboard or a panicking
-    // production path.
+    // The guard's drop fallback only fires when the explicit path never
+    // dismissed it (panic between guard creation and the explicit call, or
+    // an early `?`). The tests below build a guard over a fake backend so
+    // we can observe whether `clear` was attempted, without needing a real
+    // platform clipboard or a panicking production path.
 
     use std::cell::Cell;
     use std::rc::Rc;
@@ -470,32 +466,32 @@ mod tests {
         }
     }
 
-    fn guard_with(
+    fn placed_secret(
         text: &str,
         expected: &str,
-        cleared: bool,
-    ) -> (Rc<FakeStats>, ClipboardGuard<FakeClipboard>) {
+        fail_get: bool,
+        fail_clear: bool,
+    ) -> (Rc<FakeStats>, PlacedSecret<FakeClipboard>) {
         let stats = Rc::new(FakeStats::default());
-        let guard = ClipboardGuard {
+        let secret = PlacedSecret {
             clipboard: FakeClipboard {
                 text: text.to_owned(),
-                fail_get: false,
-                fail_clear: false,
+                fail_get,
+                fail_clear,
                 stats: Rc::clone(&stats),
             },
             expected: Zeroizing::new(expected.to_owned()),
-            cleared,
         };
-        (stats, guard)
+        (stats, secret)
     }
 
     #[test]
-    fn drop_with_cleared_flag_set_does_not_touch_backend() {
-        // Mirrors the production happy path: explicit call ran, set cleared
-        // = true; Drop must short-circuit so we don't double-clear or do a
+    fn dismissed_guard_does_not_touch_backend() {
+        // Mirrors the production happy path: the explicit path dismisses
+        // the guard, so dropping the secret must not double-clear or do a
         // second blocking read.
-        let (stats, guard) = guard_with("secret", "secret", true);
-        drop(guard);
+        let (stats, secret) = placed_secret("secret", "secret", false, false);
+        drop(DropGuard::dismiss(clipboard_guard(secret)));
         assert_eq!(stats.get_calls.get(), 0);
         assert_eq!(stats.clear_calls.get(), 0);
     }
@@ -503,9 +499,9 @@ mod tests {
     #[test]
     fn drop_clears_clipboard_when_text_still_matches() {
         // Models the panic / early-return path where the explicit call
-        // never ran. Backend still holds our value, so Drop should clear.
-        let (stats, guard) = guard_with("secret", "secret", false);
-        drop(guard);
+        // never ran. Backend still holds our value, so the drop clears.
+        let (stats, secret) = placed_secret("secret", "secret", false, false);
+        drop(clipboard_guard(secret));
         assert_eq!(stats.get_calls.get(), 1);
         assert_eq!(stats.clear_calls.get(), 1);
     }
@@ -514,8 +510,8 @@ mod tests {
     fn drop_leaves_clipboard_untouched_when_user_copied_something_else() {
         // Same path, but the user has copied something else in the
         // meantime. We must not wipe their new clipboard contents.
-        let (stats, guard) = guard_with("user-copied-this", "our-secret", false);
-        drop(guard);
+        let (stats, secret) = placed_secret("user-copied-this", "our-secret", false, false);
+        drop(clipboard_guard(secret));
         assert_eq!(stats.get_calls.get(), 1);
         assert_eq!(stats.clear_calls.get(), 0);
     }
@@ -525,71 +521,35 @@ mod tests {
         // Read-side failure: we can't compare, so we clear to err on the
         // side of not leaking a secret. Both calls happen; the get error
         // is logged via the i18n seam, the clear error (if any) reaches
-        // Drop's debug log — but we only assert side-effect counts here,
+        // the debug log — but we only assert side-effect counts here,
         // since logger output isn't captured.
-        let stats = Rc::new(FakeStats::default());
-        let guard = ClipboardGuard {
-            clipboard: FakeClipboard {
-                text: String::from("secret"),
-                fail_get: true,
-                fail_clear: false,
-                stats: Rc::clone(&stats),
-            },
-            expected: Zeroizing::new(String::from("secret")),
-            cleared: false,
-        };
-        drop(guard);
+        let (stats, secret) = placed_secret("secret", "secret", true, false);
+        drop(clipboard_guard(secret));
         assert_eq!(stats.get_calls.get(), 1);
         assert_eq!(stats.clear_calls.get(), 1);
     }
 
     #[test]
     fn drop_swallows_clear_failure_without_panicking() {
-        // Both reads succeed but clear fails. Drop must not propagate the
-        // error (panicking from Drop during unwind would abort the
-        // process); the debug log keeps a breadcrumb. We exercise the path
-        // here so any future regression that *does* panic shows up as a
-        // test failure.
-        let stats = Rc::new(FakeStats::default());
-        let guard = ClipboardGuard {
-            clipboard: FakeClipboard {
-                text: String::from("secret"),
-                fail_get: false,
-                fail_clear: true,
-                stats: Rc::clone(&stats),
-            },
-            expected: Zeroizing::new(String::from("secret")),
-            cleared: false,
-        };
-        drop(guard);
+        // Both reads succeed but clear fails. The drop must not propagate
+        // the error (panicking from a drop during unwind would abort the
+        // process); the debug log keeps a breadcrumb.
+        let (stats, secret) = placed_secret("secret", "secret", false, true);
+        drop(clipboard_guard(secret));
         assert_eq!(stats.get_calls.get(), 1);
         assert_eq!(stats.clear_calls.get(), 1);
     }
 
     #[test]
     fn explicit_clear_propagates_clear_failure_to_caller() {
-        // The non-Drop path: production code calls `clear_if_unchanged`
-        // and inspects the Result to drive the user-visible notification.
-        // A clear failure must surface as Err so the caller can switch to
-        // the "manual clear required" branch.
-        let stats = Rc::new(FakeStats::default());
-        let mut guard = ClipboardGuard {
-            clipboard: FakeClipboard {
-                text: String::from("secret"),
-                fail_get: false,
-                fail_clear: true,
-                stats: Rc::clone(&stats),
-            },
-            expected: Zeroizing::new(String::from("secret")),
-            cleared: false,
-        };
-        let outcome = guard.clear_if_unchanged();
+        // The production path dismisses the guard, calls
+        // `clear_if_unchanged` and inspects the Result to drive the
+        // user-visible notification. A clear failure must surface as Err so
+        // the caller can switch to the "manual clear required" branch, and
+        // the clear is attempted once.
+        let (stats, secret) = placed_secret("secret", "secret", false, true);
+        let outcome = DropGuard::dismiss(clipboard_guard(secret)).clear_if_unchanged();
         assert!(outcome.is_err());
-        // The cleared flag was flipped before the failure, so a follow-up
-        // Drop must be a no-op (no second clear attempt).
-        assert!(guard.cleared);
-        let calls_before_drop = stats.clear_calls.get();
-        drop(guard);
-        assert_eq!(stats.clear_calls.get(), calls_before_drop);
+        assert_eq!(stats.clear_calls.get(), 1);
     }
 }

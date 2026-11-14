@@ -354,7 +354,7 @@ fn host_string<S: AsRef<str>>(host: &url::Host<S>) -> String {
 }
 
 fn strip_root_dot(host: &str) -> String {
-    host.strip_suffix('.').unwrap_or(host).to_owned()
+    host.trim_suffix('.').to_owned()
 }
 
 /// IP literals have no registrable domain: the public-suffix list's
