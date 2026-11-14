@@ -34,7 +34,7 @@ Each trycmd test has companion `.in/` and `.out/` directories that trycmd copies
 
 **Unit tests that exercise i18n** must call `cli::i18n::init_for_tests()` at the top. Unit tests don't go through `main`, so `init` never runs and `fl!` calls otherwise return placeholders like `No localization for id: "…"`. The helper is idempotent (uses `Once`), so call it freely.
 
-**Toolchain** comes from breto: `.breto.edn` lists the `@rust` and `@lint` groups, and `breto env` puts them on `PATH`. `rust-toolchain.toml` selects the stable channel; the nightly toolchain is only for rustfmt. A tool the project needs belongs in `.breto.edn`.
+**Toolchain** comes from breto: `.breto.edn` lists the `@rust` and `@lint` groups, and `breto env` puts them on `PATH`. `rust-toolchain.toml` pins the toolchain to the MSRV from `Cargo.toml`, so every runner installs it whatever stable its image carries; raise both together. The nightly toolchain is only for rustfmt. A tool the project needs belongs in `.breto.edn`.
 
 **Locale in local test runs** — the i18n loader follows gettext precedence (`LANGUAGE` > `LC_ALL` > `LC_MESSAGES` > `LANG`). The test harnesses set or remove `LANGUAGE` themselves, so a shell `LANGUAGE` does not leak into the snapshot or localized assertions.
 

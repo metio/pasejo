@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: The pasejo Authors
 # SPDX-License-Identifier: 0BSD
 
+# The MSRV in Cargo.toml. A runner image whose preinstalled stable is older
+# would otherwise refuse to build the crate.
 [toolchain]
-channel = "stable"
+channel = "1.100.0"
