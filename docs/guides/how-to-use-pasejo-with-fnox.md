@@ -1,16 +1,17 @@
 # Using pasejo with fnox
 
-[fnox](https://fnox.jdx.dev/) sets environment variables for a command from the secrets a `fnox.toml` declares, and its Lua plugin provider can read them from any source. The plugin in [`contrib/fnox/provider.lua`](../../contrib/fnox/provider.lua) reads them from a pasejo store through [`pasejo secret resolve`](../commands/pasejo-cmd-secret.md), so it needs a pasejo release that has that command.
+[fnox](https://fnox.jdx.dev/) sets environment variables for a command from the secrets a `fnox.toml` declares, and its Lua plugin provider can read them from any source. The plugin [fnox-plugin-pasejo](https://github.com/metio/fnox-plugin-pasejo) reads them from a pasejo store through [`pasejo secret resolve`](../commands/pasejo-cmd-secret.md), so it needs a pasejo release that has that command.
 
 ## Installation
 
-fnox installs plugins from a Git repository only when `provider.lua` sits at the repository's root, which is not the case for the pasejo repository. Link a checkout instead:
+Declare the plugin in `fnox.toml`, and fnox installs it the first time a provider uses it. Pin a commit so every machine runs the same plugin:
 
-```sh
-fnox plugin link pasejo /path/to/pasejo/contrib/fnox
+```toml
+[plugins]
+pasejo = "metio/fnox-plugin-pasejo#<commit>"
 ```
 
-Alternatively, point the provider's `plugin` field at the file itself, as in `plugin = "/path/to/pasejo/contrib/fnox/provider.lua"`.
+`fnox plugin install pasejo metio/fnox-plugin-pasejo` installs it by hand, and `fnox plugin link pasejo /path/to/checkout` uses a local checkout.
 
 ## Configuration
 
