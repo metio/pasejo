@@ -106,9 +106,69 @@ jobs:
         run: rustup target add ${{ matrix.target }}
       - name: Build Code
         run: cargo build --release --target ${{ matrix.target }}
+  # The web extension's Playwright suite against the host built from this
+  # commit, so a protocol change the extension does not follow fails here.
+  # The extension's own CI runs the suite against the released host.
+  web-extension-e2e:
+    name: Web extension e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: web-extension-e2e-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build the host
+        run: cargo build --release --bin pasejo
+      - name: Checkout the web extension
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: metio/pasejo-web-extension
+          path: web-extension
+          persist-credentials: false
+      # The extension's .breto.edn names the node version its suite runs on.
+      - uses: metio/ci/breto@00adafd0fe1924f57325d9dd264d5d731fb099ad # 2026.11.4082509
+        with:
+          project: web-extension
+          registries: github:metio/toolchains
+      - name: Install the extension's dependencies
+        working-directory: web-extension
+        run: npm ci
+      - name: Install Chromium and its system libraries
+        working-directory: web-extension
+        run: npx playwright install --with-deps chromium
+      - name: Bootstrap the test stores
+        env:
+          PASEJO_BIN: ${{ github.workspace }}/target/release/pasejo
+        run: |
+          set -eu
+          CONFIG="$(web-extension/e2e/bootstrap-store.sh "${RUNNER_TEMP}/pasejo")"
+          echo "PASEJO_CONFIG=${CONFIG}" >> "${GITHUB_ENV}"
+          echo "PASEJO_BIN=${PASEJO_BIN}" >> "${GITHUB_ENV}"
+      - name: Build the Chromium extension bundle
+        working-directory: web-extension
+        run: ./package.sh
+      - name: Run the Playwright suite
+        working-directory: web-extension
+        run: npm run test:e2e
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: web-extension-e2e-report
+          path: web-extension/playwright-report/
+          if-no-files-found: ignore
   verify:
     name: Verify
-    needs: [check, build]
+    needs: [check, build, web-extension-e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
