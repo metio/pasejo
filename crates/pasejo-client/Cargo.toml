@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "pasejo-client"
+description = "Blocking client for pasejo-server: sessions, organizations, remote stores and audit verification"
+version = "0.0.0"
+authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+age = { version = "0.12.0", default-features = false, features = ["plugin", "ssh"] }
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+pasejo-protocol = { path = "../pasejo-protocol" }
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.150" }
+thiserror = { version = "2.0.17" }
+ureq = { version = "3.3.0" }
+zeroize = { version = "1.8.2" }

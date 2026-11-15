@@ -428,6 +428,8 @@ Commit bodies may reach 32 MiB; every other request body is capped at 1 MiB. The
 
 A commit against an outdated version gets `409` with the current version. The client fetches the new index, reapplies its changes and retries. It reports a conflict only when both sides changed the same name, using the rules of `cli/merger.rs`.
 
+A log entry whose sequence number or predecessor is no longer the head gets `409` with code `conflict` as well; the client fetches the entries it missed, rebuilds the entry on the new head and retries. Every other rejection by log replay gets `400` with code `rejected`.
+
 **History.** Object versions are immutable, and the server keeps each object's last ten versions. Showing an HOTP code is a read followed by a commit.
 
 **Client cache.** Clients keep the latest index, the wrappings and the pinned log head in the pasejo data directory, all in encrypted form, so listing a store works from the cache. Secret objects are always fetched, so every read of a value reaches the audit log.

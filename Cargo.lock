@@ -3640,6 +3640,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pasejo-client"
+version = "0.0.0"
+dependencies = [
+ "age",
+ "ed25519-dalek",
+ "pasejo-protocol",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ureq",
+ "zeroize",
+]
+
+[[package]]
 name = "pasejo-protocol"
 version = "0.0.0"
 dependencies = [
@@ -3672,6 +3687,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "jsonwebtoken",
+ "pasejo-client",
  "pasejo-protocol",
  "rand_core 0.6.4",
  "reqwest",

@@ -95,7 +95,14 @@ impl From<pasejo_protocol::Error> for ApiError {
 
 impl From<pasejo_protocol::Rejection> for ApiError {
     fn from(rejection: pasejo_protocol::Rejection) -> Self {
-        Self::new(ErrorCode::Rejected, rejection.to_string())
+        use pasejo_protocol::Rejection;
+        // Another entry took the sequence number first: the client refreshes
+        // the log and retries, as with a commit to an outdated version.
+        let code = match rejection {
+            Rejection::WrongSequence | Rejection::WrongPredecessor => ErrorCode::Conflict,
+            _ => ErrorCode::Rejected,
+        };
+        Self::new(code, rejection.to_string())
     }
 }
 
