@@ -3,7 +3,7 @@
 
 [package]
 name = "pasejo-protocol"
-description = "Wire types, object formats and verification shared by the pasejo CLI and server"
+description = "Wire types, encodings, cryptography and membership-log verification shared by pasejo clients and pasejo-server"
 version = "0.0.0"
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license.workspace = true
@@ -12,4 +12,21 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+default = ["age"]
+# Wrapping epoch keys to age recipients. Off for consumers that only verify.
+age = ["dep:age"]
+
 [dependencies]
+aes-gcm = { version = "0.10.3" }
+age = { version = "0.12.0", optional = true, default-features = false }
+base64 = { version = "0.22.1" }
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+hkdf = { version = "0.12.4" }
+hpke = { version = "0.12.0", default-features = false, features = ["alloc", "x25519"] }
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.150" }
+sha2 = { version = "0.10.9" }
+thiserror = { version = "2.0.17" }
+zeroize = { version = "1.8.2", features = ["derive"] }

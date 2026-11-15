@@ -1341,6 +1341,7 @@ version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
 dependencies = [
+ "pkcs8",
  "signature",
 ]
 
@@ -1352,8 +1353,11 @@ checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
+ "rand_core 0.6.4",
+ "serde",
  "sha2 0.10.9",
  "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -2014,6 +2018,7 @@ dependencies = [
  "rand_core 0.6.4",
  "sha2 0.10.9",
  "subtle",
+ "x25519-dalek",
  "zeroize",
 ]
 
@@ -3194,6 +3199,20 @@ dependencies = [
 [[package]]
 name = "pasejo-protocol"
 version = "0.0.0"
+dependencies = [
+ "aes-gcm",
+ "age",
+ "base64 0.22.1",
+ "ed25519-dalek",
+ "hkdf",
+ "hpke",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "zeroize",
+]
 
 [[package]]
 name = "pasejo-server"

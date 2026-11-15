@@ -502,7 +502,7 @@ While the window is open, devices that are active in some organization's log can
 
 ### Organization recovery recipient
 
-`recovery.set` names an age recipient whose identity the organization keeps offline, for example printed and split among officers. Every store's full wrapping set includes it. `pasejo org recover --identity FILE` decrypts every store the recipient can reach and writes each one as a file store. It needs only read access to the ciphertext, which a break-glass session or any member's session provides.
+`recovery.set` names an age recipient whose identity the organization keeps offline, for example printed and split among officers. Every store's full wrapping set includes it, under the device identifier `recovery_id`, the first 16 bytes of `SHA-256("pasejo recovery v1" ‖ 0x00 ‖ recipient)`. `pasejo org recover --identity FILE` decrypts every store the recipient can reach and writes each one as a file store. It needs only read access to the ciphertext, which a break-glass session or any member's session provides.
 
 ## Kubernetes
 
