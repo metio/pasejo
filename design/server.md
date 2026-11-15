@@ -131,6 +131,8 @@ A signature is Ed25519 over `"pasejo:" ‖ context ‖ 0x00 ‖ payload bytes`. 
 
 The hash of an envelope is SHA-256 of its payload bytes.
 
+A `token/v1` payload is `{"purpose", "value", "signing_key", "time"}`. `purpose` is `device`, `web`, `workload` or `emergency`; `value` is the device code of a device grant, the base64url SHA-256 of the presented workload JWT, or empty. Binding the JWT's hash into the claim ties a workload session to that token, so a claim cannot be replayed with another one. The server accepts a claim only within 60 seconds of its `time`.
+
 ### Padding
 
 Plaintexts are padded with Padmé (Nikitin et al., 2019). The padded plaintext is the 4-byte big-endian length of the real plaintext, the plaintext, and zero bytes up to `padme(4 + length)`, where:
@@ -193,6 +195,8 @@ Who gets which wrapping is derived from the membership log for each store and ep
 | age devices of organization admins and auditors without a full wrapping | names-only |
 | hpke devices of every user above | names-only, never full |
 
+The server accepts a wrapping only for a device the log entitles to it, only for the current epoch, and only from a device that itself holds a wrapping of that epoch; a full wrapping needs a full one. Any such device may add a missing wrapping, and only a store admin may replace an existing one, so a reader cannot overwrite another device's keys with garbage.
+
 ### Derived keys and ciphers
 
 Every symmetric encryption uses AES-256-GCM with a random 96-bit nonce, written in front of the ciphertext. Keys come from HKDF-SHA256:
@@ -229,12 +233,13 @@ The index is the signed, chained description of a store's current content. Each 
  "changed": ["<id>"], "deleted": ["<id>"]}
 ```
 
-Its padded plaintext is:
+Its padded plaintext keeps secrets and one-time passwords in separate maps, mirroring the local store's `secrets` and `otp` maps, so the same name can carry both:
 
 ```json
-{"label": "production", "entries": {
-  "db/postgres": {"id": "<id>", "kind": "secret", "version": 4, "hash": "<base64url SHA-256 of the object ciphertext>"},
-  "github.com": {"id": "<id>", "kind": "otp", "version": 1, "hash": "<base64url>"}}}
+{"label": "production",
+ "settings": {"uri_keys": ["uri", "url", "link", "site"], "username_keys": ["username", "user", "login", "email"]},
+ "secrets": {"db/postgres": {"id": "<id>", "version": 4, "hash": "<base64url SHA-256 of the object ciphertext>"}},
+ "otp": {"github.com": {"id": "<id>", "version": 1, "hash": "<base64url>"}}}
 ```
 
 Clients check five things:
@@ -292,7 +297,7 @@ Every client and the server replay the log with the same code from `pasejo-proto
 - each signature;
 - each author's rights at that point.
 
-The server refuses entries that fail replay. Two-admin entries first exist as proposals. A second admin co-signs the proposal's payload, and the server appends it only once replay accepts both signatures.
+The server refuses entries that fail replay, and entries whose `time` lies more than five minutes from its clock. Replay judges grants and expiries at the time an entry names, so a backdated entry could otherwise act on a grant that has already ended. Two-admin entries first exist as proposals. A second admin co-signs the proposal's payload, and the server appends it only once replay accepts both signatures.
 
 **Split views.** A server could show different logs to different clients. Every index version and every log entry names its author's log head. A client rejects an index or entry whose `log_head` is not part of its own verified chain, so two diverging views are detected the first time they interact. The organization's co-signature on audit checkpoints, which includes the log head, extends the check to auditors.
 
@@ -321,12 +326,12 @@ Machines present a JWT from a configured workload issuer, such as a Kubernetes s
 
 ### Sessions
 
-- **Lifetimes.** Session tokens are 32 random bytes, stored as SHA-256 hashes. They live 12 hours for people and machines, 15 minutes for break-glass, and 1 hour for emergency sessions. Signing out revokes the session.
+- **Lifetimes.** Session tokens are 32 random bytes, stored as SHA-256 hashes. They live 12 hours for people and machines, 15 minutes for break-glass, and 1 hour for emergency sessions, which also end when the emergency window closes. Signing out revokes the session.
 - **Device binding.** A session is bound to one signing key. Revoking the device or deactivating the user ends its sessions immediately.
 
 ### Request proofs
 
-Every authenticated request carries five headers:
+Every authenticated request carries four headers:
 
 - `Authorization: Pasejo <token>`
 - `Pasejo-Timestamp`
@@ -351,9 +356,10 @@ A token copied off a machine is useless without the device key.
 
 Each organization can create SCIM bearer tokens, which are shown once and stored hashed. SCIM 2.0 (RFC 7643, RFC 7644) serves `/scim/v2/{org}/Users` and `/scim/v2/{org}/Groups`, plus the discovery endpoints. Supported operations are list with `eq` filters on `userName`, `externalId` and `displayName`, get, create, replace, patch (`active`, names, emails, group members) and delete.
 
-- **Linking.** A SCIM user links to the OIDC identity whose email matches on first sign-in.
-- **Groups.** SCIM groups become teams.
-- **Deactivation.** Deactivating a user suspends their sessions at once.
+- **Linking.** A SCIM user links to the account with the same email, or to the OIDC identity whose verified email matches on first sign-in.
+- **Groups.** SCIM groups become teams. A team takes a group member once that user belongs to the organization.
+- **Deactivation.** Deactivating or deleting a SCIM user suspends them in that organization at once, before any log entry removes them.
+- **Scope.** A SCIM client acts on its own organization only. It never renames the account, ends its sessions or affects its other organizations, so one organization's identity provider cannot reach users it shares with another.
 - **Log changes.** Changes that need log entries surface as pending actions.
 
 ## Pending actions
@@ -387,7 +393,8 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 | `GET /orgs/{org}/log?since={seq}` | log entries after `seq` |
 | `POST /orgs/{org}/log` | append an entry |
 | `POST /orgs/{org}/log/proposals`, `GET /orgs/{org}/log/proposals`, `POST /orgs/{org}/log/proposals/{id}/cosign` | two-admin entries |
-| `GET /orgs/{org}/enrollments` | pending devices |
+| `POST /orgs/{org}/enrollments`, `GET /orgs/{org}/enrollments`, `GET /orgs/{org}/enrollments/{device}` | enroll a device, list pending devices, and a device's own status |
+| `GET /orgs/{org}/users` | names and emails of the organization's members |
 | `GET /orgs/{org}/actions` | pending actions |
 | `GET /orgs/{org}/stores` | stores the session may see, with their current epoch and index version |
 | `GET /orgs/{org}/stores/{store}/keys` | this device's wrappings and the epoch chain objects |
@@ -400,8 +407,9 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 | `GET /orgs/{org}/stores/{store}/rotation?user={id}` | secrets the user could read or did read since their access ended, and whether each was rewritten since |
 | `GET /orgs/{org}/audit`, `GET /orgs/{org}/audit/checkpoints`, `POST /orgs/{org}/audit/checkpoints/{seq}/cosign` | audit |
 | `POST /orgs/{org}/reviews`, `GET /orgs/{org}/reviews`, `POST /orgs/{org}/reviews/{id}/decisions` | access reviews |
-| `POST /orgs/{org}/scim-tokens`, `DELETE /orgs/{org}/scim-tokens/{id}` | SCIM tokens |
-| `POST /break-glass/login` (no session), `POST /break-glass/emergency`, `GET /break-glass/users`, `POST /break-glass/users/{id}/suspend` | break-glass |
+| `POST /orgs/{org}/scim-tokens`, `GET /orgs/{org}/scim-tokens`, `DELETE /orgs/{org}/scim-tokens/{id}` | SCIM tokens |
+| `GET /audit` | the server's own audit chain, for break-glass sessions |
+| `POST /break-glass/login` (no session), `POST /break-glass/emergency`, `GET /break-glass/users`, `GET /break-glass/orgs`, `POST /break-glass/users/{id}/suspend`, `POST /break-glass/users/{id}/reactivate`, `POST /break-glass/users/{id}/sessions/revoke` | break-glass |
 
 **Commits.** A commit is the next index envelope plus its new objects, applied atomically. The server checks:
 
@@ -410,8 +418,13 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 - that `version` is the current version plus one;
 - that `prev` matches the current version's hash;
 - that `epoch` is the current epoch;
-- that `changed` equals the identifiers of the uploaded objects;
-- that each object's version exceeds the stored one.
+- that `changed` equals the identifiers of the uploaded objects, and that no identifier is both changed and deleted;
+- that each object carries the index's epoch and a non-empty ciphertext of at most 1 MiB;
+- that each object's version exceeds the stored one;
+- that the lookup object matches `lookup_hash`;
+- that `time` lies within five minutes of the server's clock.
+
+Commit bodies may reach 32 MiB; every other request body is capped at 1 MiB. The store's version moves with a compare-and-set inside the commit's transaction, so of two concurrent commits to one version exactly one succeeds.
 
 A commit against an outdated version gets `409` with the current version. The client fetches the new index, reapplies its changes and retries. It reports a conflict only when both sides changed the same name, using the rules of `cli/merger.rs`.
 
@@ -432,12 +445,14 @@ Removing a user, revoking a device, ending a grant or reaching an expiry runs in
    3. uploads the chain objects and wrappings;
    4. re-encrypts the index with the next commit.
 
+   A device counts as holding an epoch's keys when the `store.epoch` entry names it or when it received a wrapping of that epoch later, so a reader added mid-epoch triggers a rotation when their access ends.
+
    Secret objects are re-encrypted when they are next written, or all at once with `pasejo store rekey`. Lazy re-encryption gives up nothing against the removed party, because everything still under the old epoch was readable by them before removal.
 3. **Rotation list.** The rotation endpoint returns every identifier that existed while the party had access and every identifier they fetched, marking those rewritten since. `pasejo store rotation` and the console show the names. Rotating the values is the revocation that counts, because the removed party may have kept plaintext.
 
 ## Access reviews
 
-An organization admin or store admin opens a review for a store, naming reviewers and a due date. Each reviewer marks every grant `keep` or `revoke`. Revoke decisions surface as `revoke-grant` actions, which the reviewer's own client resolves with `store.grant none`. A review is complete when every grant has a decision. Reviews and decisions are stored server-side and audited.
+An organization admin or store admin opens a review for a store, naming reviewers and a due date. Each reviewer marks every grant `keep` or `revoke`. Revoke decisions surface as `revoke-grant` actions, which the reviewer's own client resolves with `store.grant none`. A review is complete when every grant has a decision. A reviewer never decides on a grant they benefit from, held directly or through a team, so somebody else must confirm each reviewer's own access. Reviews and decisions are stored server-side and audited.
 
 ## Audit
 
@@ -461,7 +476,7 @@ Each event carries a sequence number, time, organization, actor user, actor devi
 ### Integrity
 
 - **Append-only storage.** The events table only ever receives inserts. Each event stores the hash of its predecessor and its own hash, which is SHA-256 over the predecessor's hash and the event's serialized fields.
-- **Checkpoints.** Every 1,000 events, and at least hourly when events occurred, the server signs a checkpoint with its Ed25519 key. A checkpoint names the organization, the sequence number, the event hash, the membership log head and the time.
+- **Checkpoints.** Every 1,000 events, and at least hourly when events occurred, the server signs a checkpoint with its Ed25519 key. A checkpoint names the organization, the sequence number, the event hash, the membership log head and the time. The server's own chain, which records events outside any organization such as sign-ins, break-glass use and refusals for unknown organizations, has checkpoints without an organization and without a log head.
 - **Co-signatures.** Organization devices may co-sign checkpoints, and `pasejo org actions run` co-signs every checkpoint whose log head the device verified. A server that later rewrites events or presents a forked log then contradicts a signature it cannot produce.
 - **Verification.** `pasejo audit verify` recomputes the chain from the last checkpoint the client trusts and checks the server's and the organization's signatures. The server's public key is pinned when the client joins.
 
@@ -498,7 +513,7 @@ Break-glass covers two failures: SSO is unavailable, and every key holder of an 
 
 ### Emergency sign-in window
 
-While the window is open, devices that are active in some organization's log can obtain a one-hour session at `POST /v1/auth/emergency` by signing a `token/v1` envelope with their device key, without SSO. Opening, using and closing the window is audited. The window lets an organization keep working while its identity provider is down, without creating any new trust.
+While the window is open, devices that are active in some organization's log can obtain a session of at most one hour, never outlasting the window, at `POST /v1/auth/emergency` by signing a `token/v1` envelope with their device key, without SSO. Closing the window early ends every emergency session. Opening, using and closing the window is audited. The window lets an organization keep working while its identity provider is down, without creating any new trust.
 
 ### Organization recovery recipient
 
@@ -588,14 +603,16 @@ The server serves the console under `/console/` as static HTML, CSS and JavaScri
   - break-glass settings;
   - audit checkpoint, retention and sink settings;
   - organization creation policy;
-  - trusted proxies for client addresses.
+  - trusted proxies for client addresses;
+  - an optional separate metrics listen address.
 - **Hardening:**
   - per-address rate limits on authentication endpoints;
-  - request bodies capped at 1 MiB;
+  - request bodies capped at 1 MiB, commits at 32 MiB;
   - `Cache-Control: no-store` on every API response;
   - HSTS when the public URL uses HTTPS;
   - structured logs that never contain tokens, ciphertexts or proofs.
-- **Operations.** `/healthz` and `/readyz` for probes, and `/metrics` in the Prometheus text format with request and audit counters.
+- **Operations.** `/healthz` and `/readyz` for probes. `/metrics`, in the Prometheus text format with request, refusal, audit, commit and object-read counters, is served only on the separate `metrics_listen` address, so an ingress that routes the main listener never exposes it.
+- **Transactions.** SQLite transactions begin with `BEGIN IMMEDIATE`, taking the write lock up front; a deferred transaction that reads before writing fails outright when another writer commits in between. PostgreSQL locks the rows it updates.
 - **Server commands:** `pasejo-server serve`, `pasejo-server migrate`, `pasejo-server keygen`, `pasejo-server break-glass create|disable`, and `pasejo-server audit prune`.
 
 ## Repository layout and releases

@@ -108,3 +108,11 @@ license = "0BSD"
 edition = "2024"
 rust-version = "1.100"
 repository = "https://github.com/metio/pasejo"
+
+# The break-glass password hash (Argon2id, 64 MiB, 3 passes) takes seconds
+# without optimizations, which the server's tests would pay on every login.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

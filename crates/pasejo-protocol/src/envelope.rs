@@ -156,11 +156,11 @@ pub fn sign(context: Context, payload: &[u8], key: &SigningKey) -> [u8; 64] {
 /// it claims a session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenClaim {
-    /// What the claim is for: the device code of a device grant, `web` for a
-    /// console session, `workload` or `emergency`.
+    /// What the claim is for: `device` for a device grant, `web` for a
+    /// console session, `workload`, `emergency` or `break-glass`.
     pub purpose: String,
-    /// The value being claimed, such as the device code; empty when the
-    /// purpose carries none.
+    /// The value being claimed: the device code of a device grant, the
+    /// SHA-256 of a workload token, or empty.
     pub value: String,
     pub signing_key: Fixed<32>,
     pub time: Millis,

@@ -104,10 +104,11 @@ pub fn verify_chain(start: Hash, first_seq: u64, events: &[AuditEvent]) -> Resul
 }
 
 /// The signed statement that the chain of `org` reached `seq` with `hash`
-/// while its membership log had head `log_head`.
+/// while its membership log had head `log_head`. The server's own chain,
+/// which records events outside any organization, has no `org`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointPayload {
-    pub org: Id,
+    pub org: Option<Id>,
     pub seq: u64,
     pub hash: Hash,
     pub log_head: Option<Hash>,
@@ -252,7 +253,7 @@ mod tests {
         let device = SigningKey::generate(&mut OsRng);
         let device_id = Id::random();
         let payload = CheckpointPayload {
-            org: Id::random(),
+            org: Some(Id::random()),
             seq: 10,
             hash: Hash::of(b"h"),
             log_head: Some(Hash::of(b"l")),

@@ -222,6 +222,7 @@ pub struct Stores {
 pub struct Wrapping {
     pub epoch: u64,
     pub device: Id,
+    pub full: bool,
     pub ciphertext: Bytes,
 }
 
@@ -241,6 +242,8 @@ pub struct Keys {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WrappingUpload {
     pub device: Id,
+    /// Whether the wrapping carries the data key.
+    pub full: bool,
     pub ciphertext: Bytes,
 }
 
@@ -428,6 +431,18 @@ pub struct ScimTokenCreated {
     pub token: String,
 }
 
+/// A live SCIM token, without its secret.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScimTokenInfo {
+    pub id: Id,
+    pub created: Millis,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScimTokens {
+    pub tokens: Vec<ScimTokenInfo>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BreakGlassLogin {
     pub username: String,
@@ -450,6 +465,27 @@ pub struct EmergencyState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrgList {
     pub orgs: Vec<OrgSummary>,
+}
+
+/// Purposes of a [`crate::envelope::TokenClaim`].
+pub mod purpose {
+    pub const DEVICE: &str = "device";
+    pub const WEB: &str = "web";
+    pub const WORKLOAD: &str = "workload";
+    pub const EMERGENCY: &str = "emergency";
+    pub const BREAK_GLASS: &str = "break-glass";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnrollmentStatus {
+    pub pending: bool,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BreakGlassToken {
+    pub token: String,
+    pub expires: Millis,
 }
 
 #[cfg(test)]

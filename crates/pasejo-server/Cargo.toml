@@ -1,16 +1,47 @@
 # SPDX-FileCopyrightText: The pasejo Authors
-# SPDX-License-Identifier: 0BSD
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 [package]
 name = "pasejo-server"
 description = "Server that syncs pasejo remote stores, manages organizations and audits access"
 version = "0.0.0"
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
-license.workspace = true
+license = "AGPL-3.0-or-later"
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 publish = false
 
 [dependencies]
-clap = { version = "4.6.1", features = ["derive"] }
+anyhow = { version = "1.0.100" }
+argon2 = { version = "0.5.3" }
+axum = { version = "0.8.4" }
+axum-server = { version = "0.7.2", features = ["tls-rustls"] }
+base64 = { version = "0.22.1" }
+clap = { version = "4.6.1", features = ["derive", "env"] }
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+hkdf = { version = "0.12.4" }
+hmac = { version = "0.12.1" }
+jsonwebtoken = { version = "9.3.1" }
+pasejo-protocol = { path = "../pasejo-protocol", default-features = false }
+reqwest = { version = "0.12.23", default-features = false, features = ["json", "rustls-tls"] }
+rust-embed = { version = "8.7", features = ["debug-embed", "include-exclude"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.150" }
+sha1 = { version = "0.10.6" }
+sha2 = { version = "0.10.9" }
+sqlx = { version = "0.8.6", default-features = false, features = ["any", "sqlite", "postgres", "runtime-tokio", "tls-rustls"] }
+thiserror = { version = "2.0.17" }
+tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync", "fs"] }
+toml = { version = "1.1.0" }
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.20", features = ["json", "env-filter"] }
+url = { version = "2.5.4", features = ["serde"] }
+zeroize = { version = "1.8.2" }
+
+[dev-dependencies]
+age = { version = "0.12.0", default-features = false }
+ed25519-dalek = { version = "2.2.0", features = ["rand_core", "pkcs8"] }
+pasejo-protocol = { path = "../pasejo-protocol" }
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+tempfile = { version = "3.23.0" }
