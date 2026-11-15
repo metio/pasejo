@@ -6,15 +6,16 @@ name = "pasejo"
 description = "passage re-implementation in Rust for teams"
 version = "1.0.0"
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
-license = "0BSD"
-edition = "2024"
-rust-version = "1.100"
-repository = "https://github.com/metio/pasejo"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 keywords = ["password", "manager", "age", "passage", "pass"]
 categories = ["command-line-utilities"]
 readme = "README.md"
 exclude = [
     ".github/*",
+    "design/*",
     "dev/*",
     "docs/*",
     "tests/*",
@@ -97,3 +98,13 @@ libc = { version = "0.2.186" }
 [target.'cfg(windows)'.dependencies]
 winreg = { version = "0.55.0" }
 
+# The workspace tables stay below [package]: the release workflow rewrites the
+# first `version` line above the first `authors` line.
+[workspace]
+members = ["crates/*"]
+
+[workspace.package]
+license = "0BSD"
+edition = "2024"
+rust-version = "1.100"
+repository = "https://github.com/metio/pasejo"

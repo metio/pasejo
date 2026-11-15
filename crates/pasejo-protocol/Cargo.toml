@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "pasejo-protocol"
+description = "Wire types, object formats and verification shared by the pasejo CLI and server"
+version = "0.0.0"
+authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
