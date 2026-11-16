@@ -5,19 +5,21 @@ SPDX-License-Identifier: 0BSD
 
 # pasejo mobile design
 
-Status: draft, 2026-11-16. This document proposes Android and iOS apps for pasejo. Nothing in it is implemented. Platform facts name the documentation they were read from on 2026-11-16; those marked unverified need checking before an implementation relies on them.
+Status: draft, 2026-11-16. This document proposes Android and iOS apps for pasejo. Of its server pieces, the app sign-in flow and offline-read reports are implemented; the apps and the Rust core are not. Platform facts name the documentation or source they were read from on 2026-11-16; those marked unverified need checking before an implementation relies on them.
 
 ## Summary
 
 The apps are full devices of a pasejo server. They read and write remote stores, fill credentials into other apps and browsers through each platform's autofill framework, and show TOTP codes. They share the protocol, the verifying client and the credential matcher with the CLI through one Rust crate with generated Kotlin and Swift bindings, so every check the CLI makes on what the server returns runs as the same code on a phone.
 
-Five decisions shape the design:
+Seven decisions shape the design:
 
 1. **Full devices.** An app enrolls as an `age` device like a CLI installation, so it receives full wrappings and can decrypt values. Browser devices are names-only because script in a web page can use their keys; an app's code ships signed and loads no script from the server.
 2. **One Rust core.** A new crate, `pasejo-mobile`, wraps `pasejo-protocol`, `pasejo-client` and the matcher behind a small interface for UniFFI. The apps contain the user interface, platform key storage and autofill glue, and no protocol logic.
-3. **Keys sealed by the platform.** The device's signing key and age identity are encrypted under keys of the platform's hardware-backed key store. Opening the age identity requires biometric or device-credential authentication; signing requests requires an unlocked device.
-4. **Browser sign-in with PKCE.** Apps sign in through the system browser with an authorization code and PKCE, which needs one new server flow. The device authorization grant the CLI uses is not meant for smartphones.
-5. **Autofill reuses the browser host's two phases.** A fill request matches against the lookup object, which the server audits as one lookup, and the chosen credential is one object fetch, which the server audits as one read.
+3. **Android 13 and later, keys protected by secure hardware.** The Android app supports API 33 and later on any vendor's device. Where the device's trusted execution environment implements Curve25519, the device keys are generated and used there; elsewhere they are sealed under a key that lives there. A device whose key store reports software keys is refused.
+4. **Browser sign-in with PKCE.** Apps sign in through the system browser with an authorization code and PKCE. The device authorization grant the CLI uses is not meant for smartphones.
+5. **Autofill reuses the browser host's two phases.** A fill request matches against the lookup object, which the server audits as one lookup, and the chosen credential is one object fetch, which the server audits as one read. The app verifies which domains a requesting app belongs to itself, through Digital Asset Links.
+6. **The platform's trust store.** TLS trusts what the phone trusts, including certificate authorities a device management system installs.
+7. **Offline reads only where the organization allows them.** By default every value comes from the server. An organization can allow an offline copy in its membership log; the app then reports reads from the copy when it reconnects, and the audit views name the periods in which such reads could go unreported.
 
 ## Goals and non-goals
 
@@ -29,13 +31,15 @@ Five decisions shape the design:
 - filling usernames, passwords and TOTP codes into apps and browsers;
 - creating and editing secrets in remote stores;
 - approving other devices and running the pending actions a device with full keys can run;
+- managed configuration and work profiles on company phones, including phones without Google Play services;
+- an offline copy of values in organizations that allow it;
 - Android first, iOS from the same core.
 
 **Non-goals:**
 
 - running hooks or syncing file stores;
 - age plugins and hardware tokens on the phone;
-- an offline copy of secret values (see [Offline use](#offline-use));
+- Android 12 and earlier;
 - a web view or any server-provided script inside the app;
 - administration that the CLI or the console already covers, such as SCIM tokens, organization settings and recovery.
 
@@ -79,69 +83,145 @@ UniFFI generates Kotlin and Swift bindings from Rust (0.32.2 on crates.io). Expo
 | `names` | store, cached index, pin, key ring | names and the new pin |
 | `reveal` | store, name, key ring | secret text, zeroized when the binding releases it |
 | `totp` | store, name, key ring, time | code and remaining seconds |
-| `query` | store, web domain or app identity | matches without secret material |
-| `fill` | store, web domain or app identity, name | credential, released only for a match |
+| `query` | store, web domain or verified app domains | matches without secret material |
+| `fill` | store, web domain or verified app domains, name | credential, released only for a match |
 | `commit` | store, base, changes | new index version, retried on conflict like the CLI's funnel |
 | `actions`, `run_action` | organization | pending actions this device can run |
+| `offline_read_periods` | verified log | periods in which the organization allowed offline reads |
+| `report_offline_reads` | store, journal of reads | nothing; the server records one event per read |
 
-`pasejo_client::DeviceIdentity` holds the signing key in memory. The binding builds it per call from the unsealed key and drops it afterwards, so the signing key exists in Rust memory only while requests are signed.
+`pasejo_client::DeviceIdentity` holds the signing key in memory today. For keys that stay in the platform's key store, `pasejo-client` needs the signing operation behind a trait, so a foreign implementation can sign in KeyMint; the same trait serves an in-memory key for the CLI and for the sealed tier (see [Device keys](#device-keys)).
 
 ### Transport
 
-`pasejo-client` uses `ureq` with its default features, which verify TLS through rustls with ring and bundled roots. Self-hosted servers behind a corporate certificate authority need the platform's trust store, which includes user-installed and managed roots. `rustls-platform-verifier` claims Android and iOS support (unverified); the alternative is passing the platform's verification result into Rust through a foreign trait.
+`pasejo-client` uses `ureq` with its default features, which verify TLS through rustls with ring and bundled roots. The apps replace the bundled roots with the platform's trust store through `rustls-platform-verifier`, so a self-hosted server behind a company certificate authority works when the phone trusts that authority.
+
+On Android, the verifier's Kotlin component builds a trust manager over `AndroidCAStore`, which holds system and user certificates (source-read, `rustls-platform-verifier` 0.7.1 and Conscrypt's `TrustedCertificateStore`). A device management system installs certificate authorities as user certificates (`DevicePolicyManager.installCaCert`), so they are trusted. The verifier does not apply the app's Network Security Config, which therefore cannot pin or restrict trust; an organization that wants trust limited to its own authority needs a custom rustls verifier instead (an open question below). On iOS the verifier uses the Security framework, which includes configuration profiles' authorities (unverified).
+
+Trusting user certificates also trusts an authority the person installed themselves. A connection intercepted that way exposes session tokens and metadata, but a token authorizes nothing without the device's request proof, and every log, index and object the server returns is verified against pinned keys, so interception can deny service and observe access patterns without forging data.
 
 ### Matcher
 
 The browser host's matcher (`src/browser/matcher.rs`, `lookalike.rs`, `policy.rs`) and the field grammar (`src/exporters/parser.rs`) move into `pasejo-match`, which the CLI and `pasejo-mobile` both use. The matcher takes a `PasswordStore` today; in the crate it takes secret texts and an optional TOTP entry per name, so it does not depend on the CLI's store model. The test that pins `find_matches` and `reveal` to the same secrets moves with it.
 
-Apps add one match input: the requesting app. Android's autofill documentation tells services to verify a requesting browser's signing certificate before trusting the web domain it reports, and to check web domains against the Public Suffix List and Digital Asset Links. An app identity (an Android package name and signing certificate, an iOS app service identifier) matches a store's URL fields through the domains the app is associated with, so stores need no new field. Whether the apps verify those associations by fetching the domain's statement file or rely on the platform's verification is an open question.
+Apps add one match input, the requesting app, which [App associations](#app-associations) turns into verified domains before the matcher runs.
 
 ## Device keys
 
-An app generates the device's Ed25519 signing key and an age X25519 identity in Rust and hands both to the platform layer, which seals them:
+### Hardware tiers
 
-| | Android (API 30 and later) | iOS |
+The Android app requires API 33. Android 13 added Curve25519 to KeyMint version 2 for the trusted execution environment, signing with Ed25519 and agreeing keys with X25519, but not every Android 13 device has it:
+
+- The compatibility definition for Android 13 to 16 still allows Keymaster 3 and 4 and KeyMint version 1, and none of those versions mention Curve25519 (CDD 9.11 C-1-6).
+- The vendor test suite requires KeyMint version 2 only where the vendor API level is 33 or higher (`VSR-3.10-008` in `KeyMintTest.cpp`), which normally means the device launched with Android 13 or later. A device upgraded to Android 13 on an older vendor image has no such requirement.
+- On KeyMint version 1 and Keymaster devices, Android's key store generates Curve25519 keys in a software KeyMint without telling the app (source-read, `keystore2` `km_compat.rs`).
+- StrongBox implementations support P-256 only, so Curve25519 keys never live in StrongBox (`IKeyMintDevice.aidl`).
+
+The app therefore runs in one of two tiers, chosen at enrollment:
+
+| | Hardware tier | Sealed tier |
 |---|---|---|
-| Sealing key | AES-256-GCM key in Android Keystore, StrongBox-backed when available | Keychain items with access control |
-| Signing key | sealed under a key with `setUnlockedDeviceRequired(true)` | `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` |
-| age identity | sealed under a key with `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG or AUTH_DEVICE_CREDENTIAL)`, opened through `BiometricPrompt` with a `CryptoObject` | `SecAccessControl` with `.biometryCurrentSet` or `.userPresence`, without a reuse duration |
-| Backup | excluded from backup; a new phone is a new device | `ThisDeviceOnly` items do not leave the device |
+| When | `hasSystemFeature(FEATURE_HARDWARE_KEYSTORE, 200)` | every other Android 13 device |
+| Signing key | Ed25519 generated in KeyMint (`KeyPairGenerator` `"EC"` with `ECGenParameterSpec("ed25519")` on API 33 and 34, `"ED25519"` from API 35), purpose `SIGN` only | Ed25519 generated in Rust, sealed with AES-256-GCM under a KeyMint key |
+| age identity | X25519 generated in KeyMint (`"XDH"`, `ECGenParameterSpec("x25519")`), purpose `AGREE_KEY` only | X25519 generated in Rust, sealed with AES-256-GCM under a KeyMint key that needs authentication per use |
+| Where the private key is used | inside the trusted execution environment; X25519 returns only the shared secret to the app | in app memory while unsealed |
+| Authentication for the age identity | API 33 to 36.0: `setUserAuthenticationParameters(timeout, AUTH_BIOMETRIC_STRONG or AUTH_DEVICE_CREDENTIAL)` with a short timeout; API 36.1 and later: timeout 0 and `BiometricPrompt.CryptoObject(KeyAgreement)` | timeout 0 and `BiometricPrompt.CryptoObject(Cipher)`, available on every supported version |
 
-Sources: `KeyGenParameterSpec.Builder` and `BiometricPrompt.CryptoObject` on developer.android.com; `SecAccessControlCreateWithFlags` and "Accessing keychain items with Face ID or Touch ID" on developer.apple.com.
+After generating each key, the app reads `KeyInfo.getSecurityLevel()` (API 31) and refuses to enroll unless every key, the sealing keys included, reports `SECURITY_LEVEL_TRUSTED_ENVIRONMENT` or `SECURITY_LEVEL_STRONGBOX`. Sealing keys prefer StrongBox where it exists. Keys are excluded from backup; a new phone is a new device. Sources: `KeyGenParameterSpec.Builder`, `KeyInfo`, `PackageManager.FEATURE_HARDWARE_KEYSTORE` and `BiometricPrompt.CryptoObject` on developer.android.com; `IKeyMintDevice.aidl`, `KeyMintTest.cpp` and `keystore2` on android.googlesource.com.
 
-A timeout of 0 makes the Android key usable for exactly one operation per authentication, and on iOS every read of the item authenticates. The app therefore unseals the age identity once per unlock, unwraps the epoch keys it needs, and drops the identity.
+The two tiers trade differently. The hardware tier keeps both private keys out of app memory, but before API 36.1 an X25519 key can only be authorized for a time window, and one authentication opens every time-bound key of the user for that window. The sealed tier binds every unseal of the age identity to one authentication, but the unsealed identity sits in app memory while it unwraps keys. Which tier enrolled is visible to the person in the app; whether approvers should see it too is an open question.
 
-The protocol's keys stay software keys under hardware sealing for two reasons:
+### Using the keys
 
-- **iOS.** The Secure Enclave holds no Curve25519 keys; CryptoKit's `SecureEnclave` offers P-256 and, from iOS 26, ML-KEM and ML-DSA.
-- **Android.** Android 13 (API 33) added Curve25519 to KeyMint for the trusted execution environment, but StrongBox does not support it, the names are undocumented on developer.android.com (`KeyPairGenerator` `"XDH"`, `Signature` `"Ed25519"` in the framework source), and each key serves one purpose. Keeping the signing key in the TEE on API 33 and later is possible; keeping the age identity there would need an age `Identity` implementation that performs the X25519 agreement through the platform. Both are later hardening, not part of the first release.
+Both public keys come out of the platform as SubjectPublicKeyInfo; the raw 32 bytes are the last 32 bytes of `getEncoded()`. `XDHPublicKey.getU()` is not usable because it reads the little-endian bytes as a big-endian integer (source-read, `AndroidKeyStoreXDHPublicKey.java`).
 
-The app keeps the unwrapped key ring in memory for a configurable unlock period, five minutes by default and never beyond the session, and drops it when the period ends, the screen locks or the system removes the app from memory. Values are fetched per reveal, so the key ring holds no secret values.
+In the hardware tier the age identity is a Rust `age::Identity` that unwraps X25519 stanzas with the agreement done by Kotlin through a foreign trait: the trait returns the shared secret for the stanza's ephemeral share, and Rust derives the wrapping key with HKDF-SHA-256 and opens the file key as age's X25519 recipient type defines. The app unwraps the epoch keys it needs right after one authentication.
+
+The signing key carries `setUnlockedDeviceRequired(true)` only from API 35. On Android 12 to 14 that flag has documented bugs: such keys could not be used without a secure lock screen, were deleted when the lock screen was removed, and were not reauthorized by some biometric unlocks.
+
+The app keeps the unwrapped key ring in memory for an unlock period, five minutes by default, capped by managed configuration and never beyond the session, and drops it when the period ends, the screen locks or the system removes the app from memory. Values are fetched per reveal, so the key ring holds no secret values.
+
+### Signed message size
+
+KeyMint signs at most 16 KiB with an Ed25519 key and fails with `INVALID_INPUT_LENGTH` beyond that (`IKeyMintDevice.aidl`). Request proofs and token claims sign hashes and short strings. Membership log entries grow with the device lists of `store.epoch` entries, and index envelopes sign the encrypted index itself, which outgrows 16 KiB at roughly a hundred entries (estimated from the entry format: a 32-character identifier, a version and a 43-character hash per name, encrypted and base64-encoded; not measured).
+
+The hardware tier therefore needs one protocol change: every envelope signs its context and the SHA-256 of its payload instead of the payload. The change touches every signer and verifier, the console's port and the test vectors, and costs nothing to migrate only while no server has been released. The alternative is the sealed tier on every device.
+
+### iOS
+
+The Secure Enclave holds no Curve25519 keys; CryptoKit's `SecureEnclave` offers P-256 and, from iOS 26, ML-KEM and ML-DSA. The iOS app therefore uses the sealed tier: keys in Keychain items with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` for the signing key and `SecAccessControl` with `.biometryCurrentSet` or `.userPresence`, without a reuse duration, for the age identity. Sources: `SecAccessControlCreateWithFlags` and "Accessing keychain items with Face ID or Touch ID" on developer.apple.com.
 
 ## Sign-in
 
-RFC 8628 states that the device authorization grant "is not intended to replace browser-based OAuth in native apps on capable devices like smartphones", and RFC 8252 requires native apps to use an external user agent with PKCE. Apps therefore sign in through a new server flow, modelled on the console's:
+RFC 8628 states that the device authorization grant "is not intended to replace browser-based OAuth in native apps on capable devices like smartphones", and RFC 8252 requires native apps to use an external user agent with PKCE. Apps therefore sign in through their own server flow, modelled on the console's and implemented in `crates/pasejo-server/src/auth/flows.rs`:
 
-1. The app generates a PKCE verifier and opens `<server>/auth/app/start?challenge=<S256 challenge>&device=<device id>` in the system browser: an Auth Tab or Custom Tab on Android, `ASWebAuthenticationSession` on iOS.
+1. The app calls `pasejo_client::Client::start_app_login` and opens the returned URL, `<server>/auth/app/start?challenge=<S256 challenge>&redirect_uri=wtf.metio.pasejo%3A%2Fauth&state=<state>`, in the system browser: an Auth Tab or Custom Tab on Android, `ASWebAuthenticationSession` on iOS.
 2. The server runs its OIDC relying-party flow with the organization's identity provider, as it does for the console.
-3. On the callback, the server redirects to the private-use URI scheme `wtf.metio.pasejo:/auth` with a single-use code that lives ten minutes. A private-use scheme is used because one app build serves every self-hosted server, and verified HTTPS app links require each server's domain to be named in the app.
-4. The app calls `POST /v1/auth/app` with the code, the PKCE verifier and a `token/v1` envelope signed by its device key, and receives a session bound to that key.
+3. On the callback, the server redirects to the redirect URI with a single-use code that lives ten minutes and the app's state. The URI must be one of the server's `[apps] redirect_uris`, by default only the private-use scheme `wtf.metio.pasejo:/auth`. A private-use scheme is used because one app build serves every self-hosted server, and verified HTTPS app links require each server's domain to be named in the app.
+4. `Client::finish_app_login` checks the state and posts the code, the PKCE verifier and a `token/v1` claim with purpose `app`, signed by the device key, to `POST /v1/auth/app`. The server returns a session bound to that key.
 
-The server stores only the code's hash and the challenge, and refuses a code whose verifier does not match, which defends against another app registering the same scheme and intercepting the redirect. This flow is the one server change the apps need; it lands in `crates/pasejo-server/src/auth/flows.rs` beside the console flow and is tested in the server's sign-in suite.
+The server stores only the code's hash and the challenge, spends the code on the first exchange, and refuses a code whose verifier does not match, which defends against another app registering the same scheme and intercepting the redirect. The server's sign-in suite covers a wrong verifier, a reused code, an expired code, a session used with another key, malformed parameters and an unlisted redirect URI.
 
 ## Enrollment
 
-1. The app fetches `GET /v1/server` and pins the checkpoint key on first use, as the CLI does.
-2. For each organization, the person compares the organization's fingerprint with one an admin shows them, and the app pins the genesis hash.
+1. The app fetches `GET /v1/server` and pins the checkpoint key on first use, as the CLI does, unless managed configuration supplies it.
+2. For each organization, the person compares the organization's fingerprint with one an admin shows them, and the app pins the genesis hash. Managed configuration can supply the genesis hash instead.
 3. The app enrolls and shows its device fingerprint, together with the `pasejo org approve` command an approver runs.
 4. Another device of the same person, or an approver, signs `device.add`. The app can approve its own later siblings once it is active.
 5. A device with full keys runs the `wrap-keys` action, after which the app opens its wrappings.
+
+## Managed devices
+
+Company phones are managed by a device policy controller (DPC), either as the owner of a work profile or as the owner of the whole device. The app works under any DPC on stock Android and on GrapheneOS, and depends on no Google Play services: autofill, the Credential Manager provider on Android 14 and later, managed configurations and the key store are platform APIs.
+
+### Managed configuration
+
+The app declares its restrictions in `res/xml/app_restrictions.xml` (`android.content.APP_RESTRICTIONS`), reads them with `RestrictionsManager.getApplicationRestrictions()` on start and resume, and listens for `ACTION_APPLICATION_RESTRICTIONS_CHANGED`. Source: "Set up managed configurations" on developer.android.com.
+
+| Key | Type | Effect |
+|---|---|---|
+| `server_url` | `string` | the server; the setup screen shows it read-only |
+| `organization` | `string` | the organization to join after sign-in |
+| `genesis_hash` | `string` | the organization's pinned genesis, replacing the person's fingerprint comparison |
+| `checkpoint_key` | `string` | the server's pinned checkpoint key |
+| `max_unlock_seconds` | `integer` | the longest unlock period the person may choose |
+| `allow_copy` | `bool` | whether values can be copied to the clipboard |
+
+A pin from managed configuration carries the same trust as a fingerprint an admin reads out: an administrator of the device management system who pushes another organization's genesis enrolls the phone there. Device approval is unchanged; the approver still compares the device's fingerprint, which the app shows.
+
+A DPC delivers these values with `DevicePolicyManager.setApplicationRestrictions`, a platform call that needs nothing from Google Play on the phone. Device management consoles that read an app's restriction schema do so through Google Play's APIs or Play's managed-configurations frame, so on stock Android the app needs a Google Play listing for those consoles to offer its keys; other consoles take the keys as entered by the administrator.
+
+### Work profiles
+
+An app installed in a work profile is a separate installation with its own keys, so it enrolls as its own device, and the work and personal installations are two devices of the same person. An autofill service fills apps in its own profile only; GrapheneOS declined filling across the profile boundary (GrapheneOS issue 9104). The organization's apps and the pasejo app therefore go into the same profile.
+
+### GrapheneOS
+
+GrapheneOS supports work profiles under any DPC. Device owners work but must be set up through ADB, because its setup wizard has no provisioning; QR provisioning is an open issue whose pull requests were closed unmerged. Google's own device management (Android Device Policy) does not work, because Play services run sandboxed and unprivileged; non-Google products do, and the project names Microsoft's as one example (GrapheneOS issue 7173). No other product was confirmed.
+
+Certificate authorities a DPC installs are user certificates (`DevicePolicyManager.installCaCert`). Apps ignore user certificates by default since Android 7.0, and the platform verifier trusts them (see [Transport](#transport)).
+
+Key attestation can prove that the device keys live in the trusted execution environment and, through the verified boot key in GrapheneOS's signed `attestation.json`, that the phone runs GrapheneOS. Carrying the attestation chain in the enrollment request so an approver's client verifies it is an open question.
+
+## App associations
+
+Before a fill, the app turns the requesting app into domains it has checked itself:
+
+- **Browsers.** The app keeps a list of browsers by package name and signing certificate fingerprint. For a listed browser it trusts `ViewNode.getWebDomain()`; for any other app it ignores the reported web domain, as the `AutofillService` documentation requires.
+- **Apps with a statement file.** For a requesting package, the app collects candidate domains: the registrable domains spelled by the package name's labels (`com.example.mail` gives `example.com`) and the hosts of `androidapp://` entries in the store's lookup fields. It fetches `https://<domain>/.well-known/assetlinks.json` without redirects, requires `application/json`, follows at most ten includes, and accepts the domain when a statement with relation `delegate_permission/common.get_login_creds` or `delegate_permission/common.handle_all_urls` names the package and the SHA-256 fingerprint of one of its signing certificates. Results are cached for a day. A statement names an exact host; subdomains do not match.
+- **Apps without a statement file.** A secret whose URL field names `androidapp://<package>` matches that package once the secret also carries an `android-cert` field with the certificate fingerprint. The first fill of such a secret shows the package and its certificate, and on confirmation the app writes the field.
+
+The requesting package comes from `AssistStructure.getActivityComponent()`, and its certificates from `PackageManager.getPackageInfo(package, GET_SIGNING_CERTIFICATES)`, checking every certificate in `SigningInfo`'s history. A Credential Manager provider receives the package and its signing information from the framework in `CallingAppInfo`. Whether an autofill service targeting API 30 or later sees the requesting package without a `<queries>` declaration or `QUERY_ALL_PACKAGES` is unverified. Sources: "Statement list syntax" and "Relation strings" on developers.google.com/digital-asset-links; `AutofillService`, `AssistStructure`, `SigningInfo` and `CallingAppInfo` on developer.android.com.
+
+Fetching statement files tells each candidate domain that a pasejo app looked for it; the domain learns no more than a sign-in would tell it.
+
+iOS gives a credential provider service identifiers that the system has already resolved through associated domains, so the iOS app relies on the platform's association.
 
 ## Autofill
 
 | | Android | iOS |
 |---|---|---|
-| Framework | `AutofillService` (API 26); `CredentialProviderService` (API 34) for Credential Manager requests, which include passwords | credential provider extension, `ASCredentialProviderViewController` (iOS 12; request-based methods from iOS 17) |
+| Framework | `AutofillService`; `CredentialProviderService` (API 34) for Credential Manager requests, which include passwords and passkeys | credential provider extension, `ASCredentialProviderViewController` (iOS 12; request-based methods from iOS 17) |
 | Request names | the requesting package; `ViewNode.getWebDomain()` for browser fields that report it; for Credential Manager, the origin a privileged browser passes | service identifiers: URL, domain or app |
 | Locked key ring | `setAuthentication` on the `FillResponse` or `Dataset` with an `IntentSender` to the unlock activity; an `AuthenticationAction` for Credential Manager | the extension cancels with `userInteractionRequired`, and the system calls `prepareInterfaceToProvideCredential` |
 
@@ -154,20 +234,31 @@ A fill runs the browser host's two phases:
 
 The fill and confirm policies stored in secrets apply unchanged: `pasejo-fill: never` hides a secret from autofill, and `pasejo-confirm` makes the app ask before filling. When a query finds nothing, the app names stored look-alike domains as the web extension does.
 
+Passkeys through the Credential Manager provider and the iOS credential provider extension are designed in [design/passkeys.md](passkeys.md).
+
 Browser coverage on Android depends on the browser:
 
 - Chrome fills through a third-party service only after the person selects "Autofill using another service" in Chrome's settings, and Chrome no longer supports the autofill framework's compatibility mode from version 137.
 - Firefox's GeckoView supports third-party providers through Android's autofill framework.
+- Vanadium on GrapheneOS implements Android's autofill natively, without Google Play services (grapheneos.org/features).
 
-The setup screen explains the Chrome setting.
+The setup screen explains the Chrome setting. It asks the system to select the app as the autofill service with `ACTION_REQUEST_SET_AUTOFILL_SERVICE`, and on Android 14 and later opens the credential provider settings with `createSettingsPendingIntent()`, because each manufacturer places that screen differently.
 
 iOS lets a provider register credential identities (`ASCredentialIdentityStore`: service identifier, user name and record identifier) so the QuickType bar can offer them before the extension opens. That would hand secret names and usernames to the operating system in a form the system can display, and how the system protects that store is undocumented. The app does not register identities; the person opens the extension from the QuickType bar or the password menu.
 
 ## Offline use
 
-The server design fetches every secret value from the server so that every read reaches the audit log; the client cache holds the index, the wrappings and the log head in encrypted form. The apps follow the same rule: names and labels are available offline from the cache, values are not.
+The server design fetches every secret value from the server so that every read reaches the audit log; the client cache holds the index, the wrappings and the log head in encrypted form. By default the apps follow that rule: names and labels are available offline from the cache, values are not.
 
-An offline value cache would trade that audit guarantee for availability on planes and in basements. If organizations ask for it, it belongs in the membership log as an organization setting, so every client agrees whether it is allowed, with cached reads reported to the audit log when the device reconnects. This document does not specify it.
+An organization can allow offline reads with `pasejo org settings --offline-reads true`, which records `offline_reads` in the membership log so every client agrees whether it holds. The server side is implemented: `POST /v1/orgs/{org}/stores/{store}/offline-reads` records each reported read as an `object.read.offline` event, refusing reads outside the periods in which the log allowed them, and `pasejo audit log` and the console's audit view name those periods (see "Offline reads" in [design/server.md](server.md)).
+
+While the verified log allows offline reads, the app:
+
+1. Adds each value it fetched from the server to an offline copy, one record per object version, encrypted under a key-store key that needs authentication like the age identity. A value enters the copy only after an audited fetch, so the first read of each version is always recorded.
+2. Answers reveals and fills from the copy when the server is unreachable, and appends each such read (object identifier, version, time) to an encrypted local journal.
+3. Reports the journal with `report_offline_reads` when it reconnects, and drops journal entries once the server accepts them.
+
+The app deletes the copy when the log turns `offline_reads` off, when its device loses access to a store, and when the person signs out. It learns of the first two only from a log it fetched, so a phone that stays offline keeps its copy and its unreported journal; a lost or compromised phone reports nothing. The warnings in the CLI and the console say so.
 
 ## Writing
 
@@ -179,8 +270,8 @@ A file store is one age-encrypted file synced by hooks. The apps can open such a
 
 ## Phases
 
-1. **Core.** `pasejo-match` extracted with the CLI's tests passing unchanged; the app sign-in flow in the server; `pasejo-mobile` with UniFFI bindings and tests that drive it against the real server, as `crates/pasejo-server/tests/client.rs` does for the client.
-2. **Android, read-only.** Sign-in, enrollment, store and name lists, reveal and copy with clipboard clearing, TOTP, the autofill service.
+1. **Core.** Envelopes signing the hash of their payload, before the server's first release; signing behind a trait in `pasejo-client`; `pasejo-match` extracted with the CLI's tests passing unchanged; `pasejo-mobile` with UniFFI bindings and tests that drive it against the real server, as `crates/pasejo-server/tests/client.rs` does for the client. The app sign-in flow and offline-read reports are already in the server.
+2. **Android, read-only.** Sign-in, enrollment in both key tiers, managed configuration, store and name lists, reveal and copy with clipboard clearing, TOTP, the autofill service with app associations, offline reads.
 3. **Android, writing.** Secret editing, device approval, pending actions and the Credential Manager provider.
 4. **iOS.** The same scope on the same core.
 5. **File stores.** Read-only import.
@@ -188,24 +279,24 @@ A file store is one age-encrypted file synced by hooks. The apps can open such a
 ## Testing
 
 - `pasejo-mobile` is tested in Rust against the in-process server harness, including the tampering cases the client suite already has (withheld and swapped objects, a rolled-back index, keys without commitments).
-- The app sign-in flow is tested in the server's sign-in suite: a wrong verifier, a reused code, an expired code and a claim signed by another key are refused.
+- The app sign-in flow and offline-read reports are tested in the server's suites, against the real router and through `pasejo-client`.
 - The bindings are exercised from Kotlin and Swift unit tests against a server the test runner starts.
-- Android autofill is tested with instrumented tests against a test app with login fields; iOS with UI tests against a test app.
-- The sealing layers are tested on emulators for the round trip and on hardware for StrongBox and biometric prompts, which emulators do not reproduce faithfully.
+- Android autofill is tested with instrumented tests against a test app with login fields, including a test app whose statement file the test server serves and one signed with another certificate; iOS with UI tests against a test app.
+- Managed configuration is tested with a test DPC that sets restrictions through `setApplicationRestrictions`, as owner of a work profile on an emulator.
+- The key tiers are tested on emulators for the round trip and on hardware for the security level checks and biometric prompts, which emulators do not reproduce faithfully: at least one device per tier, a Pixel on GrapheneOS, and a device that upgraded to Android 13 on an older vendor image.
 
 ## Distribution
 
 - **Android:**
   - F-Droid builds from source and accepts Rust toolchains and NDK builds (Inclusion Policy and Build Metadata Reference on f-droid.org). Reproducible builds are optional; with them F-Droid can publish the APK signed by the project.
   - A signed APK goes on each app release.
-  - Google Play is optional and needs a developer account.
+  - Google Play needs a developer account. It is optional for people installing the app themselves, and needed on stock Android for device management consoles that read the restriction schema through Google Play.
 - **iOS:** the App Store, which needs an Apple Developer Program membership, review of every release, and macOS runners with signing credentials in CI. The workspace's weekly calendar release does not apply to the apps; an app releases when a `pasejo-mobile` change affects it.
 
 ## Open questions
 
-- Platform trust store or bundled roots for TLS.
-- Whether the apps verify app-to-domain associations themselves.
-- An offline value cache as an organization setting.
-- Android work profiles and managed configuration, so an MDM can push the server URL and organization.
-- Keeping the signing key in the Android TEE on API 33 and later.
-- Passkeys, which both platforms' credential provider frameworks support and pasejo does not store yet.
+- Whether to make the envelope signing change before the server's first release, or to use the sealed tier on every device.
+- Whether approvers should see a device's key tier, and whether enrollment should carry a key attestation chain that the approver's client verifies.
+- A custom rustls verifier restricted to the organization's certificate authority, supplied through managed configuration, for organizations that do not want user certificates trusted.
+- How long an offline copy may live without reconnecting before the app deletes it on its own.
+- Which device management products to test beyond a test DPC.
