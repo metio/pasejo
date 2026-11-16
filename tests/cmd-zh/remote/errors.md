@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: 此设备未登录 https://pasejo.example。请运行 'pasejo server login https://pasejo.example'。
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: 紧急登录需要已在 https://other.example 注册的设备。
+
 ```

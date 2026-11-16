@@ -359,3 +359,24 @@ remote-store-created = リモートストア '{ $name }' を識別子 { $store }
 remote-store-migrated = '{ $name }' の { $count } 件のエントリをサーバーにコピーしました。ストアは今後リモートのコピーを参照します。ファイル { $path } は変更されていません。
 remote-store-recovered = { $label } の { $count } 件のエントリを { $path } に復旧しました。
 remote-store-rekeyed = { $count } 件のエントリを現在の鍵で書き直しました。
+
+## Remote administration
+error-remote-emergency-unregistered = 緊急サインインには { $url } に登録済みのデバイスが必要です。
+error-remote-unknown-review = 識別子 { $review } のアクセスレビューはありません。
+error-remote-not-under-review = { $principal } はレビュー { $review } に権限を持っていません。
+remote-emergency-logged-in = 緊急ウィンドウを通じて { $email } として { $url } にサインインしました（{ $expires } まで）。
+remote-scim-token-created = SCIM トークン { $id } を作成しました。以下に一度だけ表示され、再表示はできません。
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = 有効な SCIM トークンはありません。
+remote-scim-token-revoked = SCIM トークン { $id } を失効させました。
+remote-review-opened = ストア { $store } のアクセスレビュー { $review } を開始しました。期限は { $due } です。
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = 進行中
+remote-review-state-complete = 完了
+remote-review-decision-keep = 維持
+remote-review-decision-revoke = 取り消し
+remote-review-decision-pending = 未決定
+remote-no-reviews = アクセスレビューはありません。
+remote-review-decided = レビュー { $review } で { $principal } に「{ $decision }」を記録しました。
+remote-review-revokes-pending = 取り消しの決定は、組織またはストアの管理者が 'pasejo org actions --run' を実行したときに反映されます。

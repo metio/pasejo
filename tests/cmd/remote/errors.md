@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: This device is not signed in to https://pasejo.example. Run 'pasejo server login https://pasejo.example'.
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: Emergency sign-in needs a device that is already registered at https://other.example.
+
 ```

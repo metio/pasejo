@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: Este dispositivo no ha iniciado sesión en https://pasejo.example. Ejecute 'pasejo server login https://pasejo.example'.
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: El inicio de sesión de emergencia necesita un dispositivo ya registrado en https://other.example.
+
 ```

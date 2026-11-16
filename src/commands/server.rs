@@ -80,6 +80,9 @@ fn recipient_of(path: &Path) -> Option<String> {
 }
 
 fn login(configuration: &Configuration, args: &ServerLoginArgs) -> Result<()> {
+    if args.emergency {
+        return emergency_login(configuration, &args.url);
+    }
     let url = normalize_url(&args.url);
     let mut configuration = configuration.clone();
     let workload_token = args
@@ -134,6 +137,32 @@ fn login(configuration: &Configuration, args: &ServerLoginArgs) -> Result<()> {
     let me = remote.client.me().localized()?;
     configuration.save_configuration()?;
     i18n::remote_logged_in(&url, &me.email);
+    Ok(())
+}
+
+/// Signs an already registered device in while the server's emergency
+/// window is open. The device proves itself with its signing key, so no
+/// identity provider is involved and no new device can be created.
+fn emergency_login(configuration: &Configuration, url: &str) -> Result<()> {
+    let url = normalize_url(url);
+    let server = configuration
+        .servers
+        .iter()
+        .find(|server| server.url == url)
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_emergency_unregistered(&url)))?;
+    let mut remote = Remote::offline(server)?;
+    let info = remote.client.server_info().localized()?;
+    if server.checkpoint_key != b64(&info.checkpoint_key.0) {
+        anyhow::bail!(i18n::error_remote_checkpoint_key_changed(&url));
+    }
+    let session = remote.client.emergency_login().localized()?;
+    remote.files.save_session(&session)?;
+    let me = remote.client.me().localized()?;
+    i18n::remote_emergency_logged_in(
+        &url,
+        &me.email,
+        &crate::commands::audit::rfc3339(session.expires),
+    );
     Ok(())
 }
 

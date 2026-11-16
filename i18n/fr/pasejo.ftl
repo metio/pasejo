@@ -359,3 +359,24 @@ remote-store-created = Coffre distant '{ $name }' créé avec l'identifiant { $s
 remote-store-migrated = { $count } entrées de '{ $name }' copiées sur le serveur. Le coffre désigne désormais la copie distante ; le fichier { $path } est inchangé.
 remote-store-recovered = { $count } entrées de { $label } récupérées dans { $path }.
 remote-store-rekeyed = { $count } entrées réécrites avec les clés actuelles.
+
+## Remote administration
+error-remote-emergency-unregistered = La connexion d'urgence nécessite un appareil déjà enregistré auprès de { $url }.
+error-remote-unknown-review = Aucune revue d'accès n'a l'identifiant { $review }.
+error-remote-not-under-review = { $principal } n'a aucune autorisation dans la revue { $review }.
+remote-emergency-logged-in = Connecté à { $url } en tant que { $email } via la fenêtre d'urgence, jusqu'à { $expires }.
+remote-scim-token-created = Jeton SCIM { $id } créé. Il est affiché ci-dessous une seule fois et ne pourra plus être montré.
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = Aucun jeton SCIM valide.
+remote-scim-token-revoked = Jeton SCIM { $id } révoqué.
+remote-review-opened = Revue d'accès { $review } ouverte pour le coffre { $store }, échéance le { $due }.
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = ouverte
+remote-review-state-complete = terminée
+remote-review-decision-keep = conserver
+remote-review-decision-revoke = révoquer
+remote-review-decision-pending = en attente
+remote-no-reviews = Aucune revue d'accès.
+remote-review-decided = « { $decision } » enregistré pour { $principal } dans la revue { $review }.
+remote-review-revokes-pending = Les décisions de révocation prennent effet lorsqu'un administrateur de l'organisation ou du coffre exécute 'pasejo org actions --run'.

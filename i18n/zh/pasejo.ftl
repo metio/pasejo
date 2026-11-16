@@ -359,3 +359,24 @@ remote-store-created = 已创建远程存储 '{ $name }'，标识符为 { $store
 remote-store-migrated = 已将 '{ $name }' 的 { $count } 个条目复制到服务器。该存储现在指向远程副本；文件 { $path } 未更改。
 remote-store-recovered = 已将 { $label } 的 { $count } 个条目恢复到 { $path }。
 remote-store-rekeyed = 已使用当前密钥重写 { $count } 个条目。
+
+## Remote administration
+error-remote-emergency-unregistered = 紧急登录需要已在 { $url } 注册的设备。
+error-remote-unknown-review = 没有标识符为 { $review } 的访问审查。
+error-remote-not-under-review = { $principal } 在审查 { $review } 中没有授权。
+remote-emergency-logged-in = 已通过紧急窗口以 { $email } 身份登录 { $url }，有效期至 { $expires }。
+remote-scim-token-created = 已创建 SCIM 令牌 { $id }。它仅在下方显示一次，之后无法再次显示。
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = 没有有效的 SCIM 令牌。
+remote-scim-token-revoked = 已吊销 SCIM 令牌 { $id }。
+remote-review-opened = 已为存储 { $store } 开启访问审查 { $review }，截止日期 { $due }。
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = 进行中
+remote-review-state-complete = 已完成
+remote-review-decision-keep = 保留
+remote-review-decision-revoke = 撤销
+remote-review-decision-pending = 待定
+remote-no-reviews = 没有访问审查。
+remote-review-decided = 已在审查 { $review } 中为 { $principal } 记录“{ $decision }”。
+remote-review-revokes-pending = 撤销决定在组织或存储的管理员运行 'pasejo org actions --run' 后生效。

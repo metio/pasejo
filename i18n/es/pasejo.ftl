@@ -359,3 +359,24 @@ remote-store-created = Se creó el almacén remoto '{ $name }' con el identifica
 remote-store-migrated = Se copiaron { $count } entradas de '{ $name }' al servidor. El almacén ahora apunta a la copia remota; el archivo { $path } no ha cambiado.
 remote-store-recovered = Se recuperaron { $count } entradas de { $label } en { $path }.
 remote-store-rekeyed = Se reescribieron { $count } entradas con las claves actuales.
+
+## Remote administration
+error-remote-emergency-unregistered = El inicio de sesión de emergencia necesita un dispositivo ya registrado en { $url }.
+error-remote-unknown-review = Ninguna revisión de acceso tiene el identificador { $review }.
+error-remote-not-under-review = { $principal } no tiene ningún permiso en la revisión { $review }.
+remote-emergency-logged-in = Sesión iniciada en { $url } como { $email } mediante la ventana de emergencia, hasta { $expires }.
+remote-scim-token-created = Token SCIM { $id } creado. Se muestra abajo una sola vez y no puede volver a mostrarse.
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = No hay tokens SCIM vigentes.
+remote-scim-token-revoked = Token SCIM { $id } revocado.
+remote-review-opened = Revisión de acceso { $review } abierta para el almacén { $store }, vence el { $due }.
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = abierta
+remote-review-state-complete = completada
+remote-review-decision-keep = mantener
+remote-review-decision-revoke = revocar
+remote-review-decision-pending = pendiente
+remote-no-reviews = No hay revisiones de acceso.
+remote-review-decided = Se registró '{ $decision }' para { $principal } en la revisión { $review }.
+remote-review-revokes-pending = Las decisiones de revocación surten efecto cuando un administrador de la organización o del almacén ejecuta 'pasejo org actions --run'.

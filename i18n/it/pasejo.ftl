@@ -359,3 +359,24 @@ remote-store-created = Creato l'archivio remoto '{ $name }' con identificatore {
 remote-store-migrated = Copiate { $count } voci di '{ $name }' sul server. L'archivio ora punta alla copia remota; il file { $path } è invariato.
 remote-store-recovered = Recuperate { $count } voci di { $label } in { $path }.
 remote-store-rekeyed = Riscritte { $count } voci con le chiavi attuali.
+
+## Remote administration
+error-remote-emergency-unregistered = L'accesso di emergenza richiede un dispositivo già registrato presso { $url }.
+error-remote-unknown-review = Nessuna revisione degli accessi ha l'identificatore { $review }.
+error-remote-not-under-review = { $principal } non ha alcuna autorizzazione nella revisione { $review }.
+remote-emergency-logged-in = Accesso a { $url } come { $email } tramite la finestra di emergenza, fino a { $expires }.
+remote-scim-token-created = Token SCIM { $id } creato. Viene mostrato qui sotto una sola volta e non può essere mostrato di nuovo.
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = Nessun token SCIM valido.
+remote-scim-token-revoked = Token SCIM { $id } revocato.
+remote-review-opened = Revisione degli accessi { $review } aperta per l'archivio { $store }, scadenza { $due }.
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = aperta
+remote-review-state-complete = completata
+remote-review-decision-keep = mantenere
+remote-review-decision-revoke = revocare
+remote-review-decision-pending = in sospeso
+remote-no-reviews = Nessuna revisione degli accessi.
+remote-review-decided = Registrato '{ $decision }' per { $principal } nella revisione { $review }.
+remote-review-revokes-pending = Le decisioni di revoca hanno effetto quando un amministratore dell'organizzazione o dell'archivio esegue 'pasejo org actions --run'.

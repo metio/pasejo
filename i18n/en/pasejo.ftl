@@ -359,3 +359,24 @@ remote-store-created = Created the remote store '{ $name }' with identifier { $s
 remote-store-migrated = Copied { $count } entries of '{ $name }' to the server. The store now refers to the remote copy; the file { $path } is unchanged.
 remote-store-recovered = Recovered { $count } entries of { $label } into { $path }.
 remote-store-rekeyed = Rewrote { $count } entries under the current keys.
+
+## Remote administration
+error-remote-emergency-unregistered = Emergency sign-in needs a device that is already registered at { $url }.
+error-remote-unknown-review = No access review has the identifier { $review }.
+error-remote-not-under-review = { $principal } has no grant in review { $review }.
+remote-emergency-logged-in = Signed in to { $url } as { $email } through the emergency window, until { $expires }.
+remote-scim-token-created = Created SCIM token { $id }. It is printed below once and cannot be shown again.
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = No live SCIM tokens.
+remote-scim-token-revoked = Revoked SCIM token { $id }.
+remote-review-opened = Opened access review { $review } for store { $store }, due { $due }.
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = open
+remote-review-state-complete = complete
+remote-review-decision-keep = keep
+remote-review-decision-revoke = revoke
+remote-review-decision-pending = pending
+remote-no-reviews = No access reviews.
+remote-review-decided = Recorded '{ $decision }' for { $principal } in review { $review }.
+remote-review-revokes-pending = Revoke decisions take effect when an organization admin or an admin of the store runs 'pasejo org actions --run'.

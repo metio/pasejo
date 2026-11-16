@@ -14,6 +14,8 @@ Options:
           The age recipient the server encrypts store keys to. Defaults to the recipient of the first global X25519 identity
       --workload-token <WORKLOAD_TOKEN>
           Sign in as a machine with the workload token in this file, read again whenever the session expires
+      --emergency
+          Sign in with this device's key while the server's emergency window is open, without the identity provider
   -v, --verbose...
           Increase logging verbosity
   -q, --quiet...
@@ -39,6 +41,8 @@ Options:
           The age recipient the server encrypts store keys to. Defaults to the recipient of the first global X25519 identity
       --workload-token <WORKLOAD_TOKEN>
           Sign in as a machine with the workload token in this file, read again whenever the session expires
+      --emergency
+          Sign in with this device's key while the server's emergency window is open, without the identity provider
   -v, --verbose...
           Increase logging verbosity
   -q, --quiet...
@@ -64,6 +68,8 @@ Options:
           The age recipient the server encrypts store keys to. Defaults to the recipient of the first global X25519 identity
       --workload-token <WORKLOAD_TOKEN>
           Sign in as a machine with the workload token in this file, read again whenever the session expires
+      --emergency
+          Sign in with this device's key while the server's emergency window is open, without the identity provider
   -v, --verbose...
           Increase logging verbosity
   -q, --quiet...

@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: Questo dispositivo non ha effettuato l'accesso a https://pasejo.example. Esegui 'pasejo server login https://pasejo.example'.
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: L'accesso di emergenza richiede un dispositivo già registrato presso https://other.example.
+
 ```

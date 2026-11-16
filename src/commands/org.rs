@@ -9,17 +9,18 @@ use std::io::IsTerminal;
 use anyhow::Result;
 use pasejo_client::Error;
 use pasejo_client::actions::Outcome;
-use pasejo_protocol::Id;
-use pasejo_protocol::api::{Action, Enrollment, ErrorCode, UserSummary};
+use pasejo_protocol::api::{Action, Decision, Enrollment, ErrorCode, Review, UserSummary};
 use pasejo_protocol::device::org_fingerprint;
 use pasejo_protocol::encoding::{b64, unb64};
 use pasejo_protocol::log::{Approval, Body, OrgLog, Principal, RoleChange, Settings};
+use pasejo_protocol::{Id, Millis};
 
 use crate::cli::{i18n, prompts};
 use crate::models::cli::{
     ApprovalArg, OrgActionsArgs, OrgApproveArgs, OrgCommands, OrgCosignArgs, OrgCreateArgs,
-    OrgJoinArgs, OrgRecoveryCommands, OrgRevokeArgs, OrgRoleArg, OrgRoleArgs, OrgSettingsArgs,
-    OrgTeamCommands,
+    OrgJoinArgs, OrgRecoveryCommands, OrgReviewCommands, OrgReviewDecideArgs, OrgReviewOpenArgs,
+    OrgRevokeArgs, OrgRoleArg, OrgRoleArgs, OrgScimTokenCommands, OrgSettingsArgs, OrgTeamCommands,
+    ReviewDecisionArg,
 };
 use crate::models::configuration::{Configuration, OrgRegistration};
 use crate::remote::connect::{self, Remote, parse_id};
@@ -44,8 +45,14 @@ pub fn dispatch(command: &OrgCommands, configuration: &Configuration) -> Result<
                 })
             }
         },
+        OrgCommands::Review { command } => match command {
+            OrgReviewCommands::Decide(args) => decide_review(configuration, args),
+            OrgReviewCommands::List(args) => reviews(configuration, args.org.as_deref()),
+            OrgReviewCommands::Open(args) => open_review(configuration, args),
+        },
         OrgCommands::Revoke(args) => revoke(configuration, args),
         OrgCommands::Role(args) => role(configuration, args),
+        OrgCommands::ScimToken { command } => scim_token(configuration, command),
         OrgCommands::Settings(args) => settings(configuration, args),
         OrgCommands::Stores(args) => {
             crate::commands::remote_stores::list(configuration, args.org.as_deref())
@@ -158,6 +165,19 @@ impl OrgContext {
             .find(|(_, team)| team.name.eq_ignore_ascii_case(name))
             .map(|(id, _)| *id)
             .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_team(name)))
+    }
+
+    /// The member named by email address, or else the team named `name`.
+    ///
+    /// # Errors
+    ///
+    /// Fails when neither exists.
+    pub fn principal(&self, name: &str) -> Result<Principal> {
+        if name.contains('@') {
+            Ok(Principal::User(self.user(name)?))
+        } else {
+            Ok(Principal::Team(self.team(name)?))
+        }
     }
 
     /// A member's email address, or team's name, for display.
@@ -559,4 +579,234 @@ fn actions(configuration: &Configuration, args: &OrgActionsArgs) -> Result<()> {
         i18n::remote_action_pending(&describe_action(&context, action, &users));
     }
     Ok(())
+}
+
+/// The UTC day of `end`, an end-of-day instant as `parser::utc_date` returns
+/// it.
+fn day(end: Millis) -> String {
+    let mut text = crate::commands::audit::rfc3339(end.saturating_sub(1));
+    text.truncate(10);
+    text
+}
+
+/// The local name of a remote store, or its identifier when this
+/// installation has not registered it.
+fn store_name(configuration: &Configuration, store: Id) -> String {
+    configuration
+        .stores
+        .iter()
+        .find(|registration| {
+            registration
+                .remote
+                .as_ref()
+                .is_some_and(|remote| remote.store == store.to_string())
+        })
+        .map_or_else(
+            || store.to_string(),
+            |registration| registration.name.clone(),
+        )
+}
+
+fn decision_text(decision: Option<Decision>) -> String {
+    match decision {
+        Some(Decision::Keep) => i18n::remote_review_decision_keep(),
+        Some(Decision::Revoke) => i18n::remote_review_decision_revoke(),
+        None => i18n::remote_review_decision_pending(),
+    }
+}
+
+fn open_review(configuration: &Configuration, args: &OrgReviewOpenArgs) -> Result<()> {
+    let registration = crate::commands::store_op::require_store(
+        configuration,
+        args.store_selection.store.as_ref(),
+    )?;
+    let Some(location) = &registration.remote else {
+        anyhow::bail!(i18n::error_remote_store_required(&registration.name));
+    };
+    let (_, org, store) = crate::remote::funnel::locate(configuration, location)?;
+    let context = OrgContext::open(configuration, Some(&org.id))?;
+    let reviewers = args
+        .reviewers
+        .iter()
+        .map(|email| context.user(email))
+        .collect::<Result<Vec<_>>>()?;
+    let review = context
+        .remote
+        .client
+        .open_review(context.id(), store, reviewers, args.due)
+        .localized()?;
+    i18n::remote_review_opened(&review.id.to_string(), &registration.name, &day(review.due));
+    Ok(())
+}
+
+fn print_review(
+    configuration: &Configuration,
+    context: &OrgContext,
+    review: &Review,
+    users: &[UserSummary],
+) {
+    let state = if review.complete {
+        i18n::remote_review_state_complete()
+    } else {
+        i18n::remote_review_state_open()
+    };
+    i18n::remote_review_line(
+        &review.id.to_string(),
+        &store_name(configuration, review.store),
+        &day(review.due),
+        &state,
+    );
+    for item in &review.items {
+        i18n::remote_review_item(
+            &context.describe(&item.principal, users),
+            &format!("{:?}", item.role).to_ascii_lowercase(),
+            &decision_text(item.decision),
+        );
+    }
+}
+
+fn reviews(configuration: &Configuration, org: Option<&str>) -> Result<()> {
+    let context = OrgContext::open(configuration, org)?;
+    let reviews = context.remote.client.reviews(context.id()).localized()?;
+    if reviews.is_empty() {
+        i18n::remote_no_reviews();
+        return Ok(());
+    }
+    let users = context.remote.client.users(context.id()).localized()?;
+    for review in &reviews {
+        print_review(configuration, &context, review, &users);
+    }
+    Ok(())
+}
+
+fn decide_review(configuration: &Configuration, args: &OrgReviewDecideArgs) -> Result<()> {
+    let context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let id = parse_id(&args.review)?;
+    let review = context
+        .remote
+        .client
+        .reviews(context.id())
+        .localized()?
+        .into_iter()
+        .find(|review| review.id == id)
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_review(&args.review)))?;
+    let principal = context.principal(&args.principal)?;
+    if !review.items.iter().any(|item| item.principal == principal) {
+        anyhow::bail!(i18n::error_remote_not_under_review(
+            &args.principal,
+            &args.review
+        ));
+    }
+    let decision = match args.decision {
+        ReviewDecisionArg::Keep => Decision::Keep,
+        ReviewDecisionArg::Revoke => Decision::Revoke,
+    };
+    context
+        .remote
+        .client
+        .decide(context.id(), id, principal, decision)
+        .localized()?;
+    i18n::remote_review_decided(
+        &decision_text(Some(decision)),
+        &args.principal,
+        &args.review,
+    );
+    if decision == Decision::Revoke {
+        i18n::remote_review_revokes_pending();
+    }
+    Ok(())
+}
+
+fn scim_token(configuration: &Configuration, command: &OrgScimTokenCommands) -> Result<()> {
+    match command {
+        OrgScimTokenCommands::Create(args) => {
+            let context = OrgContext::open(configuration, args.org.as_deref())?;
+            let created = context
+                .remote
+                .client
+                .create_scim_token(context.id())
+                .localized()?;
+            i18n::remote_scim_token_created(&created.id.to_string());
+            println!("{}", created.token);
+        }
+        OrgScimTokenCommands::List(args) => {
+            let context = OrgContext::open(configuration, args.org.as_deref())?;
+            let tokens = context
+                .remote
+                .client
+                .scim_tokens(context.id())
+                .localized()?;
+            if tokens.is_empty() {
+                i18n::remote_no_scim_tokens();
+            }
+            for token in tokens {
+                i18n::remote_scim_token_line(
+                    &token.id.to_string(),
+                    &crate::commands::audit::rfc3339(token.created),
+                );
+            }
+        }
+        OrgScimTokenCommands::Revoke(args) => {
+            let context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+            let id = parse_id(&args.token)?;
+            context
+                .remote
+                .client
+                .revoke_scim_token(context.id(), id)
+                .localized()?;
+            i18n::remote_scim_token_revoked(&args.token);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::parser::utc_date;
+    use crate::models::configuration::{RemoteLocation, StoreRegistration};
+
+    #[test]
+    fn due_days_print_the_day_the_user_named() {
+        for date in ["1970-01-01", "2024-02-29", "2099-12-31"] {
+            assert_eq!(day(utc_date(date).unwrap()), date);
+        }
+    }
+
+    #[test]
+    fn stores_print_under_their_local_name_or_identifier() {
+        let registered = Id::random();
+        let unregistered = Id::random();
+        let configuration = Configuration {
+            stores: vec![
+                StoreRegistration {
+                    name: "files".into(),
+                    ..StoreRegistration::default()
+                },
+                StoreRegistration {
+                    name: "team".into(),
+                    remote: Some(RemoteLocation {
+                        server: "https://pasejo.example".into(),
+                        org: Id::random().to_string(),
+                        store: registered.to_string(),
+                    }),
+                    ..StoreRegistration::default()
+                },
+            ],
+            ..Configuration::default()
+        };
+        assert_eq!(store_name(&configuration, registered), "team");
+        assert_eq!(
+            store_name(&configuration, unregistered),
+            unregistered.to_string()
+        );
+    }
+
+    #[test]
+    fn decisions_print_in_the_user_language() {
+        crate::cli::i18n::init_for_tests();
+        assert_eq!(decision_text(Some(Decision::Keep)), "keep");
+        assert_eq!(decision_text(Some(Decision::Revoke)), "revoke");
+        assert_eq!(decision_text(None), "pending");
+    }
 }

@@ -1495,6 +1495,99 @@ fl_log!(
 );
 fl_log!(info, remote_store_rekeyed, "remote-store-rekeyed", count);
 
+// Remote administration
+fl_string!(
+    error_remote_emergency_unregistered,
+    "error-remote-emergency-unregistered",
+    url
+);
+fl_string!(
+    error_remote_unknown_review,
+    "error-remote-unknown-review",
+    review
+);
+fl_string!(
+    error_remote_not_under_review,
+    "error-remote-not-under-review",
+    principal,
+    review
+);
+fl_log!(
+    info,
+    remote_emergency_logged_in,
+    "remote-emergency-logged-in",
+    url,
+    email,
+    expires
+);
+fl_log!(
+    info,
+    remote_scim_token_created,
+    "remote-scim-token-created",
+    id
+);
+fl_println!(
+    remote_scim_token_line,
+    "remote-scim-token-line",
+    id,
+    created
+);
+fl_log!(info, remote_no_scim_tokens, "remote-no-scim-tokens");
+fl_log!(
+    info,
+    remote_scim_token_revoked,
+    "remote-scim-token-revoked",
+    id
+);
+fl_log!(
+    info,
+    remote_review_opened,
+    "remote-review-opened",
+    review,
+    store,
+    due
+);
+fl_println!(
+    remote_review_line,
+    "remote-review-line",
+    review,
+    store,
+    due,
+    state
+);
+fl_println!(
+    remote_review_item,
+    "remote-review-item",
+    principal,
+    role,
+    decision
+);
+fl_string!(remote_review_state_open, "remote-review-state-open");
+fl_string!(remote_review_state_complete, "remote-review-state-complete");
+fl_string!(remote_review_decision_keep, "remote-review-decision-keep");
+fl_string!(
+    remote_review_decision_revoke,
+    "remote-review-decision-revoke"
+);
+fl_string!(
+    remote_review_decision_pending,
+    "remote-review-decision-pending"
+);
+fl_log!(info, remote_no_reviews, "remote-no-reviews");
+fl_log!(
+    info,
+    remote_review_decided,
+    "remote-review-decided",
+    decision,
+    principal,
+    review
+);
+fl_log!(
+    info,
+    remote_review_revokes_pending,
+    "remote-review-revokes-pending"
+);
+
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashMap};

@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: Dieses Gerät ist nicht bei https://pasejo.example angemeldet. Führen Sie 'pasejo server login https://pasejo.example' aus.
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: Die Notfall-Anmeldung braucht ein Gerät, das bereits bei https://other.example registriert ist.
+
 ```

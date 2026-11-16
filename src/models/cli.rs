@@ -138,6 +138,11 @@ pub struct ServerLoginArgs {
     /// again whenever the session expires
     #[arg(long, value_hint = FilePath)]
     pub workload_token: Option<PathBuf>,
+
+    /// Sign in with this device's key while the server's emergency window
+    /// is open, without the identity provider
+    #[arg(long, conflicts_with_all = ["label", "recipient", "workload_token"])]
+    pub emergency: bool,
 }
 
 #[derive(Args)]
@@ -190,11 +195,23 @@ pub enum OrgCommands {
         command: OrgRecoveryCommands,
     },
 
+    /// Review who has access to a remote store
+    Review {
+        #[command(subcommand)]
+        command: OrgReviewCommands,
+    },
+
     /// Revoke a device
     Revoke(OrgRevokeArgs),
 
     /// Change a member's role
     Role(OrgRoleArgs),
+
+    /// Manage the tokens the identity provider provisions users with
+    ScimToken {
+        #[command(subcommand)]
+        command: OrgScimTokenCommands,
+    },
 
     /// Change the organization's settings
     Settings(OrgSettingsArgs),
@@ -207,6 +224,75 @@ pub enum OrgCommands {
         #[command(subcommand)]
         command: OrgTeamCommands,
     },
+}
+
+#[derive(Subcommand)]
+pub enum OrgReviewCommands {
+    /// Decide whether a grant under review stays
+    Decide(OrgReviewDecideArgs),
+
+    /// List the organization's access reviews
+    List(OrgSelectionArgs),
+
+    /// Ask reviewers to keep or revoke every grant of a remote store
+    Open(OrgReviewOpenArgs),
+}
+
+#[derive(Args)]
+pub struct OrgReviewOpenArgs {
+    /// Email address of a reviewer; repeat for several reviewers
+    #[arg(long = "reviewer", value_name = "EMAIL", required = true)]
+    pub reviewers: Vec<String>,
+
+    /// The day the review is due, as YYYY-MM-DD in UTC
+    #[arg(long, value_parser = parser::utc_date)]
+    pub due: u64,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct OrgReviewDecideArgs {
+    /// The review's identifier
+    pub review: String,
+
+    /// The member's email address, or the team's name, whose grant is
+    /// decided
+    pub principal: String,
+
+    /// Whether the grant stays
+    pub decision: ReviewDecisionArg,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ReviewDecisionArg {
+    Keep,
+    Revoke,
+}
+
+#[derive(Subcommand)]
+pub enum OrgScimTokenCommands {
+    /// Create a SCIM token and print it once
+    Create(OrgSelectionArgs),
+
+    /// List the live SCIM tokens
+    List(OrgSelectionArgs),
+
+    /// Revoke a SCIM token
+    Revoke(OrgScimTokenRevokeArgs),
+}
+
+#[derive(Args)]
+pub struct OrgScimTokenRevokeArgs {
+    /// The token's identifier
+    pub token: String,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
 }
 
 #[derive(Args)]

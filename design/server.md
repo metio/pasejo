@@ -455,7 +455,7 @@ Removing a user, revoking a device, ending a grant or reaching an expiry runs in
 
 ## Access reviews
 
-An organization admin or store admin opens a review for a store, naming reviewers and a due date. Each reviewer marks every grant `keep` or `revoke`. Revoke decisions surface as `revoke-grant` actions, which the reviewer's own client resolves with `store.grant none`. A review is complete when every grant has a decision. A reviewer never decides on a grant they benefit from, held directly or through a team, so somebody else must confirm each reviewer's own access. Reviews and decisions are stored server-side and audited.
+An organization admin or store admin opens a review for a store, naming reviewers and a due date. Each reviewer marks every grant `keep` or `revoke`. Revoke decisions surface as `revoke-grant` actions for organization admins and the store's admins, whose clients resolve them with `store.grant none`. A review is complete when every grant has a decision. A reviewer never decides on a grant they benefit from, held directly or through a team, so somebody else must confirm each reviewer's own access. Reviews and decisions are stored server-side and audited.
 
 ## Audit
 
@@ -581,11 +581,13 @@ The server serves the console under `/console/` as static HTML, CSS and JavaScri
 
 | Command | Purpose |
 |---|---|
-| `pasejo server login URL [--label L] [--recipient R] [--workload-token FILE]`, `pasejo server logout [URL] [--forget]`, `pasejo server status` | sessions |
+| `pasejo server login URL [--label L] [--recipient R] [--workload-token FILE \| --emergency]`, `pasejo server logout [URL] [--forget]`, `pasejo server status` | sessions |
 | `pasejo org create NAME`, `pasejo org join URL ORG [--fingerprint F]`, `pasejo org stores` | organizations |
 | `pasejo org devices`, `pasejo org approve DEVICE [--fingerprint F]`, `pasejo org revoke DEVICE` | devices |
 | `pasejo org role USER ROLE`, `pasejo org settings ...`, `pasejo org recovery set RECIPIENT`, `pasejo org recover --identity FILE --output DIR` | administration |
 | `pasejo org proposals`, `pasejo org cosign PROPOSAL` | two-admin changes |
+| `pasejo org review open --reviewer EMAIL... --due DATE [--store S]`, `pasejo org review list`, `pasejo org review decide REVIEW PRINCIPAL keep\|revoke` | access reviews |
+| `pasejo org scim-token create`, `pasejo org scim-token list`, `pasejo org scim-token revoke TOKEN` | SCIM tokens |
 | `pasejo org team create NAME`, `pasejo org team add TEAM USER`, `pasejo org team remove TEAM USER` | teams |
 | `pasejo org actions [--run]` | pending actions |
 | `pasejo store create-remote LABEL [--org ORG]`, `pasejo store add-remote STORE --name NAME`, `pasejo store grant PRINCIPAL ROLE [--expires DATE]`, `pasejo store rekey`, `pasejo store rotation USER`, `pasejo store migrate --to-remote ORG` | remote stores |

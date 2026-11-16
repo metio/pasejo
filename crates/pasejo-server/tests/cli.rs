@@ -307,10 +307,21 @@ async fn member(
     org: &str,
     fingerprint: &str,
 ) -> Installation {
-    let bob = Installation::new(harness);
-    bob.login(harness, "bob").await;
-    let (device, device_fingerprint) = bob.join(org, fingerprint);
-    admin.ok(&["org", "role", "bob@example.com", "member"]);
+    person(harness, admin, org, fingerprint, "bob").await
+}
+
+/// `name` joins `org` as a member with an approved device.
+async fn person(
+    harness: &Harness,
+    admin: &Installation,
+    org: &str,
+    fingerprint: &str,
+    name: &str,
+) -> Installation {
+    let installation = Installation::new(harness);
+    installation.login(harness, name).await;
+    let (device, device_fingerprint) = installation.join(org, fingerprint);
+    admin.ok(&["org", "role", &format!("{name}@example.com"), "member"]);
     admin.ok(&[
         "org",
         "approve",
@@ -318,7 +329,7 @@ async fn member(
         "--fingerprint",
         &device_fingerprint,
     ]);
-    bob
+    installation
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -1049,6 +1060,276 @@ async fn the_browser_host_queries_the_lookup_object_and_reveals_one_secret() {
 
 /// Sends one native-messaging message to a fresh `browser host` and returns
 /// its reply.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_access_review_revokes_grants_through_pending_actions() {
+    let harness = Harness::start().await;
+    let (alice, org, fingerprint) = founder(&harness).await;
+    alice.add_secret("db", "s3cret");
+    let bob = member(&harness, &alice, &org, &fingerprint).await;
+    let carol = person(&harness, &alice, &org, &fingerprint, "carol").await;
+    alice.ok(&["store", "grant", "bob@example.com", "reader"]);
+    alice.ok(&["store", "grant", "carol@example.com", "reader"]);
+    let store = alice.store_id("team");
+    bob.ok(&["store", "add-remote", &store, "--name", "team", "--default"]);
+    assert_eq!(bob.ok(&["secret", "show", "db"]).stdout, "s3cret\n");
+
+    assert!(
+        alice
+            .ok(&["org", "review", "list"])
+            .all()
+            .contains("No access reviews")
+    );
+    let unknown = alice.fails(&[
+        "org",
+        "review",
+        "open",
+        "--reviewer",
+        "nobody@example.com",
+        "--due",
+        "2099-01-31",
+    ]);
+    assert!(unknown.contains("nobody@example.com"), "{unknown}");
+    let bad_date = alice.fails(&[
+        "org",
+        "review",
+        "open",
+        "--reviewer",
+        "carol@example.com",
+        "--due",
+        "2099-02-30",
+    ]);
+    assert!(bad_date.contains("is not a date"), "{bad_date}");
+    let opened = alice
+        .ok(&[
+            "org",
+            "review",
+            "open",
+            "--reviewer",
+            "carol@example.com",
+            "--due",
+            "2099-01-31",
+        ])
+        .all();
+    assert!(
+        opened.contains("for store team, due 2099-01-31"),
+        "{opened}"
+    );
+    let review = between(&opened, "Opened access review ", " for store").unwrap();
+
+    let listed = carol.ok(&["org", "review", "list"]).stdout;
+    assert!(
+        listed.lines().any(|line| line.starts_with(&review)
+            && line.contains("2099-01-31")
+            && line.ends_with("open")),
+        "carol has not registered the store, so the identifier stands in: {listed}"
+    );
+    assert!(listed.contains(&store), "{listed}");
+    assert!(
+        listed.contains("- bob@example.com  reader  pending"),
+        "{listed}"
+    );
+    assert!(
+        listed.contains("- carol@example.com  reader  pending"),
+        "{listed}"
+    );
+
+    // A reviewer never decides on their own access.
+    let own = carol.fails(&[
+        "org",
+        "review",
+        "decide",
+        &review,
+        "carol@example.com",
+        "keep",
+    ]);
+    assert!(!own.is_empty());
+    // Bob is no reviewer.
+    let not_reviewer = bob.fails(&[
+        "org",
+        "review",
+        "decide",
+        &review,
+        "carol@example.com",
+        "keep",
+    ]);
+    assert!(!not_reviewer.is_empty());
+    let not_under_review = carol.fails(&["org", "review", "decide", &review, "dave-team", "keep"]);
+    assert!(not_under_review.contains("dave-team"), "{not_under_review}");
+    let unknown_review = carol.fails(&[
+        "org",
+        "review",
+        "decide",
+        "0123456789abcdef0123456789abcdef",
+        "bob@example.com",
+        "keep",
+    ]);
+    assert!(
+        unknown_review.contains("No access review"),
+        "{unknown_review}"
+    );
+
+    let decided = carol
+        .ok(&[
+            "org",
+            "review",
+            "decide",
+            &review,
+            "bob@example.com",
+            "revoke",
+        ])
+        .all();
+    assert!(
+        decided.contains("Recorded 'revoke' for bob@example.com")
+            && decided.contains("pasejo org actions --run"),
+        "{decided}"
+    );
+    let listed = alice.ok(&["org", "review", "list"]).stdout;
+    assert!(
+        listed.contains("- bob@example.com  reader  revoke"),
+        "{listed}"
+    );
+
+    let pending = alice.ok(&["org", "actions"]).all();
+    assert!(pending.contains("bob@example.com"), "{pending}");
+    alice.ok(&["org", "actions", "--run"]);
+    // The grant is gone and the store's keys rotated past it.
+    alice.ok(&["org", "actions", "--run"]);
+    let after = bob.fails(&["secret", "show", "db"]);
+    assert!(!after.is_empty());
+    assert!(
+        !alice
+            .ok(&["org", "actions"])
+            .all()
+            .contains("bob@example.com")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn scim_tokens_are_shown_once_listed_and_revoked() {
+    let harness = Harness::start().await;
+    let (alice, org, fingerprint) = founder(&harness).await;
+    assert!(
+        alice
+            .ok(&["org", "scim-token", "list"])
+            .all()
+            .contains("No live SCIM tokens")
+    );
+    let created = alice.ok(&["org", "scim-token", "create"]);
+    let token = created.stdout.trim().to_owned();
+    assert!(token.starts_with("pasejo-scim-"), "{}", created.all());
+    assert_eq!(
+        created.stdout.lines().count(),
+        1,
+        "only the token goes to stdout"
+    );
+    let id = between(&created.stderr, "Created SCIM token ", ".").unwrap();
+    assert!(created.stderr.contains("cannot be shown again"));
+    let listed = alice.ok(&["org", "scim-token", "list"]).stdout;
+    assert!(
+        listed.starts_with(&id) && !listed.contains(&token),
+        "{listed}"
+    );
+
+    let users = harness
+        .http
+        .get(format!("{}/scim/v2/{org}/Users", harness.url))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(users.status(), StatusCode::OK);
+
+    let bob = member(&harness, &alice, &org, &fingerprint).await;
+    assert!(!bob.fails(&["org", "scim-token", "create"]).is_empty());
+    assert!(!bob.fails(&["org", "scim-token", "list"]).is_empty());
+
+    assert!(
+        alice
+            .ok(&["org", "scim-token", "revoke", &id])
+            .all()
+            .contains(&format!("Revoked SCIM token {id}"))
+    );
+    assert!(
+        alice
+            .ok(&["org", "scim-token", "list"])
+            .all()
+            .contains("No live SCIM tokens")
+    );
+    let refused = harness
+        .http
+        .get(format!("{}/scim/v2/{org}/Users", harness.url))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
+    assert!(
+        alice
+            .fails(&["org", "scim-token", "revoke", "nonsense"])
+            .contains("nonsense")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_device_signs_in_through_the_emergency_window_without_the_identity_provider() {
+    let harness = Harness::start().await;
+    let (alice, _, _) = founder(&harness).await;
+    alice.add_secret("db", "s3cret");
+    alice.ok(&["server", "logout"]);
+    assert!(!alice.fails(&["secret", "show", "db"]).is_empty());
+
+    let closed = alice.fails(&["server", "login", &harness.url, "--emergency"]);
+    assert!(!closed.is_empty());
+    let unknown = alice.fails(&[
+        "server",
+        "login",
+        "https://elsewhere.example",
+        "--emergency",
+    ]);
+    assert!(
+        unknown.contains("Emergency sign-in needs a device that is already registered"),
+        "{unknown}"
+    );
+    let conflicting = alice.fails(&[
+        "server",
+        "login",
+        &harness.url,
+        "--emergency",
+        "--label",
+        "laptop",
+    ]);
+    assert!(conflicting.contains("cannot be used with"), "{conflicting}");
+
+    let until = harness.now() + 600_000;
+    sqlx::query(
+        &harness
+            .state
+            .db
+            .sql("INSERT INTO settings (name, value) VALUES ($1, $2)"),
+    )
+    .bind("emergency_until")
+    .bind(until.to_string())
+    .execute(harness.state.db.pool())
+    .await
+    .unwrap();
+    let signed_in = alice
+        .ok(&["server", "login", &harness.url, "--emergency"])
+        .all();
+    assert!(
+        signed_in.contains("as alice@example.com through the emergency window"),
+        "{signed_in}"
+    );
+    assert_eq!(alice.ok(&["secret", "show", "db"]).stdout, "s3cret\n");
+
+    // The window admits only devices that already exist; it creates none.
+    let mallory = Installation::new(&harness);
+    let unregistered = mallory.fails(&["server", "login", &harness.url, "--emergency"]);
+    assert!(
+        unregistered.contains("already registered"),
+        "{unregistered}"
+    );
+}
+
 fn exchange(installation: &Installation, message: &Value) -> Value {
     let mut child = installation
         .command(&["browser", "host"])

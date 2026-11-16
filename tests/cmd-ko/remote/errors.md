@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: 이 기기는 https://pasejo.example에 로그인되어 있지 않습니다. 'pasejo server login https://pasejo.example'을 실행하세요.
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: 긴급 로그인에는 https://other.example에 이미 등록된 기기가 필요합니다.
+
 ```

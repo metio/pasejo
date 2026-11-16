@@ -10,7 +10,7 @@ use anyhow::Result;
 use pasejo_client::store::{Changes, Snapshot};
 use pasejo_protocol::Id;
 use pasejo_protocol::api::Action;
-use pasejo_protocol::log::{Principal, StoreRoleChange};
+use pasejo_protocol::log::StoreRoleChange;
 
 use crate::cli::i18n;
 use crate::commands::org::{OrgContext, report};
@@ -169,11 +169,7 @@ pub fn grant(configuration: &Configuration, args: &StoreGrantArgs) -> Result<()>
     };
     let (_, org, store) = funnel::locate(configuration, location)?;
     let mut context = OrgContext::open(configuration, Some(&org.id))?;
-    let principal = if args.principal.contains('@') {
-        Principal::User(context.user(&args.principal)?)
-    } else {
-        Principal::Team(context.team(&args.principal)?)
-    };
+    let principal = context.principal(&args.principal)?;
     let role = match args.role {
         StoreRoleArg::Reader => StoreRoleChange::Reader,
         StoreRoleArg::Writer => StoreRoleChange::Writer,

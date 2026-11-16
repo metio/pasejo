@@ -25,6 +25,8 @@ Options:
 
 Without `--workload-token`, sign-in runs the device flow: pasejo prints a link and a code, and waits while you open the link, sign in with the identity provider and approve. It also prints the device's fingerprint, which an approver compares before admitting the device to an organization. With `--workload-token FILE`, pasejo signs in as a machine with the JWT in that file and reads the file again whenever the session expires, so a rotated token (a Kubernetes projected service-account token, for example) keeps working.
 
+With `--emergency`, a device that is already registered signs in with its own signing key while the server's break-glass administrator has opened an emergency window, for example during an outage of the identity provider. The session lasts at most one hour and never outlasts the window. The window admits only devices that are active in an organization, so it creates no new trust, and a new installation cannot use it.
+
 The first sign-in pins the server's checkpoint key. A later sign-in that sees a different key fails, because a replaced server could otherwise present a rewritten audit trail.
 
 `server logout` ends the session on the server and removes it locally. `--forget` also removes the device's keys, cached logs and the server's registration; signing in again creates a new device, which needs approval again.

@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: このデバイスは https://pasejo.example にサインインしていません。'pasejo server login https://pasejo.example' を実行してください。
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: 緊急サインインには https://other.example に登録済みのデバイスが必要です。
+
 ```

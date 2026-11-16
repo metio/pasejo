@@ -359,3 +359,24 @@ remote-store-created = 식별자 { $store }(으)로 원격 저장소 '{ $name }'
 remote-store-migrated = '{ $name }'의 항목 { $count }개를 서버에 복사했습니다. 이제 저장소는 원격 사본을 가리키며 파일 { $path }은(는) 그대로입니다.
 remote-store-recovered = { $label }의 항목 { $count }개를 { $path }(으)로 복구했습니다.
 remote-store-rekeyed = 항목 { $count }개를 현재 키로 다시 썼습니다.
+
+## Remote administration
+error-remote-emergency-unregistered = 긴급 로그인에는 { $url }에 이미 등록된 기기가 필요합니다.
+error-remote-unknown-review = 식별자가 { $review }인 접근 검토가 없습니다.
+error-remote-not-under-review = { $principal }에게는 검토 { $review }에 해당하는 권한이 없습니다.
+remote-emergency-logged-in = 긴급 창을 통해 { $email }(으)로 { $url }에 로그인했습니다({ $expires }까지).
+remote-scim-token-created = SCIM 토큰 { $id }을(를) 만들었습니다. 아래에 한 번만 표시되며 다시 볼 수 없습니다.
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = 유효한 SCIM 토큰이 없습니다.
+remote-scim-token-revoked = SCIM 토큰 { $id }을(를) 폐기했습니다.
+remote-review-opened = 저장소 { $store }에 대한 접근 검토 { $review }을(를) 열었습니다. 기한은 { $due }입니다.
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = 진행 중
+remote-review-state-complete = 완료
+remote-review-decision-keep = 유지
+remote-review-decision-revoke = 취소
+remote-review-decision-pending = 대기 중
+remote-no-reviews = 접근 검토가 없습니다.
+remote-review-decided = 검토 { $review }에서 { $principal }에 대해 '{ $decision }'을(를) 기록했습니다.
+remote-review-revokes-pending = 취소 결정은 조직 또는 저장소 관리자가 'pasejo org actions --run'을 실행하면 적용됩니다.

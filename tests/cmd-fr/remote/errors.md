@@ -29,4 +29,8 @@ $ pasejo org devices
 ? 1
 Error: Cet appareil n'est pas connecté à https://pasejo.example. Lancez 'pasejo server login https://pasejo.example'.
 
+$ pasejo server login https://other.example --emergency
+? 1
+Error: La connexion d'urgence nécessite un appareil déjà enregistré auprès de https://other.example.
+
 ```

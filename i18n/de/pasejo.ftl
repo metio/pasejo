@@ -359,3 +359,24 @@ remote-store-created = Entfernten Speicher '{ $name }' mit der Kennung { $store 
 remote-store-migrated = { $count } Einträge von '{ $name }' auf den Server kopiert. Der Speicher verweist jetzt auf die entfernte Kopie; die Datei { $path } ist unverändert.
 remote-store-recovered = { $count } Einträge von { $label } nach { $path } wiederhergestellt.
 remote-store-rekeyed = { $count } Einträge mit den aktuellen Schlüsseln neu geschrieben.
+
+## Remote administration
+error-remote-emergency-unregistered = Die Notfall-Anmeldung braucht ein Gerät, das bereits bei { $url } registriert ist.
+error-remote-unknown-review = Keine Zugriffsprüfung hat die Kennung { $review }.
+error-remote-not-under-review = { $principal } hat keine Berechtigung in der Prüfung { $review }.
+remote-emergency-logged-in = Über das Notfallfenster bei { $url } als { $email } angemeldet, bis { $expires }.
+remote-scim-token-created = SCIM-Token { $id } erstellt. Es wird unten einmal ausgegeben und kann nicht erneut angezeigt werden.
+remote-scim-token-line = { $id }  { $created }
+remote-no-scim-tokens = Keine gültigen SCIM-Token.
+remote-scim-token-revoked = SCIM-Token { $id } widerrufen.
+remote-review-opened = Zugriffsprüfung { $review } für den Speicher { $store } eröffnet, fällig am { $due }.
+remote-review-line = { $review }  { $store }  { $due }  { $state }
+remote-review-item = - { $principal }  { $role }  { $decision }
+remote-review-state-open = offen
+remote-review-state-complete = abgeschlossen
+remote-review-decision-keep = behalten
+remote-review-decision-revoke = entziehen
+remote-review-decision-pending = ausstehend
+remote-no-reviews = Keine Zugriffsprüfungen.
+remote-review-decided = '{ $decision }' für { $principal } in der Prüfung { $review } festgehalten.
+remote-review-revokes-pending = Entzugsentscheidungen werden wirksam, sobald ein Admin der Organisation oder des Speichers 'pasejo org actions --run' ausführt.
