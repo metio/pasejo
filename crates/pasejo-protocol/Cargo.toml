@@ -4,13 +4,15 @@
 [package]
 name = "pasejo-protocol"
 description = "Wire types, encodings, cryptography and membership-log verification shared by pasejo clients and pasejo-server"
-version = "0.0.0"
+version.workspace = true
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
-publish = false
+keywords = ["password", "manager", "age", "pasejo"]
+categories = ["cryptography"]
+exclude = ["tests/*", "vectors/*"]
 
 [features]
 default = ["age"]

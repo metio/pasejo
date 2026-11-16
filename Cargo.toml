@@ -4,7 +4,7 @@
 [package]
 name = "pasejo"
 description = "passage re-implementation in Rust for teams"
-version = "1.0.0"
+version.workspace = true
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license.workspace = true
 edition.workspace = true
@@ -44,8 +44,8 @@ image = { version = "0.25.10" }
 inquire = { version = "0.9.4" }
 notify-rust = { version = "4.17.0" }
 otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
-pasejo-client = { path = "crates/pasejo-client" }
-pasejo-protocol = { path = "crates/pasejo-protocol" }
+pasejo-client = { path = "crates/pasejo-client", version = "=1.0.0" }
+pasejo-protocol = { path = "crates/pasejo-protocol", version = "=1.0.0" }
 passwords = { version = "3.1.16" }
 pinentry = { version = "0.8.0" }
 psl = { version = "2.1.210" }
@@ -102,12 +102,13 @@ libc = { version = "0.2.186" }
 [target.'cfg(windows)'.dependencies]
 winreg = { version = "0.55.0" }
 
-# The workspace tables stay below [package]: the release workflow rewrites the
-# first `version` line above the first `authors` line.
+# Every crate carries the workspace version, and the published crates require
+# each other at exactly that version; dev/set-version.sh changes all of them.
 [workspace]
 members = ["crates/*"]
 
 [workspace.package]
+version = "1.0.0"
 license = "0BSD"
 edition = "2024"
 rust-version = "1.100"

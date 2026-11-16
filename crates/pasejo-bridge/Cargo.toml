@@ -4,7 +4,7 @@
 [package]
 name = "pasejo-bridge"
 description = "Serves secrets of pasejo remote stores to external-secrets-operator"
-version = "0.0.0"
+version.workspace = true
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license.workspace = true
 edition.workspace = true

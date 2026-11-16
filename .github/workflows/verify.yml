@@ -40,7 +40,7 @@ jobs:
       - name: Check Code
         run: cargo check --workspace --release --target ${{ matrix.target }}
       - name: Test Code
-        run: cargo test --workspace
+        run: cargo test --workspace --exclude pasejo-server
       # The `#[cfg(windows)]` native-messaging registry registration can't run
       # on Linux/macOS, so verify it end-to-end on the Windows runner: install
       # the manifest and assert the registry value, manifest JSON, and .cmd
@@ -49,6 +49,72 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: ./dev/verify-windows-install-manifest.ps1
+  server:
+    name: Server on ${{ matrix.database }}
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: docker.io/library/postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: server-cargo-${{ hashFiles('**/Cargo.lock') }}
+      # Node from the @lint group runs the console's tests and its end-to-end
+      # test in tests/console.rs, which fails without Node because CI is set.
+      - uses: metio/ci/breto@00adafd0fe1924f57325d9dd264d5d731fb099ad # 2026.11.4082509
+        with:
+          registries: github:metio/toolchains
+      - name: Test the console
+        working-directory: crates/pasejo-server/web
+        run: node --test tests/
+      - name: Test the server
+        run: cargo test --package pasejo-server
+        env:
+          PASEJO_TEST_POSTGRES: ${{ matrix.database == 'postgres' && 'postgres://postgres:postgres@localhost:5432/postgres' || '' }}
+  container:
+    name: Container ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [pasejo-server, pasejo-bridge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Build the image for every platform
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: crates/${{ matrix.image }}/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
   build:
     name: Build ${{ matrix.target }}
     needs: check
@@ -168,7 +234,7 @@ jobs:
           if-no-files-found: ignore
   verify:
     name: Verify
-    needs: [check, build, web-extension-e2e]
+    needs: [check, server, container, build, web-extension-e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10

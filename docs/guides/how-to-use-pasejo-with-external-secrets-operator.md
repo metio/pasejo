@@ -2,6 +2,16 @@
 
 `pasejo-bridge` runs in a Kubernetes cluster as a machine device of one organization on a pasejo server and serves single secret values to the [Generic Webhook provider](https://external-secrets.io/latest/provider/webhook/) of external-secrets-operator (ESO). The bridge decrypts on its own, so the server never sees a value, and the server records every read under the tenant whose credential the request carried.
 
+## Image
+
+Each release publishes the bridge as a signed container image, `ghcr.io/metio/pasejo-bridge`, and as statically linked Linux binaries for x86_64 and aarch64 on the [releases page](https://github.com/metio/pasejo/releases). The image runs as uid 65532 without a shell and starts `pasejo-bridge serve`, which reads `/etc/pasejo-bridge/config.toml` unless `--config` or `PASEJO_BRIDGE_CONFIG` names another file. Verify it with cosign:
+
+```sh
+cosign verify ghcr.io/metio/pasejo-bridge:<version> \
+  --certificate-identity-regexp '^https://github.com/metio/pasejo/.github/workflows/release.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 ## Device keys and credentials
 
 Create the bridge's device keys once and store them in a Secret:

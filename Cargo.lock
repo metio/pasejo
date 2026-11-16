@@ -3645,7 +3645,7 @@ dependencies = [
 
 [[package]]
 name = "pasejo-bridge"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "age",
  "anyhow",
@@ -3668,7 +3668,7 @@ dependencies = [
 
 [[package]]
 name = "pasejo-client"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "age",
  "ed25519-dalek",
@@ -3683,7 +3683,7 @@ dependencies = [
 
 [[package]]
 name = "pasejo-protocol"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "age",
@@ -3701,7 +3701,7 @@ dependencies = [
 
 [[package]]
 name = "pasejo-server"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "age",
  "anyhow",

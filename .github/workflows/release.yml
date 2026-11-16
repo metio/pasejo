@@ -36,7 +36,7 @@ jobs:
           echo "count=$(git rev-list --count "$range" -- $PATHS)" >> "$GITHUB_OUTPUT"
         env:
           LAST_RELEASE: ${{ steps.last_release.outputs.tag }}
-          PATHS: src Cargo.toml Cargo.lock
+          PATHS: src crates Cargo.toml Cargo.lock
       - id: release
         name: Create Release Version
         if: steps.commits.outputs.count > 0
@@ -111,7 +111,7 @@ jobs:
           tool: cross
       - name: Set the release version
         shell: bash
-        run: sed -i -e "0,/authors/s/^version = .*/version = \"$VERSION\"/" Cargo.toml
+        run: dev/set-version.sh "$VERSION"
       - name: Build
         shell: bash
         run: |
@@ -134,9 +134,108 @@ jobs:
         with:
           name: pasejo-${{ matrix.target }}
           path: pasejo-${{ matrix.target }}.tar.gz
+  container:
+    name: Container ${{ matrix.image }}
+    needs: prepare
+    if: needs.prepare.outputs.release_version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write # cosign keyless image signing
+      packages: write # push to ghcr.io
+    strategy:
+      matrix:
+        include:
+          - image: pasejo-server
+            license: AGPL-3.0-or-later
+            license_file: LICENSES/AGPL-3.0-or-later.txt
+          - image: pasejo-bridge
+            license: 0BSD
+            license_file: LICENSE
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+      VERSION: ${{ needs.prepare.outputs.release_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: created
+        run: echo "date=$(date --rfc-3339=seconds)" >> "$GITHUB_OUTPUT"
+      - id: publish
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: crates/${{ matrix.image }}/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: VERSION=${{ env.VERSION }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.licenses=${{ matrix.license }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.created.outputs.date }}
+          sbom: true
+          provenance: true
+      # ghcr.io answers transient 5xx on the referrers API, so the signature
+      # is retried; a second keyless signature on the same digest is harmless.
+      - name: Sign the image
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          delay=10
+          for attempt in 1 2 3 4 5; do
+            if cosign sign --yes \
+              --annotations "repo=${GITHUB_REPOSITORY}" \
+              --annotations "workflow=${GITHUB_WORKFLOW}" \
+              --annotations "ref=${GITHUB_SHA}" \
+              "${IMAGE}@${DIGEST}"; then
+              exit 0
+            fi
+            echo "::warning::cosign sign attempt ${attempt} failed; retrying in ${delay}s"
+            sleep "$delay"
+            delay=$((delay * 2))
+          done
+          echo "::error::cosign sign failed after 5 attempts"
+          exit 1
+      # The same builder holds the build stage in its cache, so the binaries
+      # are the ones inside the images.
+      - name: Export and archive the binaries
+        env:
+          NAME: ${{ matrix.image }}
+          LICENSE_FILE: ${{ matrix.license_file }}
+        run: |
+          for platform in amd64:x86_64 arm64:aarch64; do
+            arch="${platform%%:*}"
+            machine="${platform##*:}"
+            docker buildx build --platform "linux/${arch}" --target binary \
+              --build-arg "VERSION=${VERSION}" \
+              --file "crates/${NAME}/Containerfile" \
+              --output "type=local,dest=binaries/${arch}" .
+            cp "$LICENSE_FILE" "binaries/${arch}/LICENSE.txt"
+            tar --create --gzip --file "${NAME}-${machine}-unknown-linux-musl.tar.gz" \
+              --directory "binaries/${arch}" "$NAME" LICENSE.txt
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ matrix.image }}-binaries
+          path: ${{ matrix.image }}-*.tar.gz
   release:
     name: GitHub Release
-    needs: [prepare, build]
+    needs: [prepare, build, container]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -163,10 +262,12 @@ jobs:
         run: gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --generate-notes dist/*
         env:
           GH_TOKEN: ${{ github.token }}
+      # Publishes pasejo-protocol, pasejo-client and pasejo in dependency
+      # order; pasejo-server and pasejo-bridge are publish = false.
       - name: Publish to crates.io
         run: |
-          sed -i -e "0,/authors/s/^version = .*/version = \"$VERSION\"/" Cargo.toml
-          cargo publish --allow-dirty --jobs 1 --no-verify
+          dev/set-version.sh "$VERSION"
+          cargo publish --workspace --allow-dirty --jobs 1 --no-verify
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
           RUSTFLAGS: -A warnings

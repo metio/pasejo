@@ -4,7 +4,7 @@
 [package]
 name = "pasejo-server"
 description = "Server that syncs pasejo remote stores, manages organizations and audits access"
-version = "0.0.0"
+version.workspace = true
 authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
 license = "AGPL-3.0-or-later"
 edition.workspace = true
