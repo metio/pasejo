@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+# Entries name file:rule:line without a commit, so they apply in every commit
+# and survive rebases. A finding that moves to another line needs a new entry.
+
+# Cross-language test vectors: keys derived from fixed seeds, protecting no data.
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1002
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1016
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1030
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1044
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1100
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1128
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1142
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1226
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1242
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1336
+crates/pasejo-protocol/vectors/console.json:generic-api-key:135
+crates/pasejo-protocol/vectors/console.json:generic-api-key:141
+crates/pasejo-protocol/vectors/console.json:generic-api-key:147
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1609
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1639
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1723
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1751
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1829
+crates/pasejo-protocol/vectors/console.json:generic-api-key:184
+crates/pasejo-protocol/vectors/console.json:generic-api-key:196
+crates/pasejo-protocol/vectors/console.json:generic-api-key:1973
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2064
+crates/pasejo-protocol/vectors/console.json:generic-api-key:209
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2178
+crates/pasejo-protocol/vectors/console.json:generic-api-key:22
+crates/pasejo-protocol/vectors/console.json:generic-api-key:222
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2253
+crates/pasejo-protocol/vectors/console.json:generic-api-key:235
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2479
+crates/pasejo-protocol/vectors/console.json:generic-api-key:248
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2572
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2600
+crates/pasejo-protocol/vectors/console.json:generic-api-key:261
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2628
+crates/pasejo-protocol/vectors/console.json:generic-api-key:278
+crates/pasejo-protocol/vectors/console.json:generic-api-key:2896
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3024
+crates/pasejo-protocol/vectors/console.json:generic-api-key:304
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3052
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3080
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3108
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3122
+crates/pasejo-protocol/vectors/console.json:generic-api-key:317
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3502
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3629
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3657
+crates/pasejo-protocol/vectors/console.json:generic-api-key:3671
+crates/pasejo-protocol/vectors/console.json:generic-api-key:483
+crates/pasejo-protocol/vectors/console.json:generic-api-key:581
+crates/pasejo-protocol/vectors/console.json:generic-api-key:609
+crates/pasejo-protocol/vectors/console.json:generic-api-key:637
+crates/pasejo-protocol/vectors/console.json:generic-api-key:863
+crates/pasejo-protocol/vectors/console.json:generic-api-key:946
+crates/pasejo-protocol/vectors/console.json:generic-api-key:974
+crates/pasejo-protocol/vectors/console.json:generic-api-key:988
+
+# Sign-in passwords of the test suites.
+crates/pasejo-server/tests/cli.rs:generic-password:297
+crates/pasejo-server/tests/cli.rs:generic-password:334
+crates/pasejo-server/tests/cli.rs:generic-password:806
+crates/pasejo-server/web/tests/break-glass.test.js:generic-password:29
+crates/pasejo-server/web/tests/break-glass.test.js:generic-password:49
+
+# The console's translations of the word "password".
+crates/pasejo-server/web/js/messages/de.js:generic-password:144
+crates/pasejo-server/web/js/messages/en.js:generic-password:144
+crates/pasejo-server/web/js/messages/es.js:generic-password:144
+crates/pasejo-server/web/js/messages/fr.js:generic-password:144
+crates/pasejo-server/web/js/messages/it.js:generic-password:144
+crates/pasejo-server/web/js/messages/ja.js:generic-password:144
+
+# The CI PostgreSQL service's credentials and the guide's example URL.
+.github/workflows/verify.yml:generic-credential-uri:96
+.github/workflows/verify.yml:generic-password:64
+docs/guides/how-to-run-pasejo-server.md:generic-credential-uri:42
