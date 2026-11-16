@@ -100,9 +100,11 @@ impl Changes {
     }
 }
 
-/// The lookup text of a secret: its lookup and policy fields, under a blank
-/// first line where the password was, so the secret parser reads it as a
-/// secret without a password.
+/// The lookup text of a secret: its lookup and policy fields, one per line.
+///
+/// Like the secret parser, it takes the first non-blank line for the
+/// password and never includes it. Readers that parse a lookup text as a
+/// secret put a placeholder password line above it.
 #[must_use]
 pub fn lookup_text(secret: &str, settings: &StoreSettings) -> String {
     let wanted = |key: &str| {
@@ -117,16 +119,12 @@ pub fn lookup_text(secret: &str, settings: &StoreSettings) -> String {
                 .any(|candidate| candidate.eq_ignore_ascii_case(&key))
             || POLICY_KEYS.contains(&key.as_str())
     };
-    let mut text = String::new();
-    for line in secret.lines().skip(1) {
-        if let Some((key, _)) = line.split_once(':')
-            && wanted(key)
-        {
-            text.push('\n');
-            text.push_str(line);
-        }
-    }
-    text
+    let fields = secret
+        .lines()
+        .skip_while(|line| line.trim().is_empty())
+        .skip(1)
+        .filter(|line| line.split_once(':').is_some_and(|(key, _)| wanted(key)));
+    fields.collect::<Vec<_>>().join("\n")
 }
 
 const fn entries_mut(plain: &mut IndexPlain, kind: Kind) -> &mut BTreeMap<String, IndexEntry> {
@@ -761,6 +759,100 @@ impl Client {
     }
 }
 
+/// A store decrypted from the recovery export.
+#[derive(Debug, Clone)]
+pub struct Recovered {
+    pub store: Id,
+    pub label: String,
+    pub values: BTreeMap<(Kind, String), ObjectPlain>,
+}
+
+/// Decrypts one store of the recovery export with the organization's
+/// offline recovery identity, verifying keys, index and objects against
+/// `log`.
+///
+/// # Errors
+///
+/// Fails when the organization has no recovery recipient, the identity does
+/// not open the keys, or anything does not verify.
+pub fn recover(
+    log: &OrgLog,
+    export: &pasejo_protocol::api::RecoveryStore,
+    identities: &[Box<dyn age::Identity>],
+) -> Result<Recovered> {
+    let recipient =
+        log.state().recovery.as_deref().ok_or_else(|| {
+            Error::Unavailable("the organization has no recovery recipient".into())
+        })?;
+    let ring = KeyRing::open(
+        log,
+        export.id,
+        recovery_id(recipient),
+        &export.keys,
+        identities,
+    )?;
+    let Some(envelope) = &export.index else {
+        return Ok(Recovered {
+            store: export.id,
+            label: String::new(),
+            values: BTreeMap::new(),
+        });
+    };
+    let payload = log.check_index(envelope)?;
+    check_chain(envelope, &payload, export.id, None)?;
+    let plain = open_index(
+        export.id,
+        payload.epoch,
+        payload.version,
+        &ring.epoch(payload.epoch)?.names,
+        &payload.index.0,
+    )?;
+    let objects: BTreeMap<(Id, u64), &SealedObject> = export
+        .objects
+        .iter()
+        .map(|object| ((object.id, object.version), object))
+        .collect();
+    let mut values = BTreeMap::new();
+    for kind in [Kind::Secret, Kind::Otp] {
+        for (name, entry) in entries(&plain, kind) {
+            let object = objects
+                .get(&(entry.id, entry.version))
+                .ok_or_else(|| Error::verification(format!("the export lacks {name}")))?;
+            if Hash::of(&object.ciphertext.0) != entry.hash {
+                return Err(Error::verification(format!(
+                    "{name} differs from the index"
+                )));
+            }
+            let data = ring.epoch(object.epoch)?.data()?;
+            let opened = open_object(
+                export.id,
+                object.epoch,
+                entry.id,
+                entry.version,
+                data,
+                &object.ciphertext.0,
+            )?;
+            values.insert((kind, name.clone()), opened);
+        }
+    }
+    Ok(Recovered {
+        store: export.id,
+        label: plain.label,
+        values,
+    })
+}
+
+impl Client {
+    /// Everything the recovery identity needs to decrypt every store.
+    ///
+    /// # Errors
+    ///
+    /// Fails for non-admins and organizations without a recovery recipient.
+    pub fn recovery_export(&self, org: Id) -> Result<pasejo_protocol::api::RecoveryExport> {
+        self.get(&format!("/v1/orgs/{org}/recovery"))
+    }
+}
+
 /// The identifier the log uses for the organization's recovery recipient.
 #[must_use]
 pub fn recovery_device(recipient: &str) -> Id {
@@ -866,7 +958,7 @@ mod tests {
         let sealed = draft.lookup.unwrap();
         assert_eq!(payload.lookup_hash, Some(Hash::of(&sealed)));
         let lookup = open_lookup(fixture.store, 0, 1, keys.data().unwrap(), &sealed).unwrap();
-        assert_eq!(lookup.secrets["db"], "\nurl: https://db.example");
+        assert_eq!(lookup.secrets["db"], "url: https://db.example");
         assert!(!lookup.secrets.contains_key("gh"));
     }
 
@@ -967,7 +1059,7 @@ mod tests {
         assert!(renamed.objects.is_empty());
         let moved =
             open_lookup(fixture.store, 0, 2, data, renamed.lookup.as_ref().unwrap()).unwrap();
-        assert_eq!(moved.secrets["new"], "\nuser: alice");
+        assert_eq!(moved.secrets["new"], "user: alice");
         let onto = Changes {
             renames: vec![(Kind::Secret, "old".into(), "taken".into())],
             ..Changes::default()
@@ -1142,9 +1234,16 @@ mod tests {
             "hunter2\nurl: https://example.com\nnote: private\nUser: alice\npasejo-fill: never\n";
         assert_eq!(
             lookup_text(secret, &settings),
-            "\nurl: https://example.com\nUser: alice\npasejo-fill: never"
+            "url: https://example.com\nUser: alice\npasejo-fill: never"
         );
         assert_eq!(lookup_text("only a password", &settings), "");
+        assert_eq!(
+            lookup_text(
+                "\n  \nurl: is the password\nurl: https://example.com",
+                &settings
+            ),
+            "url: https://example.com"
+        );
     }
 
     #[test]

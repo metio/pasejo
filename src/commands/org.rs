@@ -1,0 +1,562 @@
+// SPDX-FileCopyrightText: The pasejo Authors
+// SPDX-License-Identifier: 0BSD
+
+//! `pasejo org`: organizations, their devices, members, teams, settings,
+//! recovery and pending actions.
+
+use std::io::IsTerminal;
+
+use anyhow::Result;
+use pasejo_client::Error;
+use pasejo_client::actions::Outcome;
+use pasejo_protocol::Id;
+use pasejo_protocol::api::{Action, Enrollment, ErrorCode, UserSummary};
+use pasejo_protocol::device::org_fingerprint;
+use pasejo_protocol::encoding::{b64, unb64};
+use pasejo_protocol::log::{Approval, Body, OrgLog, Principal, RoleChange, Settings};
+
+use crate::cli::{i18n, prompts};
+use crate::models::cli::{
+    ApprovalArg, OrgActionsArgs, OrgApproveArgs, OrgCommands, OrgCosignArgs, OrgCreateArgs,
+    OrgJoinArgs, OrgRecoveryCommands, OrgRevokeArgs, OrgRoleArg, OrgRoleArgs, OrgSettingsArgs,
+    OrgTeamCommands,
+};
+use crate::models::configuration::{Configuration, OrgRegistration};
+use crate::remote::connect::{self, Remote, parse_id};
+use crate::remote::errors::Localize;
+
+pub fn dispatch(command: &OrgCommands, configuration: &Configuration) -> Result<()> {
+    match command {
+        OrgCommands::Actions(args) => actions(configuration, args),
+        OrgCommands::Approve(args) => approve(configuration, args),
+        OrgCommands::Cosign(args) => cosign(configuration, args),
+        OrgCommands::Create(args) => create(configuration, args),
+        OrgCommands::Devices(args) => devices(configuration, args.org.as_deref()),
+        OrgCommands::Join(args) => join(configuration, args),
+        OrgCommands::Proposals(args) => proposals(configuration, args.org.as_deref()),
+        OrgCommands::Recover(args) => crate::commands::recovery::recover(configuration, args),
+        OrgCommands::Recovery { command } => match command {
+            OrgRecoveryCommands::Set(args) => {
+                crate::remote::funnel::validate_recipient(&args.recipient)?;
+                let mut org = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+                org.change(Body::RecoverySet {
+                    recipient: Some(args.recipient.clone()),
+                })
+            }
+        },
+        OrgCommands::Revoke(args) => revoke(configuration, args),
+        OrgCommands::Role(args) => role(configuration, args),
+        OrgCommands::Settings(args) => settings(configuration, args),
+        OrgCommands::Stores(args) => {
+            crate::commands::remote_stores::list(configuration, args.org.as_deref())
+        }
+        OrgCommands::Team { command } => team(configuration, command),
+    }
+}
+
+/// An organization opened for a command: a signed-in client and the
+/// verified membership log.
+pub struct OrgContext {
+    pub remote: Remote,
+    pub org: OrgRegistration,
+    pub log: OrgLog,
+}
+
+impl OrgContext {
+    /// # Errors
+    ///
+    /// Fails when the organization is not registered, the device is not
+    /// signed in, or the log does not verify.
+    pub fn open(configuration: &Configuration, org: Option<&str>) -> Result<Self> {
+        let (server, org) = connect::org(configuration, org)?;
+        let remote = Remote::connect(server)?;
+        let log = remote.log(org)?;
+        Ok(Self {
+            remote,
+            org: org.clone(),
+            log,
+        })
+    }
+
+    pub const fn id(&self) -> Id {
+        self.log.state().org
+    }
+
+    /// The server's checkpoint key pinned at the first sign-in.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the pinned key is malformed.
+    pub fn server_key(&self) -> Result<[u8; 32]> {
+        unb64(&self.remote.server.checkpoint_key)
+            .ok()
+            .and_then(|bytes| bytes.try_into().ok())
+            .ok_or_else(|| {
+                anyhow::anyhow!(i18n::error_remote_invalid_id(
+                    &self.remote.server.checkpoint_key
+                ))
+            })
+    }
+
+    /// Appends `body`, or proposes it when it needs a second admin.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the log or the server refuses the change.
+    pub fn change(&mut self, body: Body) -> Result<()> {
+        let kind = body.kind();
+        match self.remote.client.append_fresh(&mut self.log, body.clone()) {
+            Ok(_) => {
+                self.remote.files.save_log(self.id(), &self.log)?;
+                i18n::remote_change_recorded(kind);
+                Ok(())
+            }
+            Err(Error::NeedsSecondAdmin) => {
+                let proposal = self.remote.client.propose(&self.log, body).localized()?;
+                i18n::remote_change_proposed(kind, &proposal.id.to_string());
+                Ok(())
+            }
+            Err(error) => Err(error).localized(),
+        }
+    }
+
+    /// The member or enrolling user with email address `email`.
+    ///
+    /// # Errors
+    ///
+    /// Fails when nobody in the organization uses the address.
+    pub fn user(&self, email: &str) -> Result<Id> {
+        let users = self.remote.client.users(self.id()).localized()?;
+        if let Some(user) = users
+            .iter()
+            .find(|user| user.email.eq_ignore_ascii_case(email))
+        {
+            return Ok(user.id);
+        }
+        let enrolling = self
+            .remote
+            .client
+            .enrollments(self.id())
+            .unwrap_or_default();
+        enrolling
+            .iter()
+            .find(|enrollment| enrollment.user_email.eq_ignore_ascii_case(email))
+            .map(|enrollment| enrollment.device.user)
+            .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_user(email)))
+    }
+
+    /// The team named `name`.
+    ///
+    /// # Errors
+    ///
+    /// Fails for unknown teams.
+    pub fn team(&self, name: &str) -> Result<Id> {
+        self.log
+            .state()
+            .teams
+            .iter()
+            .find(|(_, team)| team.name.eq_ignore_ascii_case(name))
+            .map(|(id, _)| *id)
+            .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_team(name)))
+    }
+
+    /// A member's email address, or team's name, for display.
+    pub fn describe(&self, principal: &Principal, users: &[UserSummary]) -> String {
+        match principal {
+            Principal::User(id) => users
+                .iter()
+                .find(|user| user.id == *id)
+                .map_or_else(|| id.to_string(), |user| user.email.clone()),
+            Principal::Team(id) => self
+                .log
+                .state()
+                .teams
+                .get(id)
+                .map_or_else(|| id.to_string(), |team| team.name.clone()),
+        }
+    }
+
+    /// The identities that open this organization's store keys: the global
+    /// ones.
+    ///
+    /// # Errors
+    ///
+    /// Fails when no identity is configured or one cannot be read.
+    pub fn identities(configuration: &Configuration) -> Result<Vec<Box<dyn age::Identity>>> {
+        configuration.read_identity_files(
+            configuration
+                .identities
+                .iter()
+                .map(|identity| identity.file.clone())
+                .collect(),
+        )
+    }
+}
+
+/// Compares `expected` with the fingerprint the user confirms: the given
+/// `--fingerprint`, or an interactive confirmation.
+fn confirm_fingerprint(expected: &str, given: Option<&str>) -> Result<()> {
+    let normalize = |text: &str| {
+        text.chars()
+            .filter(char::is_ascii_hexdigit)
+            .collect::<String>()
+            .to_ascii_lowercase()
+    };
+    match given {
+        Some(given) if normalize(given) == normalize(expected) => Ok(()),
+        Some(_) => anyhow::bail!(i18n::error_remote_fingerprint_mismatch(expected)),
+        None if std::io::stdin().is_terminal() => {
+            if prompts::get_confirmation_from_user(&i18n::prompt_remote_confirm_fingerprint(
+                expected,
+            ))? {
+                Ok(())
+            } else {
+                anyhow::bail!(i18n::error_remote_fingerprint_not_confirmed())
+            }
+        }
+        None => anyhow::bail!(i18n::error_remote_fingerprint_required(expected)),
+    }
+}
+
+fn create(configuration: &Configuration, args: &OrgCreateArgs) -> Result<()> {
+    let server = connect::server(configuration, args.server.as_deref())?;
+    let remote = Remote::connect(server)?;
+    let id = Id::random();
+    let log = remote
+        .client
+        .create_org(id, &args.name, Settings::default())
+        .localized()?;
+    remote.files.save_log(id, &log)?;
+    let mut configuration = configuration.clone();
+    let server_url = server.url.clone();
+    if let Some(registration) = configuration
+        .servers
+        .iter_mut()
+        .find(|registered| registered.url == server_url)
+    {
+        registration.orgs.push(OrgRegistration {
+            id: id.to_string(),
+            name: args.name.clone(),
+            genesis: b64(&log.genesis_hash().0),
+        });
+    }
+    configuration.save_configuration()?;
+    i18n::remote_org_created(
+        &args.name,
+        &id.to_string(),
+        &org_fingerprint(&log.genesis_hash()),
+    );
+    Ok(())
+}
+
+fn join(configuration: &Configuration, args: &OrgJoinArgs) -> Result<()> {
+    let server = connect::server(configuration, Some(&args.url))?;
+    let org = parse_id(&args.org)?;
+    let remote = Remote::connect(server)?;
+    let mut configuration = configuration.clone();
+    let registered = server
+        .orgs
+        .iter()
+        .find(|registered| registered.id == org.to_string())
+        .cloned();
+    let log = if let Some(registration) = &registered {
+        remote.log(registration)?
+    } else {
+        // Only members and enrolling devices may read the log, so the
+        // device asks to join before it sees the fingerprint. An
+        // enrollment in an organization whose fingerprint does not
+        // match stays unused: the organization is never registered.
+        enroll(&remote, org)?;
+        let log = remote.client.fetch_log(org, None, None).localized()?;
+        confirm_fingerprint(
+            &org_fingerprint(&log.genesis_hash()),
+            args.fingerprint.as_deref(),
+        )?;
+        remote.files.save_log(org, &log)?;
+        let server_url = server.url.clone();
+        if let Some(registration) = configuration
+            .servers
+            .iter_mut()
+            .find(|registered| registered.url == server_url)
+        {
+            registration.orgs.push(OrgRegistration {
+                id: org.to_string(),
+                name: log.state().name.clone(),
+                genesis: b64(&log.genesis_hash().0),
+            });
+        }
+        configuration.save_configuration()?;
+        log
+    };
+    let name = log.state().name.clone();
+    if log.state().active_device(remote.client.device.id).is_some() {
+        i18n::remote_device_active(&name);
+        return Ok(());
+    }
+    enroll(&remote, org)?;
+    i18n::remote_device_pending(
+        &name,
+        &remote.client.device.id.to_string(),
+        &remote.client.device.fingerprint(),
+    );
+    Ok(())
+}
+
+/// Asks the server to enroll this device in `org`; an existing enrollment
+/// counts as success.
+fn enroll(remote: &Remote, org: Id) -> Result<()> {
+    match remote.client.enroll(org) {
+        Ok(()) => Ok(()),
+        Err(error) if error.is(ErrorCode::Conflict) => Ok(()),
+        Err(error) => Err(error).localized(),
+    }
+}
+
+fn devices(configuration: &Configuration, org: Option<&str>) -> Result<()> {
+    let context = OrgContext::open(configuration, org)?;
+    let users = context.remote.client.users(context.id()).localized()?;
+    let email = |user: Id| {
+        users
+            .iter()
+            .find(|summary| summary.id == user)
+            .map_or_else(|| user.to_string(), |summary| summary.email.clone())
+    };
+    for (id, device) in &context.log.state().devices {
+        if device.active {
+            i18n::remote_device_line(
+                &id.to_string(),
+                &device.record.label,
+                &email(device.record.user),
+                &device.record.fingerprint(),
+                &i18n::remote_device_state_active(),
+            );
+        }
+    }
+    // Only admins and approvers see pending enrollments.
+    let enrollments: Vec<Enrollment> = context
+        .remote
+        .client
+        .enrollments(context.id())
+        .unwrap_or_default();
+    for enrollment in enrollments {
+        i18n::remote_device_line(
+            &enrollment.device.id.to_string(),
+            &enrollment.device.label,
+            &enrollment.user_email,
+            &enrollment.fingerprint,
+            &i18n::remote_device_state_pending(),
+        );
+    }
+    Ok(())
+}
+
+fn approve(configuration: &Configuration, args: &OrgApproveArgs) -> Result<()> {
+    let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let device = parse_id(&args.device)?;
+    let enrollment = context
+        .remote
+        .client
+        .enrollments(context.id())
+        .localized()?
+        .into_iter()
+        .find(|enrollment| enrollment.device.id == device)
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_device(&args.device)))?;
+    confirm_fingerprint(&enrollment.fingerprint, args.fingerprint.as_deref())?;
+    if !context
+        .log
+        .state()
+        .members
+        .contains_key(&enrollment.device.user)
+    {
+        anyhow::bail!(i18n::error_remote_device_user_not_member(
+            &enrollment.user_email
+        ));
+    }
+    context.change(Body::DeviceAdd {
+        device: enrollment.device,
+    })
+}
+
+fn revoke(configuration: &Configuration, args: &OrgRevokeArgs) -> Result<()> {
+    let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let device = parse_id(&args.device)?;
+    if context.log.state().active_device(device).is_none() {
+        anyhow::bail!(i18n::error_remote_unknown_device(&args.device));
+    }
+    context.change(Body::DeviceRevoke { device })
+}
+
+fn role(configuration: &Configuration, args: &OrgRoleArgs) -> Result<()> {
+    let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let user = context.user(&args.user)?;
+    let role = match args.role {
+        OrgRoleArg::Admin => RoleChange::Admin,
+        OrgRoleArg::Approver => RoleChange::Approver,
+        OrgRoleArg::Auditor => RoleChange::Auditor,
+        OrgRoleArg::Member => RoleChange::Member,
+        OrgRoleArg::None => RoleChange::None,
+    };
+    context.change(Body::MemberRole { user, role })
+}
+
+fn settings(configuration: &Configuration, args: &OrgSettingsArgs) -> Result<()> {
+    let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let current = context.log.state().settings;
+    let settings = Settings {
+        device_approval: args
+            .device_approval
+            .map_or(current.device_approval, |approval| match approval {
+                ApprovalArg::Manual => Approval::Manual,
+                ApprovalArg::Automatic => Approval::Automatic,
+            }),
+        two_admin: args.two_admin.unwrap_or(current.two_admin),
+        auto_join: args.auto_join.unwrap_or(current.auto_join),
+    };
+    if settings == current {
+        i18n::remote_settings_unchanged();
+        return Ok(());
+    }
+    context.change(Body::OrgSettings { settings })
+}
+
+fn team(configuration: &Configuration, command: &OrgTeamCommands) -> Result<()> {
+    match command {
+        OrgTeamCommands::Create(args) => {
+            let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+            if context.team(&args.name).is_ok() {
+                anyhow::bail!(i18n::error_remote_team_exists(&args.name));
+            }
+            context.change(Body::TeamCreate {
+                team: Id::random(),
+                name: args.name.clone(),
+            })
+        }
+        OrgTeamCommands::Add(args) | OrgTeamCommands::Remove(args) => {
+            let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+            let team = context.team(&args.team)?;
+            let user = context.user(&args.user)?;
+            let member = matches!(command, OrgTeamCommands::Add(_));
+            context.change(Body::TeamMember { team, user, member })
+        }
+    }
+}
+
+fn proposals(configuration: &Configuration, org: Option<&str>) -> Result<()> {
+    let context = OrgContext::open(configuration, org)?;
+    let proposals = context.remote.client.proposals(context.id()).localized()?;
+    if proposals.is_empty() {
+        i18n::remote_no_proposals();
+    }
+    let devices = &context.log.state().devices;
+    for (proposal, entry) in proposals {
+        let author = devices.get(&entry.author).map_or_else(
+            || entry.author.to_string(),
+            |device| device.record.label.clone(),
+        );
+        i18n::remote_proposal_line(&proposal.id.to_string(), entry.body.kind(), &author);
+    }
+    Ok(())
+}
+
+fn cosign(configuration: &Configuration, args: &OrgCosignArgs) -> Result<()> {
+    let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let id = parse_id(&args.proposal)?;
+    let (proposal, entry) = context
+        .remote
+        .client
+        .proposals(context.id())
+        .localized()?
+        .into_iter()
+        .find(|(proposal, _)| proposal.id == id)
+        .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_proposal(&args.proposal)))?;
+    context
+        .remote
+        .client
+        .cosign_proposal(&mut context.log, &proposal)
+        .localized()?;
+    context.remote.files.save_log(context.id(), &context.log)?;
+    i18n::remote_change_recorded(entry.body.kind());
+    Ok(())
+}
+
+/// One line describing a pending action.
+fn describe_action(context: &OrgContext, action: &Action, users: &[UserSummary]) -> String {
+    let user = |id: &Id| context.describe(&Principal::User(*id), users);
+    match action {
+        Action::ApproveDevice { enrollment } => i18n::remote_action_approve_device(
+            &enrollment.device.label,
+            &enrollment.user_email,
+            &enrollment.fingerprint,
+        ),
+        Action::JoinMember { email, .. } => i18n::remote_action_join_member(email),
+        Action::RemoveMember { user: id } => i18n::remote_action_remove_member(&user(id)),
+        Action::SyncTeam { name, .. } => i18n::remote_action_sync_team(name),
+        Action::RotateEpoch { store, .. } => i18n::remote_action_rotate_epoch(&store.to_string()),
+        Action::WrapKeys { store, devices, .. } => {
+            i18n::remote_action_wrap_keys(&store.to_string(), &devices.len().to_string())
+        }
+        Action::RevokeExpired { store, principal }
+        | Action::RevokeGrant {
+            store, principal, ..
+        } => i18n::remote_action_revoke_grant(
+            &context.describe(principal, users),
+            &store.to_string(),
+        ),
+        Action::CosignCheckpoint { seq } => i18n::remote_action_cosign_checkpoint(&seq.to_string()),
+    }
+}
+
+/// Prints the outcome of every action run.
+pub fn report(context: &OrgContext, outcomes: &[Outcome], users: &[UserSummary]) {
+    for outcome in outcomes {
+        match outcome {
+            Outcome::Done(action) => {
+                i18n::remote_action_done(&describe_action(context, action, users));
+            }
+            Outcome::Skipped(action, reason) => {
+                i18n::remote_action_skipped(&describe_action(context, action, users), reason);
+            }
+            Outcome::Failed(action, error) => i18n::remote_action_failed(
+                &describe_action(context, action, users),
+                &format!(
+                    "{:#}",
+                    anyhow::anyhow!(crate::remote::errors::message(error))
+                ),
+            ),
+        }
+    }
+}
+
+fn actions(configuration: &Configuration, args: &OrgActionsArgs) -> Result<()> {
+    let mut context = OrgContext::open(configuration, args.org_selection.org.as_deref())?;
+    let users = context.remote.client.users(context.id()).localized()?;
+    if args.run {
+        let identities = OrgContext::identities(configuration)?;
+        let key = context.server_key()?;
+        let outcomes = context
+            .remote
+            .client
+            .run_actions(&mut context.log, &identities, &key)
+            .localized()?;
+        context.remote.files.save_log(context.id(), &context.log)?;
+        if outcomes.is_empty() {
+            i18n::remote_no_actions();
+        }
+        report(&context, &outcomes, &users);
+        if outcomes
+            .iter()
+            .any(|outcome| matches!(outcome, Outcome::Failed(..)))
+        {
+            anyhow::bail!(i18n::error_remote_actions_failed());
+        }
+        return Ok(());
+    }
+    let pending = context.remote.client.actions(context.id()).localized()?;
+    if pending.is_empty() {
+        i18n::remote_no_actions();
+    }
+    for action in &pending {
+        i18n::remote_action_pending(&describe_action(&context, action, &users));
+    }
+    Ok(())
+}

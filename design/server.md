@@ -252,7 +252,7 @@ Clients check five things:
 
 ### Lookup object
 
-The lookup object holds, per secret name, the values of the store's lookup fields: by default the URL keys `uri url link site` and the username keys `username user login email`. It is encrypted under `D_e`, and its hash sits in the index. The browser host's query phase reads it instead of every secret, so a query is audited as one lookup and a fill as one object fetch. The lookup keys are store settings kept in the encrypted index:
+The lookup object holds, per secret name, the lines of the secret that carry its lookup fields and the browser policy fields `pasejo-fill` and `pasejo-confirm`: by default the URL keys `uri url link site` and the username keys `username user login email`. The password line, the first non-blank line, is never included; a reader that parses a lookup text as a secret puts a placeholder password line above it. It is encrypted under `D_e`, and its hash sits in the index. The browser host's query phase reads it instead of every secret, so a query is audited as one lookup and a fill as one object fetch. The lookup keys are store settings kept in the encrypted index:
 
 ```json
 {"settings": {"uri_keys": ["uri", "url", "link", "site"], "username_keys": ["username", "user", "login", "email"]}}
@@ -301,13 +301,13 @@ The server refuses entries that fail replay, and entries whose `time` lies more 
 
 **Split views.** A server could show different logs to different clients. Every index version and every log entry names its author's log head. A client rejects an index or entry whose `log_head` is not part of its own verified chain, so two diverging views are detected the first time they interact. The organization's co-signature on audit checkpoints, which includes the log head, extends the check to auditors.
 
-**Pinning.** `pasejo org join` fetches the genesis entry and shows its fingerprint for comparison over another channel, or takes it as `--fingerprint`. Clients store the genesis hash, and every later replay must start from it.
+**Pinning.** `pasejo org join` enrolls the device, then fetches the log and shows the fingerprint of its genesis entry, the first 20 bytes of the entry's hash grouped like a device fingerprint, for comparison over another channel, or takes it as `--fingerprint`. Only members and enrolling devices may read the log, so enrollment comes first; a device whose comparison fails never registers the organization, and its enrollment stays unused. Clients store the genesis hash, and every later replay must start from it.
 
 ## Device enrollment
 
 1. **Key generation.** The client generates its device keys and signs in. The session is bound to the signing key at once, and the device starts out pending.
 2. **Pending.** A pending device may read the membership log and its own enrollment status, and nothing else.
-3. **Approval.** In `manual` mode, an admin or approver approves the device in the CLI or the console. In strict comparison, the approver compares the device fingerprint shown on both screens before signing `device.add`. A user who already has an active device can approve further devices from it. In `automatic` mode, an admin machine device running `pasejo org actions run` approves pending devices of organization members automatically. A compromised server or identity provider could then enroll a device of its own. This is the same trust that any server holding keys would receive, so `automatic` is a separate setting and `manual` is the default.
+3. **Approval.** In `manual` mode, an admin or approver approves the device in the CLI or the console. In strict comparison, the approver compares the device fingerprint shown on both screens before signing `device.add`. A user who already has an active device can approve further devices from it. In `automatic` mode, an admin machine device running `pasejo org actions --run` approves pending devices of organization members automatically. A compromised server or identity provider could then enroll a device of its own. This is the same trust that any server holding keys would receive, so `automatic` is a separate setting and `manual` is the default.
 
 ## Authentication
 
@@ -378,7 +378,7 @@ The server signs nothing, so changes that need a signature surface as pending ac
 | `revoke-grant` | `revoke` decisions of access reviews | `store.grant none` |
 | `cosign-checkpoint` | audit checkpoints the organization has not co-signed | co-signature |
 
-`pasejo org actions run` executes every action its device has the rights and keys for. An organization that wants SCIM and automatic approval to take effect without a person runs it on a schedule as an admin machine. The console executes the same actions after a click.
+`pasejo org actions --run` executes every action its device has the rights and keys for. An organization that wants SCIM and automatic approval to take effect without a person runs it on a schedule as an admin machine. The console executes the same actions after a click.
 
 ## Sync protocol
 
@@ -405,6 +405,7 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 | `POST /orgs/{org}/stores/{store}/objects` | fetch objects by identifier and version; one audit event each |
 | `POST /orgs/{org}/stores/{store}/commits` | commit an index version with its objects |
 | `GET /orgs/{org}/stores/{store}/rotation?user={id}` | secrets the user could read or did read since their access ended, and whether each was rewritten since |
+| `GET /orgs/{org}/recovery` | every store's recovery wrappings, epoch chain, current index and current objects; admins only |
 | `GET /orgs/{org}/audit`, `GET /orgs/{org}/audit/checkpoints`, `POST /orgs/{org}/audit/checkpoints/{seq}/cosign` | audit |
 | `POST /orgs/{org}/reviews`, `GET /orgs/{org}/reviews`, `POST /orgs/{org}/reviews/{id}/decisions` | access reviews |
 | `POST /orgs/{org}/scim-tokens`, `GET /orgs/{org}/scim-tokens`, `DELETE /orgs/{org}/scim-tokens/{id}` | SCIM tokens |
@@ -479,8 +480,8 @@ Each event carries a sequence number, time, organization, actor user, actor devi
 
 - **Append-only storage.** The events table only ever receives inserts. Each event stores the hash of its predecessor and its own hash, which is SHA-256 over the predecessor's hash and the event's serialized fields.
 - **Checkpoints.** Every 1,000 events, and at least hourly when events occurred, the server signs a checkpoint with its Ed25519 key. A checkpoint names the organization, the sequence number, the event hash, the membership log head and the time. The server's own chain, which records events outside any organization such as sign-ins, break-glass use and refusals for unknown organizations, has checkpoints without an organization and without a log head.
-- **Co-signatures.** Organization devices may co-sign checkpoints, and `pasejo org actions run` co-signs every checkpoint whose log head the device verified. A server that later rewrites events or presents a forked log then contradicts a signature it cannot produce.
-- **Verification.** `pasejo audit verify` recomputes the chain from the last checkpoint the client trusts and checks the server's and the organization's signatures. The server's public key is pinned when the client joins.
+- **Co-signatures.** Organization devices may co-sign checkpoints, and `pasejo org actions --run` co-signs every checkpoint whose log head the device verified. A server that later rewrites events or presents a forked log then contradicts a signature it cannot produce.
+- **Verification.** `pasejo audit verify` recomputes the chain from the last checkpoint the client trusts and checks the server's and the organization's signatures. The server's checkpoint key is pinned at the device's first sign-in to the server, and a later sign-in that sees another key fails.
 
 ### Names
 
@@ -519,7 +520,7 @@ While the window is open, devices that are active in some organization's log can
 
 ### Organization recovery recipient
 
-`recovery.set` names an age recipient whose identity the organization keeps offline, for example printed and split among officers. Every store's full wrapping set includes it, under the device identifier `recovery_id`, the first 16 bytes of `SHA-256("pasejo recovery v1" ‖ 0x00 ‖ recipient)`. `pasejo org recover --identity FILE` decrypts every store the recipient can reach and writes each one as a file store. It needs only read access to the ciphertext, which a break-glass session or any member's session provides.
+`recovery.set` names an age recipient whose identity the organization keeps offline, for example printed and split among officers. Every store's full wrapping set includes it, under the device identifier `recovery_id`, the first 16 bytes of `SHA-256("pasejo recovery v1" ‖ 0x00 ‖ recipient)`. `pasejo org recover --identity FILE --output DIR` fetches `GET /orgs/{org}/recovery`, which returns, for every store, the recovery recipient's wrappings, the epoch chain, the current index and the current version of every object. It decrypts each store with the recovery identity, checks keys, index and objects as a device would, and writes each one as a file store encrypted to the recovery recipient. The export is for admins, and each attempt is audited as `recovery.export`. Break-glass sessions read no organization data, the log included, and the log is what the export is verified against; when every admin device is lost, the emergency window admits an existing device again.
 
 ## Kubernetes
 
@@ -569,9 +570,10 @@ The server serves the console under `/console/` as static HTML, CSS and JavaScri
 
 - **Registration.** `StoreRegistration` gains a `remote` table: server URL, organization and store identifier. The file path becomes the store's cache directory.
 - **Fetch plan.** Commands declare what they read, through a fetch plan given to `with_store`:
-  - names only: `list`, completion;
-  - named secrets: `show`, `copy`, `edit`, `move`, `otp show`;
-  - everything: `grep`, `export`, `audit`.
+  - names only: `secret list`, `secret remove`, `otp list`, `otp remove`;
+  - named entries: `secret show`, `secret add`, `secret generate`, `secret edit`, `secret copy`, `secret move`, the `otp` commands that read or write one entry, `secret resolve` and `exec`;
+  - the lookup object: `browser query`;
+  - everything: `secret grep`, `secret audit`, `export`, `store decrypt`.
 
   For a remote store, the funnel fetches that much into a `PasswordStore`, runs the command's closure, and turns the difference into a commit. A removed name whose value reappears under a new name becomes a rename that keeps the identifier. File stores ignore the plan.
 - **Existing interfaces.** `secret resolve`, `exec`, the fnox plugin, breto and the browser host keep their interfaces. The browser host reads the lookup object for a query and one object for a reveal.
@@ -579,16 +581,19 @@ The server serves the console under `/console/` as static HTML, CSS and JavaScri
 
 | Command | Purpose |
 |---|---|
-| `pasejo server login URL`, `pasejo server logout URL`, `pasejo server status` | sessions |
-| `pasejo org create NAME`, `pasejo org join URL ORG [--fingerprint F]` | organizations |
+| `pasejo server login URL [--label L] [--recipient R] [--workload-token FILE]`, `pasejo server logout [URL] [--forget]`, `pasejo server status` | sessions |
+| `pasejo org create NAME`, `pasejo org join URL ORG [--fingerprint F]`, `pasejo org stores` | organizations |
 | `pasejo org devices`, `pasejo org approve DEVICE [--fingerprint F]`, `pasejo org revoke DEVICE` | devices |
 | `pasejo org role USER ROLE`, `pasejo org settings ...`, `pasejo org recovery set RECIPIENT`, `pasejo org recover --identity FILE --output DIR` | administration |
+| `pasejo org proposals`, `pasejo org cosign PROPOSAL` | two-admin changes |
 | `pasejo org team create NAME`, `pasejo org team add TEAM USER`, `pasejo org team remove TEAM USER` | teams |
 | `pasejo org actions [--run]` | pending actions |
-| `pasejo store create-remote LABEL --org ORG`, `pasejo store grant STORE PRINCIPAL ROLE [--expires DATE]`, `pasejo store rekey`, `pasejo store rotation USER`, `pasejo store migrate --to-remote ORG` | remote stores |
-| `pasejo audit log [--store S] [--since T]`, `pasejo audit verify` | audit |
+| `pasejo store create-remote LABEL [--org ORG]`, `pasejo store add-remote STORE --name NAME`, `pasejo store grant PRINCIPAL ROLE [--expires DATE]`, `pasejo store rekey`, `pasejo store rotation USER`, `pasejo store migrate --to-remote ORG` | remote stores |
+| `pasejo audit log [--store S] [--since SEQ]`, `pasejo audit verify` | audit |
 
-- **Inapplicable commands.** `pasejo recipient` and the hook commands report that they do not apply to remote stores.
+Commands taking one organization accept `--org` with a name or identifier and default to the only registered one. A change the log rejects for lack of a second admin is proposed instead, and the proposal's identifier is printed. `store grant` runs its store's key wrapping and rotation actions itself.
+
+- **Inapplicable commands.** `pasejo recipient`, the hook commands and `store merge` report that they do not apply to remote stores.
 - **HTTP.** The CLI talks HTTP through `ureq`, which it already depends on, so it needs no async runtime.
 
 ## Server

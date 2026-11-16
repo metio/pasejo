@@ -6,7 +6,10 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use crate::cli::i18n;
-use crate::commands::store_op::{OpenStore, StoreMutation, open_or_create_store, with_store};
+use crate::commands::store_op::{
+    OpenStore, StoreMutation, open_or_create_store, push, require_file_store, require_store,
+    with_store,
+};
 use crate::models::cli::RecipientCommands;
 use crate::models::configuration::{
     Configuration, DEFAULT_KEY_DOWNLOAD_TIMEOUT_SECONDS, encrypt_store,
@@ -20,6 +23,12 @@ pub fn dispatch(
     configuration: &Configuration,
     offline: bool,
 ) -> Result<()> {
+    let store_name = match command {
+        RecipientCommands::Add(args) => args.store_selection.store.as_ref(),
+        RecipientCommands::Remove(args) => args.store_selection.store.as_ref(),
+        RecipientCommands::List(args) => args.store_selection.store.as_ref(),
+    };
+    require_file_store(require_store(configuration, store_name)?)?;
     match command {
         RecipientCommands::Add(args) => {
             let download_timeout = Duration::from_secs(
@@ -66,6 +75,7 @@ fn add(
         hooks,
         lock,
         mut store,
+        ..
     } = open_or_create_store(configuration, store_name, offline)?;
 
     for public_key in public_keys {
@@ -96,7 +106,7 @@ fn add(
         i18n::no_identities_exist_yet(&registration.name);
     }
 
-    hooks.execute_push_commands()?;
+    push(hooks.as_ref())?;
     Ok(())
 }
 

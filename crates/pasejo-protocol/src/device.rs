@@ -118,7 +118,20 @@ pub fn fingerprint(kind: DeviceKind, recipient: &str, signing_key: &[u8; 32]) ->
     digest.update(recipient.as_bytes());
     digest.update([0]);
     digest.update(signing_key);
-    let hash = digest.finalize();
+    groups(&digest.finalize())
+}
+
+/// An organization's fingerprint: the first 20 bytes of its genesis entry's
+/// hash, grouped like a device fingerprint. Members compare it over another
+/// channel when they join.
+#[must_use]
+pub fn org_fingerprint(genesis: &crate::encoding::Hash) -> String {
+    groups(&genesis.0)
+}
+
+/// The first 20 bytes of `hash` as five groups of eight hexadecimal
+/// characters.
+fn groups(hash: &[u8]) -> String {
     let mut text = String::with_capacity(44);
     for (index, byte) in hash[..20].iter().enumerate() {
         if index > 0 && index % 4 == 0 {
@@ -148,6 +161,17 @@ pub fn recovery_id(recipient: &str) -> Id {
 mod tests {
     use super::*;
     use crate::encoding::b64;
+
+    #[test]
+    fn org_fingerprints_group_the_genesis_hash() {
+        let hash = crate::encoding::Hash(core::array::from_fn(|index| {
+            u8::try_from(index).unwrap_or(0)
+        }));
+        assert_eq!(
+            org_fingerprint(&hash),
+            "00010203 04050607 08090a0b 0c0d0e0f 10111213"
+        );
+    }
 
     fn record() -> DeviceRecord {
         DeviceRecord {

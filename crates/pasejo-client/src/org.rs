@@ -105,7 +105,7 @@ impl Client {
     pub fn append(&self, log: &mut OrgLog, body: Body) -> Result<Appended> {
         let envelope = seal_entry(&self.entry(log, body), &self.device.signing_key)?;
         let mut trial = log.clone();
-        trial.append(envelope.clone())?;
+        trial.append(envelope.clone()).map_err(Error::refused)?;
         let org = log.state().org;
         let appended: Appended = self.call(
             "POST",

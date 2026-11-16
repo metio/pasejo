@@ -258,7 +258,7 @@ async fn a_store_round_trips_between_two_members() {
     let lookup = sync(|| bob.client.lookup(&bob_log, &bob_ring, &bob_view)).unwrap();
     assert_eq!(
         lookup.secrets["db/prod"],
-        "\nurl: https://db.example.com\nuser: admin"
+        "url: https://db.example.com\nuser: admin"
     );
     assert_eq!(lookup.secrets["api"], "");
     let values = sync(|| {
@@ -574,7 +574,7 @@ async fn two_admin_changes_go_through_proposals() {
     };
     let error = sync(|| alice.client.append(&mut log, promote.clone())).unwrap_err();
     assert!(
-        matches!(error, pasejo_client::Error::Verification(_)),
+        matches!(error, pasejo_client::Error::NeedsSecondAdmin),
         "{error}"
     );
     let proposal = sync(|| alice.client.propose(&log, promote.clone())).unwrap();
@@ -741,6 +741,40 @@ async fn the_audit_trail_verifies_and_detects_tampering() {
     })
     .unwrap();
     assert!(again.events < verified.events);
+    assert_eq!(again.cosignatures, checkpoints.len(), "{again:?}");
+
+    // A forged co-signature, or one by a device the log does not name,
+    // breaks verification.
+    let seq = i64::try_from(checkpoints[0].seq).unwrap();
+    let mut forged = checkpoints[0].checkpoint.cosignatures.clone();
+    forged[0].signature = pasejo_protocol::encoding::Fixed([7; 64]);
+    let set_cosignatures = |value: String| {
+        let harness = &harness;
+        async move {
+            sqlx::query(
+                &harness
+                    .state
+                    .db
+                    .sql("UPDATE checkpoints SET cosignatures = $1 WHERE chain = $2 AND seq = $3"),
+            )
+            .bind(value)
+            .bind(org.to_string())
+            .bind(seq)
+            .execute(harness.state.db.pool())
+            .await
+            .unwrap();
+        }
+    };
+    set_cosignatures(serde_json::to_string(&forged).unwrap()).await;
+    let error = sync(|| alice.client.verify_audit(org, &key, Some(&log), None)).unwrap_err();
+    assert!(error.to_string().contains("does not verify"), "{error}");
+    forged[0].device = Id::random();
+    set_cosignatures(serde_json::to_string(&forged).unwrap()).await;
+    let error = sync(|| alice.client.verify_audit(org, &key, Some(&log), None)).unwrap_err();
+    assert!(error.to_string().contains("unknown device"), "{error}");
+    // Without a log there is nothing to check co-signatures against.
+    assert!(sync(|| alice.client.verify_audit(org, &key, None, None)).is_ok());
+    set_cosignatures(serde_json::to_string(&checkpoints[0].checkpoint.cosignatures).unwrap()).await;
 
     // Rewriting a stored event breaks verification.
     let (seq, text): (i64, String) =
@@ -1111,4 +1145,133 @@ async fn settings_changes_rewrite_lookup_texts() {
     assert_eq!(after.plain.settings.uri_keys, ["homepage"]);
     let lookup = sync(|| s.alice.client.lookup(&s.log, &ring, &after)).unwrap();
     assert_eq!(lookup.secrets["one"], "");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_recovery_identity_opens_every_store_and_only_admins_export_them() {
+    let mut s = shared().await;
+    let none = sync(|| s.alice.client.recovery_export(s.org)).unwrap_err();
+    assert!(none.is(ErrorCode::NotFound), "{none}");
+
+    let recovery = age::x25519::Identity::generate();
+    let recipient = recovery.to_public().to_string();
+    sync(|| {
+        s.alice.client.append_fresh(
+            &mut s.log,
+            Body::RecoverySet {
+                recipient: Some(recipient.clone()),
+            },
+        )
+    })
+    .unwrap();
+    sync(|| {
+        s.alice
+            .client
+            .run_actions(&mut s.log, &s.alice.identities(), &[0; 32])
+    })
+    .unwrap();
+
+    let ring = sync(|| s.alice.client.keys(&s.log, s.store, &s.alice.identities())).unwrap();
+    let view = sync(|| s.alice.client.index(&s.log, &ring, None)).unwrap();
+    let mut changes = Changes::default();
+    changes.secrets.insert("one".into(), Some("1 again".into()));
+    changes.otp.insert("code".into(), Some(totp()));
+    sync(|| s.alice.client.commit(&s.log, &ring, &view, &changes)).unwrap();
+    let (_, empty) = sync(|| s.alice.client.create_store(&mut s.log, "empty")).unwrap();
+    sync(|| {
+        s.alice
+            .client
+            .run_actions(&mut s.log, &s.alice.identities(), &[0; 32])
+    })
+    .unwrap();
+
+    let denied = sync(|| s.bob.client.recovery_export(s.org)).unwrap_err();
+    assert!(denied.is(ErrorCode::Forbidden), "{denied}");
+
+    let export = sync(|| s.alice.client.recovery_export(s.org)).unwrap();
+    assert_eq!(export.stores.len(), 2);
+    let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(recovery)];
+    let recovered: Vec<_> = export
+        .stores
+        .iter()
+        .map(|store| pasejo_client::store::recover(&s.log, store, &identities).unwrap())
+        .collect();
+    let team = recovered
+        .iter()
+        .find(|store| store.store == s.store)
+        .unwrap();
+    assert_eq!(team.label, "s");
+    assert_eq!(
+        team.values[&(Kind::Secret, "one".into())],
+        secret("1 again")
+    );
+    assert_eq!(team.values[&(Kind::Secret, "two".into())], secret("2"));
+    assert_eq!(
+        team.values[&(Kind::Otp, "code".into())],
+        ObjectPlain::Otp { otp: totp() }
+    );
+    let fresh = recovered
+        .iter()
+        .find(|store| store.store == empty.store)
+        .unwrap();
+    assert_eq!(fresh.label, "empty");
+    assert!(fresh.values.is_empty());
+    // Only the current version of each object travels.
+    let exported = export
+        .stores
+        .iter()
+        .find(|store| store.id == s.store)
+        .unwrap();
+    assert_eq!(exported.objects.len(), 3);
+
+    let alice_identities = s.alice.identities();
+    let wrong = pasejo_client::store::recover(&s.log, exported, &alice_identities);
+    assert!(
+        wrong.is_err(),
+        "a member's own identity does not open the recovery wrapping"
+    );
+
+    let events = sync(|| s.alice.client.audit_events(s.org, 0)).unwrap();
+    let outcomes: Vec<&str> = events
+        .iter()
+        .filter(|event| event.action == "recovery.export")
+        .map(|event| event.outcome.as_str())
+        .collect();
+    assert!(outcomes.contains(&"ok"), "{outcomes:?}");
+    assert!(outcomes.contains(&"denied"), "{outcomes:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_recovery_export_with_a_withheld_object_is_detected() {
+    let mut s = shared().await;
+    let recovery = age::x25519::Identity::generate();
+    sync(|| {
+        s.alice.client.append_fresh(
+            &mut s.log,
+            Body::RecoverySet {
+                recipient: Some(recovery.to_public().to_string()),
+            },
+        )
+    })
+    .unwrap();
+    sync(|| {
+        s.alice
+            .client
+            .run_actions(&mut s.log, &s.alice.identities(), &[0; 32])
+    })
+    .unwrap();
+    let mut export = sync(|| s.alice.client.recovery_export(s.org)).unwrap();
+    let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(recovery)];
+    let store = export
+        .stores
+        .iter_mut()
+        .find(|store| store.id == s.store)
+        .unwrap();
+    assert!(pasejo_client::store::recover(&s.log, store, &identities).is_ok());
+    store.objects.pop();
+    let withheld = pasejo_client::store::recover(&s.log, store, &identities).unwrap_err();
+    assert!(
+        matches!(withheld, pasejo_client::Error::Verification(_)),
+        "{withheld}"
+    );
 }

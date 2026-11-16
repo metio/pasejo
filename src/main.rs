@@ -11,6 +11,7 @@ mod identities;
 mod models;
 mod one_time_passwords;
 mod recipients;
+mod remote;
 mod secrets;
 
 use anyhow::Result;
@@ -48,6 +49,7 @@ fn main() -> Result<()> {
     let configuration = Configuration::cached()?;
 
     match &cli.command {
+        Commands::Audit { command } => commands::audit::dispatch(command, configuration),
         Commands::Browser { command } => {
             commands::browser::dispatch(command, configuration, cli.offline)
         }
@@ -58,6 +60,7 @@ fn main() -> Result<()> {
         }
         Commands::Hook { command } => commands::hooks::dispatch(command, configuration),
         Commands::Identity { command } => commands::identities::dispatch(command, configuration),
+        Commands::Org { command } => commands::org::dispatch(command, configuration),
         Commands::Otp { command } => {
             commands::one_time_passwords::dispatch(command, &cli, configuration)
         }
@@ -67,6 +70,7 @@ fn main() -> Result<()> {
         Commands::Secret { command } => {
             commands::secrets::dispatch(command, configuration, cli.offline)
         }
+        Commands::Server { command } => commands::server::dispatch(command, configuration),
         Commands::Store { command } => stores::dispatch(command, configuration, cli.offline),
     }
 }

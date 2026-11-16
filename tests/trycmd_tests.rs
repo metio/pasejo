@@ -158,6 +158,11 @@ fn cli_tests_docs() {
 /// whenever you add a new message family to `cli/i18n.rs`; the English
 /// `cli_tests_*` functions stay comprehensive.
 #[test]
+fn cli_tests_remote() {
+    english_test_cases().case("tests/cmd/remote/*.md");
+}
+
+#[test]
 #[cfg(not(windows))]
 fn cli_tests_de() {
     test_cases("de").case("tests/cmd-de/**/*.md");

@@ -9,7 +9,10 @@ use anyhow::Context;
 use zeroize::Zeroizing;
 
 use crate::cli::i18n;
-use crate::commands::store_op::{acquire_store_lock, open_store, require_store};
+use crate::commands::remote_stores;
+use crate::commands::store_op::{
+    acquire_store_lock, open_store, require_file_store, require_store,
+};
 use crate::models::cli::StoreCommands;
 use crate::models::configuration::{Configuration, encrypt_store_to_path};
 use crate::{one_time_passwords, recipients, secrets};
@@ -55,6 +58,12 @@ pub fn dispatch(
             args.store_selection.store.as_ref(),
             &args.command,
         ),
+        StoreCommands::CreateRemote(args) => remote_stores::create(configuration, args),
+        StoreCommands::AddRemote(args) => remote_stores::add(configuration, args),
+        StoreCommands::Grant(args) => remote_stores::grant(configuration, args),
+        StoreCommands::Rekey(args) => remote_stores::rekey(configuration, args.store.as_ref()),
+        StoreCommands::Rotation(args) => remote_stores::rotation(configuration, args),
+        StoreCommands::Migrate(args) => remote_stores::migrate(configuration, args, offline),
     }
 }
 
@@ -93,7 +102,11 @@ fn remove(
     remove_data: bool,
 ) -> anyhow::Result<()> {
     let registration = require_store(configuration, store_name)?;
-    let (name, path) = (registration.name.clone(), registration.path.clone());
+    let (name, path, remote) = (
+        registration.name.clone(),
+        registration.path.clone(),
+        registration.remote.is_some(),
+    );
 
     // The configuration holds the only reference to the store's path, so
     // the file must be deleted before the registration is erased. A delete
@@ -102,7 +115,11 @@ fn remove(
     // then the config save fails — leaves a registration pointing at a
     // missing file; that is the deliberately-chosen lesser evil, since the
     // config save is atomic and far less likely to fail than the unlink.)
-    let deleted = delete_store_file_if_requested(&path, remove_data)?;
+    let deleted = if remote {
+        delete_cache_dir_if_requested(&path, remove_data)?
+    } else {
+        delete_store_file_if_requested(&path, remove_data)?
+    };
     configuration.remove_store(&name)?;
     // Distinct message when the encrypted data file was actually deleted —
     // an irreversible action that the plain "removed" line would hide.
@@ -118,6 +135,16 @@ fn remove(
 fn delete_store_file_if_requested(path: &Path, remove_data: bool) -> anyhow::Result<bool> {
     if remove_data && path.exists() {
         fs::remove_file(path)?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+/// Returns whether the cache directory of a remote store was deleted. The
+/// store on the server stays.
+fn delete_cache_dir_if_requested(path: &Path, remove_data: bool) -> anyhow::Result<bool> {
+    if remove_data && path.is_dir() {
+        fs::remove_dir_all(path)?;
         return Ok(true);
     }
     Ok(false)
@@ -174,6 +201,7 @@ fn merge(
     other_version: &Path,
 ) -> anyhow::Result<()> {
     let registration = require_store(configuration, store_name)?;
+    require_file_store(registration)?;
     // `--current-version` is the file we both read and write. When it is
     // the registered store itself, hold the store lock across that
     // read→write window so a manual merge can't interleave with a funnel
@@ -330,5 +358,18 @@ mod tests {
 
         assert!(result.is_err());
         assert!(dir.path().exists(), "directory must remain on failure");
+    }
+
+    #[test]
+    fn delete_cache_dir_if_requested_removes_the_directory_only_when_asked() {
+        let temp = TempDir::new().unwrap();
+        let dir = temp.child("cache");
+        dir.child("pin.json").write_str("null").unwrap();
+
+        assert!(!delete_cache_dir_if_requested(dir.path(), false).unwrap());
+        assert!(dir.path().exists());
+        assert!(delete_cache_dir_if_requested(dir.path(), true).unwrap());
+        assert!(!dir.path().exists());
+        assert!(!delete_cache_dir_if_requested(dir.path(), true).unwrap());
     }
 }

@@ -23,6 +23,9 @@ pub struct Verified {
     pub events: usize,
     /// Checkpoints whose server signature and hash matched.
     pub checkpoints: usize,
+    /// Co-signatures by organization devices that verified, over every
+    /// checkpoint the server returned.
+    pub cosignatures: usize,
     /// The last verified event's sequence number and hash, to start from
     /// next time.
     pub last: Option<(u64, Hash)>,
@@ -75,7 +78,8 @@ impl Client {
     /// Verification starts after `trusted` (a sequence number and hash from
     /// an earlier run), or at the first event, or at the checkpoint just
     /// before the first event the server still keeps after pruning. With a
-    /// `log`, every checkpoint's log head must be part of it.
+    /// `log`, every checkpoint's log head must be part of it, and every
+    /// co-signature must verify under the key of a device the log names.
     ///
     /// # Errors
     ///
@@ -88,6 +92,7 @@ impl Client {
         trusted: Option<(u64, Hash)>,
     ) -> Result<Verified> {
         let mut checkpoints = BTreeMap::new();
+        let mut cosignatures = 0;
         for entry in self.checkpoints(org, 0)? {
             let payload = entry.checkpoint.verify_server(server_key).map_err(|_| {
                 Error::verification(format!(
@@ -96,6 +101,9 @@ impl Client {
                 ))
             })?;
             check_payload(org, entry.seq, &payload, log)?;
+            if let Some(log) = log {
+                cosignatures += check_cosignatures(&entry, log)?;
+            }
             checkpoints.insert(entry.seq, payload);
         }
         let since = trusted.map_or(0, |(seq, _)| seq);
@@ -104,6 +112,7 @@ impl Client {
             return Ok(Verified {
                 events: 0,
                 checkpoints: checkpoints.len(),
+                cosignatures,
                 last: trusted,
             });
         };
@@ -139,6 +148,7 @@ impl Client {
         Ok(Verified {
             events: events.len(),
             checkpoints: matched,
+            cosignatures,
             last: Some((last_seq, last)),
         })
     }
@@ -193,6 +203,35 @@ impl Client {
             Some(&Cosign { signature }),
         )
     }
+}
+
+/// Checks every co-signature of `entry` against the signing key the log
+/// records for its device, revoked devices included: a device co-signs
+/// while it is active, and its later revocation does not undo that.
+fn check_cosignatures(entry: &CheckpointEntry, log: &OrgLog) -> Result<usize> {
+    for cosignature in &entry.checkpoint.cosignatures {
+        let key = log
+            .state()
+            .devices
+            .get(&cosignature.device)
+            .map(|state| state.record.signing_key.0)
+            .ok_or_else(|| {
+                Error::verification(format!(
+                    "checkpoint {} carries a co-signature by an unknown device",
+                    entry.seq
+                ))
+            })?;
+        entry
+            .checkpoint
+            .verify_cosignature(cosignature.device, &key)
+            .map_err(|_| {
+                Error::verification(format!(
+                    "a co-signature of checkpoint {} does not verify",
+                    entry.seq
+                ))
+            })?;
+    }
+    Ok(entry.checkpoint.cosignatures.len())
 }
 
 fn check_payload(

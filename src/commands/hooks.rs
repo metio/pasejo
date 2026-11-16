@@ -2,12 +2,23 @@
 // SPDX-License-Identifier: 0BSD
 
 use crate::cli::i18n;
-use crate::commands::store_op::{acquire_store_lock, require_store};
+use crate::commands::store_op::{acquire_store_lock, require_file_store, require_store};
 use crate::hooks::executor::HookExecutor;
 use crate::models::cli::HookCommands;
 use crate::models::configuration::Configuration;
 
 pub fn dispatch(command: &HookCommands, configuration: &Configuration) -> anyhow::Result<()> {
+    let store_name = match command {
+        HookCommands::Set(args) if !args.global => Some(args.store_selection.store.as_ref()),
+        HookCommands::Get(args) if !args.global => Some(args.store_selection.store.as_ref()),
+        HookCommands::Run(args) if args.all != Some(true) => {
+            Some(args.store_selection.store.as_ref())
+        }
+        _ => None,
+    };
+    if let Some(registration) = store_name.and_then(|name| configuration.select_store(name)) {
+        require_file_store(registration)?;
+    }
     match command {
         HookCommands::Get(args) => get(
             configuration,
@@ -30,7 +41,11 @@ pub fn dispatch(command: &HookCommands, configuration: &Configuration) -> anyhow
             if let Some(all) = args.all
                 && all
             {
-                for store in &configuration.stores {
+                for store in configuration
+                    .stores
+                    .iter()
+                    .filter(|store| store.remote.is_none())
+                {
                     run(configuration, Some(&store.name), args.pull, args.push)?;
                 }
                 Ok(())

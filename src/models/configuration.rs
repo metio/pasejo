@@ -82,6 +82,10 @@ pub struct Configuration {
     #[serde(default)]
     pub push_commands: Vec<String>,
 
+    /// Servers this installation is registered with as a device
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub servers: Vec<ServerRegistration>,
+
     /// Keys this version does not know, kept so saving the configuration
     /// does not drop options written by a newer pasejo.
     #[serde(flatten)]
@@ -105,6 +109,11 @@ pub struct StoreRegistration {
     /// The commands to execute when pushing changes from the store
     pub push_commands: Vec<String>,
 
+    /// Where the store lives on a server. For a remote store, `path` is
+    /// the directory caching what the client verified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<RemoteLocation>,
+
     /// Keys this version does not know, kept so saving the configuration
     /// does not drop options written by a newer pasejo.
     #[serde(flatten)]
@@ -114,6 +123,51 @@ pub struct StoreRegistration {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Identity {
     pub file: PathBuf,
+}
+
+/// This installation as a device of one server. The signing key and the
+/// session live in the local data directory, never in the configuration.
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+pub struct ServerRegistration {
+    /// The server's base URL, without a trailing slash
+    pub url: String,
+
+    /// The device identifier, 32 hexadecimal characters
+    pub device: String,
+
+    /// The device label shown to approvers
+    pub label: String,
+
+    /// The age recipient the server's wrappings are encrypted to
+    pub recipient: String,
+
+    /// The server's checkpoint key, pinned at the first sign-in
+    pub checkpoint_key: String,
+
+    /// A file holding a workload token, read again whenever the session
+    /// has expired
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workload_token: Option<PathBuf>,
+
+    /// Organizations whose genesis this device pinned
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub orgs: Vec<OrgRegistration>,
+}
+
+/// An organization and the hash of its genesis entry.
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+pub struct OrgRegistration {
+    pub id: String,
+    pub name: String,
+    pub genesis: String,
+}
+
+/// A store on a server.
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+pub struct RemoteLocation {
+    pub server: String,
+    pub org: String,
+    pub store: String,
 }
 
 impl Configuration {

@@ -233,6 +233,22 @@ pub struct ChainLink {
     pub prev_data: Bytes,
 }
 
+/// One store as the recovery export carries it: the recovery recipient's
+/// wrappings, the epoch chain, the current index and the latest version of
+/// every object.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryStore {
+    pub id: Id,
+    pub keys: Keys,
+    pub index: Option<Envelope>,
+    pub objects: Vec<crate::store::SealedObject>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryExport {
+    pub stores: Vec<RecoveryStore>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Keys {
     pub wrappings: Vec<Wrapping>,

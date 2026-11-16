@@ -19,6 +19,40 @@ pub fn store_name(input: &str) -> Result<String> {
         .ok_or_else(|| anyhow::anyhow!(i18n::error_store_does_not_exist(input)))
 }
 
+/// The end of the UTC day `input` names as `YYYY-MM-DD`, in milliseconds
+/// since the Unix epoch.
+pub fn utc_date(input: &str) -> Result<u64> {
+    let invalid = || anyhow::anyhow!(i18n::error_invalid_date(input));
+    let mut parts = input.split('-');
+    let (Some(year), Some(month), Some(day), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(invalid());
+    };
+    let year: i64 = year.parse().map_err(|_| invalid())?;
+    let month: i64 = month.parse().map_err(|_| invalid())?;
+    let day: i64 = day.parse().map_err(|_| invalid())?;
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return Err(invalid()),
+    };
+    if !(1970..=9999).contains(&year) || !(1..=days_in_month).contains(&day) {
+        return Err(invalid());
+    }
+    // Days from civil, after Howard Hinnant's algorithm.
+    let shifted = if month <= 2 { year - 1 } else { year };
+    let era = shifted.div_euclid(400);
+    let year_of_era = shifted - era * 400;
+    let day_of_year = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let days = era * 146_097 + day_of_era - 719_468;
+    u64::try_from((days + 1) * 86_400_000).map_err(|_| invalid())
+}
+
 pub fn nonzero_isize(input: &str) -> Result<isize> {
     let value: isize = input
         .parse()
@@ -96,6 +130,24 @@ mod tests {
     use assert_fs::prelude::*;
 
     use super::*;
+
+    #[test]
+    fn utc_dates_end_at_the_next_midnight() {
+        crate::cli::i18n::init_for_tests();
+        assert_eq!(utc_date("1970-01-01").unwrap(), 86_400_000);
+        assert_eq!(utc_date("2000-02-29").unwrap(), 951_868_800_000);
+        assert_eq!(utc_date("2026-11-16").unwrap(), 1_794_873_600_000);
+        for bad in [
+            "2026-02-29",
+            "2026-13-01",
+            "2026-1",
+            "x-1-1",
+            "1969-12-31",
+            "2026-01-01-01",
+        ] {
+            assert!(utc_date(bad).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn existing_file_accepts_real_file() {

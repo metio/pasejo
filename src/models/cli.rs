@@ -31,6 +31,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Read and verify an organization's audit trail
+    Audit {
+        #[command(subcommand)]
+        command: AuditCommands,
+    },
+
     /// Browser integration
     Browser {
         #[command(subcommand)]
@@ -64,6 +70,12 @@ pub enum Commands {
         command: IdentityCommands,
     },
 
+    /// Manage organizations on a pasejo server
+    Org {
+        #[command(subcommand)]
+        command: OrgCommands,
+    },
+
     /// Manage one-time passwords
     Otp {
         #[command(subcommand)]
@@ -82,11 +94,316 @@ pub enum Commands {
         command: SecretCommands,
     },
 
+    /// Sign in to pasejo servers
+    Server {
+        #[command(subcommand)]
+        command: ServerCommands,
+    },
+
     /// Manage stores
     Store {
         #[command(subcommand)]
         command: StoreCommands,
     },
+}
+
+#[derive(Subcommand)]
+pub enum ServerCommands {
+    /// Register this installation as a device of a server and sign in
+    Login(ServerLoginArgs),
+
+    /// Sign out of a server
+    Logout(ServerLogoutArgs),
+
+    /// Show the servers, organizations and sessions of this installation
+    Status,
+}
+
+#[derive(Args)]
+pub struct ServerLoginArgs {
+    /// The server's base URL
+    #[arg(value_hint = clap::ValueHint::Url)]
+    pub url: String,
+
+    /// The device label shown to approvers. Defaults to the host name
+    #[arg(long)]
+    pub label: Option<String>,
+
+    /// The age recipient the server encrypts store keys to. Defaults to
+    /// the recipient of the first global X25519 identity
+    #[arg(long)]
+    pub recipient: Option<String>,
+
+    /// Sign in as a machine with the workload token in this file, read
+    /// again whenever the session expires
+    #[arg(long, value_hint = FilePath)]
+    pub workload_token: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct ServerLogoutArgs {
+    /// The server's base URL. Defaults to the only registered server
+    pub url: Option<String>,
+
+    /// Also remove the device's keys and registration
+    #[arg(long)]
+    pub forget: bool,
+}
+
+#[derive(Args)]
+pub struct OrgSelectionArgs {
+    /// Name or identifier of the organization. Defaults to the only
+    /// registered organization
+    #[arg(short, long)]
+    pub org: Option<String>,
+}
+
+#[derive(Subcommand)]
+pub enum OrgCommands {
+    /// Show and run pending actions
+    Actions(OrgActionsArgs),
+
+    /// Approve a pending device
+    Approve(OrgApproveArgs),
+
+    /// Co-sign a change proposed by another admin
+    Cosign(OrgCosignArgs),
+
+    /// Create an organization with this device as its founding device
+    Create(OrgCreateArgs),
+
+    /// List the organization's devices and pending enrollments
+    Devices(OrgSelectionArgs),
+
+    /// Join an organization, or check whether this device was approved
+    Join(OrgJoinArgs),
+
+    /// List changes waiting for a second admin
+    Proposals(OrgSelectionArgs),
+
+    /// Decrypt every store with the organization's recovery identity
+    Recover(OrgRecoverArgs),
+
+    /// Manage the organization's recovery recipient
+    Recovery {
+        #[command(subcommand)]
+        command: OrgRecoveryCommands,
+    },
+
+    /// Revoke a device
+    Revoke(OrgRevokeArgs),
+
+    /// Change a member's role
+    Role(OrgRoleArgs),
+
+    /// Change the organization's settings
+    Settings(OrgSettingsArgs),
+
+    /// List the organization's stores
+    Stores(OrgSelectionArgs),
+
+    /// Manage teams
+    Team {
+        #[command(subcommand)]
+        command: OrgTeamCommands,
+    },
+}
+
+#[derive(Args)]
+pub struct OrgCreateArgs {
+    /// The organization's name
+    pub name: String,
+
+    /// The server's base URL. Defaults to the only registered server
+    #[arg(long)]
+    pub server: Option<String>,
+}
+
+#[derive(Args)]
+pub struct OrgJoinArgs {
+    /// The server's base URL
+    #[arg(value_hint = clap::ValueHint::Url)]
+    pub url: String,
+
+    /// The organization's identifier
+    pub org: String,
+
+    /// The organization's fingerprint, compared over another channel
+    #[arg(long)]
+    pub fingerprint: Option<String>,
+}
+
+#[derive(Args)]
+pub struct OrgApproveArgs {
+    /// The device's identifier
+    pub device: String,
+
+    /// The device's fingerprint, compared with the one its owner sees
+    #[arg(long)]
+    pub fingerprint: Option<String>,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct OrgRevokeArgs {
+    /// The device's identifier
+    pub device: String,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum OrgRoleArg {
+    Admin,
+    Approver,
+    Auditor,
+    Member,
+    None,
+}
+
+#[derive(Args)]
+pub struct OrgRoleArgs {
+    /// The member's email address
+    pub user: String,
+
+    /// The new role; `none` removes the member
+    pub role: OrgRoleArg,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ApprovalArg {
+    Manual,
+    Automatic,
+}
+
+#[derive(Args)]
+pub struct OrgSettingsArgs {
+    /// How devices are approved
+    #[arg(long)]
+    pub device_approval: Option<ApprovalArg>,
+
+    /// Whether role, setting and recovery changes need a second admin
+    #[arg(long)]
+    pub two_admin: Option<bool>,
+
+    /// Whether users signing in through the identity provider join
+    /// automatically
+    #[arg(long)]
+    pub auto_join: Option<bool>,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Subcommand)]
+pub enum OrgRecoveryCommands {
+    /// Set the age recipient whose identity the organization keeps offline
+    Set(OrgRecoverySetArgs),
+}
+
+#[derive(Args)]
+pub struct OrgRecoverySetArgs {
+    /// The age recipient
+    pub recipient: String,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct OrgRecoverArgs {
+    /// The organization's recovery identity
+    #[arg(long, value_hint = FilePath)]
+    pub identity: PathBuf,
+
+    /// The directory receiving one file store per remote store, encrypted
+    /// to the recovery recipient
+    #[arg(long, value_hint = DirPath)]
+    pub output: PathBuf,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Subcommand)]
+pub enum OrgTeamCommands {
+    /// Create a team
+    Create(OrgTeamCreateArgs),
+
+    /// Add a member to a team
+    Add(OrgTeamMemberArgs),
+
+    /// Remove a member from a team
+    Remove(OrgTeamMemberArgs),
+}
+
+#[derive(Args)]
+pub struct OrgTeamCreateArgs {
+    /// The team's name
+    pub name: String,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct OrgTeamMemberArgs {
+    /// The team's name
+    pub team: String,
+
+    /// The member's email address
+    pub user: String,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct OrgActionsArgs {
+    /// Run every action this device may run
+    #[arg(long)]
+    pub run: bool,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct OrgCosignArgs {
+    /// The proposal's identifier
+    pub proposal: String,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Subcommand)]
+pub enum AuditCommands {
+    /// Print the organization's audit events
+    Log(AuditLogArgs),
+
+    /// Verify the audit chain against the server's signed checkpoints
+    Verify(OrgSelectionArgs),
+}
+
+#[derive(Args)]
+pub struct AuditLogArgs {
+    /// Only events of this registered store
+    #[arg(long, add = completer::store_name(), value_parser = parser::store_name)]
+    pub store: Option<String>,
+
+    /// Only events after this sequence number
+    #[arg(long, default_value_t = 0)]
+    pub since: u64,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
 }
 
 #[derive(Subcommand)]
@@ -1016,6 +1333,101 @@ pub enum StoreCommands {
 
     /// Mark a store as default
     SetDefault(StoreSetDefaultArgs),
+
+    /// Create a store on a server and register it
+    CreateRemote(StoreCreateRemoteArgs),
+
+    /// Register a store that exists on a server
+    AddRemote(StoreAddRemoteArgs),
+
+    /// Grant a user or team a role on a remote store
+    Grant(StoreGrantArgs),
+
+    /// Rewrite every entry of a remote store under its current keys
+    Rekey(StoreSelectionArgs),
+
+    /// List what a user who lost access could still know
+    Rotation(StoreRotationArgs),
+
+    /// Copy a file store to a server and register the copy in its place
+    Migrate(StoreMigrateArgs),
+}
+
+#[derive(Args)]
+pub struct StoreCreateRemoteArgs {
+    /// The store's label, encrypted on the server
+    pub label: String,
+
+    /// The local name of the store. Defaults to the label
+    #[arg(short, long)]
+    pub name: Option<String>,
+
+    /// Whether the new store should be the default store
+    #[arg(short, long)]
+    pub default: bool,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct StoreAddRemoteArgs {
+    /// The store's identifier, as `pasejo org stores` lists it
+    pub store: String,
+
+    /// The local name of the store
+    #[arg(short, long)]
+    pub name: String,
+
+    /// Whether the store should be the default store
+    #[arg(short, long)]
+    pub default: bool,
+
+    #[command(flatten)]
+    pub org_selection: OrgSelectionArgs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum StoreRoleArg {
+    Reader,
+    Writer,
+    Admin,
+    None,
+}
+
+#[derive(Args)]
+pub struct StoreGrantArgs {
+    /// A member's email address, or a team's name
+    pub principal: String,
+
+    /// The role; `none` takes the grant away
+    pub role: StoreRoleArg,
+
+    /// The day the grant ends, as YYYY-MM-DD in UTC
+    #[arg(long, value_parser = parser::utc_date)]
+    pub expires: Option<u64>,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct StoreRotationArgs {
+    /// The email address of the user who lost access
+    pub user: String,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
+}
+
+#[derive(Args)]
+pub struct StoreMigrateArgs {
+    /// The organization receiving the store
+    #[arg(long)]
+    pub to_remote: String,
+
+    #[command(flatten)]
+    pub store_selection: StoreSelectionArgs,
 }
 
 #[derive(Args)]

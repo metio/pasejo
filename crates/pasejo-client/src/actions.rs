@@ -34,10 +34,29 @@ impl Client {
         identities: &[Box<dyn age::Identity>],
         server_key: &[u8; 32],
     ) -> Result<Vec<Outcome>> {
+        self.run_actions_where(log, identities, server_key, |_| true)
+    }
+
+    /// [`Client::run_actions`] for the actions `wanted` selects.
+    ///
+    /// # Errors
+    ///
+    /// Fails like [`Client::run_actions`].
+    pub fn run_actions_where(
+        &self,
+        log: &mut OrgLog,
+        identities: &[Box<dyn age::Identity>],
+        server_key: &[u8; 32],
+        wanted: impl Fn(&Action) -> bool,
+    ) -> Result<Vec<Outcome>> {
         let org = log.state().org;
         *log = self.fetch_log(org, Some(log.clone()), None)?;
         let mut outcomes = Vec::new();
-        for action in self.actions(org)? {
+        for action in self
+            .actions(org)?
+            .into_iter()
+            .filter(|action| wanted(action))
+        {
             let result = self.run_action(log, &action, identities, server_key);
             outcomes.push(match result {
                 Ok(None) => Outcome::Done(action),

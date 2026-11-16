@@ -18,12 +18,12 @@ Options:
       --no-lowercase-letters           Passwords must not contain a lowercase letter
   -u, --uppercase-letters              Passwords are allowed to, or must if the strict is true, contain an uppercase letter
       --no-uppercase-letters           Passwords must not contain an uppercase letter
-  -v, --verbose...                     Increase logging verbosity
   -y, --symbols                        Passwords are allowed to, or must if the strict is true, contain a symbol
-  -q, --quiet...                       Decrease logging verbosity
   -w, --spaces                         Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters     Whether to exclude similar characters, iI1loO0"'`|`
       --no-exclude-similar-characters  Allow similar characters, iI1loO0"'`|`
+  -v, --verbose...                     Increase logging verbosity
+  -q, --quiet...                       Decrease logging verbosity
   -t, --strict                         Whether the password rules are strict
       --no-strict                      Passwords are allowed to, but do not have to, contain every enabled kind of character
   -h, --help                           Print help
@@ -50,12 +50,12 @@ Options:
       --no-lowercase-letters           Passwords must not contain a lowercase letter
   -u, --uppercase-letters              Passwords are allowed to, or must if the strict is true, contain an uppercase letter
       --no-uppercase-letters           Passwords must not contain an uppercase letter
-  -v, --verbose...                     Increase logging verbosity
   -y, --symbols                        Passwords are allowed to, or must if the strict is true, contain a symbol
-  -q, --quiet...                       Decrease logging verbosity
   -w, --spaces                         Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters     Whether to exclude similar characters, iI1loO0"'`|`
       --no-exclude-similar-characters  Allow similar characters, iI1loO0"'`|`
+  -v, --verbose...                     Increase logging verbosity
+  -q, --quiet...                       Decrease logging verbosity
   -t, --strict                         Whether the password rules are strict
       --no-strict                      Passwords are allowed to, but do not have to, contain every enabled kind of character
   -h, --help                           Print help
@@ -82,12 +82,12 @@ Options:
       --no-lowercase-letters           Passwords must not contain a lowercase letter
   -u, --uppercase-letters              Passwords are allowed to, or must if the strict is true, contain an uppercase letter
       --no-uppercase-letters           Passwords must not contain an uppercase letter
-  -v, --verbose...                     Increase logging verbosity
   -y, --symbols                        Passwords are allowed to, or must if the strict is true, contain a symbol
-  -q, --quiet...                       Decrease logging verbosity
   -w, --spaces                         Passwords are allowed to, or must if the strict is true, contain a space
   -e, --exclude-similar-characters     Whether to exclude similar characters, iI1loO0"'`|`
       --no-exclude-similar-characters  Allow similar characters, iI1loO0"'`|`
+  -v, --verbose...                     Increase logging verbosity
+  -q, --quiet...                       Decrease logging verbosity
   -t, --strict                         Whether the password rules are strict
       --no-strict                      Passwords are allowed to, but do not have to, contain every enabled kind of character
   -h, --help                           Print help

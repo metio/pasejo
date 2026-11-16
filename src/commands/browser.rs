@@ -8,9 +8,10 @@ use crate::browser::install_manifest;
 use crate::browser::protocol::QueryResponse;
 use crate::browser::release_log::{Release, ReleaseLog};
 use crate::cli::i18n;
-use crate::commands::store_op::{StoreMutation, with_store};
+use crate::commands::store_op::{StoreMutation, with_store_fetching};
 use crate::models::cli::{BrowserCommands, QueryArgs};
 use crate::models::configuration::Configuration;
+use crate::remote::funnel::Fetch;
 
 pub fn dispatch(
     command: &BrowserCommands,
@@ -26,10 +27,11 @@ pub fn dispatch(
 }
 
 fn query(args: &QueryArgs, configuration: &Configuration, offline: bool) -> anyhow::Result<()> {
-    let response = with_store(
+    let response = with_store_fetching(
         configuration,
         args.store_selection.store.as_ref(),
         offline,
+        &Fetch::Lookup,
         |registration, store| {
             let response = QueryResponse::search(
                 store,

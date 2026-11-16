@@ -1154,6 +1154,347 @@ pub fn browser_install_manifest_written(browser: &str, path: &Path) {
     );
 }
 
+// Remote stores
+fl_string!(error_invalid_date, "error-invalid-date", value);
+fl_string!(error_remote_actions_failed, "error-remote-actions-failed");
+fl_string!(error_remote_bad_request, "error-remote-bad-request");
+fl_string!(
+    error_remote_checkpoint_key_changed,
+    "error-remote-checkpoint-key-changed",
+    url
+);
+fl_string!(
+    error_remote_concurrent_change,
+    "error-remote-concurrent-change",
+    name
+);
+fl_string!(error_remote_conflict, "error-remote-conflict");
+fl_string!(
+    error_remote_device_user_not_member,
+    "error-remote-device-user-not-member",
+    email
+);
+fl_string!(
+    error_remote_fingerprint_mismatch,
+    "error-remote-fingerprint-mismatch",
+    expected
+);
+fl_string!(
+    error_remote_fingerprint_not_confirmed,
+    "error-remote-fingerprint-not-confirmed"
+);
+fl_string!(
+    error_remote_fingerprint_required,
+    "error-remote-fingerprint-required",
+    expected
+);
+fl_string!(error_remote_forbidden, "error-remote-forbidden");
+fl_string!(error_remote_invalid_id, "error-remote-invalid-id", value);
+fl_string!(
+    error_remote_invalid_recipient,
+    "error-remote-invalid-recipient",
+    recipient
+);
+fl_string!(error_remote_login_denied, "error-remote-login-denied");
+fl_string!(error_remote_login_expired, "error-remote-login-expired");
+fl_string!(
+    error_remote_needs_second_admin,
+    "error-remote-needs-second-admin"
+);
+fl_string!(error_remote_no_data_dir, "error-remote-no-data-dir");
+fl_string!(error_remote_no_org, "error-remote-no-org");
+fl_string!(
+    error_remote_no_recovery_recipient,
+    "error-remote-no-recovery-recipient",
+    org
+);
+fl_string!(error_remote_no_server, "error-remote-no-server");
+fl_string!(error_remote_no_session, "error-remote-no-session");
+fl_string!(error_remote_not_found, "error-remote-not-found");
+fl_string!(
+    error_remote_not_logged_in,
+    "error-remote-not-logged-in",
+    url
+);
+fl_string!(
+    error_remote_org_ambiguous,
+    "error-remote-org-ambiguous",
+    org
+);
+fl_string!(error_remote_org_required, "error-remote-org-required");
+fl_string!(error_remote_pending_device, "error-remote-pending-device");
+fl_string!(error_remote_rate_limited, "error-remote-rate-limited");
+fl_string!(
+    error_remote_recipient_required,
+    "error-remote-recipient-required"
+);
+fl_string!(error_remote_rejected, "error-remote-rejected");
+fl_string!(
+    error_remote_server_ambiguous,
+    "error-remote-server-ambiguous"
+);
+fl_string!(error_remote_server_failed, "error-remote-server-failed");
+fl_string!(
+    error_remote_session_rejected,
+    "error-remote-session-rejected"
+);
+fl_string!(
+    error_remote_signing_key_unreadable,
+    "error-remote-signing-key-unreadable",
+    path
+);
+fl_string!(
+    error_remote_store_command_not_applicable,
+    "error-remote-store-command-not-applicable",
+    store_name
+);
+fl_string!(
+    error_remote_store_name_taken,
+    "error-remote-store-name-taken",
+    name
+);
+fl_string!(
+    error_remote_store_required,
+    "error-remote-store-required",
+    store_name
+);
+fl_string!(error_remote_team_exists, "error-remote-team-exists", name);
+fl_string!(error_remote_too_large, "error-remote-too-large");
+fl_string!(error_remote_unavailable, "error-remote-unavailable");
+fl_string!(
+    error_remote_unknown_device,
+    "error-remote-unknown-device",
+    device
+);
+fl_string!(error_remote_unknown_org, "error-remote-unknown-org", org);
+fl_string!(
+    error_remote_unknown_proposal,
+    "error-remote-unknown-proposal",
+    proposal
+);
+fl_string!(
+    error_remote_unknown_server,
+    "error-remote-unknown-server",
+    url
+);
+fl_string!(
+    error_remote_unknown_store,
+    "error-remote-unknown-store",
+    store
+);
+fl_string!(error_remote_unknown_team, "error-remote-unknown-team", name);
+fl_string!(
+    error_remote_unknown_user,
+    "error-remote-unknown-user",
+    email
+);
+fl_string!(error_remote_unreachable, "error-remote-unreachable");
+fl_string!(
+    error_remote_verification_failed,
+    "error-remote-verification-failed"
+);
+fl_string!(
+    error_remote_workload_token_unreadable,
+    "error-remote-workload-token-unreadable",
+    path
+);
+fl_string!(
+    error_remote_wrong_object_kind,
+    "error-remote-wrong-object-kind",
+    name
+);
+fl_string!(
+    prompt_remote_confirm_fingerprint,
+    "prompt-remote-confirm-fingerprint",
+    fingerprint
+);
+fl_string!(
+    remote_action_approve_device,
+    "remote-action-approve-device",
+    label,
+    email,
+    fingerprint
+);
+fl_string!(
+    remote_action_cosign_checkpoint,
+    "remote-action-cosign-checkpoint",
+    seq
+);
+fl_string!(
+    remote_action_join_member,
+    "remote-action-join-member",
+    email
+);
+fl_string!(
+    remote_action_remove_member,
+    "remote-action-remove-member",
+    user
+);
+fl_string!(
+    remote_action_revoke_grant,
+    "remote-action-revoke-grant",
+    principal,
+    store
+);
+fl_string!(
+    remote_action_rotate_epoch,
+    "remote-action-rotate-epoch",
+    store
+);
+fl_string!(remote_action_sync_team, "remote-action-sync-team", team);
+fl_string!(
+    remote_action_wrap_keys,
+    "remote-action-wrap-keys",
+    store,
+    count
+);
+fl_string!(remote_device_state_active, "remote-device-state-active");
+fl_string!(remote_device_state_pending, "remote-device-state-pending");
+fl_println!(remote_action_done, "remote-action-done", action);
+fl_println!(
+    remote_action_skipped,
+    "remote-action-skipped",
+    action,
+    reason
+);
+fl_println!(remote_action_failed, "remote-action-failed", action, error);
+fl_println!(remote_action_pending, "remote-action-pending", action);
+fl_println!(
+    remote_audit_line,
+    "remote-audit-line",
+    seq,
+    time,
+    actor,
+    action,
+    outcome,
+    store,
+    detail
+);
+fl_println!(
+    remote_device_line,
+    "remote-device-line",
+    id,
+    label,
+    email,
+    fingerprint,
+    state
+);
+fl_println!(
+    remote_proposal_line,
+    "remote-proposal-line",
+    proposal,
+    kind,
+    author
+);
+fl_println!(
+    remote_store_line,
+    "remote-store-line",
+    store,
+    label,
+    role,
+    local
+);
+fl_println!(remote_rotation_item, "remote-rotation-item", name);
+fl_println!(
+    remote_status_server,
+    "remote-status-server",
+    url,
+    label,
+    device,
+    fingerprint,
+    session
+);
+fl_println!(
+    remote_status_org,
+    "remote-status-org",
+    name,
+    org,
+    fingerprint
+);
+fl_log!(
+    info,
+    remote_audit_verified,
+    "remote-audit-verified",
+    events,
+    checkpoints
+);
+fl_log!(
+    info,
+    remote_change_proposed,
+    "remote-change-proposed",
+    kind,
+    proposal
+);
+fl_log!(info, remote_change_recorded, "remote-change-recorded", kind);
+fl_log!(info, remote_device_active, "remote-device-active", org);
+fl_log!(
+    info,
+    remote_device_pending,
+    "remote-device-pending",
+    org,
+    device,
+    fingerprint
+);
+fl_log!(
+    info,
+    remote_device_fingerprint,
+    "remote-device-fingerprint",
+    fingerprint
+);
+fl_log!(info, remote_logged_in, "remote-logged-in", url, email);
+fl_log!(info, remote_logged_out, "remote-logged-out", url);
+fl_log!(info, remote_login_visit, "remote-login-visit", url, code);
+fl_log!(info, remote_no_actions, "remote-no-actions");
+fl_log!(info, remote_no_proposals, "remote-no-proposals");
+fl_log!(info, remote_no_servers, "remote-no-servers");
+fl_log!(info, remote_no_stores, "remote-no-stores");
+fl_log!(
+    info,
+    remote_org_created,
+    "remote-org-created",
+    name,
+    org,
+    fingerprint
+);
+fl_log!(
+    info,
+    remote_rotation_access_continues,
+    "remote-rotation-access-continues",
+    user
+);
+fl_log!(
+    info,
+    remote_rotation_nothing,
+    "remote-rotation-nothing",
+    user
+);
+fl_log!(info, remote_settings_unchanged, "remote-settings-unchanged");
+fl_log!(info, remote_store_added, "remote-store-added", name, label);
+fl_log!(
+    info,
+    remote_store_created,
+    "remote-store-created",
+    name,
+    store
+);
+fl_log!(
+    info,
+    remote_store_migrated,
+    "remote-store-migrated",
+    name,
+    count,
+    path
+);
+fl_log!(
+    info,
+    remote_store_recovered,
+    "remote-store-recovered",
+    label,
+    path,
+    count
+);
+fl_log!(info, remote_store_rekeyed, "remote-store-rekeyed", count);
+
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashMap};

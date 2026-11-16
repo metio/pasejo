@@ -12,6 +12,7 @@ use crate::cli::i18n;
 use crate::hooks::executor::HookExecutor;
 use crate::models::configuration::{Configuration, StoreRegistration, encrypt_store};
 use crate::models::password_store::PasswordStore;
+use crate::remote::funnel::{self, Fetch, Opened};
 
 /// Selects the store for an operation, distinguishing "the requested or
 /// default store name matches no registration" from "you have no stores
@@ -117,14 +118,34 @@ pub enum StoreMutation {
 
 /// A store opened for an operation. Produced by [`open_store`], the shared
 /// front half of every store flow: the selected `registration`, a throttled
-/// `hooks` executor, the held store `lock`, and the decrypted `store`. The
-/// caller continues under the lock and decides when to encrypt, drop the
-/// lock, and run push hooks.
+/// `hooks` executor (`None` for a remote store, which has no hooks), the
+/// held store `lock`, the decrypted `store`, and for a remote store what
+/// [`persist`] needs to commit changes. The caller continues under the lock
+/// and decides when to persist, drop the lock, and run push hooks.
 pub struct OpenStore<'a> {
     pub registration: &'a StoreRegistration,
-    pub hooks: HookExecutor<'a>,
+    pub hooks: Option<HookExecutor<'a>>,
     pub lock: File,
     pub store: PasswordStore,
+    pub remote: Option<Box<Opened>>,
+}
+
+/// Writes `store` back where it came from: encrypts the store file, or
+/// commits what changed to the server.
+pub fn persist(
+    registration: &StoreRegistration,
+    remote: &mut Option<Box<Opened>>,
+    store: &PasswordStore,
+) -> Result<()> {
+    if let Some(opened) = remote {
+        return opened.save(store).map(|_| ());
+    }
+    encrypt_store(registration, store).context(i18n::error_cannot_encrypt_store())
+}
+
+/// Runs the push hooks of a file store.
+pub fn push(hooks: Option<&HookExecutor<'_>>) -> Result<()> {
+    hooks.map_or(Ok(()), HookExecutor::execute_push_commands)
 }
 
 /// The shared opening sequence — require a store, take the store lock, run
@@ -139,7 +160,23 @@ pub fn open_store<'a>(
     store_name: Option<&String>,
     offline: bool,
 ) -> Result<OpenStore<'a>> {
-    open(configuration, store_name, offline, false)
+    open(
+        configuration,
+        store_name,
+        offline,
+        false,
+        &Fetch::Everything,
+    )
+}
+
+/// [`open_store`] reading only what `fetch` names from a remote store.
+pub fn open_store_fetching<'a>(
+    configuration: &'a Configuration,
+    store_name: Option<&String>,
+    offline: bool,
+    fetch: &Fetch,
+) -> Result<OpenStore<'a>> {
+    open(configuration, store_name, offline, false, fetch)
 }
 
 /// [`open_store`] for the bootstrap path: when the store file does not exist
@@ -151,7 +188,18 @@ pub fn open_or_create_store<'a>(
     store_name: Option<&String>,
     offline: bool,
 ) -> Result<OpenStore<'a>> {
-    open(configuration, store_name, offline, true)
+    open(configuration, store_name, offline, true, &Fetch::Everything)
+}
+
+/// Refuses commands that act on store files, such as recipients and hooks,
+/// for a remote store.
+pub fn require_file_store(registration: &StoreRegistration) -> Result<()> {
+    if registration.remote.is_some() {
+        anyhow::bail!(i18n::error_remote_store_command_not_applicable(
+            &registration.name
+        ));
+    }
+    Ok(())
 }
 
 fn open<'a>(
@@ -159,8 +207,23 @@ fn open<'a>(
     store_name: Option<&String>,
     offline: bool,
     create: bool,
+    fetch: &Fetch,
 ) -> Result<OpenStore<'a>> {
     let registration = require_store(configuration, store_name)?;
+    if let Some(location) = &registration.remote {
+        if create {
+            require_file_store(registration)?;
+        }
+        let lock = acquire_store_lock(registration.path())?;
+        let (opened, store) = funnel::open(configuration, registration, location, fetch)?;
+        return Ok(OpenStore {
+            registration,
+            hooks: None,
+            lock,
+            store,
+            remote: Some(Box::new(opened)),
+        });
+    }
     let lock = acquire_store_lock(registration.path())?;
     let hooks = HookExecutor::new(configuration, registration, offline);
     let store = if create && !registration.path().exists() {
@@ -171,9 +234,10 @@ fn open<'a>(
     };
     Ok(OpenStore {
         registration,
-        hooks,
+        hooks: Some(hooks),
         lock,
         store,
+        remote: None,
     })
 }
 
@@ -191,21 +255,38 @@ pub fn with_store<F, T>(
 where
     F: FnOnce(&StoreRegistration, &mut PasswordStore) -> Result<(T, StoreMutation)>,
 {
-    with_store_then(configuration, store_name, offline, f, |_| Ok(()))
+    with_store_fetching_then(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::Everything,
+        f,
+        |_| Ok(()),
+    )
 }
 
-/// Like [`with_store`], but runs `then` after encryption and *before* the
-/// push hooks. This preserves the user-visible log order for commands that
-/// need to perform an action (display a secret, copy to clipboard, …) using
-/// data extracted from the store: pull-hook log → encrypt → action → push-hook
-/// log.
-///
-/// `then` always runs, regardless of [`StoreMutation`]. For read-only flows
-/// it executes after the closure with no encrypt/push around it.
-pub fn with_store_then<F, P, T>(
+/// [`with_store`] reading only what `fetch` names from a remote store.
+pub fn with_store_fetching<F, T>(
     configuration: &Configuration,
     store_name: Option<&String>,
     offline: bool,
+    fetch: &Fetch,
+    f: F,
+) -> Result<T>
+where
+    F: FnOnce(&StoreRegistration, &mut PasswordStore) -> Result<(T, StoreMutation)>,
+{
+    with_store_fetching_then(configuration, store_name, offline, fetch, f, |_| Ok(()))
+}
+
+/// [`with_store_fetching`] with a `then` callback that runs after the store
+/// is written and before the push hooks, so output appears between the
+/// pull-hook and push-hook logs. `then` runs whatever the [`StoreMutation`].
+pub fn with_store_fetching_then<F, P, T>(
+    configuration: &Configuration,
+    store_name: Option<&String>,
+    offline: bool,
+    fetch: &Fetch,
     f: F,
     then: P,
 ) -> Result<T>
@@ -213,10 +294,10 @@ where
     F: FnOnce(&StoreRegistration, &mut PasswordStore) -> Result<(T, StoreMutation)>,
     P: FnOnce(&T) -> Result<()>,
 {
-    // The lock acquired by `open_store` is held across pull → decrypt →
-    // mutate → encrypt so concurrent invocations cannot both read the same
-    // store state, both mutate, and have the later writer's encrypt clobber
-    // the earlier writer's changes (most visibly: a HOTP counter advancing by
+    // The lock acquired by `open` is held across pull → decrypt → mutate →
+    // persist so concurrent invocations cannot both read the same store
+    // state, both mutate, and have the later writer's encrypt clobber the
+    // earlier writer's changes (most visibly: a HOTP counter advancing by
     // one instead of two for two parallel `otp show` calls, or a pulled
     // change reverted by a writer that decrypted before the pull). It is
     // released before push hooks so long-running network syncs do not
@@ -226,15 +307,16 @@ where
         hooks,
         lock,
         mut store,
-    } = open_store(configuration, store_name, offline)?;
+        mut remote,
+    } = open(configuration, store_name, offline, false, fetch)?;
     let (value, mutation) = f(registration, &mut store)?;
     if matches!(mutation, StoreMutation::Modified) {
-        encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
+        persist(registration, &mut remote, &store)?;
     }
     drop(lock);
     then(&value)?;
     if matches!(mutation, StoreMutation::Modified) {
-        hooks.execute_push_commands()?;
+        push(hooks.as_ref())?;
     }
     Ok(value)
 }

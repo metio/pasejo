@@ -222,6 +222,7 @@ async fn the_index_answers_not_modified_for_the_current_version() {
         org,
         store,
         keys,
+        harness: _harness,
         ..
     } = setup().await;
     let empty: IndexResponse = alice.client.get(&path(org, store, "index")).await.ok();
@@ -539,6 +540,7 @@ async fn concurrent_commits_to_one_version_conflict() {
         org,
         store,
         keys,
+        harness: _harness,
         ..
     } = setup().await;
     let a = draft(
@@ -600,6 +602,7 @@ async fn ten_versions_of_each_object_are_kept() {
         org,
         store,
         keys,
+        harness: _harness,
         ..
     } = setup().await;
     let id = Id::random();
@@ -908,7 +911,11 @@ async fn auditors_see_every_store_without_its_keys() {
 #[tokio::test]
 async fn deleted_stores_are_gone() {
     let Setup {
-        alice, org, store, ..
+        alice,
+        org,
+        store,
+        harness: _harness,
+        ..
     } = setup().await;
     alice
         .append(org, Body::StoreDelete { store })
@@ -1126,6 +1133,7 @@ async fn commits_may_exceed_the_general_body_limit() {
         org,
         store,
         keys,
+        harness: _harness,
         ..
     } = setup().await;
     let big = "x".repeat(700_000);

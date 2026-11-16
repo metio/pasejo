@@ -30,6 +30,12 @@ pub enum Error {
     /// The call needs something this device does not hold.
     #[error("{0}")]
     Unavailable(String),
+    /// The change needs a second admin's signature; propose it instead.
+    #[error("this change needs a second admin's signature")]
+    NeedsSecondAdmin,
+    /// The membership log does not allow this device's own change.
+    #[error("the membership log does not allow this change: {0}")]
+    Refused(pasejo_protocol::Rejection),
 }
 
 impl Error {
@@ -51,8 +57,19 @@ impl Error {
     pub(crate) fn verification(message: impl Into<String>) -> Self {
         Self::Verification(message.into())
     }
+
+    /// The error for a change of this device's own that the log rejects:
+    /// one needing a second admin is proposed instead.
+    pub(crate) fn refused(rejection: pasejo_protocol::Rejection) -> Self {
+        if rejection == pasejo_protocol::Rejection::SecondAdminRequired {
+            Self::NeedsSecondAdmin
+        } else {
+            Self::Refused(rejection)
+        }
+    }
 }
 
+/// A rejection while replaying what the server returned.
 impl From<pasejo_protocol::Rejection> for Error {
     fn from(rejection: pasejo_protocol::Rejection) -> Self {
         Self::Verification(format!("the membership log is invalid: {rejection}"))

@@ -22,6 +22,7 @@ use crate::identities;
 use crate::models::cli::HostArgs;
 use crate::models::configuration::{Configuration, StoreRegistration, decrypt_store_bytes};
 use crate::models::password_store::PasswordStore;
+use crate::remote::funnel::{self, Fetch};
 use crate::secrets;
 
 // Chrome's documented native-messaging maximum is 1 MiB per direction.
@@ -155,7 +156,7 @@ fn handle_query(
     };
     let store_name = registration.name.clone();
 
-    let store = match open_store_for_read(configuration, registration, offline) {
+    let store = match open_store_for_read(configuration, registration, offline, &Fetch::Lookup) {
         Ok(store) => store,
         Err((kind, err)) => return error_response(kind, configuration, registration, &err),
     };
@@ -186,7 +187,8 @@ fn handle_reveal(
         Err(err) => return ResponsePayload::Error(err),
     };
 
-    let store = match open_store_for_read(configuration, registration, offline) {
+    let fetch = Fetch::secrets([secret_name]);
+    let store = match open_store_for_read(configuration, registration, offline, &fetch) {
         Ok(store) => store,
         Err((kind, err)) => return error_response(kind, configuration, registration, &err),
     };
@@ -241,11 +243,33 @@ fn handle_reveal(
 /// A store registered in the config but with no file on disk yet is
 /// mapped to `StoreUnreachable`; the browser host is never the right
 /// entry point for bootstrapping.
+///
+/// A remote store is read from its server: `fetch` names what a query or a
+/// reveal needs, so a query reads the lookup object and a reveal one secret.
+/// It takes no lock, because nothing is written but the pin, which is
+/// replaced atomically.
 fn open_store_for_read(
     configuration: &Configuration,
     registration: &StoreRegistration,
     offline: bool,
+    fetch: &Fetch,
 ) -> std::result::Result<PasswordStore, (ErrorKind, anyhow::Error)> {
+    if let Some(location) = &registration.remote {
+        let (identities, protected) = host_identities(configuration, registration)?;
+        return funnel::open_with(configuration, registration, location, identities, fetch)
+            .map(|(_, store)| store)
+            .map_err(|err| {
+                let kind = remote_error_kind(&err);
+                if kind == ErrorKind::IdentityLocked && protected {
+                    (
+                        kind,
+                        err.context(i18n::error_browser_identity_passphrase_protected()),
+                    )
+                } else {
+                    (kind, err)
+                }
+            });
+    }
     let lock = try_acquire_store_lock(registration.path(), STORE_LOCK_WAIT)
         .map_err(|err| (ErrorKind::StoreUnreachable, err))?;
 
@@ -269,9 +293,32 @@ fn open_store_for_read(
         .map_err(|err| (ErrorKind::StoreUnreachable, err))?;
     drop(lock);
 
-    // The host has no terminal: it decrypts with the identities that need no
-    // passphrase, lets plugins ask for a PIN or a confirmation through
-    // pinentry only, and reports `IdentityLocked` when that is not enough.
+    let (identities, protected) = host_identities(configuration, registration)?;
+    decrypt_store_bytes(&encrypted, &identities).map_err(|err| {
+        let kind = decrypt_error_kind(&err);
+        if kind == ErrorKind::IdentityLocked && protected {
+            (
+                kind,
+                err.context(i18n::error_browser_identity_passphrase_protected()),
+            )
+        } else {
+            (kind, err)
+        }
+    })
+}
+
+/// The identities the host decrypts with, and whether passphrase-protected
+/// ones were left out.
+type HostIdentities = (Vec<Box<dyn age::Identity>>, bool);
+
+/// The host has no terminal: it decrypts with the identities that need no
+/// passphrase, lets plugins ask for a PIN or a confirmation through pinentry
+/// only, and reports `IdentityLocked` when that is not enough. The flag says
+/// whether passphrase-protected identities were left out.
+fn host_identities(
+    configuration: &Configuration,
+    registration: &StoreRegistration,
+) -> std::result::Result<HostIdentities, (ErrorKind, anyhow::Error)> {
     let (protected, usable): (Vec<_>, Vec<_>) = configuration
         .all_identity_files(registration)
         .into_iter()
@@ -285,17 +332,19 @@ fn open_store_for_read(
     let identities = configuration
         .read_identity_files_without_terminal(usable)
         .map_err(|err| (ErrorKind::IdentityLocked, err))?;
-    decrypt_store_bytes(&encrypted, &identities).map_err(|err| {
-        let kind = decrypt_error_kind(&err);
-        if kind == ErrorKind::IdentityLocked && !protected.is_empty() {
-            (
-                kind,
-                err.context(i18n::error_browser_identity_passphrase_protected()),
-            )
-        } else {
-            (kind, err)
+    Ok((identities, !protected.is_empty()))
+}
+
+/// A remote store fails on the identity side when no identity unwraps this
+/// device's wrapping of the store's keys; every other failure (the server,
+/// the network, a missing grant, verification) leaves the store unreachable.
+fn remote_error_kind(err: &anyhow::Error) -> ErrorKind {
+    match err.downcast_ref::<pasejo_client::Error>() {
+        Some(pasejo_client::Error::Protocol(pasejo_protocol::Error::Age(_))) => {
+            ErrorKind::IdentityLocked
         }
-    })
+        _ => ErrorKind::StoreUnreachable,
+    }
 }
 
 /// Decryption fails on the identity side when none of the identities
@@ -1375,7 +1424,7 @@ mod tests {
         };
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
-            let kind = open_store_for_read(&cfg, &reg, true)
+            let kind = open_store_for_read(&cfg, &reg, true, &Fetch::Everything)
                 .err()
                 .map(|(kind, _)| kind);
             let _ = tx.send(kind);
@@ -1409,7 +1458,7 @@ mod tests {
     }
 
     fn open_store_for_read_error_kind(cfg: &Configuration) -> Option<ErrorKind> {
-        open_store_for_read(cfg, &cfg.stores[0], true)
+        open_store_for_read(cfg, &cfg.stores[0], true, &Fetch::Everything)
             .err()
             .map(|(kind, _)| kind)
     }

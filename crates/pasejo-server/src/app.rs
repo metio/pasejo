@@ -57,6 +57,7 @@ pub fn router(state: AppState) -> Router {
         .route("/orgs/{org}/users", get(orgs::org_users))
         .route("/orgs/{org}/actions", get(actions::list))
         .route("/orgs/{org}/stores", get(stores::list))
+        .route("/orgs/{org}/recovery", get(stores::recovery))
         .route("/orgs/{org}/stores/{store}/keys", get(stores::keys))
         .route(
             "/orgs/{org}/stores/{store}/epochs/{epoch}",

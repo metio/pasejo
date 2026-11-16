@@ -3,16 +3,18 @@
 
 use std::time::Duration;
 
-use anyhow::Context;
 use zeroize::Zeroizing;
 
 use crate::cli::{clipboard, i18n, prompts};
-use crate::commands::store_op::{OpenStore, StoreMutation, open_store, with_store};
+use crate::commands::store_op::{
+    OpenStore, StoreMutation, open_store_fetching, persist, push, with_store_fetching,
+};
 use crate::models::cli::{Cli, OtpCommands};
 use crate::models::configuration::{
-    Configuration, DEFAULT_CLIPBOARD_NOTIFY, DEFAULT_CLIPBOARD_TIMEOUT_SECONDS, encrypt_store,
+    Configuration, DEFAULT_CLIPBOARD_NOTIFY, DEFAULT_CLIPBOARD_TIMEOUT_SECONDS,
 };
 use crate::models::password_store::{OneTimePassword, OneTimePasswordType, PasswordStore};
+use crate::remote::funnel::Fetch;
 use crate::secrets;
 
 pub fn dispatch(
@@ -76,14 +78,21 @@ fn add(
     force: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        let allow_overwrite = !store.otp.contains_key(password_path)
-            || force
-            || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
-        let mutation = insert_one_time_password(store, password_path, password, allow_overwrite)?;
-        i18n::one_time_password_added(password_path);
-        Ok(((), mutation))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::otp([password_path]),
+        |_, store| {
+            let allow_overwrite = !store.otp.contains_key(password_path)
+                || force
+                || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
+            let mutation =
+                insert_one_time_password(store, password_path, password, allow_overwrite)?;
+            i18n::one_time_password_added(password_path);
+            Ok(((), mutation))
+        },
+    )
 }
 
 fn remove(
@@ -93,14 +102,20 @@ fn remove(
     password_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        let allow_remove = !store.otp.contains_key(password_path)
-            || force
-            || prompts::get_confirmation_from_user(&i18n::prompt_remove_one_time_password())?;
-        let mutation = remove_one_time_password(store, password_path, allow_remove)?;
-        i18n::one_time_password_removed(password_path);
-        Ok(((), mutation))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::Names,
+        |_, store| {
+            let allow_remove = !store.otp.contains_key(password_path)
+                || force
+                || prompts::get_confirmation_from_user(&i18n::prompt_remove_one_time_password())?;
+            let mutation = remove_one_time_password(store, password_path, allow_remove)?;
+            i18n::one_time_password_removed(password_path);
+            Ok(((), mutation))
+        },
+    )
 }
 
 fn list(
@@ -109,19 +124,25 @@ fn list(
     tree: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        if tree {
-            print!(
-                "{}",
-                secrets::format_as_tree("", &store.otp_names_as_list())
-            );
-        } else {
-            for secret in store.otp_names_as_list() {
-                println!("{secret}");
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::Names,
+        |_, store| {
+            if tree {
+                print!(
+                    "{}",
+                    secrets::format_as_tree("", &store.otp_names_as_list())
+                );
+            } else {
+                for secret in store.otp_names_as_list() {
+                    println!("{secret}");
+                }
             }
-        }
-        Ok(((), StoreMutation::Unchanged))
-    })
+            Ok(((), StoreMutation::Unchanged))
+        },
+    )
 }
 
 /// Showing an OTP shares the [`open_store`] front half but hand-rolls its
@@ -149,7 +170,13 @@ fn show(
         hooks,
         lock,
         mut store,
-    } = open_store(configuration, store_name, offline)?;
+        mut remote,
+    } = open_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::otp([password_path]),
+    )?;
 
     // Generate + (for HOTP) bump the counter, then deliver the code while
     // still holding the lock but BEFORE persisting. A clipboard placement
@@ -183,7 +210,7 @@ fn show(
 
     // Delivery succeeded — only now persist the advanced HOTP counter.
     if is_hotp {
-        encrypt_store(registration, &store).context(i18n::error_cannot_encrypt_store())?;
+        persist(registration, &mut remote, &store)?;
     }
     drop(lock);
 
@@ -192,7 +219,7 @@ fn show(
     push_then_hold(
         || {
             if is_hotp {
-                hooks.execute_push_commands()
+                push(hooks.as_ref())
             } else {
                 Ok(())
             }
@@ -225,14 +252,20 @@ fn mv(
     new_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        let allow_overwrite = !store.otp.contains_key(new_path)
-            || force
-            || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
-        let mutation = move_one_time_password(store, current_path, new_path, allow_overwrite)?;
-        i18n::one_time_password_moved(current_path, new_path);
-        Ok(((), mutation))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::otp([current_path, new_path]),
+        |_, store| {
+            let allow_overwrite = !store.otp.contains_key(new_path)
+                || force
+                || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
+            let mutation = move_one_time_password(store, current_path, new_path, allow_overwrite)?;
+            i18n::one_time_password_moved(current_path, new_path);
+            Ok(((), mutation))
+        },
+    )
 }
 
 fn copy(
@@ -243,14 +276,21 @@ fn copy(
     target_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        let allow_overwrite = !store.otp.contains_key(target_path)
-            || force
-            || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
-        let mutation = copy_one_time_password(store, source_path, target_path, allow_overwrite)?;
-        i18n::one_time_password_copied(source_path, target_path);
-        Ok(((), mutation))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::otp([source_path, target_path]),
+        |_, store| {
+            let allow_overwrite = !store.otp.contains_key(target_path)
+                || force
+                || prompts::get_confirmation_from_user(&i18n::prompt_overwrite_one_time_password())?;
+            let mutation =
+                copy_one_time_password(store, source_path, target_path, allow_overwrite)?;
+            i18n::one_time_password_copied(source_path, target_path);
+            Ok(((), mutation))
+        },
+    )
 }
 
 /// Insert `password` at `password_path`. Bails when a password already

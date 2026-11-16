@@ -7,11 +7,14 @@ use zeroize::Zeroizing;
 
 use crate::cli::{clipboard, i18n, prompts};
 use crate::commands::environment;
-use crate::commands::store_op::{StoreMutation, with_store, with_store_then};
+use crate::commands::store_op::{
+    StoreMutation, with_store, with_store_fetching, with_store_fetching_then,
+};
 use crate::models::cli::SecretCommands;
 use crate::models::configuration::{
     Configuration, DEFAULT_CLIPBOARD_NOTIFY, DEFAULT_CLIPBOARD_TIMEOUT_SECONDS,
 };
+use crate::remote::funnel::Fetch;
 use crate::secrets;
 use crate::secrets::selection::Selection;
 
@@ -131,18 +134,24 @@ fn add(
     multiline: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        if store.secrets.contains_key(secret_path)
-            && !force
-            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
-        {
-            anyhow::bail!(i18n::error_secret_already_exists(secret_path));
-        }
-        let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
-        scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
-        i18n::secret_added(secret_path);
-        Ok(((), StoreMutation::Modified))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::secrets([secret_path]),
+        |_, store| {
+            if store.secrets.contains_key(secret_path)
+                && !force
+                && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
+            {
+                anyhow::bail!(i18n::error_secret_already_exists(secret_path));
+            }
+            let secret = prompts::read_secret_from_user_input(secret_path, multiline)?;
+            scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
+            i18n::secret_added(secret_path);
+            Ok(((), StoreMutation::Modified))
+        },
+    )
 }
 
 fn audit(
@@ -184,24 +193,30 @@ fn copy(
     target_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        if store.secrets.contains_key(target_path)
-            && !force
-            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
-        {
-            anyhow::bail!(i18n::error_secret_already_exists(target_path));
-        }
-        let Some(secret) = store.secrets.get(source_path) else {
-            anyhow::bail!(i18n::error_no_secret_found(source_path))
-        };
-        scrub_displaced(
-            store
-                .secrets
-                .insert(target_path.to_owned(), secret.to_owned()),
-        );
-        i18n::secret_copied(source_path, target_path);
-        Ok(((), StoreMutation::Modified))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::secrets([source_path, target_path]),
+        |_, store| {
+            if store.secrets.contains_key(target_path)
+                && !force
+                && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
+            {
+                anyhow::bail!(i18n::error_secret_already_exists(target_path));
+            }
+            let Some(secret) = store.secrets.get(source_path) else {
+                anyhow::bail!(i18n::error_no_secret_found(source_path))
+            };
+            scrub_displaced(
+                store
+                    .secrets
+                    .insert(target_path.to_owned(), secret.to_owned()),
+            );
+            i18n::secret_copied(source_path, target_path);
+            Ok(((), StoreMutation::Modified))
+        },
+    )
 }
 
 fn mv(
@@ -212,20 +227,26 @@ fn mv(
     new_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        if store.secrets.contains_key(new_path)
-            && !force
-            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
-        {
-            anyhow::bail!(i18n::error_secret_already_exists(new_path));
-        }
-        let Some(secret) = store.secrets.remove(current_path) else {
-            anyhow::bail!(i18n::error_no_secret_found(current_path))
-        };
-        scrub_displaced(store.secrets.insert(new_path.to_owned(), secret));
-        i18n::secret_moved(current_path, new_path);
-        Ok(((), StoreMutation::Modified))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::secrets([current_path, new_path]),
+        |_, store| {
+            if store.secrets.contains_key(new_path)
+                && !force
+                && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
+            {
+                anyhow::bail!(i18n::error_secret_already_exists(new_path));
+            }
+            let Some(secret) = store.secrets.remove(current_path) else {
+                anyhow::bail!(i18n::error_no_secret_found(current_path))
+            };
+            scrub_displaced(store.secrets.insert(new_path.to_owned(), secret));
+            i18n::secret_moved(current_path, new_path);
+            Ok(((), StoreMutation::Modified))
+        },
+    )
 }
 
 fn list(
@@ -234,19 +255,25 @@ fn list(
     tree: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |registration, store| {
-        if tree {
-            print!(
-                "{}",
-                secrets::format_as_tree(&registration.name, &store.secret_names_as_list())
-            );
-        } else {
-            for secret in store.secret_names_as_list() {
-                println!("{secret}");
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::Names,
+        |registration, store| {
+            if tree {
+                print!(
+                    "{}",
+                    secrets::format_as_tree(&registration.name, &store.secret_names_as_list())
+                );
+            } else {
+                for secret in store.secret_names_as_list() {
+                    println!("{secret}");
+                }
             }
-        }
-        Ok(((), StoreMutation::Unchanged))
-    })
+            Ok(((), StoreMutation::Unchanged))
+        },
+    )
 }
 
 fn remove(
@@ -256,20 +283,26 @@ fn remove(
     secret_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        if store.secrets.contains_key(secret_path)
-            && !force
-            && !prompts::get_confirmation_from_user(&i18n::prompt_remove_secret())?
-        {
-            anyhow::bail!(i18n::error_not_allowed_to_remove_secret(secret_path));
-        }
-        let Some(removed) = store.secrets.remove(secret_path) else {
-            anyhow::bail!(i18n::error_no_secret_found(secret_path))
-        };
-        drop(Zeroizing::new(removed));
-        i18n::secret_removed(secret_path);
-        Ok(((), StoreMutation::Modified))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::Names,
+        |_, store| {
+            if store.secrets.contains_key(secret_path)
+                && !force
+                && !prompts::get_confirmation_from_user(&i18n::prompt_remove_secret())?
+            {
+                anyhow::bail!(i18n::error_not_allowed_to_remove_secret(secret_path));
+            }
+            let Some(removed) = store.secrets.remove(secret_path) else {
+                anyhow::bail!(i18n::error_no_secret_found(secret_path))
+            };
+            drop(Zeroizing::new(removed));
+            i18n::secret_removed(secret_path);
+            Ok(((), StoreMutation::Modified))
+        },
+    )
 }
 
 fn show(
@@ -281,10 +314,11 @@ fn show(
     clip: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store_then(
+    with_store_fetching_then(
         configuration,
         store_name,
         offline,
+        &Fetch::secrets([secret_path]),
         |_, store| {
             let Some(decrypted_text) = store.secrets.get(secret_path) else {
                 anyhow::bail!(i18n::error_no_secret_found(secret_path))
@@ -342,51 +376,57 @@ fn generate(
     strict: bool,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        if store.secrets.contains_key(secret_path)
-            && !force
-            && !inplace
-            && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
-        {
-            anyhow::bail!(i18n::error_secret_already_exists_overwrite_or_inplace(
-                secret_path
-            ));
-        }
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::secrets([secret_path]),
+        |_, store| {
+            if store.secrets.contains_key(secret_path)
+                && !force
+                && !inplace
+                && !prompts::get_confirmation_from_user(&i18n::prompt_overwrite_secret())?
+            {
+                anyhow::bail!(i18n::error_secret_already_exists_overwrite_or_inplace(
+                    secret_path
+                ));
+            }
 
-        let generator = passwords::PasswordGenerator {
-            length,
-            numbers,
-            lowercase_letters,
-            uppercase_letters,
-            symbols,
-            spaces,
-            exclude_similar_characters,
-            strict,
-        };
-        let secret = generator
-            .generate_one()
-            .map_err(|reason| anyhow::anyhow!(localize_generator_error(reason)))?;
+            let generator = passwords::PasswordGenerator {
+                length,
+                numbers,
+                lowercase_letters,
+                uppercase_letters,
+                symbols,
+                spaces,
+                exclude_similar_characters,
+                strict,
+            };
+            let secret = generator
+                .generate_one()
+                .map_err(|reason| anyhow::anyhow!(localize_generator_error(reason)))?;
 
-        if inplace {
-            if let Some(current_value) = store.secrets.get(secret_path) {
-                let secret = Zeroizing::new(secret);
-                let mut remainder = current_value.lines().skip(1).collect::<Vec<&str>>();
-                remainder.splice(..0, vec![secret.as_str()]);
-                scrub_displaced(
-                    store
-                        .secrets
-                        .insert(secret_path.to_owned(), remainder.join("\n")),
-                );
+            if inplace {
+                if let Some(current_value) = store.secrets.get(secret_path) {
+                    let secret = Zeroizing::new(secret);
+                    let mut remainder = current_value.lines().skip(1).collect::<Vec<&str>>();
+                    remainder.splice(..0, vec![secret.as_str()]);
+                    scrub_displaced(
+                        store
+                            .secrets
+                            .insert(secret_path.to_owned(), remainder.join("\n")),
+                    );
+                } else {
+                    scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
+                }
             } else {
                 scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
             }
-        } else {
-            scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
-        }
 
-        i18n::secret_generated(secret_path);
-        Ok(((), StoreMutation::Modified))
-    })
+            i18n::secret_generated(secret_path);
+            Ok(((), StoreMutation::Modified))
+        },
+    )
 }
 
 /// Translates the fixed English error strings of the `passwords` generator.
@@ -407,15 +447,21 @@ fn edit(
     secret_path: &str,
     offline: bool,
 ) -> anyhow::Result<()> {
-    with_store(configuration, store_name, offline, |_, store| {
-        let Some(current_value) = store.secrets.get(secret_path) else {
-            anyhow::bail!(i18n::error_secret_does_not_exist_for_edit(secret_path));
-        };
-        let secret = prompts::edit_secret(secret_path, current_value)?;
-        scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
-        i18n::secret_edited(secret_path);
-        Ok(((), StoreMutation::Modified))
-    })
+    with_store_fetching(
+        configuration,
+        store_name,
+        offline,
+        &Fetch::secrets([secret_path]),
+        |_, store| {
+            let Some(current_value) = store.secrets.get(secret_path) else {
+                anyhow::bail!(i18n::error_secret_does_not_exist_for_edit(secret_path));
+            };
+            let secret = prompts::edit_secret(secret_path, current_value)?;
+            scrub_displaced(store.secrets.insert(secret_path.to_owned(), secret));
+            i18n::secret_edited(secret_path);
+            Ok(((), StoreMutation::Modified))
+        },
+    )
 }
 
 enum Pattern<'a> {

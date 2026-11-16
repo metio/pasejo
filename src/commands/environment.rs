@@ -14,11 +14,12 @@ use zeroize::Zeroizing;
 
 use crate::cli::i18n;
 use crate::cli::redact::{MIN_REDACTED_LEN, Redactor};
-use crate::commands::store_op::{StoreMutation, require_store, with_store};
+use crate::commands::store_op::{StoreMutation, require_store, with_store_fetching};
 use crate::models::cli::ExecArgs;
 use crate::models::configuration::Configuration;
 use crate::models::environment::{SecretReference, collect_assignments, parse_references};
 use crate::models::password_store::PasswordStore;
+use crate::remote::funnel::Fetch;
 use crate::secrets::selection::Selection;
 
 /// Values keyed by the caller's names (variable names for `exec`). Each
@@ -49,17 +50,28 @@ pub fn resolve(
 
     let mut values = ResolvedValues::new();
     for (store_name, entries) in &by_store {
-        let resolved = with_store(configuration, Some(store_name), offline, |_, store| {
-            let resolved = entries
+        let fetch = Fetch::secrets(
+            entries
                 .iter()
-                .map(|(variable, reference)| {
-                    lookup(store, reference)
-                        .with_context(|| i18n::error_value_unresolved(variable))
-                        .map(|value| ((*variable).clone(), value))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            Ok((resolved, StoreMutation::Unchanged))
-        })?;
+                .map(|(_, reference)| reference.secret.as_str()),
+        );
+        let resolved = with_store_fetching(
+            configuration,
+            Some(store_name),
+            offline,
+            &fetch,
+            |_, store| {
+                let resolved = entries
+                    .iter()
+                    .map(|(variable, reference)| {
+                        lookup(store, reference)
+                            .with_context(|| i18n::error_value_unresolved(variable))
+                            .map(|value| ((*variable).clone(), value))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                Ok((resolved, StoreMutation::Unchanged))
+            },
+        )?;
         values.extend(resolved);
     }
     Ok(values)

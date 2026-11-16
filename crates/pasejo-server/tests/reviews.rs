@@ -255,6 +255,7 @@ async fn reviewers_decide_and_revocations_become_actions() {
         org,
         store,
         team,
+        harness: _harness,
         ..
     } = &setup;
     // Only reviewers decide.
@@ -376,6 +377,7 @@ async fn reviewers_do_not_decide_on_their_own_access() {
         dave,
         org,
         team,
+        harness: _harness,
         ..
     } = &setup;
     let review = open(&setup, vec![carol.user(), dave.user(), alice.user()]).await;

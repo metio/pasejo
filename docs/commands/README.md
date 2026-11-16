@@ -4,15 +4,18 @@ The `pasejo` command-line tool provides a set of commands to manage secrets, ide
 
 The following commands are available in `pasejo`:
 
+- [audit](./pasejo-cmd-audit.md): Read and verify an organization's audit trail
 - [browser](./pasejo-cmd-browser.md): Browser integration (query, native-messaging host, manifest install)
 - [config](./pasejo-cmd-config.md): Manage `pasejo` configuration
 - [exec](./pasejo-cmd-exec.md): Run a command with values from secrets in its environment
 - [export](./pasejo-cmd-export.md): Export passwords to another password manager
 - [hook](./pasejo-cmd-hook.md): Manage synchronization hooks
 - [identity](./pasejo-cmd-identity.md): Manage identities
+- [org](./pasejo-cmd-org.md): Manage organizations on a pasejo server
 - [otp](./pasejo-cmd-otp.md): Manage one-time passwords
 - [recipient](./pasejo-cmd-recipient.md): Manage recipients
 - [secret](./pasejo-cmd-secret.md): Manage secrets
+- [server](./pasejo-cmd-server.md): Sign in to pasejo servers
 - [store](./pasejo-cmd-store.md): Manage stores
 
 ## Environment variables

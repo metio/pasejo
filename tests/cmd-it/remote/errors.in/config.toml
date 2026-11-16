@@ -1,0 +1,35 @@
+identities = []
+default_store = "team"
+pull_commands = []
+push_commands = []
+
+[[servers]]
+url = "https://pasejo.example"
+device = "0123456789abcdef0123456789abcdef"
+label = "laptop"
+recipient = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+checkpoint_key = "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"
+
+[[servers.orgs]]
+id = "fedcba9876543210fedcba9876543210"
+name = "acme"
+genesis = "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM"
+
+[[stores]]
+path = "data/pasejo/servers/0123456789abcdef0123456789abcdef/stores/00112233445566778899aabbccddeeff"
+name = "team"
+identities = []
+pull_commands = []
+push_commands = []
+
+[stores.remote]
+server = "https://pasejo.example"
+org = "fedcba9876543210fedcba9876543210"
+store = "00112233445566778899aabbccddeeff"
+
+[[stores]]
+path = "files.age"
+name = "files"
+identities = []
+pull_commands = []
+push_commands = []

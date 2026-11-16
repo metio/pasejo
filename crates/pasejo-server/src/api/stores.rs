@@ -10,8 +10,8 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use pasejo_protocol::api::{
     ChainLink, Commit, Committed, EpochUpload, ErrorCode, IndexResponse, Keys, LookupResponse,
-    ObjectsRequest, ObjectsResponse, Rotation, RotationItem, StoreSummary, Stores, Wrapping,
-    WrappingUpload, WrappingsUpload,
+    ObjectsRequest, ObjectsResponse, RecoveryExport, RecoveryStore, Rotation, RotationItem,
+    StoreSummary, Stores, Wrapping, WrappingUpload, WrappingsUpload,
 };
 use pasejo_protocol::encoding::Bytes;
 use pasejo_protocol::envelope::Envelope;
@@ -164,6 +164,105 @@ pub async fn keys(
     )
     .await?;
     Ok(Json(Keys { wrappings, chain }))
+}
+
+/// `GET /v1/orgs/{org}/recovery`: what the offline recovery identity needs
+/// to decrypt every store.
+///
+/// Only admins may export, and every export is audited; the wrappings open
+/// only with the offline identity.
+pub async fn recovery(
+    State(state): State<AppState>,
+    Path(org): Path<String>,
+    authed: Authed,
+) -> ApiResult<Json<RecoveryExport>> {
+    let org = parse_id(&org)?;
+    let access = OrgAccess::load(&state, &authed, org).await?;
+    if !access.has_role(&[Role::Admin]) {
+        audit::record(
+            &state,
+            Some(&authed.ctx),
+            Event::denied("recovery.export").org(org),
+        )
+        .await?;
+        return Err(ApiError::forbidden("only admins export for recovery"));
+    }
+    let Some(recipient) = access.log.state().recovery.clone() else {
+        return Err(ApiError::new(
+            ErrorCode::NotFound,
+            "the organization has no recovery recipient",
+        ));
+    };
+    let device = pasejo_protocol::device::recovery_id(&recipient);
+    let mut stores = Vec::new();
+    for (id, store) in &access.log.state().stores {
+        if store.deleted {
+            continue;
+        }
+        let wrappings = sqlx::query(state.db.sql("SELECT epoch, full_keys, ciphertext FROM wrappings WHERE store = $1 AND device = $2 ORDER BY epoch"))
+            .bind(id.to_string())
+            .bind(device.to_string())
+            .fetch_all(state.db.pool())
+            .await?
+            .iter()
+            .map(|row| {
+                Ok(Wrapping {
+                    epoch: db::uint(row, "epoch")?,
+                    device,
+                    full: db::uint(row, "full_keys")? != 0,
+                    ciphertext: Bytes(row.try_get("ciphertext")?),
+                })
+            })
+            .collect::<ApiResult<Vec<_>>>()?;
+        let chain = sqlx::query(state.db.sql(
+            "SELECT epoch, prev_names, prev_data FROM chain_links WHERE store = $1 ORDER BY epoch",
+        ))
+        .bind(id.to_string())
+        .fetch_all(state.db.pool())
+        .await?
+        .iter()
+        .map(|row| {
+            Ok(ChainLink {
+                epoch: db::uint(row, "epoch")?,
+                prev_names: Bytes(row.try_get("prev_names")?),
+                prev_data: Bytes(row.try_get("prev_data")?),
+            })
+        })
+        .collect::<ApiResult<Vec<_>>>()?;
+        let version = store_row(&state, org, *id).await?.version;
+        let objects = sqlx::query(state.db.sql(
+            "SELECT o.id, o.version, o.epoch, o.ciphertext FROM objects o WHERE o.store = $1 AND o.version = (SELECT MAX(l.version) FROM objects l WHERE l.store = o.store AND l.id = o.id)",
+        ))
+        .bind(id.to_string())
+        .fetch_all(state.db.pool())
+        .await?
+        .iter()
+        .map(|row| {
+            let object: String = row.try_get("id")?;
+            Ok(SealedObject {
+                id: parse_id(&object)?,
+                version: db::uint(row, "version")?,
+                epoch: db::uint(row, "epoch")?,
+                ciphertext: Bytes(row.try_get("ciphertext")?),
+            })
+        })
+        .collect::<ApiResult<Vec<_>>>()?;
+        stores.push(RecoveryStore {
+            id: *id,
+            keys: Keys { wrappings, chain },
+            index: current_index(&state, *id, version).await?,
+            objects,
+        });
+    }
+    audit::record(
+        &state,
+        Some(&authed.ctx),
+        Event::ok("recovery.export")
+            .org(org)
+            .detail(format!("{} stores", stores.len())),
+    )
+    .await?;
+    Ok(Json(RecoveryExport { stores }))
 }
 
 /// Checks that each wrapping goes to a device entitled to what it carries.
