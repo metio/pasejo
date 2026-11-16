@@ -378,7 +378,7 @@ The server signs nothing, so changes that need a signature surface as pending ac
 | `revoke-grant` | `revoke` decisions of access reviews | `store.grant none` |
 | `cosign-checkpoint` | audit checkpoints the organization has not co-signed | co-signature |
 
-`pasejo org actions --run` executes every action its device has the rights and keys for. An organization that wants SCIM and automatic approval to take effect without a person runs it on a schedule as an admin machine. The console executes the same actions after a click.
+`pasejo org actions --run` executes every action its device has the rights and keys for. An organization that wants SCIM and automatic approval to take effect without a person runs it on a schedule as an admin machine. The console executes, after a click, the actions that need only a signature: `approve-device`, `join-member`, `remove-member`, `sync-team`, `revoke-expired`, `revoke-grant` and `cosign-checkpoint`. `rotate-epoch` and `wrap-keys` need a store's data key, which a browser never holds, so the console names them and leaves them to a device with full keys.
 
 ## Sync protocol
 
@@ -556,18 +556,30 @@ The server serves the console under `/console/` as static HTML, CSS and JavaScri
   - a Content-Security-Policy of `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`;
   - `Cross-Origin-Opener-Policy: same-origin`;
   - `Referrer-Policy: no-referrer`.
-- **Device keys.** On first sign-in, the console generates the browser's device keys, keeps them non-extractable in IndexedDB, and enrolls the browser as an `hpke` device. Another device of the same user, or an approver, approves it.
+- **Rendering.** Views are plain trees turned into DOM nodes with text nodes only, so nothing a server or member wrote is ever parsed as markup.
+- **Device keys.** On first use, the console generates the browser's device keys (Ed25519 for signatures, X25519 for wrappings), keeps them non-extractable in IndexedDB, and enrolls the browser as an `hpke` device once it asks the enrollment status and finds none. Another device of the same user, or an approver, approves it; until then the console shows the fingerprint to compare and the CLI command that approves it.
+- **Session.** The console exchanges the single-use sign-in cookie for a session bound to its device key and signs every request with that key, as the CLI does.
+- **Pins.** The console keeps three pins in IndexedDB and refuses to show anything that contradicts them:
+  - the server's checkpoint key, on first use;
+  - each organization's genesis hash, after the person compared the organization's fingerprint with one an admin shows them;
+  - the last index version of each store it read.
+- **Verification.** The console replays the membership log with the same rules as `pasejo-protocol`, checks every key it unwraps against the commitments in the log, checks index versions against the log and its pins, and verifies the audit trail (hash chain, server signatures, co-signatures) before it shows any of it.
 - **Capabilities.** With names-only wrappings, the console shows:
-  - organization members, roles, teams and devices;
-  - store labels and grants;
-  - pending actions, and it executes them;
+  - organization members, roles, teams and devices with their fingerprints;
+  - store labels, grants and their expiry;
+  - pending actions, and it executes those that need only a signature (see [Pending actions](#pending-actions)); a device approval in `manual` mode needs the fingerprint shown on the device typed in, which the console compares with the one it computes from the enrollment's record;
+  - proposals awaiting a second admin, which it co-signs after checking that they append;
   - the audit log with resolved names;
-  - access reviews;
+  - access reviews, with decisions for reviewers;
   - rotation lists.
 
-  It signs log entries with the browser's key. It never sees a data key.
+  It signs log entries with the browser's key and appends nothing its own replay refuses. It never sees a data key.
 - **Language.** The console follows the browser's language preference among the CLI's eight languages, so it needs no language switcher.
-- **Break-glass.** A separate break-glass page offers the login and the emergency window.
+- **Break-glass.** A separate page, `/console/break-glass.html`, offers the break-glass login, the emergency window, user suspension, reactivation and session ends, the organization list and the server's audit log. Its session key is generated for the page load, kept only in memory and never exported, so reloading the page signs out. The API serves no checkpoints of the server chain, so the page verifies that chain only when it is kept from its first event.
+- **Tests.** Node runs the console's modules with its own WebCrypto:
+  - the cross-language vectors `pasejo-protocol` generates (`crates/pasejo-protocol/vectors/console.json`), which the Rust test of the same name verifies too;
+  - unit tests of every module, and of the controller against a fake server that replays the vectors' membership log and checks every request proof;
+  - `crates/pasejo-server/tests/console.rs`, which runs the controller against the real server: sign-in, store names, a device approval, a rotation list and audit verification. It is skipped without Node locally and fails without Node when `CI` is set.
 
 ## Client changes
 
@@ -631,7 +643,8 @@ Commands taking one organization accept `--org` with a name or identifier and de
 
 - **Workspace.** The CLI stays the root package of the Cargo workspace. `cargo test --workspace` runs every crate's tests, and CI also runs:
   - the server tests against PostgreSQL;
-  - the console's JavaScript tests under Node with its WebCrypto;
-  - cross-language test vectors generated by `pasejo-protocol` and checked by the console tests.
+  - the console's JavaScript tests under Node with its WebCrypto (`node --test tests/` in `crates/pasejo-server/web`);
+  - cross-language test vectors generated by `pasejo-protocol` and checked by the console tests;
+  - the console against the real server (`crates/pasejo-server/tests/console.rs`), which needs Node.
 - **CLI release.** The CLI release publishes `pasejo-protocol`, `pasejo-client` and `pasejo` to crates.io in dependency order, and counts changes under `src/`, `crates/pasejo-protocol/` and `crates/pasejo-client/`.
 - **Server release.** A separate release workflow builds `pasejo-server` and `pasejo-bridge` for Linux on x86_64 and aarch64 and publishes the binaries and container images to `ghcr.io/metio`. Images are built from `docker.io/library/rust` with distroless runtime images and signed with cosign keyless. The version format and cadence follow the CLI.

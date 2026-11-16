@@ -101,4 +101,30 @@ mod tests {
         assert_eq!(asset("../Cargo.toml").status(), StatusCode::NOT_FOUND);
         assert_eq!(asset("missing.js").status(), StatusCode::NOT_FOUND);
     }
+
+    #[test]
+    fn the_console_modules_are_embedded_and_its_tests_are_not() {
+        for path in [
+            "break-glass.html",
+            "js/main.js",
+            "js/break-glass-main.js",
+            "js/app.js",
+            "js/messages/zh.js",
+        ] {
+            let response = asset(path);
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+        }
+        assert_eq!(
+            asset("js/app.js").headers()[header::CONTENT_TYPE],
+            "text/javascript; charset=utf-8"
+        );
+        for path in [
+            "tests/e2e.js",
+            "tests/server.js",
+            "tests/app.test.js",
+            "package.json",
+        ] {
+            assert_eq!(asset(path).status(), StatusCode::NOT_FOUND, "{path}");
+        }
+    }
 }

@@ -26,3 +26,15 @@ path = ".claude/settings.json"
 precedence = "override"
 SPDX-FileCopyrightText = "The pasejo Authors"
 SPDX-License-Identifier = "0BSD"
+
+[[annotations]]
+path = "crates/pasejo-protocol/vectors/*.json"
+precedence = "override"
+SPDX-FileCopyrightText = "The pasejo Authors"
+SPDX-License-Identifier = "0BSD"
+
+[[annotations]]
+path = "crates/pasejo-server/web/package.json"
+precedence = "override"
+SPDX-FileCopyrightText = "The pasejo Authors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
