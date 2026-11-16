@@ -161,4 +161,6 @@ export default {
   "bg-user-suspended": "已停用",
   "bg-sessions-ended": "{name} 的会话已结束。",
   "bg-audit": "服务器审计日志",
+  "bg-audit-key-pinned": "已使用此浏览器中固定的服务器检查点密钥验证：{key}",
+  "bg-audit-key-unpinned": "此浏览器不保存数据，因此服务器的检查点密钥未被固定。请将 {key} 与 CLI 配置中的 checkpoint_key 进行比较。",
 };

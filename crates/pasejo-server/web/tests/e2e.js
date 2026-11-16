@@ -9,6 +9,7 @@
 import assert from "node:assert/strict";
 import { Api } from "../js/api.js";
 import { Console } from "../js/app.js";
+import { BreakGlass, sessionKey } from "../js/break-glass.js";
 import { parseRecord, recordFingerprint } from "../js/device.js";
 import { unb64 } from "../js/encoding.js";
 import { importPrivate } from "../js/hpke.js";
@@ -84,3 +85,26 @@ step("verified the audit chain");
 await click(tree, "Sign out");
 expectScreen("sign-in");
 step("signed out");
+
+const breakGlassKey = await sessionKey();
+const breakGlassApi = new Api({ base: config.url, signingKey: breakGlassKey.privateKey });
+const pins = memoryStore();
+let breakGlassTree = null;
+const page = new BreakGlass({
+  t: translator("en"),
+  api: breakGlassApi,
+  key: breakGlassKey,
+  kv: pins,
+  show: (next) => (breakGlassTree = next),
+});
+page.start();
+await submit(breakGlassTree, config.break_glass);
+assert.equal(page.model.screen, "dashboard", alerts(breakGlassTree).join(" "));
+await click(breakGlassTree, "Load and verify");
+assert.ok(page.model.audit, alerts(breakGlassTree).join(" "));
+assert.ok(page.model.audit.checkpoints > 0, JSON.stringify(page.model.audit.checkpoints));
+assert.ok(page.model.audit.events.some((event) => event.action === "break-glass.login"));
+assert.match(text(breakGlassTree), /Verified \d+ events, \d+ checkpoints/);
+assert.ok(text(breakGlassTree).includes("pinned in this browser"));
+assert.ok(await pins.get("server-key"));
+step("verified the server audit chain");

@@ -6,9 +6,10 @@
 // page load and kept only in memory, so reloading the page signs out.
 
 import { ApiError } from "./api.js";
-import { b64 } from "./encoding.js";
-import { verifyChain } from "./audit.js";
-import { auditEvents } from "./session.js";
+import { b64, unb64Fixed } from "./encoding.js";
+import { verifyTrail } from "./audit.js";
+import { ProtocolError } from "./log.js";
+import { auditEvents, serverKey } from "./session.js";
 import { userDisplay } from "./orgview.js";
 import { fieldValue, h } from "./view.js";
 import { errorText } from "./views.js";
@@ -131,9 +132,8 @@ export function dashboardView(t, model, handlers) {
         ? h(
             "div",
             {},
-            model.audit.verified
-              ? h("p", { class: "ok" }, t("audit-verified", { events: model.audit.events.length, checkpoints: 0, cosignatures: 0 }))
-              : null,
+            h("p", { class: "ok" }, t("audit-verified", { events: model.audit.events.length, checkpoints: model.audit.checkpoints, cosignatures: 0 })),
+            h("p", { class: "muted" }, t(model.audit.pinned ? "bg-audit-key-pinned" : "bg-audit-key-unpinned", { key: model.audit.key })),
             model.audit.events.length === 0 ? h("p", {}, t("audit-empty")) : null,
             h(
               "table",
@@ -155,9 +155,15 @@ export function dashboardView(t, model, handlers) {
 }
 
 export class BreakGlass {
-  constructor({ t, api, key, show, now = () => Date.now() }) {
+  /**
+   * `kv` pins the server's checkpoint key next to the console's pins; it is
+   * null when the browser keeps no data, and the page then shows the key for
+   * comparison instead.
+   */
+  constructor({ t, api, key, kv = null, show, now = () => Date.now() }) {
     this.t = t;
     this.api = api;
+    this.kv = kv;
     this.key = key;
     this.show = show;
     this.now = now;
@@ -249,14 +255,23 @@ export class BreakGlass {
 
   loadAudit() {
     return this.attempt(async () => {
+      const key = this.kv
+        ? (await serverKey(this.api, this.kv)).key
+        : unb64Fixed((await this.api.anonymous("GET", "/v1/server")).checkpoint_key, 32, "checkpoint key");
+      const { checkpoints } = await this.api.get("/v1/audit/checkpoints?since=0");
       const events = await auditEvents(this.api, "/v1/audit", 0);
-      // The API serves no checkpoints of the server chain, so only a chain
-      // kept from its first event can be verified here.
-      const verified = events.length > 0 && events[0].seq === 1;
-      if (verified) {
-        await verifyChain(b64(new Uint8Array(32)), 1, events);
-      }
-      this.set({ audit: { events, verified } });
+      const result = await verifyTrail({
+        checkpoints,
+        events,
+        serverKey: key,
+        check: (seq, payload) => {
+          if (payload.seq !== seq || payload.org !== null || payload.log_head !== null) {
+            throw new ProtocolError(`checkpoint ${seq} names another chain or position`);
+          }
+        },
+        cosigner: () => undefined,
+      });
+      this.set({ audit: { events, checkpoints: result.checkpoints, pinned: this.kv !== null, key: b64(key) } });
       return null;
     });
   }

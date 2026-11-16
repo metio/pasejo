@@ -75,7 +75,7 @@ const json = (status, body) => new Response(JSON.stringify(body), { status });
 /**
  * A fake server. `options` override its state: `cookie` (whether a console
  * sign-in is waiting), `actions`, `reviews`, `rotation`, `events`,
- * `checkpoints`, `serverKey`, `index`, `forbid` (a set of "METHOD /path"
+ * `checkpoints`, `serverCheckpoints`, `serverKey`, `index`, `forbid` (a set of "METHOD /path"
  * answered with 403) and `conflictOnce` (the next append answers conflict).
  */
 export async function fakeServer(options = {}) {
@@ -87,6 +87,7 @@ export async function fakeServer(options = {}) {
     rotation: { user: WRITER, ended: NOW - 1000, items: [] },
     events: [],
     checkpoints: [],
+    serverCheckpoints: [],
     serverKey: vectors.audit.server_key,
     index: vectors.store.checks[0].index,
     forbid: new Set(),
@@ -242,6 +243,7 @@ export async function fakeServer(options = {}) {
     state.emergencyUntil = body.duration === 0 ? null : NOW + body.duration;
     return { until: state.emergencyUntil };
   });
+  route("GET /v1/audit/checkpoints", () => ({ checkpoints: state.serverCheckpoints }));
   route("GET /v1/audit", (request) => {
     const since = Number(new URLSearchParams(request.query).get("since"));
     return { events: state.events.filter((event) => event.seq > since), next: null };

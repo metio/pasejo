@@ -161,4 +161,6 @@ export default {
   "bg-user-suspended": "정지됨",
   "bg-sessions-ended": "{name}의 세션이 종료되었습니다.",
   "bg-audit": "서버 감사 로그",
+  "bg-audit-key-pinned": "이 브라우저에 고정된 서버의 체크포인트 키로 검증했습니다: {key}",
+  "bg-audit-key-unpinned": "이 브라우저는 데이터를 저장하지 않으므로 서버의 체크포인트 키가 고정되지 않았습니다. {key}를 CLI 설정의 checkpoint_key와 비교하세요.",
 };

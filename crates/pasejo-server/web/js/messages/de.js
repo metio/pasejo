@@ -161,4 +161,6 @@ export default {
   "bg-user-suspended": "Gesperrt",
   "bg-sessions-ended": "Die Sitzungen von {name} sind beendet.",
   "bg-audit": "Audit-Protokoll des Servers",
+  "bg-audit-key-pinned": "Geprüft mit dem in diesem Browser gespeicherten Checkpoint-Schlüssel des Servers: {key}",
+  "bg-audit-key-unpinned": "Dieser Browser speichert keine Daten, daher ist der Checkpoint-Schlüssel des Servers nicht festgelegt. Vergleiche {key} mit checkpoint_key in einer CLI-Konfiguration.",
 };

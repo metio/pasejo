@@ -6,6 +6,7 @@
 import { Api } from "./api.js";
 import { BreakGlass, sessionKey } from "./break-glass.js";
 import { chooseLanguage, translator } from "./i18n.js";
+import { openStore } from "./kv.js";
 import { mount } from "./view.js";
 
 const t = translator(chooseLanguage(navigator.languages));
@@ -14,4 +15,5 @@ document.title = t("bg-title");
 const root = document.getElementById("app");
 const key = await sessionKey();
 const api = new Api({ signingKey: key.privateKey });
-new BreakGlass({ t, api, key, show: (tree) => mount(root, tree, document) }).start();
+const kv = await openStore().catch(() => null);
+new BreakGlass({ t, api, key, kv, show: (tree) => mount(root, tree, document) }).start();

@@ -13,7 +13,7 @@ import { claim, enrollmentRequest } from "./devicekeys.js";
 import { OrgLog, ProtocolError, Rejection, entryJson, nextEntry, parseEntry } from "./log.js";
 import { openNames } from "./keys.js";
 import { checkChain, openIndex } from "./store.js";
-import { cosign, verifyChain, verifyCheckpoint, verifyCosignature } from "./audit.js";
+import { cosign, verifyCheckpoint, verifyTrail } from "./audit.js";
 
 /** Exchanges the single-use console cookie for a session bound to the device key. */
 export async function signIn(api, device) {
@@ -224,50 +224,16 @@ function checkPayload(org, seq, payload, log) {
  */
 export async function verifyAudit(api, log, key) {
   const org = log.state.org;
-  const checkpoints = new Map();
-  let cosignatures = 0;
-  const { checkpoints: entries } = await api.get(`/v1/orgs/${org}/audit/checkpoints?since=0`);
-  for (const entry of entries) {
-    const payload = await verifyCheckpoint(entry.checkpoint, key);
-    checkPayload(org, entry.seq, payload, log);
-    for (const signature of entry.checkpoint.cosignatures) {
-      const device = log.state.devices.get(signature.device);
-      if (!device) {
-        throw new ProtocolError(`checkpoint ${entry.seq} carries a co-signature by an unknown device`);
-      }
-      if (!(await verifyCosignature(entry.checkpoint, signature.device, device.record.signingKey))) {
-        throw new ProtocolError(`a co-signature of checkpoint ${entry.seq} does not verify`);
-      }
-      cosignatures += 1;
-    }
-    checkpoints.set(entry.seq, { payload, checkpoint: entry.checkpoint });
-  }
+  const { checkpoints } = await api.get(`/v1/orgs/${org}/audit/checkpoints?since=0`);
   const events = await auditEvents(api, `/v1/orgs/${org}/audit`, 0);
-  if (events.length === 0) {
-    return { events, checkpoints: checkpoints.size, cosignatures, matched: 0 };
-  }
-  const first = events[0].seq;
-  let start;
-  if (first === 1) {
-    start = b64(new Uint8Array(32));
-  } else {
-    start = checkpoints.get(first - 1)?.payload.hash;
-    if (!start) {
-      throw new ProtocolError("no checkpoint vouches for the first kept event");
-    }
-  }
-  await verifyChain(start, first, events);
-  let matched = 0;
-  for (const event of events) {
-    const checkpoint = checkpoints.get(event.seq);
-    if (checkpoint) {
-      if (checkpoint.payload.hash !== event.hash) {
-        throw new ProtocolError(`checkpoint ${event.seq} contradicts the events`);
-      }
-      matched += 1;
-    }
-  }
-  return { events, checkpoints: checkpoints.size, cosignatures, matched };
+  const result = await verifyTrail({
+    checkpoints,
+    events,
+    serverKey: key,
+    check: (seq, payload) => checkPayload(org, seq, payload, log),
+    cosigner: (device) => log.state.devices.get(device)?.record.signingKey,
+  });
+  return { events, ...result };
 }
 
 /**

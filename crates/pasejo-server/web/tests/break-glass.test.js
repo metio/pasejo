@@ -5,9 +5,10 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Api } from "../js/api.js";
 import { BreakGlass, sessionKey } from "../js/break-glass.js";
-import { b64 } from "../js/encoding.js";
+import { b64, utf8 } from "../js/encoding.js";
+import { Context, sign } from "../js/envelope.js";
 import { translator } from "../js/i18n.js";
-import { vectors } from "./helpers.js";
+import { memoryStore, signingKey, vectors } from "./helpers.js";
 import { NOW, fakeServer } from "./server.js";
 import { alerts, click, submit, text } from "./tree.js";
 
@@ -19,7 +20,7 @@ async function setup(options = {}) {
   const key = await sessionKey();
   const api = new Api({ signingKey: key.privateKey, fetch: server.fetch, now: () => NOW });
   let tree = null;
-  const page = new BreakGlass({ t, api, key, now: () => NOW, show: (next) => (tree = next) });
+  const page = new BreakGlass({ t, api, key, kv: options.kv ?? null, now: () => NOW, show: (next) => (tree = next) });
   page.start();
   return { server, key, page, view: () => tree };
 }
@@ -103,26 +104,95 @@ describe("user actions", () => {
   });
 });
 
+const SERVER_SEED = new Uint8Array(32).fill(0x5e);
+
+/** A checkpoint of the server chain at `seq`, signed with `seed`. */
+async function serverCheckpoint(seq, hash, { seed = SERVER_SEED, org = null, logHead = null } = {}) {
+  const payload = utf8(JSON.stringify({ org, seq, hash, log_head: logHead, time: NOW }));
+  return {
+    seq,
+    checkpoint: {
+      payload: b64(payload),
+      server_signature: b64(await sign(Context.Checkpoint, payload, await signingKey(seed))),
+      cosignatures: [],
+    },
+  };
+}
+
+const EVENTS = vectors.audit.events;
+
 describe("the server audit log", () => {
   test("verifies a chain kept from its first event", async () => {
-    const { view } = await signedIn({ events: vectors.audit.events });
+    const { view } = await signedIn({ events: EVENTS });
     await click(view(), "Load and verify");
-    assert.match(text(view()), new RegExp(`Verified ${vectors.audit.events.length} events`));
+    assert.match(text(view()), new RegExp(`Verified ${EVENTS.length} events, 0 checkpoints`));
+  });
+
+  test("verifies a pruned chain from the checkpoint before its first event", async () => {
+    const checkpoints = [await serverCheckpoint(2, EVENTS[1].hash), await serverCheckpoint(4, EVENTS[3].hash)];
+    const { view } = await signedIn({ events: EVENTS.slice(2), serverCheckpoints: checkpoints });
+    await click(view(), "Load and verify");
+    assert.match(text(view()), new RegExp(`Verified ${EVENTS.length - 2} events, 2 checkpoints`));
+  });
+
+  test("refuses a pruned chain that no checkpoint vouches for", async () => {
+    const { view } = await signedIn({ events: EVENTS.slice(2) });
+    await click(view(), "Load and verify");
+    assert.match(alerts(view()).join(), /Verification failed.*no checkpoint vouches/);
+    assert.ok(!text(view()).includes("Verified"));
   });
 
   test("refuses an altered chain", async () => {
-    const events = structuredClone(vectors.audit.events);
+    const events = structuredClone(EVENTS);
     events[0].action = "nothing.happened";
     const { view } = await signedIn({ events });
     await click(view(), "Load and verify");
     assert.match(alerts(view()).join(), /Verification failed.*altered/);
   });
 
-  test("shows a pruned chain without claiming to have verified it", async () => {
-    const { view } = await signedIn({ events: vectors.audit.events.slice(2) });
+  test("refuses a checkpoint that contradicts the events", async () => {
+    const { view } = await signedIn({ events: EVENTS, serverCheckpoints: [await serverCheckpoint(3, EVENTS[1].hash)] });
     await click(view(), "Load and verify");
-    assert.ok(!text(view()).includes("Verified"));
-    assert.ok(text(view()).includes("object.read"));
+    assert.match(alerts(view()).join(), /Verification failed.*contradicts/);
+  });
+
+  test("refuses a checkpoint the server did not sign", async () => {
+    const forged = await serverCheckpoint(2, EVENTS[1].hash, { seed: new Uint8Array(32).fill(9) });
+    const { view } = await signedIn({ events: EVENTS, serverCheckpoints: [forged] });
+    await click(view(), "Load and verify");
+    assert.match(alerts(view()).join(), /Verification failed.*not signed by the server/);
+  });
+
+  test("refuses a checkpoint of an organization's chain", async () => {
+    const orgs = await serverCheckpoint(2, EVENTS[1].hash, { org: "0f".repeat(16), logHead: EVENTS[0].hash });
+    const { view } = await signedIn({ events: EVENTS, serverCheckpoints: [orgs] });
+    await click(view(), "Load and verify");
+    assert.match(alerts(view()).join(), /Verification failed.*another chain/);
+  });
+
+  test("refuses a co-signed checkpoint, since no device co-signs the server chain", async () => {
+    const checkpoint = await serverCheckpoint(2, EVENTS[1].hash);
+    checkpoint.checkpoint.cosignatures = vectors.audit.checkpoint.cosignatures;
+    const { view } = await signedIn({ events: EVENTS, serverCheckpoints: [checkpoint] });
+    await click(view(), "Load and verify");
+    assert.match(alerts(view()).join(), /Verification failed.*unknown device/);
+  });
+
+  test("shows the unpinned checkpoint key when the browser keeps no data", async () => {
+    const { view } = await signedIn({ events: EVENTS });
+    await click(view(), "Load and verify");
+    assert.ok(text(view()).includes(`keeps no data, so the server's checkpoint key is not pinned. Compare ${vectors.audit.server_key}`));
+  });
+
+  test("pins the checkpoint key on first use and refuses another key later", async () => {
+    const kv = memoryStore();
+    const first = await signedIn({ events: EVENTS, kv });
+    await click(first.view(), "Load and verify");
+    assert.ok(text(first.view()).includes(`pinned in this browser: ${vectors.audit.server_key}`));
+    assert.equal(b64(await kv.get("server-key")), vectors.audit.server_key);
+    const second = await signedIn({ events: EVENTS, kv, serverKey: b64(new Uint8Array(32).fill(1)) });
+    await click(second.view(), "Load and verify");
+    assert.match(alerts(second.view()).join(), /Verification failed.*differs from the pinned one/);
   });
 });
 

@@ -12,7 +12,7 @@ use std::path::Path;
 use std::process::Command;
 
 use common::stores::{Target, Write, commit, draft};
-use common::{Harness, Member};
+use common::{Harness, Member, Options, totp_now};
 use ed25519_dalek::SigningKey;
 use pasejo_protocol::Id;
 use pasejo_protocol::api::{Committed, LogPage};
@@ -48,7 +48,12 @@ async fn the_console_signs_in_opens_stores_approves_devices_and_verifies_the_aud
     let Some(node) = node() else {
         return;
     };
-    let harness = Harness::start().await;
+    // Frequent checkpoints, so the break-glass page verifies signed ones.
+    let harness = Harness::start_with(Options {
+        extra: "[audit]\ncheckpoint_every = 2\n".into(),
+        ..Options::default()
+    })
+    .await;
     let alice = harness.member("alice").await;
     let bob = harness.member("bob").await;
     let org = harness.org(&alice, Settings::default()).await;
@@ -135,8 +140,16 @@ async fn the_console_signs_in_opens_stores_approves_devices_and_verifies_the_aud
         .unwrap()
         .to_owned();
 
+    let break_glass = pasejo_server::auth::break_glass::create(&harness.state, "operator")
+        .await
+        .unwrap();
     let config = json!({
         "url": harness.url,
+        "break_glass": {
+            "username": "operator",
+            "password": break_glass.password.as_str(),
+            "totp": totp_now(&harness, &break_glass.totp_secret, 0),
+        },
         "cookie": cookie,
         "org": org,
         "store": store,
@@ -167,6 +180,10 @@ async fn the_console_signs_in_opens_stores_approves_devices_and_verifies_the_aud
         "the console failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
     assert!(stdout.contains("signed out"), "{stdout}");
+    assert!(
+        stdout.contains("verified the server audit chain"),
+        "{stdout}"
+    );
 
     let log = alice.log(org).await;
     let approved = log.state().devices.get(&phone.record.id).unwrap();

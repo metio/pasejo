@@ -95,6 +95,7 @@ pub fn router(state: AppState) -> Router {
             delete(orgs::delete_scim_token),
         )
         .route("/audit", get(audit_api::server_events))
+        .route("/audit/checkpoints", get(audit_api::server_checkpoints))
         .route("/break-glass/login", post(break_glass::login))
         .route("/break-glass/emergency", post(break_glass::emergency))
         .route("/break-glass/users", get(break_glass::list_users))

@@ -161,4 +161,6 @@ export default {
   "bg-user-suspended": "停止中",
   "bg-sessions-ended": "{name} のセッションを終了しました。",
   "bg-audit": "サーバーの監査ログ",
+  "bg-audit-key-pinned": "このブラウザに固定されたサーバーのチェックポイント鍵で検証しました: {key}",
+  "bg-audit-key-unpinned": "このブラウザはデータを保存しないため、サーバーのチェックポイント鍵は固定されていません。{key} を CLI 設定の checkpoint_key と比較してください。",
 };

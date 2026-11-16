@@ -161,4 +161,6 @@ export default {
   "bg-user-suspended": "Suspendu",
   "bg-sessions-ended": "Les sessions de {name} ont pris fin.",
   "bg-audit": "Journal d'audit du serveur",
+  "bg-audit-key-pinned": "Vérifié avec la clé de points de contrôle du serveur épinglée dans ce navigateur : {key}",
+  "bg-audit-key-unpinned": "Ce navigateur ne conserve aucune donnée, la clé de points de contrôle du serveur n'est donc pas épinglée. Comparez {key} avec checkpoint_key dans une configuration de la CLI.",
 };

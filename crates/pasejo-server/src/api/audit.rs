@@ -112,6 +112,23 @@ pub async fn checkpoints(
     Ok(Json(Checkpoints { checkpoints }))
 }
 
+/// `GET /v1/audit/checkpoints`: the server chain's checkpoints, for
+/// break-glass sessions.
+pub async fn server_checkpoints(
+    State(state): State<AppState>,
+    Query(query): Query<HashMap<String, String>>,
+    authed: Authed,
+) -> ApiResult<Json<Checkpoints>> {
+    authed.require_break_glass()?;
+    let (since, _) = paging(&query);
+    let checkpoints = audit::checkpoints(&state, SERVER_CHAIN, since)
+        .await?
+        .into_iter()
+        .map(|(seq, checkpoint)| CheckpointEntry { seq, checkpoint })
+        .collect();
+    Ok(Json(Checkpoints { checkpoints }))
+}
+
 /// `POST /v1/orgs/{org}/audit/checkpoints/{seq}/cosign`
 pub async fn cosign(
     State(state): State<AppState>,

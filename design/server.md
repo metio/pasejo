@@ -409,7 +409,7 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 | `GET /orgs/{org}/audit`, `GET /orgs/{org}/audit/checkpoints`, `POST /orgs/{org}/audit/checkpoints/{seq}/cosign` | audit |
 | `POST /orgs/{org}/reviews`, `GET /orgs/{org}/reviews`, `POST /orgs/{org}/reviews/{id}/decisions` | access reviews |
 | `POST /orgs/{org}/scim-tokens`, `GET /orgs/{org}/scim-tokens`, `DELETE /orgs/{org}/scim-tokens/{id}` | SCIM tokens |
-| `GET /audit` | the server's own audit chain, for break-glass sessions |
+| `GET /audit`, `GET /audit/checkpoints` | the server's own audit chain and its checkpoints, for break-glass sessions |
 | `POST /break-glass/login` (no session), `POST /break-glass/emergency`, `GET /break-glass/users`, `GET /break-glass/orgs`, `POST /break-glass/users/{id}/suspend`, `POST /break-glass/users/{id}/reactivate`, `POST /break-glass/users/{id}/sessions/revoke` | break-glass |
 
 **Commits.** A commit is the next index envelope plus its new objects, applied atomically. The server checks:
@@ -575,7 +575,7 @@ The server serves the console under `/console/` as static HTML, CSS and JavaScri
 
   It signs log entries with the browser's key and appends nothing its own replay refuses. It never sees a data key.
 - **Language.** The console follows the browser's language preference among the CLI's eight languages, so it needs no language switcher.
-- **Break-glass.** A separate page, `/console/break-glass.html`, offers the break-glass login, the emergency window, user suspension, reactivation and session ends, the organization list and the server's audit log. Its session key is generated for the page load, kept only in memory and never exported, so reloading the page signs out. The API serves no checkpoints of the server chain, so the page verifies that chain only when it is kept from its first event.
+- **Break-glass.** A separate page, `/console/break-glass.html`, offers the break-glass login, the emergency window, user suspension, reactivation and session ends, the organization list and the server's audit log. Its session key is generated for the page load, kept only in memory and never exported, so reloading the page signs out. The page verifies the server chain like an organization's: every checkpoint's signature, checkpoints that name no organization and no log head, and the hash chain from the zero hash or from the checkpoint before the first kept event. It pins the server's checkpoint key in IndexedDB next to the console's pin; a browser that keeps no data shows the key for comparison with a CLI configuration's `checkpoint_key`.
 - **Tests.** Node runs the console's modules with its own WebCrypto:
   - the cross-language vectors `pasejo-protocol` generates (`crates/pasejo-protocol/vectors/console.json`), which the Rust test of the same name verifies too;
   - unit tests of every module, and of the controller against a fake server that replays the vectors' membership log and checks every request proof;

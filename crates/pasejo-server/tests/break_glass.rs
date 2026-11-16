@@ -10,8 +10,8 @@ mod common;
 use common::{Client, Harness, Options, totp_now};
 use ed25519_dalek::SigningKey;
 use pasejo_protocol::api::{
-    AuditPage, BreakGlassLogin, BreakGlassToken, EmergencyState, EmergencyWindow, Me, OrgList,
-    ServerInfo, TokenRequest, TokenResponse, Users,
+    AuditPage, BreakGlassLogin, BreakGlassToken, Checkpoints, EmergencyState, EmergencyWindow, Me,
+    OrgList, ServerInfo, TokenRequest, TokenResponse, Users,
 };
 use pasejo_protocol::encoding::Fixed;
 use pasejo_protocol::log::Settings;
@@ -488,6 +488,57 @@ async fn emergency_windows_expire() {
             "/v1/auth/emergency",
             Some(serde_json::to_value(TokenRequest { claim, jwt: None }).unwrap()),
         )
+        .await
+        .expect(StatusCode::FORBIDDEN, "forbidden");
+}
+
+#[tokio::test]
+async fn break_glass_reads_signed_checkpoints_of_the_server_chain() {
+    let harness = Harness::start_with(Options {
+        extra: "[audit]\ncheckpoint_every = 2\n".into(),
+        ..Options::default()
+    })
+    .await;
+    let alice = harness.sign_in("alice").await;
+    let created = account(&harness).await;
+    let admin = session(&harness, &created).await;
+    for _ in 0..3 {
+        admin.get("/v1/break-glass/users").await.ok::<Value>();
+    }
+    let info: ServerInfo = harness.raw(Method::GET, "/v1/server", None).await.ok();
+    let listed: Checkpoints = admin.get("/v1/audit/checkpoints").await.ok();
+    assert!(
+        listed.checkpoints.len() >= 2,
+        "{}",
+        listed.checkpoints.len()
+    );
+    let events = audit::events(&harness.state, SERVER_CHAIN, 0, 1000)
+        .await
+        .unwrap();
+    for entry in &listed.checkpoints {
+        let payload = entry
+            .checkpoint
+            .verify_server(&info.checkpoint_key.0)
+            .unwrap();
+        assert_eq!(payload.org, None);
+        assert_eq!(payload.log_head, None);
+        assert_eq!(payload.seq, entry.seq);
+        assert_eq!(
+            payload.hash,
+            events[usize::try_from(entry.seq).unwrap() - 1].hash
+        );
+        assert_eq!(entry.checkpoint.cosignatures, []);
+    }
+    let first = listed.checkpoints[0].seq;
+    let after: Checkpoints = admin
+        .get(&format!("/v1/audit/checkpoints?since={first}"))
+        .await
+        .ok();
+    assert!(after.checkpoints.iter().all(|entry| entry.seq > first));
+    assert_eq!(after.checkpoints.len(), listed.checkpoints.len() - 1);
+    // People cannot read the server chain's checkpoints.
+    alice
+        .get("/v1/audit/checkpoints")
         .await
         .expect(StatusCode::FORBIDDEN, "forbidden");
 }

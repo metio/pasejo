@@ -74,3 +74,49 @@ export async function verifyCosignature(checkpoint, device, key) {
 export async function cosign(checkpoint, device, privateKey) {
   return { device, signature: b64(await sign(Context.Checkpoint, unb64(checkpoint.payload), privateKey)) };
 }
+
+/**
+ * Verifies an audit trail: every checkpoint's server signature, `check` on
+ * each payload, every co-signature against the key `cosigner` returns for
+ * its device (undefined refuses it), and the hash chain of `events` from the
+ * first kept one, which starts at the zero hash or at a checkpoint.
+ */
+export async function verifyTrail({ checkpoints: entries, events, serverKey, check, cosigner }) {
+  const checkpoints = new Map();
+  let cosignatures = 0;
+  for (const entry of entries) {
+    const payload = await verifyCheckpoint(entry.checkpoint, serverKey);
+    check(entry.seq, payload);
+    for (const signature of entry.checkpoint.cosignatures) {
+      const key = cosigner(signature.device);
+      if (!key) {
+        throw new ProtocolError(`checkpoint ${entry.seq} carries a co-signature by an unknown device`);
+      }
+      if (!(await verifyCosignature(entry.checkpoint, signature.device, key))) {
+        throw new ProtocolError(`a co-signature of checkpoint ${entry.seq} does not verify`);
+      }
+      cosignatures += 1;
+    }
+    checkpoints.set(entry.seq, payload);
+  }
+  if (events.length === 0) {
+    return { checkpoints: checkpoints.size, cosignatures, matched: 0 };
+  }
+  const first = events[0].seq;
+  const start = first === 1 ? b64(new Uint8Array(32)) : checkpoints.get(first - 1)?.hash;
+  if (!start) {
+    throw new ProtocolError("no checkpoint vouches for the first kept event");
+  }
+  await verifyChain(start, first, events);
+  let matched = 0;
+  for (const event of events) {
+    const payload = checkpoints.get(event.seq);
+    if (payload) {
+      if (payload.hash !== event.hash) {
+        throw new ProtocolError(`checkpoint ${event.seq} contradicts the events`);
+      }
+      matched += 1;
+    }
+  }
+  return { checkpoints: checkpoints.size, cosignatures, matched };
+}
