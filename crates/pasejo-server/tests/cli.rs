@@ -1330,6 +1330,60 @@ async fn a_device_signs_in_through_the_emergency_window_without_the_identity_pro
     );
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn machines_are_named_with_their_rule_name() {
+    let harness = Harness::start().await;
+    let (alice, org, fingerprint) = founder(&harness).await;
+    alice.add_secret("deploy", "t0ken");
+    let machine = Installation::new(&harness);
+    let token = machine.path().join("token");
+    std::fs::write(
+        &token,
+        harness.workload_jwt("system:serviceaccount:ci:builder", "pasejo-server", 600),
+    )
+    .unwrap();
+    machine.ok(&[
+        "server",
+        "login",
+        &harness.url,
+        "--workload-token",
+        token.to_str().unwrap(),
+        "--label",
+        "runner",
+    ]);
+    let (device, device_fingerprint) = machine.join(&org, &fingerprint);
+    let devices = alice.ok(&["org", "devices"]).stdout;
+    assert!(
+        devices
+            .lines()
+            .any(|line| line.contains(&device) && line.contains("machine:ci")),
+        "{devices}"
+    );
+    let unknown = alice.fails(&["org", "role", "machine:deploy", "member"]);
+    assert!(unknown.contains("machine:deploy"), "{unknown}");
+    alice.ok(&["org", "role", "machine:ci", "member"]);
+    alice.ok(&[
+        "org",
+        "approve",
+        &device,
+        "--fingerprint",
+        &device_fingerprint,
+    ]);
+    alice.ok(&["store", "grant", "machine:ci", "reader"]);
+    let store = alice.store_id("team");
+    machine.ok(&["store", "add-remote", &store, "--name", "team", "--default"]);
+    assert_eq!(machine.ok(&["secret", "show", "deploy"]).stdout, "t0ken\n");
+    let devices = alice.ok(&["org", "devices"]).stdout;
+    assert!(
+        devices.lines().any(|line| line.contains(&device)
+            && line.contains("machine:ci")
+            && line.contains("active")),
+        "{devices}"
+    );
+    let log = alice.ok(&["audit", "log"]).stdout;
+    assert!(log.contains("machine:ci"), "{log}");
+}
+
 fn exchange(installation: &Installation, message: &Value) -> Value {
     let mut child = installation
         .command(&["browser", "host"])

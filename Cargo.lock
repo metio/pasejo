@@ -3644,6 +3644,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pasejo-bridge"
+version = "0.0.0"
+dependencies = [
+ "age",
+ "anyhow",
+ "axum",
+ "clap",
+ "ed25519-dalek",
+ "pasejo-client",
+ "pasejo-protocol",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tokio",
+ "toml 1.2.0+spec-1.1.0",
+ "tracing",
+ "tracing-subscriber",
+ "zeroize",
+]
+
+[[package]]
 name = "pasejo-client"
 version = "0.0.0"
 dependencies = [
@@ -3691,6 +3714,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "jsonwebtoken",
+ "pasejo-bridge",
  "pasejo-client",
  "pasejo-protocol",
  "rand_core 0.6.4",

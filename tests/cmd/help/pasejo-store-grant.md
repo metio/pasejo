@@ -5,7 +5,7 @@ Grant a user or team a role on a remote store
 Usage: pasejo store grant [OPTIONS] <PRINCIPAL> <ROLE>
 
 Arguments:
-  <PRINCIPAL>  A member's email address, or a team's name
+  <PRINCIPAL>  A member's email address, `machine:NAME` for a machine, or a team's name
   <ROLE>       The role; `none` takes the grant away [possible values: reader, writer, admin, none]
 
 Options:
@@ -24,7 +24,7 @@ Grant a user or team a role on a remote store
 Usage: pasejo store grant [OPTIONS] <PRINCIPAL> <ROLE>
 
 Arguments:
-  <PRINCIPAL>  A member's email address, or a team's name
+  <PRINCIPAL>  A member's email address, `machine:NAME` for a machine, or a team's name
   <ROLE>       The role; `none` takes the grant away [possible values: reader, writer, admin, none]
 
 Options:
@@ -43,7 +43,7 @@ Grant a user or team a role on a remote store
 Usage: pasejo store grant [OPTIONS] <PRINCIPAL> <ROLE>
 
 Arguments:
-  <PRINCIPAL>  A member's email address, or a team's name
+  <PRINCIPAL>  A member's email address, `machine:NAME` for a machine, or a team's name
   <ROLE>       The role; `none` takes the grant away [possible values: reader, writer, admin, none]
 
 Options:

@@ -479,6 +479,25 @@ impl Client {
         snapshot: &Snapshot,
         names: &[(Kind, String)],
     ) -> Result<BTreeMap<(Kind, String), ObjectPlain>> {
+        self.objects_for(log, ring, snapshot, names, None)
+    }
+
+    /// Fetches and decrypts the named entries of `snapshot` on behalf of
+    /// `tenant`, which the server records with every read. Only machine
+    /// sessions may name a tenant.
+    ///
+    /// # Errors
+    ///
+    /// Fails like [`Self::objects`], and when the server refuses the
+    /// tenant label.
+    pub fn objects_for(
+        &self,
+        log: &OrgLog,
+        ring: &KeyRing,
+        snapshot: &Snapshot,
+        names: &[(Kind, String)],
+        tenant: Option<&str>,
+    ) -> Result<BTreeMap<(Kind, String), ObjectPlain>> {
         if names.is_empty() {
             return Ok(BTreeMap::new());
         }
@@ -500,6 +519,7 @@ impl Client {
                     version: *version,
                 })
                 .collect(),
+            tenant: tenant.map(str::to_owned),
         };
         let response: ObjectsResponse = self.call(
             "POST",

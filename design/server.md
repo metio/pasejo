@@ -526,10 +526,12 @@ While the window is open, devices that are active in some organization's log can
 
 The bridge (`pasejo-bridge`) runs in the cluster as a machine device.
 
-- **Keys.** `pasejo-bridge keygen` writes the device keys, which the operator stores as a Kubernetes Secret and mounts read-only.
-- **Enrollment.** On start, the bridge signs in with its projected service-account token (audience `pasejo-server`) and requests enrollment if its device is not active yet. An approver approves it like any device.
-- **API.** It serves `GET /v1/secrets/{store}/{name}` with an optional `line` or `field` query parameter. Here `{store}` is a store label or identifier, and `{name}` is a secret name with `/` allowed. The reply is `{"value": "..."}`.
-- **Bridge credentials.** Bridge credentials map bearer tokens to tenant labels. Each read is audited server-side as the machine with that tenant label.
+- **Keys.** `pasejo-bridge keygen` writes the device keys (identifier, Ed25519 signing key, age identity) as one JSON file, mode `0600`, which the operator stores as a Kubernetes Secret and mounts read-only.
+- **Configuration.** A TOML file names the server, the organization and its pinned genesis hash, the device file, the workload token file, the device label and the credentials. The bridge verifies the membership log against the genesis hash on every read.
+- **Enrollment.** The bridge signs in with its projected service-account token (audience `pasejo-server`), read again whenever the session expires, and requests enrollment if its device is not active yet. An approver approves it like any device. The CLI names its machine user `machine:NAME`, after the workload rule's machine name, in `org role`, `store grant` and `org review decide`.
+- **API.** It serves `GET /v1/secrets/{store}/{name}` with an optional `line` or `field` query parameter, selected with the same grammar as `pasejo secret show` (`pasejo_protocol::secret`). Here `{store}` is a store label or identifier, and `{name}` is a secret name with `/` allowed. The reply is `{"value": "..."}` with `Cache-Control: no-store`. `/healthz` reports the process, and `/readyz` whether the device is active.
+- **Bridge credentials.** `pasejo-bridge credential --tenant T` prints a random bearer token and the SHA-256 the configuration keeps. Each credential maps to one tenant label. The bridge passes the label in the signed body of its object fetch (`tenant` in `POST /orgs/{org}/stores/{store}/objects`); the server accepts it from machine sessions only, checks its form (1 to 128 ASCII letters, digits, `-`, `.`, `_`, `/`) and records `tenant <label>` as the detail of every `object.read` event.
+- **Concurrency.** Reads are serialized through one client, since external-secrets-operator refreshes on intervals and every read already costs a log, key and index verification.
 
 The external-secrets.io documentation, as read on 2026-11-15 (the page footer says © 2025), states the following about the Generic Webhook provider:
 
@@ -542,7 +544,8 @@ The external-secrets.io documentation, as read on 2026-11-15 (the page footer sa
 These facts shape the bridge:
 
 - **404.** It answers 404 only for a name absent from an index it fetched and verified.
-- **503.** It answers 503 whenever the server, the index or its keys are unavailable, so an outage never deletes Secrets in the cluster.
+- **503.** It answers 503 whenever the server, the device's approval, the store, the index or its keys are unavailable, so an outage, a revoked grant or a mistyped store never deletes Secrets in the cluster.
+- **Other errors.** A missing or unknown credential answers 401, malformed query parameters 400, and a secret without the requested line or field 422; external-secrets-operator retries all of them.
 - **Attribution.** ESO does not say which ExternalSecret asked. One SecretStore per namespace, each with its own bridge credential, gives every read a namespace label.
 
 ## Browser console

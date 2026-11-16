@@ -21,7 +21,7 @@ use pasejo_protocol::{Hash, Id, Millis};
 use sqlx::Row;
 
 use crate::audit::{self, Event};
-use crate::auth::{Authed, OrgAccess};
+use crate::auth::{Authed, OrgAccess, SessionKind};
 use crate::db::{self, to_i64};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, parse_id};
@@ -578,6 +578,18 @@ pub async fn objects(
     if request.objects.len() > 10_000 {
         return Err(ApiError::bad_request("too many objects in one request"));
     }
+    let tenant = match &request.tenant {
+        None => None,
+        Some(_) if authed.session.kind != SessionKind::Machine => {
+            return Err(ApiError::bad_request(
+                "only machine sessions read on behalf of a tenant",
+            ));
+        }
+        Some(label) if !pasejo_protocol::api::valid_tenant(label) => {
+            return Err(ApiError::bad_request("malformed tenant label"));
+        }
+        Some(label) => Some(format!("tenant {label}")),
+    };
     let mut objects = Vec::with_capacity(request.objects.len());
     for reference in request.objects {
         let row = sqlx::query(state.db.sql(
@@ -596,20 +608,22 @@ pub async fn objects(
                     .org(org)
                     .store(store)
                     .object(reference.id, reference.version)
-                    .detail("no such version"),
+                    .detail(tenant.as_ref().map_or_else(
+                        || "no such version".to_owned(),
+                        |tenant| format!("no such version; {tenant}"),
+                    )),
             )
             .await?;
             return Err(ApiError::not_found("no such object version"));
         };
-        audit::record(
-            &state,
-            Some(&authed.ctx),
-            Event::ok("object.read")
-                .org(org)
-                .store(store)
-                .object(reference.id, reference.version),
-        )
-        .await?;
+        let mut event = Event::ok("object.read")
+            .org(org)
+            .store(store)
+            .object(reference.id, reference.version);
+        if let Some(tenant) = &tenant {
+            event = event.detail(tenant.clone());
+        }
+        audit::record(&state, Some(&authed.ctx), event).await?;
         state.metrics.object_reads.fetch_add(1, Ordering::Relaxed);
         objects.push(SealedObject {
             id: reference.id,

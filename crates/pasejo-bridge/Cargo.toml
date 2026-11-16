@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "pasejo-bridge"
+description = "Serves secrets of pasejo remote stores to external-secrets-operator"
+version = "0.0.0"
+authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+age = { version = "0.12.0", default-features = false }
+anyhow = { version = "1.0.100" }
+axum = { version = "0.8.4" }
+clap = { version = "4.6.1", features = ["derive", "env"] }
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+pasejo-client = { path = "../pasejo-client" }
+pasejo-protocol = { path = "../pasejo-protocol" }
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.150" }
+sha2 = { version = "0.10.9" }
+tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "net", "signal", "sync"] }
+toml = { version = "1.1.0" }
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.20", features = ["json", "env-filter"] }
+zeroize = { version = "1.8.2" }
+
+[dev-dependencies]
+tempfile = { version = "3.23.0" }

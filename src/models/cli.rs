@@ -257,8 +257,8 @@ pub struct OrgReviewDecideArgs {
     /// The review's identifier
     pub review: String,
 
-    /// The member's email address, or the team's name, whose grant is
-    /// decided
+    /// The member's email address, `machine:NAME` for a machine, or the
+    /// team's name, whose grant is decided
     pub principal: String,
 
     /// Whether the grant stays
@@ -352,7 +352,7 @@ pub enum OrgRoleArg {
 
 #[derive(Args)]
 pub struct OrgRoleArgs {
-    /// The member's email address
+    /// The member's email address, or `machine:NAME` for a machine
     pub user: String,
 
     /// The new role; `none` removes the member
@@ -1483,7 +1483,8 @@ pub enum StoreRoleArg {
 
 #[derive(Args)]
 pub struct StoreGrantArgs {
-    /// A member's email address, or a team's name
+    /// A member's email address, `machine:NAME` for a machine, or a
+    /// team's name
     pub principal: String,
 
     /// The role; `none` takes the grant away

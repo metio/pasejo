@@ -42,6 +42,7 @@ zeroize = { version = "1.8.2" }
 [dev-dependencies]
 age = { version = "0.12.0", default-features = false }
 ed25519-dalek = { version = "2.2.0", features = ["rand_core", "pkcs8"] }
+pasejo-bridge = { path = "../pasejo-bridge" }
 pasejo-client = { path = "../pasejo-client" }
 pasejo-protocol = { path = "../pasejo-protocol" }
 rand_core = { version = "0.6.4", features = ["getrandom"] }

@@ -37,21 +37,7 @@ impl Selection {
     pub fn extract(&self, secret: &str) -> Option<Zeroizing<String>> {
         let extracted = match self {
             Self::All => Some(secret.to_owned()),
-            Self::Line(n) if *n > 0 => {
-                let index = usize::try_from(*n).unwrap_or(usize::MAX).saturating_sub(1);
-                secret.lines().nth(index).map(str::to_owned)
-            }
-            Self::Line(n) => {
-                // n < 0 here (clap rejects 0); -1 == last line.
-                let lines: Vec<&str> = secret.lines().collect();
-                let from_end = n.unsigned_abs();
-                lines
-                    .len()
-                    .checked_sub(from_end)
-                    .filter(|_| from_end > 0)
-                    .and_then(|index| lines.get(index))
-                    .map(|line| (*line).to_owned())
-            }
+            Self::Line(n) => pasejo_protocol::secret::line(secret, *n).map(str::to_owned),
             Self::SkipFirst(n) => Some(
                 secret
                     .lines()

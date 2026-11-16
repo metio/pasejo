@@ -16,6 +16,7 @@ pub mod envelope;
 pub mod log;
 pub mod padding;
 pub mod request;
+pub mod secret;
 pub mod store;
 pub mod wrapping;
 

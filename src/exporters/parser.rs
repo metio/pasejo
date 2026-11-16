@@ -9,29 +9,11 @@ pub struct ParsedSecret {
     pub fields: BTreeMap<String, String>,
 }
 
-/// The `key: value` fields of a secret, in order: every non-blank line after
-/// the first non-blank one (the password) that contains `": "`. Keys are
-/// trimmed, values are verbatim. This is the one definition of the field
-/// grammar; the parser, the browser policies and field selection all read
-/// fields through it.
-pub fn fields(secret: &str) -> impl Iterator<Item = (&str, &str)> {
-    secret
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .skip(1)
-        .filter_map(|line| line.split_once(": "))
-        .map(|(key, value)| (key.trim(), value))
-}
-
-/// The value of the field named `key`, with surrounding whitespace removed,
-/// since stores often align values (`login:    alice`). Keys compare
-/// exactly. When a field repeats, the last one wins, as in [`parse_secret`].
-pub fn field<'a>(secret: &'a str, key: &str) -> Option<&'a str> {
-    fields(secret)
-        .filter(|(name, _)| *name == key)
-        .last()
-        .map(|(_, value)| value.trim())
-}
+/// The `key: value` fields of a secret. `pasejo_protocol::secret` holds the
+/// one definition of the field grammar, shared with the Kubernetes bridge;
+/// the parser, the browser policies and field selection all read fields
+/// through it.
+pub use pasejo_protocol::secret::{field, fields};
 
 /// Values of fields named in `username_keys` or `uri_keys` are trimmed,
 /// because stores often align them (`login:    alice`) and the padding

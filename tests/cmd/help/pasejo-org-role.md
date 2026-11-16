@@ -5,7 +5,7 @@ Change a member's role
 Usage: pasejo org role [OPTIONS] <USER> <ROLE>
 
 Arguments:
-  <USER>  The member's email address
+  <USER>  The member's email address, or `machine:NAME` for a machine
   <ROLE>  The new role; `none` removes the member [possible values: admin, approver, auditor, member, none]
 
 Options:
@@ -23,7 +23,7 @@ Change a member's role
 Usage: pasejo org role [OPTIONS] <USER> <ROLE>
 
 Arguments:
-  <USER>  The member's email address
+  <USER>  The member's email address, or `machine:NAME` for a machine
   <ROLE>  The new role; `none` removes the member [possible values: admin, approver, auditor, member, none]
 
 Options:
@@ -41,7 +41,7 @@ Change a member's role
 Usage: pasejo org role [OPTIONS] <USER> <ROLE>
 
 Arguments:
-  <USER>  The member's email address
+  <USER>  The member's email address, or `machine:NAME` for a machine
   <ROLE>  The new role; `none` removes the member [possible values: admin, approver, auditor, member, none]
 
 Options:

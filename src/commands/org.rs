@@ -127,16 +127,17 @@ impl OrgContext {
         }
     }
 
-    /// The member or enrolling user with email address `email`.
+    /// The member or enrolling user named `name`: an email address, or
+    /// `machine:NAME` for a machine user, which has no email address.
     ///
     /// # Errors
     ///
-    /// Fails when nobody in the organization uses the address.
-    pub fn user(&self, email: &str) -> Result<Id> {
+    /// Fails when nobody in the organization goes by that name.
+    pub fn user(&self, name: &str) -> Result<Id> {
         let users = self.remote.client.users(self.id()).localized()?;
         if let Some(user) = users
             .iter()
-            .find(|user| user.email.eq_ignore_ascii_case(email))
+            .find(|user| user_matches(name, &user.email, &user.name, user.machine))
         {
             return Ok(user.id);
         }
@@ -147,9 +148,16 @@ impl OrgContext {
             .unwrap_or_default();
         enrolling
             .iter()
-            .find(|enrollment| enrollment.user_email.eq_ignore_ascii_case(email))
+            .find(|enrollment| {
+                user_matches(
+                    name,
+                    &enrollment.user_email,
+                    &enrollment.user_name,
+                    enrollment.user_email.is_empty(),
+                )
+            })
             .map(|enrollment| enrollment.device.user)
-            .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_user(email)))
+            .ok_or_else(|| anyhow::anyhow!(i18n::error_remote_unknown_user(name)))
     }
 
     /// The team named `name`.
@@ -173,7 +181,7 @@ impl OrgContext {
     ///
     /// Fails when neither exists.
     pub fn principal(&self, name: &str) -> Result<Principal> {
-        if name.contains('@') {
+        if name.contains('@') || name.starts_with(MACHINE_PREFIX) {
             Ok(Principal::User(self.user(name)?))
         } else {
             Ok(Principal::Team(self.team(name)?))
@@ -186,7 +194,7 @@ impl OrgContext {
             Principal::User(id) => users
                 .iter()
                 .find(|user| user.id == *id)
-                .map_or_else(|| id.to_string(), |user| user.email.clone()),
+                .map_or_else(|| id.to_string(), user_display),
             Principal::Team(id) => self
                 .log
                 .state()
@@ -210,6 +218,36 @@ impl OrgContext {
                 .map(|identity| identity.file.clone())
                 .collect(),
         )
+    }
+}
+
+/// How the CLI names a machine user, which has no email address.
+pub const MACHINE_PREFIX: &str = "machine:";
+
+/// Whether `name`, as a person types it, names the user with `email` and
+/// display name `display`.
+fn user_matches(name: &str, email: &str, display: &str, machine: bool) -> bool {
+    if let Some(machine_name) = name.strip_prefix(MACHINE_PREFIX) {
+        return machine && display == machine_name;
+    }
+    !email.is_empty() && email.eq_ignore_ascii_case(name)
+}
+
+/// A user as the CLI names them: the email address, or `machine:NAME`.
+fn user_display(user: &UserSummary) -> String {
+    if user.machine {
+        format!("{MACHINE_PREFIX}{}", user.name)
+    } else {
+        user.email.clone()
+    }
+}
+
+/// The owner of an enrolling device as the CLI names them.
+fn enrollment_display(enrollment: &Enrollment) -> String {
+    if enrollment.user_email.is_empty() {
+        format!("{MACHINE_PREFIX}{}", enrollment.user_name)
+    } else {
+        enrollment.user_email.clone()
     }
 }
 
@@ -339,7 +377,7 @@ fn devices(configuration: &Configuration, org: Option<&str>) -> Result<()> {
         users
             .iter()
             .find(|summary| summary.id == user)
-            .map_or_else(|| user.to_string(), |summary| summary.email.clone())
+            .map_or_else(|| user.to_string(), user_display)
     };
     for (id, device) in &context.log.state().devices {
         if device.active {
@@ -362,7 +400,7 @@ fn devices(configuration: &Configuration, org: Option<&str>) -> Result<()> {
         i18n::remote_device_line(
             &enrollment.device.id.to_string(),
             &enrollment.device.label,
-            &enrollment.user_email,
+            &enrollment_display(&enrollment),
             &enrollment.fingerprint,
             &i18n::remote_device_state_pending(),
         );
@@ -389,7 +427,7 @@ fn approve(configuration: &Configuration, args: &OrgApproveArgs) -> Result<()> {
         .contains_key(&enrollment.device.user)
     {
         anyhow::bail!(i18n::error_remote_device_user_not_member(
-            &enrollment.user_email
+            &enrollment_display(&enrollment)
         ));
     }
     context.change(Body::DeviceAdd {
@@ -505,7 +543,7 @@ fn describe_action(context: &OrgContext, action: &Action, users: &[UserSummary])
     match action {
         Action::ApproveDevice { enrollment } => i18n::remote_action_approve_device(
             &enrollment.device.label,
-            &enrollment.user_email,
+            &enrollment_display(enrollment),
             &enrollment.fingerprint,
         ),
         Action::JoinMember { email, .. } => i18n::remote_action_join_member(email),
@@ -800,6 +838,47 @@ mod tests {
             store_name(&configuration, unregistered),
             unregistered.to_string()
         );
+    }
+
+    #[test]
+    fn machines_are_named_with_a_prefix_and_people_by_email() {
+        assert!(user_matches(
+            "alice@example.com",
+            "Alice@Example.com",
+            "Alice",
+            false
+        ));
+        assert!(!user_matches(
+            "alice@example.com",
+            "bob@example.com",
+            "Alice",
+            false
+        ));
+        assert!(user_matches("machine:ci", "", "ci", true));
+        assert!(
+            !user_matches("machine:ci", "", "ci", false),
+            "a person named ci"
+        );
+        assert!(!user_matches("machine:ci", "", "deploy", true));
+        assert!(
+            !user_matches("", "", "ci", true),
+            "an empty name never matches"
+        );
+        let machine = UserSummary {
+            id: Id::random(),
+            name: "ci".into(),
+            email: String::new(),
+            machine: true,
+            active: true,
+        };
+        assert_eq!(user_display(&machine), "machine:ci");
+        let person = UserSummary {
+            name: "Alice".into(),
+            email: "alice@example.com".into(),
+            machine: false,
+            ..machine
+        };
+        assert_eq!(user_display(&person), "alice@example.com");
     }
 
     #[test]

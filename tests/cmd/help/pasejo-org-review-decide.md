@@ -6,7 +6,7 @@ Usage: pasejo org review decide [OPTIONS] <REVIEW> <PRINCIPAL> <DECISION>
 
 Arguments:
   <REVIEW>     The review's identifier
-  <PRINCIPAL>  The member's email address, or the team's name, whose grant is decided
+  <PRINCIPAL>  The member's email address, `machine:NAME` for a machine, or the team's name, whose grant is decided
   <DECISION>   Whether the grant stays [possible values: keep, revoke]
 
 Options:
@@ -25,7 +25,7 @@ Usage: pasejo org review decide [OPTIONS] <REVIEW> <PRINCIPAL> <DECISION>
 
 Arguments:
   <REVIEW>     The review's identifier
-  <PRINCIPAL>  The member's email address, or the team's name, whose grant is decided
+  <PRINCIPAL>  The member's email address, `machine:NAME` for a machine, or the team's name, whose grant is decided
   <DECISION>   Whether the grant stays [possible values: keep, revoke]
 
 Options:
@@ -44,7 +44,7 @@ Usage: pasejo org review decide [OPTIONS] <REVIEW> <PRINCIPAL> <DECISION>
 
 Arguments:
   <REVIEW>     The review's identifier
-  <PRINCIPAL>  The member's email address, or the team's name, whose grant is decided
+  <PRINCIPAL>  The member's email address, `machine:NAME` for a machine, or the team's name, whose grant is decided
   <DECISION>   Whether the grant stays [possible values: keep, revoke]
 
 Options:

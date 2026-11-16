@@ -292,9 +292,31 @@ pub struct ObjectRef {
     pub version: u64,
 }
 
+/// Objects to fetch.
+///
+/// A machine that serves several tenants, such as the Kubernetes bridge,
+/// names the tenant it fetches for; the server records
+/// the label with every read. The label is part of the signed request body.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObjectsRequest {
     pub objects: Vec<ObjectRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant: Option<String>,
+}
+
+/// The longest tenant label.
+pub const MAX_TENANT_LEN: usize = 128;
+
+/// Whether `label` may name a tenant: 1 to [`MAX_TENANT_LEN`] ASCII
+/// letters, digits, `-`, `.`, `_` or `/`, enough for Kubernetes namespace
+/// and object names.
+#[must_use]
+pub fn valid_tenant(label: &str) -> bool {
+    !label.is_empty()
+        && label.len() <= MAX_TENANT_LEN
+        && label
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._/".contains(&byte))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

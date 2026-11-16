@@ -173,6 +173,7 @@ async fn a_written_secret_reaches_another_reader() {
                     id: entry.id,
                     version: entry.version,
                 }],
+                tenant: None,
             },
         )
         .await
@@ -641,6 +642,7 @@ async fn ten_versions_of_each_object_are_kept() {
                     &path(org, store, "objects"),
                     &ObjectsRequest {
                         objects: vec![ObjectRef { id, version }],
+                        tenant: None,
                     },
                 )
                 .await
@@ -816,6 +818,7 @@ async fn names_only_devices_read_the_index_but_never_secrets() {
                     id: plain.secrets["a"].id,
                     version: 1,
                 }],
+                tenant: None,
             },
         )
         .await
@@ -842,7 +845,10 @@ async fn devices_without_a_grant_read_nothing() {
     bob.client
         .post(
             &path(org, store, "objects"),
-            &ObjectsRequest { objects: vec![] },
+            &ObjectsRequest {
+                objects: vec![],
+                tenant: None,
+            },
         )
         .await
         .expect(StatusCode::FORBIDDEN, "forbidden");
@@ -1099,7 +1105,10 @@ async fn object_requests_are_bounded_and_audited_when_missing() {
         .client
         .post(
             &path(org, store, "objects"),
-            &ObjectsRequest { objects: refs },
+            &ObjectsRequest {
+                objects: refs,
+                tenant: None,
+            },
         )
         .await;
     assert!(
@@ -1114,6 +1123,7 @@ async fn object_requests_are_bounded_and_audited_when_missing() {
             &path(org, store, "objects"),
             &ObjectsRequest {
                 objects: vec![ObjectRef { id, version: 1 }],
+                tenant: None,
             },
         )
         .await
@@ -1174,7 +1184,10 @@ async fn commits_may_exceed_the_general_body_limit() {
         .client
         .post(
             &path(org, store, "objects"),
-            &ObjectsRequest { objects: padding },
+            &ObjectsRequest {
+                objects: padding,
+                tenant: None,
+            },
         )
         .await
         .expect(StatusCode::PAYLOAD_TOO_LARGE, "too_large");
@@ -1230,6 +1243,7 @@ async fn rotation_lists_name_what_a_former_reader_could_read() {
                     id: read_id,
                     version: 1,
                 }],
+                tenant: None,
             },
         )
         .await
