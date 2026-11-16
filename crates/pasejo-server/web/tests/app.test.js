@@ -227,6 +227,15 @@ describe("the organization", () => {
     assert.ok(body.includes("Admin"));
   });
 
+  test("warns while the organization approves devices automatically", async () => {
+    const { app, view } = await opened();
+    assert.ok(!text(view()).includes("approves devices automatically"));
+    app.model.log.state.settings = { ...app.model.log.state.settings, device_approval: "automatic" };
+    app.set({});
+    assert.ok(text(view()).includes("This organization approves devices automatically"));
+    assert.ok(text(view()).includes("compromised server or identity provider"));
+  });
+
   test("marks this browser among the devices and shows fingerprints", async () => {
     const { app, view, device } = await opened();
     await click(view(), "Devices");

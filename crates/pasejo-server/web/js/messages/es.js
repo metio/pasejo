@@ -18,6 +18,7 @@ export default {
   "orgs-title": "Organizaciones",
   "no-orgs": "Todavía no perteneces a ninguna organización. Pide a un administrador que te añada.",
   "org-open": "Abrir",
+  "org-automatic-approval": "Esta organización aprueba los dispositivos automáticamente: un dispositivo con claves completas que ejecuta pasejo org actions --run añade cada dispositivo que inscribe un miembro, sin que nadie compare su huella. Un servidor o proveedor de identidad comprometido puede entonces inscribir un dispositivo propio y recibir las claves de los almacenes. Revisa los dispositivos con regularidad.",
   "confirm-title": "Compara la huella de la organización",
   "confirm-intro": "Antes de que este navegador confíe en {org}, compara esta huella con la que te muestre un administrador, por ejemplo con pasejo org list. Continúa solo si coinciden.",
   "confirm-button": "Las huellas coinciden",

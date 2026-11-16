@@ -474,6 +474,11 @@ fn settings(configuration: &Configuration, args: &OrgSettingsArgs) -> Result<()>
         i18n::remote_settings_unchanged();
         return Ok(());
     }
+    if settings.device_approval == Approval::Automatic
+        && current.device_approval != Approval::Automatic
+    {
+        i18n::remote_automatic_approval_warning();
+    }
     context.change(Body::OrgSettings { settings })
 }
 
@@ -570,6 +575,9 @@ pub fn report(context: &OrgContext, outcomes: &[Outcome], users: &[UserSummary])
         match outcome {
             Outcome::Done(action) => {
                 i18n::remote_action_done(&describe_action(context, action, users));
+                if let Action::ApproveDevice { enrollment } = action {
+                    i18n::remote_device_approved_automatically(&enrollment.device.label);
+                }
             }
             Outcome::Skipped(action, reason) => {
                 i18n::remote_action_skipped(&describe_action(context, action, users), reason);

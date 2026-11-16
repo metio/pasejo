@@ -18,6 +18,7 @@ export default {
   "orgs-title": "조직",
   "no-orgs": "아직 속한 조직이 없습니다. 관리자에게 추가를 요청하세요.",
   "org-open": "열기",
+  "org-automatic-approval": "이 조직은 기기를 자동으로 승인합니다. pasejo org actions --run을 실행하는 전체 키를 가진 기기가 구성원이 등록한 모든 기기를 아무도 지문을 비교하지 않은 채 추가합니다. 손상된 서버나 ID 공급자는 자신의 기기를 등록하고 저장소 키를 받을 수 있습니다. 기기를 정기적으로 확인하세요.",
   "confirm-title": "조직 지문 비교",
   "confirm-intro": "이 브라우저가 {org}을(를) 신뢰하기 전에, 이 지문을 관리자가 보여 주는 지문(예: pasejo org list)과 비교하세요. 일치할 때만 계속하세요.",
   "confirm-button": "지문이 일치합니다",

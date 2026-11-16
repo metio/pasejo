@@ -18,6 +18,7 @@ export default {
   "orgs-title": "Organisations",
   "no-orgs": "Vous n'appartenez encore à aucune organisation. Demandez à un administrateur de vous ajouter.",
   "org-open": "Ouvrir",
+  "org-automatic-approval": "Cette organisation approuve les appareils automatiquement : un appareil disposant des clés complètes qui exécute pasejo org actions --run ajoute chaque appareil qu'un membre inscrit, sans que personne ne compare son empreinte. Un serveur ou un fournisseur d'identité compromis peut alors inscrire son propre appareil et recevoir les clés des magasins. Vérifiez régulièrement les appareils.",
   "confirm-title": "Comparer l'empreinte de l'organisation",
   "confirm-intro": "Avant que ce navigateur fasse confiance à {org}, comparez cette empreinte avec celle qu'un administrateur vous montre, par exemple avec pasejo org list. Ne continuez que si elles correspondent.",
   "confirm-button": "Les empreintes correspondent",

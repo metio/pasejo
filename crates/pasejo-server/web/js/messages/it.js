@@ -18,6 +18,7 @@ export default {
   "orgs-title": "Organizzazioni",
   "no-orgs": "Non appartieni ancora a nessuna organizzazione. Chiedi a un amministratore di aggiungerti.",
   "org-open": "Apri",
+  "org-automatic-approval": "Questa organizzazione approva i dispositivi automaticamente: un dispositivo con chiavi complete che esegue pasejo org actions --run aggiunge ogni dispositivo che un membro registra, senza che nessuno ne confronti l'impronta. Un server o un provider di identità compromesso può allora registrare un proprio dispositivo e ricevere le chiavi degli archivi. Controlla regolarmente i dispositivi.",
   "confirm-title": "Confronta l'impronta dell'organizzazione",
   "confirm-intro": "Prima che questo browser si fidi di {org}, confronta questa impronta con quella che ti mostra un amministratore, per esempio con pasejo org list. Continua solo se corrispondono.",
   "confirm-button": "Le impronte corrispondono",

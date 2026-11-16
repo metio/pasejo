@@ -799,6 +799,59 @@ async fn changes_need_a_second_admin_once_two_admin_is_on() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn automatic_approval_warns_when_turned_on_and_for_every_device_it_approves() {
+    let harness = Harness::start().await;
+    let (alice, org, fingerprint) = founder(&harness).await;
+    let warning = "without anyone comparing its fingerprint. A compromised server";
+    let turned_on = alice
+        .ok(&["org", "settings", "--device-approval", "automatic"])
+        .all();
+    assert!(turned_on.contains(warning), "{turned_on}");
+    let unchanged = alice
+        .ok(&["org", "settings", "--device-approval", "automatic"])
+        .all();
+    assert!(
+        unchanged.contains("already have these values"),
+        "{unchanged}"
+    );
+    assert!(!unchanged.contains(warning), "{unchanged}");
+    let other = alice.ok(&["org", "settings", "--auto-join", "true"]).all();
+    assert!(!other.contains(warning), "{other}");
+
+    let bob = Installation::new(&harness);
+    bob.login(&harness, "bob").await;
+    let (device, _) = bob.join(&org, &fingerprint);
+    alice.ok(&["org", "role", "bob@example.com", "member"]);
+    let ran = alice.ok(&["org", "actions", "--run"]).all();
+    assert!(
+        ran.contains("Device 'bob' was approved without anyone comparing its fingerprint"),
+        "{ran}"
+    );
+    assert!(alice.ok(&["org", "devices"]).all().contains(&device));
+
+    // The warning is translated.
+    alice.ok(&["org", "settings", "--device-approval", "manual"]);
+    let german = sync(|| {
+        Run::from(
+            &alice
+                .command(&["org", "settings", "--device-approval", "automatic"])
+                .env("LANG", "de")
+                .env("LC_ALL", "de")
+                .output()
+                .unwrap(),
+        )
+    });
+    assert!(german.success, "{}", german.all());
+    assert!(
+        german
+            .all()
+            .contains("ohne dass jemand seinen Fingerabdruck vergleicht"),
+        "{}",
+        german.all()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_file_store_migrates_to_the_server() {
     let harness = Harness::start().await;
     let alice = Installation::new(&harness);

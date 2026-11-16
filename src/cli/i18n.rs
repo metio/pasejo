@@ -1469,6 +1469,17 @@ fl_log!(
     user
 );
 fl_log!(info, remote_settings_unchanged, "remote-settings-unchanged");
+fl_log!(
+    warn,
+    remote_automatic_approval_warning,
+    "remote-automatic-approval-warning"
+);
+fl_log!(
+    warn,
+    remote_device_approved_automatically,
+    "remote-device-approved-automatically",
+    label
+);
 fl_log!(info, remote_store_added, "remote-store-added", name, label);
 fl_log!(
     info,

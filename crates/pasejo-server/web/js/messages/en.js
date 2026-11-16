@@ -18,6 +18,7 @@ export default {
   "orgs-title": "Organizations",
   "no-orgs": "You belong to no organization yet. Ask an admin to add you.",
   "org-open": "Open",
+  "org-automatic-approval": "This organization approves devices automatically: a device with full keys running pasejo org actions --run adds every device a member enrolls, without anyone comparing its fingerprint. A compromised server or identity provider can then enroll a device of its own and receive store keys. Review the devices regularly.",
   "confirm-title": "Compare the organization's fingerprint",
   "confirm-intro": "Before this browser trusts {org}, compare this fingerprint with the one an admin shows you, for example with pasejo org list. Continue only when they match.",
   "confirm-button": "The fingerprints match",

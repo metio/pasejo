@@ -54,7 +54,7 @@ Commands that act on one organization take `--org NAME_OR_ID`, which may be left
 
 ## Settings and second admins
 
-`org settings` changes `--device-approval` (`manual` or `automatic`), `--two-admin` and `--auto-join`. With `--two-admin true`, role, setting and recovery changes need a second admin's signature. Turning it on also needs one. Such a change is recorded as a proposal, and pasejo prints its identifier. Another admin lists proposals with `org proposals` and signs one with `org cosign PROPOSAL`.
+`org settings` changes `--device-approval` (`manual` or `automatic`), `--two-admin` and `--auto-join`. With `--device-approval automatic`, `org actions --run` adds every device a member enrolls without anyone comparing its fingerprint, so a compromised server or identity provider can enroll a device of its own and receive store keys. pasejo warns when the setting turns automatic and after each device it approves that way, and the console shows a warning while the setting is on. With `--two-admin true`, role, setting and recovery changes need a second admin's signature. Turning it on also needs one. Such a change is recorded as a proposal, and pasejo prints its identifier. Another admin lists proposals with `org proposals` and signs one with `org cosign PROPOSAL`.
 
 ## Pending actions
 

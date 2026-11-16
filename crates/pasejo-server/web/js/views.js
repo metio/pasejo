@@ -454,6 +454,7 @@ export function organization(t, model, handlers) {
     header(t, model.userName, handlers.signOut),
     h("p", {}, button(`← ${t("orgs-title")}`, handlers.back, { class: "link" })),
     h("h2", {}, model.log.state.name),
+    model.log.state.settings.device_approval === "automatic" ? h("p", { class: "notice error" }, t("org-automatic-approval")) : null,
     sectionError(t, model.usersError),
     tabs(t, model.tab, handlers.selectTab),
     notice(model),

@@ -18,6 +18,7 @@ export default {
   "orgs-title": "组织",
   "no-orgs": "你还不属于任何组织。请让管理员添加你。",
   "org-open": "打开",
+  "org-automatic-approval": "此组织自动批准设备：运行 pasejo org actions --run 且拥有完整密钥的设备会添加成员注册的每台设备，而无人比较其指纹。被攻破的服务器或身份提供商随后可以注册自己的设备并获得存储密钥。请定期检查设备。",
   "confirm-title": "比较组织指纹",
   "confirm-intro": "在此浏览器信任 {org} 之前，请将此指纹与管理员给你看的指纹进行比较，例如使用 pasejo org list。只有一致时才继续。",
   "confirm-button": "指纹一致",

@@ -18,6 +18,7 @@ export default {
   "orgs-title": "Organisationen",
   "no-orgs": "Du gehörst noch keiner Organisation an. Bitte einen Admin, dich hinzuzufügen.",
   "org-open": "Öffnen",
+  "org-automatic-approval": "Diese Organisation gibt Geräte automatisch frei: Ein Gerät mit vollen Schlüsseln, das pasejo org actions --run ausführt, fügt jedes Gerät hinzu, das ein Mitglied anmeldet, ohne dass jemand seinen Fingerabdruck vergleicht. Ein kompromittierter Server oder Identitätsanbieter kann dann ein eigenes Gerät anmelden und Store-Schlüssel erhalten. Prüfe die Geräte regelmäßig.",
   "confirm-title": "Fingerabdruck der Organisation vergleichen",
   "confirm-intro": "Bevor dieser Browser {org} vertraut, vergleiche diesen Fingerabdruck mit dem, den dir ein Admin zeigt, zum Beispiel mit pasejo org list. Fahre nur fort, wenn sie übereinstimmen.",
   "confirm-button": "Die Fingerabdrücke stimmen überein",
