@@ -318,6 +318,10 @@ The server refuses entries that fail replay, and entries whose `time` lies more 
   2. The user opens `/auth/verify` in a browser, signs in through the organization's OIDC provider, sees the device label and fingerprint, and approves.
   3. The CLI polls `POST /v1/auth/token` with an envelope (context `token/v1`) over the device code, signed by its signing key, and receives a session token bound to that key.
 - **OIDC.** The server is an OIDC relying party using the authorization code flow with PKCE (RFC 7636), `state` and `nonce`. It validates the ID token's issuer, audience, expiry and nonce against the provider's discovery document and JWKS. Users are identified by issuer and subject.
+- **Apps.** Native apps sign in through the system browser with PKCE (RFC 7636), as RFC 8252 asks of native apps; the device authorization grant is not meant for smartphones (RFC 8628, section 1):
+  1. The app opens `/auth/app/start?challenge=<S256 challenge>&redirect_uri=<uri>&state=<state>`. The redirect URI must be one of `[apps] redirect_uris` (default `wtf.metio.pasejo:/auth`, the apps' private-use scheme), and the state is 1 to 128 URL-safe characters.
+  2. After the OIDC flow, the server stores the hash of a random single-use code with the challenge and the user for ten minutes, and redirects to the URI with `code` and the app's `state`.
+  3. The app checks the state and posts the code as a `token/v1` envelope with purpose `app`, signed by its device key, together with the verifier, to `POST /v1/auth/app`. The server spends the code, checks the verifier against the challenge and returns a session bound to that key. Another app that registered the same scheme and intercepted the redirect lacks the verifier.
 - **Console.** The console uses the same OIDC flow. The resulting cookie is `HttpOnly`, `Secure` and `SameSite=Strict`, and it serves one purpose: exchanging it, together with a `token/v1` envelope signed by the browser device key, for a session token bound to that key.
 
 ### Machines
@@ -387,7 +391,7 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 | Endpoint | Purpose |
 |---|---|
 | `GET /server` (no auth) | server version, the server's checkpoint public key, and the OIDC sign-in URL |
-| `POST /auth/device`, `POST /auth/token`, `POST /auth/web`, `POST /auth/workload`, `POST /auth/emergency`, `POST /auth/logout` | sessions |
+| `POST /auth/device`, `POST /auth/token`, `POST /auth/web`, `POST /auth/app`, `POST /auth/workload`, `POST /auth/emergency`, `POST /auth/logout` | sessions |
 | `GET /me` | the session's user and the organizations they belong to |
 | `POST /orgs` | create an organization from a genesis envelope |
 | `GET /orgs/{org}/log?since={seq}` | log entries after `seq` |

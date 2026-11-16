@@ -464,7 +464,14 @@ impl Harness {
         self.raw(
             Method::POST,
             "/v1/auth/token",
-            Some(serde_json::to_value(TokenRequest { claim, jwt: None }).unwrap()),
+            Some(
+                serde_json::to_value(TokenRequest {
+                    claim,
+                    jwt: None,
+                    verifier: None,
+                })
+                .unwrap(),
+            ),
         )
         .await
     }
@@ -517,6 +524,7 @@ impl Harness {
                 serde_json::to_value(TokenRequest {
                     claim,
                     jwt: Some(jwt.into()),
+                    verifier: None,
                 })
                 .unwrap(),
             ),

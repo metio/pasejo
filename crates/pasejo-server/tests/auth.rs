@@ -9,10 +9,10 @@ mod common;
 
 use std::sync::atomic::Ordering;
 
-use common::{Harness, Options, between};
+use common::{Harness, Options, Reply, between};
 use ed25519_dalek::SigningKey;
 use pasejo_protocol::api::{Me, ServerInfo, TokenRequest, TokenResponse};
-use pasejo_protocol::encoding::b64;
+use pasejo_protocol::encoding::{b64, random, sha256};
 use pasejo_protocol::request::{NONCE_HEADER, PROOF_HEADER, TIMESTAMP_HEADER, prove};
 use rand_core::OsRng;
 use reqwest::{Method, StatusCode};
@@ -158,7 +158,14 @@ async fn claims_must_be_fresh_signed_and_for_their_purpose() {
         harness.raw(
             Method::POST,
             "/v1/auth/token",
-            Some(serde_json::to_value(TokenRequest { claim, jwt: None }).unwrap()),
+            Some(
+                serde_json::to_value(TokenRequest {
+                    claim,
+                    jwt: None,
+                    verifier: None,
+                })
+                .unwrap(),
+            ),
         )
     };
     post(harness.claim(&key, "web", &authorization.device_code))
@@ -429,7 +436,14 @@ async fn the_console_sign_in_exchanges_a_single_use_cookie() {
                     .post(format!("{}/v1/auth/web", harness.url))
                     .header("cookie", value)
                     .header("content-type", "application/json")
-                    .body(serde_json::to_vec(&TokenRequest { claim, jwt: None }).unwrap())
+                    .body(
+                        serde_json::to_vec(&TokenRequest {
+                            claim,
+                            jwt: None,
+                            verifier: None,
+                        })
+                        .unwrap(),
+                    )
                     .send()
                     .await
                     .unwrap(),
@@ -477,6 +491,7 @@ async fn console_cookies_expire_after_ten_minutes() {
                 serde_json::to_vec(&TokenRequest {
                     claim: harness.claim(&key, "web", ""),
                     jwt: None,
+                    verifier: None,
                 })
                 .unwrap(),
             )
@@ -589,6 +604,7 @@ async fn a_workload_claim_must_name_the_presented_token() {
                 serde_json::to_value(TokenRequest {
                     claim,
                     jwt: Some(jwt),
+                    verifier: None,
                 })
                 .unwrap(),
             ),
@@ -600,7 +616,14 @@ async fn a_workload_claim_must_name_the_presented_token() {
         .raw(
             Method::POST,
             "/v1/auth/workload",
-            Some(serde_json::to_value(TokenRequest { claim, jwt: None }).unwrap()),
+            Some(
+                serde_json::to_value(TokenRequest {
+                    claim,
+                    jwt: None,
+                    verifier: None,
+                })
+                .unwrap(),
+            ),
         )
         .await
         .expect(StatusCode::BAD_REQUEST, "bad_request");
@@ -774,4 +797,218 @@ async fn sign_ins_are_audited() {
     assert_eq!(session.session_kind.as_deref(), Some("person"));
     assert_eq!(session.ip.as_deref(), Some("127.0.0.1"));
     pasejo_protocol::checkpoint::verify_chain(events[0].prev_hash, events[0].seq, &events).unwrap();
+}
+
+const APP_REDIRECT: &str = "wtf.metio.pasejo%3A%2Fauth";
+
+/// A PKCE verifier and its S256 challenge.
+fn pkce() -> (String, String) {
+    let verifier = b64(&random::<32>());
+    let challenge = b64(&sha256(verifier.as_bytes()));
+    (verifier, challenge)
+}
+
+/// Runs the browser side of an app sign-in and returns the redirect.
+async fn app_redirect(harness: &Harness, challenge: &str, redirect: &str, state: &str) -> Reply {
+    harness
+        .follow_to_callback(&format!(
+            "{}/auth/app/start?challenge={challenge}&redirect_uri={redirect}&state={state}",
+            harness.url
+        ))
+        .await
+}
+
+fn code_of(location: &str) -> String {
+    between(location, "code=", "&").unwrap()
+}
+
+async fn exchange_app(
+    harness: &Harness,
+    key: &SigningKey,
+    purpose: &str,
+    code: &str,
+    verifier: &str,
+) -> Reply {
+    harness
+        .raw(
+            Method::POST,
+            "/v1/auth/app",
+            Some(
+                serde_json::to_value(TokenRequest {
+                    claim: harness.claim(key, purpose, code),
+                    jwt: None,
+                    verifier: Some(verifier.into()),
+                })
+                .unwrap(),
+            ),
+        )
+        .await
+}
+
+#[tokio::test]
+async fn an_app_sign_in_returns_a_single_use_code_bound_to_its_verifier() {
+    let harness = Harness::start().await;
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let (verifier, challenge) = pkce();
+    let reply = app_redirect(&harness, &challenge, APP_REDIRECT, "s1").await;
+    assert_eq!(reply.status, StatusCode::SEE_OTHER);
+    let location = reply.location().unwrap();
+    assert!(
+        location.starts_with("wtf.metio.pasejo:/auth?code="),
+        "{location}"
+    );
+    assert!(location.ends_with("&state=s1"), "{location}");
+    let code = code_of(&location);
+    let key = key();
+    exchange_app(&harness, &key, "web", &code, &verifier)
+        .await
+        .expect(StatusCode::BAD_REQUEST, "bad_request");
+    exchange_app(&harness, &key, "app", &code, "short")
+        .await
+        .expect(StatusCode::BAD_REQUEST, "bad_request");
+    let response: TokenResponse = exchange_app(&harness, &key, "app", &code, &verifier)
+        .await
+        .ok();
+    let me: Me = harness
+        .client(key.clone(), response)
+        .get("/v1/me")
+        .await
+        .ok();
+    assert_eq!(me.email, "alice@example.com");
+    exchange_app(&harness, &key, "app", &code, &verifier)
+        .await
+        .expect(StatusCode::UNAUTHORIZED, "unauthorized");
+    let events =
+        pasejo_server::audit::events(&harness.state, pasejo_server::audit::SERVER_CHAIN, 0, 1000)
+            .await
+            .unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|event| event.action == "auth.oidc" && event.detail.as_deref() == Some("app"))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| event.action == "auth.session" && event.detail.as_deref() == Some("app"))
+    );
+}
+
+#[tokio::test]
+async fn a_wrong_verifier_spends_the_code() {
+    let harness = Harness::start().await;
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let (verifier, challenge) = pkce();
+    let reply = app_redirect(&harness, &challenge, APP_REDIRECT, "s1").await;
+    let code = code_of(&reply.location().unwrap());
+    let key = key();
+    let (other, _) = pkce();
+    exchange_app(&harness, &key, "app", &code, &other)
+        .await
+        .expect(StatusCode::UNAUTHORIZED, "unauthorized");
+    exchange_app(&harness, &key, "app", &code, &verifier)
+        .await
+        .expect(StatusCode::UNAUTHORIZED, "unauthorized");
+}
+
+#[tokio::test]
+async fn the_session_is_bound_to_the_key_that_signed_the_claim() {
+    let harness = Harness::start().await;
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let (verifier, challenge) = pkce();
+    let reply = app_redirect(&harness, &challenge, APP_REDIRECT, "s1").await;
+    let code = code_of(&reply.location().unwrap());
+    let key = key();
+    let response: TokenResponse = exchange_app(&harness, &key, "app", &code, &verifier)
+        .await
+        .ok();
+    // Another key cannot use the token.
+    harness
+        .client(self::key(), response)
+        .get("/v1/me")
+        .await
+        .expect(StatusCode::UNAUTHORIZED, "invalid_proof");
+}
+
+#[tokio::test]
+async fn app_codes_expire_after_ten_minutes() {
+    let harness = Harness::start().await;
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let (verifier, challenge) = pkce();
+    let reply = app_redirect(&harness, &challenge, APP_REDIRECT, "s1").await;
+    let code = code_of(&reply.location().unwrap());
+    harness.advance(601_000);
+    exchange_app(&harness, &key(), "app", &code, &verifier)
+        .await
+        .expect(StatusCode::UNAUTHORIZED, "unauthorized");
+}
+
+#[tokio::test]
+async fn an_app_sign_in_refuses_unlisted_redirects_and_malformed_parameters() {
+    let harness = Harness::start().await;
+    let (_, challenge) = pkce();
+    let start = |query: String| {
+        let harness = &harness;
+        async move {
+            harness
+                .raw(Method::GET, &format!("/auth/app/start?{query}"), None)
+                .await
+        }
+    };
+    for query in [
+        format!("challenge={challenge}&redirect_uri=https%3A%2F%2Fevil.example%2F&state=s1"),
+        format!("challenge={challenge}&state=s1"),
+        format!("challenge=abc&redirect_uri={APP_REDIRECT}&state=s1"),
+        format!("redirect_uri={APP_REDIRECT}&state=s1"),
+        format!("challenge={challenge}&redirect_uri={APP_REDIRECT}&state=has%20space"),
+        format!(
+            "challenge={challenge}&redirect_uri={APP_REDIRECT}&state={}",
+            "s".repeat(129)
+        ),
+        format!("challenge={challenge}&redirect_uri={APP_REDIRECT}"),
+    ] {
+        let reply = start(query.clone()).await;
+        assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{query}");
+        assert!(reply.location().is_none(), "{query}");
+    }
+    let accepted = start(format!(
+        "challenge={challenge}&redirect_uri={APP_REDIRECT}&state=s1"
+    ))
+    .await;
+    assert_eq!(accepted.status, StatusCode::SEE_OTHER);
+}
+
+#[tokio::test]
+async fn configured_redirect_uris_replace_the_default() {
+    let harness = Harness::start_with(Options {
+        extra: "[apps]\nredirect_uris = [\"https://app.example/callback?from=pasejo\"]\n".into(),
+        ..Options::default()
+    })
+    .await;
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let (verifier, challenge) = pkce();
+    let refused = harness
+        .raw(
+            Method::GET,
+            &format!("/auth/app/start?challenge={challenge}&redirect_uri={APP_REDIRECT}&state=s1"),
+            None,
+        )
+        .await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+    let reply = app_redirect(
+        &harness,
+        &challenge,
+        "https%3A%2F%2Fapp.example%2Fcallback%3Ffrom%3Dpasejo",
+        "s2",
+    )
+    .await;
+    let location = reply.location().unwrap();
+    assert!(
+        location.starts_with("https://app.example/callback?from=pasejo&code="),
+        "{location}"
+    );
+    let code = code_of(&location);
+    let _: TokenResponse = exchange_app(&harness, &key(), "app", &code, &verifier)
+        .await
+        .ok();
 }

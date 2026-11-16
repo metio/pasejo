@@ -185,6 +185,49 @@ async fn signing_in_waits_for_approval_and_ends_on_logout() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn apps_sign_in_through_the_system_browser() {
+    let harness = Harness::start().await;
+    let mut device = unsigned(&harness, "phone");
+    let login = device.client.start_app_login("wtf.metio.pasejo:/auth");
+    assert!(
+        login
+            .url
+            .starts_with(&format!("{}/auth/app/start?challenge=", harness.url)),
+        "{}",
+        login.url
+    );
+    assert!(
+        login
+            .url
+            .contains("redirect_uri=wtf.metio.pasejo%3A%2Fauth")
+    );
+    assert!(login.url.ends_with(&format!("&state={}", login.state)));
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let redirect = harness
+        .follow_to_callback(&login.url)
+        .await
+        .location()
+        .unwrap();
+    // A redirect of another sign-in is refused before reaching the server.
+    let other = device.client.start_app_login("wtf.metio.pasejo:/auth");
+    let error = sync(|| device.client.finish_app_login(&other, &redirect)).unwrap_err();
+    assert!(
+        matches!(error, pasejo_client::Error::Verification(_)),
+        "{error}"
+    );
+    let session = sync(|| device.client.finish_app_login(&login, &redirect)).unwrap();
+    assert!(session.user.is_some());
+    assert_eq!(
+        sync(|| device.client.me()).unwrap().email,
+        "alice@example.com"
+    );
+    // The code is spent.
+    let mut again = unsigned(&harness, "tablet");
+    let error = sync(|| again.client.finish_app_login(&login, &redirect)).unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::Unauthorized), "{error}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn machines_sign_in_with_workload_tokens() {
     let harness = Harness::start().await;
     let mut device = unsigned(&harness, "ci");

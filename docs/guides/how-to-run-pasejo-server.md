@@ -52,6 +52,7 @@ The other tables are optional:
 | `[audit]` | Checkpoint cadence, `retention_days`, a copy of every event on stdout, and a signed webhook |
 | `[orgs]` | Who may create organizations: `anyone`, `nobody` or the `listed` `creators` |
 | `[limits]` | Sign-in attempts per minute and request body sizes |
+| `[apps]` | `redirect_uris` the Android and iOS apps may return to after signing in (`wtf.metio.pasejo:/auth` by default) |
 | `metrics_listen` | A separate address serving Prometheus metrics; the main listener never serves them |
 
 ## Running the container

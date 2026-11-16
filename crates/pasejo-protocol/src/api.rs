@@ -105,6 +105,9 @@ pub struct TokenRequest {
     /// The workload JWT, for `workload` claims.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jwt: Option<String>,
+    /// The PKCE code verifier, for `app` claims.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verifier: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -509,6 +512,7 @@ pub struct OrgList {
 pub mod purpose {
     pub const DEVICE: &str = "device";
     pub const WEB: &str = "web";
+    pub const APP: &str = "app";
     pub const WORKLOAD: &str = "workload";
     pub const EMERGENCY: &str = "emergency";
     pub const BREAK_GLASS: &str = "break-glass";

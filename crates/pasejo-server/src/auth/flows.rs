@@ -266,10 +266,19 @@ pub async fn token(
     }
 }
 
+/// What an app sign-in returns to: the PKCE challenge, the redirect URI and
+/// the app's own state.
+struct AppReturn {
+    challenge: String,
+    redirect: String,
+    state: String,
+}
+
 async fn start_flow(
     state: &AppState,
     purpose: &str,
     user_code: Option<String>,
+    app: Option<AppReturn>,
 ) -> ApiResult<Response> {
     let oidc = state.oidc.as_ref().ok_or_else(|| {
         ApiError::new(ErrorCode::Unavailable, "no identity provider is configured")
@@ -281,13 +290,19 @@ async fn start_flow(
             "the identity provider is unavailable",
         )
     })?;
-    sqlx::query(state.db.sql("INSERT INTO oidc_flows (state, nonce, verifier, purpose, user_code, created, user_id, approval) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)"))
+    let (challenge, redirect, app_state) = app.map_or((None, None, None), |app| {
+        (Some(app.challenge), Some(app.redirect), Some(app.state))
+    });
+    sqlx::query(state.db.sql("INSERT INTO oidc_flows (state, nonce, verifier, purpose, user_code, created, user_id, approval, app_challenge, app_redirect, app_state) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $7, $8, $9)"))
         .bind(flow.state)
         .bind(flow.nonce)
         .bind(flow.verifier)
         .bind(purpose.to_owned())
         .bind(user_code)
         .bind(to_i64(state.now()))
+        .bind(challenge)
+        .bind(redirect)
+        .bind(app_state)
         .execute(state.db.pool())
         .await?;
     Ok(Redirect::to(&flow.url).into_response())
@@ -324,7 +339,7 @@ pub async fn verify(
         );
     }
     match pending_grant(&state, &code).await {
-        Ok(Some(_)) => match start_flow(&state, "device", Some(code)).await {
+        Ok(Some(_)) => match start_flow(&state, "device", Some(code), None).await {
             Ok(response) => response,
             Err(error) => message(
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -347,7 +362,69 @@ pub async fn verify(
 
 /// `GET /auth/web/start`
 pub async fn web_start(State(state): State<AppState>) -> Response {
-    match start_flow(&state, "web", None).await {
+    match start_flow(&state, "web", None, None).await {
+        Ok(response) => response,
+        Err(error) => message(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Sign-in unavailable",
+            &error.message,
+        ),
+    }
+}
+
+/// Whether `value` is 1 to `max` characters of the URL-safe set RFC 3986
+/// calls unreserved.
+fn unreserved(value: &str, max: usize) -> bool {
+    (1..=max).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._~".contains(&byte))
+}
+
+/// The S256 challenge of a PKCE `verifier` (RFC 7636).
+fn pkce_challenge(verifier: &str) -> String {
+    b64(&sha256(verifier.as_bytes()))
+}
+
+fn app_return(state: &AppState, query: &HashMap<String, String>) -> ApiResult<AppReturn> {
+    let challenge = query
+        .get("challenge")
+        .filter(|challenge| unb64(challenge).is_ok_and(|bytes| bytes.len() == 32))
+        .ok_or_else(|| ApiError::bad_request("the challenge must be a base64url SHA-256"))?;
+    let redirect = query
+        .get("redirect_uri")
+        .filter(|redirect| state.config.apps.redirect_uris.contains(redirect))
+        .ok_or_else(|| ApiError::bad_request("the redirect URI is not allowed"))?;
+    let app_state = query
+        .get("state")
+        .filter(|value| unreserved(value, 128))
+        .ok_or_else(|| ApiError::bad_request("the state must be 1 to 128 URL-safe characters"))?;
+    Ok(AppReturn {
+        challenge: challenge.clone(),
+        redirect: redirect.clone(),
+        state: app_state.clone(),
+    })
+}
+
+/// `GET /auth/app/start`: an app's sign-in through the system browser, with
+/// PKCE (RFC 7636) and a redirect URI from `[apps] redirect_uris`.
+pub async fn app_start(
+    State(state): State<AppState>,
+    Extension(ctx): Extension<Arc<RequestCtx>>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    if limit(&state, &ctx, "verify").is_err() {
+        return message(
+            StatusCode::TOO_MANY_REQUESTS,
+            "Too many attempts",
+            "Wait a minute and try again.",
+        );
+    }
+    let app = match app_return(&state, &query) {
+        Ok(app) => app,
+        Err(error) => return message(StatusCode::BAD_REQUEST, "Sign-in failed", &error.message),
+    };
+    match start_flow(&state, "app", None, Some(app)).await {
         Ok(response) => response,
         Err(error) => message(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -394,7 +471,7 @@ async fn finish_callback(
     let code = query
         .get("code")
         .ok_or_else(|| ApiError::bad_request("missing code"))?;
-    let row = sqlx::query(state.db.sql("SELECT nonce, verifier, purpose, user_code, created FROM oidc_flows WHERE state = $1 AND user_id IS NULL"))
+    let row = sqlx::query(state.db.sql("SELECT nonce, verifier, purpose, user_code, created, app_challenge, app_redirect, app_state FROM oidc_flows WHERE state = $1 AND user_id IS NULL"))
         .bind(flow_state.clone())
         .fetch_optional(state.db.pool())
         .await?
@@ -492,6 +569,34 @@ async fn finish_callback(
                 .map_err(|_| ApiError::internal())?,
             );
             Ok(response)
+        }
+        "app" => {
+            sqlx::query(state.db.sql("DELETE FROM oidc_flows WHERE state = $1"))
+                .bind(flow_state.clone())
+                .execute(state.db.pool())
+                .await?;
+            let challenge: String = row
+                .try_get::<Option<String>, _>("app_challenge")?
+                .ok_or_else(ApiError::internal)?;
+            let redirect: String = row
+                .try_get::<Option<String>, _>("app_redirect")?
+                .ok_or_else(ApiError::internal)?;
+            let app_state: String = row
+                .try_get::<Option<String>, _>("app_state")?
+                .ok_or_else(ApiError::internal)?;
+            let code = b64(&random::<32>());
+            sqlx::query(state.db.sql("INSERT INTO app_logins (code_hash, challenge, user_id, expires) VALUES ($1, $2, $3, $4)"))
+                .bind(sha256(code.as_bytes()).to_vec())
+                .bind(challenge)
+                .bind(user.to_string())
+                .bind(to_i64(now + FLOW_LIFETIME))
+                .execute(state.db.pool())
+                .await?;
+            let separator = if redirect.contains('?') { '&' } else { '?' };
+            Ok(Redirect::to(&format!(
+                "{redirect}{separator}code={code}&state={app_state}"
+            ))
+            .into_response())
         }
         _ => Err(ApiError::internal()),
     }
@@ -634,6 +739,65 @@ pub async fn web(
         Event::ok("auth.session").detail("console"),
     )
     .await?;
+    Ok(Json(TokenResponse {
+        token,
+        expires,
+        user: Some(user),
+    }))
+}
+
+/// `POST /v1/auth/app`: exchanges an app sign-in's code and PKCE verifier,
+/// with a claim signed by the device key, for a session bound to that key.
+pub async fn app(
+    State(state): State<AppState>,
+    Extension(ctx): Extension<Arc<RequestCtx>>,
+    body: Bytes,
+) -> ApiResult<Json<TokenResponse>> {
+    limit(&state, &ctx, "auth")?;
+    let request: TokenRequest = parse(&body)?;
+    let now = state.now();
+    let claim = check_claim(&request.claim, purpose::APP, now)?;
+    let verifier = request
+        .verifier
+        .filter(|verifier| verifier.len() >= 43 && unreserved(verifier, 128))
+        .ok_or_else(|| {
+            ApiError::bad_request("the verifier must be 43 to 128 URL-safe characters")
+        })?;
+    let hash = sha256(claim.value.as_bytes()).to_vec();
+    let row = sqlx::query(
+        state
+            .db
+            .sql("SELECT challenge, user_id, expires FROM app_logins WHERE code_hash = $1"),
+    )
+    .bind(hash.clone())
+    .fetch_optional(state.db.pool())
+    .await?
+    .ok_or_else(|| ApiError::unauthorized("unknown or used app sign-in"))?;
+    sqlx::query(state.db.sql("DELETE FROM app_logins WHERE code_hash = $1"))
+        .bind(hash)
+        .execute(state.db.pool())
+        .await?;
+    if db::uint(&row, "expires")? <= now {
+        return Err(ApiError::unauthorized("the app sign-in expired"));
+    }
+    let challenge: String = row.try_get("challenge")?;
+    if pkce_challenge(&verifier) != challenge {
+        return Err(ApiError::unauthorized(
+            "the verifier does not match the challenge",
+        ));
+    }
+    let user = db::id(&row, "user_id")?;
+    let (token, expires) = create_session(
+        &state,
+        Some(user),
+        &claim.signing_key,
+        SessionKind::Person,
+        PERSON_LIFETIME,
+        None,
+    )
+    .await?;
+    ctx.set_user(Some(user), SessionKind::Person.label());
+    audit::record(&state, Some(&ctx), Event::ok("auth.session").detail("app")).await?;
     Ok(Json(TokenResponse {
         token,
         expires,

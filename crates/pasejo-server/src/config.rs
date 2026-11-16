@@ -39,6 +39,8 @@ pub struct Config {
     pub metrics_listen: Option<SocketAddr>,
     #[serde(default)]
     pub limits: Limits,
+    #[serde(default)]
+    pub apps: Apps,
 }
 
 fn default_listen() -> SocketAddr {
@@ -191,6 +193,28 @@ pub struct Orgs {
     /// Email addresses allowed to create organizations under `listed`.
     #[serde(default)]
     pub creators: Vec<String>,
+}
+
+/// Native apps signing in through the system browser.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Apps {
+    /// Redirect URIs an app sign-in may return to; the private-use scheme of
+    /// the pasejo apps by default.
+    #[serde(default = "default_app_redirect_uris")]
+    pub redirect_uris: Vec<String>,
+}
+
+impl Default for Apps {
+    fn default() -> Self {
+        Self {
+            redirect_uris: default_app_redirect_uris(),
+        }
+    }
+}
+
+fn default_app_redirect_uris() -> Vec<String> {
+    vec!["wtf.metio.pasejo:/auth".into()]
 }
 
 #[derive(Debug, Clone, Deserialize)]

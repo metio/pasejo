@@ -392,7 +392,14 @@ async fn the_emergency_window_admits_existing_devices_without_sso() {
         harness.raw(
             Method::POST,
             "/v1/auth/emergency",
-            Some(serde_json::to_value(TokenRequest { claim, jwt: None }).unwrap()),
+            Some(
+                serde_json::to_value(TokenRequest {
+                    claim,
+                    jwt: None,
+                    verifier: None,
+                })
+                .unwrap(),
+            ),
         )
     };
     emergency(&alice.client.key)
@@ -486,7 +493,14 @@ async fn emergency_windows_expire() {
         .raw(
             Method::POST,
             "/v1/auth/emergency",
-            Some(serde_json::to_value(TokenRequest { claim, jwt: None }).unwrap()),
+            Some(
+                serde_json::to_value(TokenRequest {
+                    claim,
+                    jwt: None,
+                    verifier: None,
+                })
+                .unwrap(),
+            ),
         )
         .await
         .expect(StatusCode::FORBIDDEN, "forbidden");

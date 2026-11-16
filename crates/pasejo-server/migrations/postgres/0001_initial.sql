@@ -86,11 +86,21 @@ CREATE TABLE oidc_flows (
     user_code TEXT,
     created BIGINT NOT NULL,
     user_id TEXT,
-    approval TEXT
+    approval TEXT,
+    app_challenge TEXT,
+    app_redirect TEXT,
+    app_state TEXT
 );
 
 CREATE TABLE web_logins (
     cookie_hash BYTEA PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    expires BIGINT NOT NULL
+);
+
+CREATE TABLE app_logins (
+    code_hash BYTEA PRIMARY KEY,
+    challenge TEXT NOT NULL,
     user_id TEXT NOT NULL,
     expires BIGINT NOT NULL
 );
