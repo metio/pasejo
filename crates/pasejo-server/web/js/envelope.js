@@ -4,7 +4,7 @@
 // Signed envelopes: a JSON payload, kept as the bytes that were signed, with
 // Ed25519 signatures under a context label.
 
-import { EncodingError, b64, concat, fromUtf8, isId, unb64, unb64Fixed, utf8 } from "./encoding.js";
+import { EncodingError, b64, concat, fromUtf8, isId, sha256, unb64, unb64Fixed, utf8 } from "./encoding.js";
 
 export const Context = Object.freeze({
   LogEntry: "log-entry/v1",
@@ -14,9 +14,12 @@ export const Context = Object.freeze({
   Checkpoint: "checkpoint/v1",
 });
 
-/** The bytes a signature covers: `pasejo:<label>\0<payload>`. */
-export function message(context, payload) {
-  return concat(utf8("pasejo:"), utf8(context), new Uint8Array([0]), payload);
+/**
+ * The bytes a signature covers: `pasejo:<label>\0` and the SHA-256 of the
+ * payload, which keeps them short enough for keys held in secure hardware.
+ */
+export async function message(context, payload) {
+  return concat(utf8("pasejo:"), utf8(context), new Uint8Array([0]), await sha256(payload));
 }
 
 // Encodings of the points of small order, with the sign bit cleared. A key
@@ -83,7 +86,7 @@ export async function verify(context, payload, key, signature) {
       { name: "Ed25519" },
       publicKey,
       signature,
-      message(context, payload),
+      await message(context, payload),
     );
   } catch {
     return false;
@@ -93,7 +96,7 @@ export async function verify(context, payload, key, signature) {
 /** Signs `payload` under `context` with a private Ed25519 CryptoKey. */
 export async function sign(context, payload, privateKey) {
   return new Uint8Array(
-    await globalThis.crypto.subtle.sign({ name: "Ed25519" }, privateKey, message(context, payload)),
+    await globalThis.crypto.subtle.sign({ name: "Ed25519" }, privateKey, await message(context, payload)),
   );
 }
 

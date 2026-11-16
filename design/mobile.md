@@ -145,7 +145,7 @@ The app keeps the unwrapped key ring in memory for an unlock period, five minute
 
 KeyMint signs at most 16 KiB with an Ed25519 key and fails with `INVALID_INPUT_LENGTH` beyond that (`IKeyMintDevice.aidl`). Request proofs and token claims sign hashes and short strings. Membership log entries grow with the device lists of `store.epoch` entries, and index envelopes sign the encrypted index itself, which outgrows 16 KiB at roughly a hundred entries (estimated from the entry format: a 32-character identifier, a version and a 43-character hash per name, encrypted and base64-encoded; not measured).
 
-The hardware tier therefore needs one protocol change: every envelope signs its context and the SHA-256 of its payload instead of the payload. The change touches every signer and verifier, the console's port and the test vectors, and costs nothing to migrate only while no server has been released. The alternative is the sealed tier on every device.
+Every envelope therefore signs its context and the SHA-256 of its payload instead of the payload (see "Signed envelopes" in [design/server.md](server.md)), so signed messages stay under 64 bytes and the hardware tier can sign any envelope.
 
 ### iOS
 
@@ -270,7 +270,7 @@ A file store is one age-encrypted file synced by hooks. The apps can open such a
 
 ## Phases
 
-1. **Core.** Envelopes signing the hash of their payload, before the server's first release; signing behind a trait in `pasejo-client`; `pasejo-match` extracted with the CLI's tests passing unchanged; `pasejo-mobile` with UniFFI bindings and tests that drive it against the real server, as `crates/pasejo-server/tests/client.rs` does for the client. The app sign-in flow and offline-read reports are already in the server.
+1. **Core.** Signing behind a trait in `pasejo-client`; `pasejo-match` extracted with the CLI's tests passing unchanged; `pasejo-mobile` with UniFFI bindings and tests that drive it against the real server, as `crates/pasejo-server/tests/client.rs` does for the client. The app sign-in flow and offline-read reports are already in the server.
 2. **Android, read-only.** Sign-in, enrollment in both key tiers, managed configuration, store and name lists, reveal and copy with clipboard clearing, TOTP, the autofill service with app associations, offline reads.
 3. **Android, writing.** Secret editing, device approval, pending actions and the Credential Manager provider.
 4. **iOS.** The same scope on the same core.
@@ -295,7 +295,6 @@ A file store is one age-encrypted file synced by hooks. The apps can open such a
 
 ## Open questions
 
-- Whether to make the envelope signing change before the server's first release, or to use the sealed tier on every device.
 - Whether approvers should see a device's key tier, and whether enrollment should carry a key attestation chain that the approver's client verifies.
 - A custom rustls verifier restricted to the organization's certificate authority, supplied through managed configuration, for organizations that do not want user certificates trusted.
 - How long an offline copy may live without reconnecting before the app deletes it on its own.

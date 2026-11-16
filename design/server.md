@@ -86,7 +86,7 @@ That is the price of per-secret audit and per-secret sync. Organizations that do
 | Roles and grants | yes |
 | Store names | no: the label is inside the encrypted index |
 | Number of secrets and OTP entries per store | yes: one object each |
-| Size of each secret | padded with Padmé, which leaks O(log log L) bits of a length L |
+| Size of each secret | padded to at least 1 KiB, so typical secrets look alike; above that Padmé leaks O(log log L) bits of a length L |
 | Secret names, field names, URLs, values, OTP seeds | no |
 | Which identifier a device fetched or wrote, and when | yes |
 | Renames | no: a rename changes only the encrypted index |
@@ -119,7 +119,7 @@ Everything a device signs travels as an envelope:
  "signatures": [{"device": "<device id>", "signature": "<base64url>"}]}
 ```
 
-A signature is Ed25519 over `"pasejo:" ‖ context ‖ 0x00 ‖ payload bytes`. Verifiers check the signature over the exact bytes they received and only then parse them, so the design needs no canonical JSON. The contexts are:
+A signature is Ed25519 over `"pasejo:" ‖ context ‖ 0x00 ‖ SHA-256(payload bytes)`. Verifiers check the signature over the exact bytes they received and only then parse them, so the design needs no canonical JSON. Signing the payload's hash keeps every signed message under 64 bytes, so device keys held in secure hardware can sign envelopes of any size; Android's KeyMint signs at most 16 KiB with an Ed25519 key. The contexts are:
 
 | Context | Signed by | Payload |
 |---|---|---|
@@ -135,7 +135,7 @@ A `token/v1` payload is `{"purpose", "value", "signing_key", "time"}`. `purpose`
 
 ### Padding
 
-Plaintexts are padded with Padmé (Nikitin et al., 2019). The padded plaintext is the 4-byte big-endian length of the real plaintext, the plaintext, and zero bytes up to `padme(4 + length)`, where:
+Plaintexts are padded to at least 1024 bytes and, above that, with Padmé (Nikitin et al., 2019). The padded plaintext is the 4-byte big-endian length of the real plaintext, the plaintext, and zero bytes up to `max(1024, padme(4 + length))`. The floor makes a password with its URL, user name and a few lines of notes the same size as any other, which Padmé alone does not: it pads a 50-byte plaintext to 52 bytes. Padmé is defined by:
 
 - `E = ⌊log2 L⌋`
 - `S = ⌊log2 E⌋ + 1`

@@ -6,11 +6,11 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { cosign, verifyChain, verifyCheckpoint, verifyCosignature } from "../js/audit.js";
-import { DecryptionError, open, openPadded, pad, seal, sealPadded, unpad } from "../js/crypto.js";
+import { DecryptionError, MIN_PADDED, open, openPadded, pad, padme, seal, sealPadded, unpad } from "../js/crypto.js";
 import { isOnCurve } from "../js/curve.js";
 import { blank, fingerprintMatches, hasControl, parseRecord, validName, validRecipient } from "../js/device.js";
 import { b64, concat, unb64 } from "../js/encoding.js";
-import { Context, addSignature, open as openEnvelope, parseEnvelope, seal as sealEnvelope, verify, verifyBy } from "../js/envelope.js";
+import { Context, addSignature, message, open as openEnvelope, parseEnvelope, seal as sealEnvelope, sign, verify, verifyBy } from "../js/envelope.js";
 import * as hpke from "../js/hpke.js";
 import { unwrapNames, wrapNames } from "../js/wrapping.js";
 import { publicKey, signingKey, vectors } from "./helpers.js";
@@ -142,6 +142,28 @@ describe("symmetric encryption", () => {
     assert.throws(() => unpad(new Uint8Array(3)));
     const sealed = await sealPadded(key, payload, aad);
     assert.deepEqual(await openPadded(key, sealed, aad), payload);
+  });
+
+  test("short plaintexts all pad to the floor", () => {
+    for (const length of [0, 1, 40, 500, 1020]) {
+      assert.equal(pad(new Uint8Array(length)).length, MIN_PADDED, String(length));
+    }
+    assert.equal(pad(new Uint8Array(1021)).length, padme(1025));
+    const unfloored = new Uint8Array(padme(4 + 5));
+    unfloored[3] = 5;
+    assert.throws(() => unpad(unfloored));
+  });
+
+  test("signatures cover the hash of the payload, so large payloads sign short messages", async () => {
+    const large = new Uint8Array(1 << 20).fill(97);
+    assert.equal((await message(Context.Index, large)).length, "pasejo:".length + Context.Index.length + 1 + 32);
+    const privateKey = await signingKey(new Uint8Array(32).fill(9));
+    const signature = await sign(Context.Index, large, privateKey);
+    const publicBytes = await publicKey(new Uint8Array(32).fill(9));
+    assert.equal(await verify(Context.Index, large, publicBytes, signature), true);
+    const changed = Uint8Array.from(large);
+    changed[0] = 98;
+    assert.equal(await verify(Context.Index, changed, publicBytes, signature), false);
   });
 });
 

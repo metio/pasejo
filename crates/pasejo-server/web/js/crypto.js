@@ -69,12 +69,20 @@ export function padme(length) {
   return total - (total % (mask + 1));
 }
 
-/** A 4-byte big-endian length, the plaintext and zeros up to the Padme length. */
+/** The smallest padded plaintext, so typical secrets all look the same size. */
+export const MIN_PADDED = 1024;
+
+/** The padded length for `length` bytes: the floor or the Padme length. */
+export function paddedLength(length) {
+  return Math.max(MIN_PADDED, padme(length));
+}
+
+/** A 4-byte big-endian length, the plaintext and zeros up to the padded length. */
 export function pad(plaintext) {
   if (plaintext.length > 0xffffffff) {
     throw new EncodingError("padding");
   }
-  const padded = new Uint8Array(padme(plaintext.length + 4));
+  const padded = new Uint8Array(paddedLength(plaintext.length + 4));
   new DataView(padded.buffer).setUint32(0, plaintext.length);
   padded.set(plaintext, 4);
   return padded;
@@ -85,7 +93,7 @@ export function unpad(padded) {
     throw new EncodingError("padding");
   }
   const length = new DataView(padded.buffer, padded.byteOffset, 4).getUint32(0);
-  if (length > padded.length - 4 || padme(length + 4) !== padded.length) {
+  if (length > padded.length - 4 || paddedLength(length + 4) !== padded.length) {
     throw new EncodingError("padding");
   }
   if (padded.subarray(4 + length).some((byte) => byte !== 0)) {

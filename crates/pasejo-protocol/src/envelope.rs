@@ -36,15 +36,19 @@ impl Context {
     }
 
     /// The message an Ed25519 signature covers:
-    /// `"pasejo:" ‖ context ‖ 0x00 ‖ payload`.
+    /// `"pasejo:" ‖ context ‖ 0x00 ‖ SHA-256(payload)`.
+    ///
+    /// Signing the hash keeps every message under 64 bytes whatever the
+    /// payload's size, so keys held in secure hardware can sign it: Android's
+    /// key store signs at most 16 KiB with an Ed25519 key.
     #[must_use]
     pub fn message(self, payload: &[u8]) -> Vec<u8> {
         let label = self.label().as_bytes();
-        let mut message = Vec::with_capacity(8 + label.len() + payload.len());
+        let mut message = Vec::with_capacity(8 + label.len() + 32);
         message.extend_from_slice(b"pasejo:");
         message.extend_from_slice(label);
         message.push(0);
-        message.extend_from_slice(payload);
+        message.extend_from_slice(&crate::encoding::sha256(payload));
         message
     }
 }
@@ -276,10 +280,23 @@ mod tests {
     }
 
     #[test]
-    fn the_signed_message_names_the_context() {
-        assert_eq!(
-            Context::Request.message(b"x"),
-            b"pasejo:request/v1\0x".to_vec()
-        );
+    fn the_signed_message_names_the_context_and_hashes_the_payload() {
+        let mut expected = b"pasejo:request/v1\0".to_vec();
+        expected.extend_from_slice(&crate::encoding::sha256(b"x"));
+        assert_eq!(Context::Request.message(b"x"), expected);
+    }
+
+    #[test]
+    fn signed_messages_stay_short_for_large_payloads() {
+        let payload = vec![b'a'; 1 << 20];
+        let message = Context::Index.message(&payload);
+        assert!(message.len() <= 64, "{}", message.len());
+        let signing = key();
+        let signature = sign(Context::Index, &payload, &signing);
+        let public = signing.verifying_key().to_bytes();
+        assert!(verify(Context::Index, &payload, &public, &signature).is_ok());
+        let mut changed = payload;
+        changed[0] = b'b';
+        assert!(verify(Context::Index, &changed, &public, &signature).is_err());
     }
 }
