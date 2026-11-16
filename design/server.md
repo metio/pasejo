@@ -270,7 +270,7 @@ The membership log is append-only and kept per organization. Each entry is an en
 | Kind | Body | Valid authors |
 |---|---|---|
 | `org.genesis` (seq 0 only) | `name`; `founder` user; `device` (founding device); `settings` | the founding device |
-| `org.settings` | `settings`: `device_approval` (`manual` or `automatic`), `two_admin` (bool), `auto_join` (bool) | an admin; plus a second admin when `two_admin` |
+| `org.settings` | `settings`: `device_approval` (`manual` or `automatic`), `two_admin` (bool), `auto_join` (bool), `offline_reads` (bool, left out while false) | an admin; plus a second admin when `two_admin` |
 | `member.role` | `user`, `role`: `admin`, `approver`, `auditor`, `member` or `none` | an admin; plus a second admin when `two_admin` and the change grants or removes `admin` |
 | `device.add` | `device`: `id`, `user`, `kind`, `recipient`, `signing_key`, `label` | an admin or approver, or an active device of the same user |
 | `device.revoke` | `device` | an admin, or an active device of the same user |
@@ -407,6 +407,7 @@ All endpoints are under `/v1`, take and return JSON, and require a session with 
 | `GET /orgs/{org}/stores/{store}/index` | current index envelope; `If-None-Match` with the version |
 | `GET /orgs/{org}/stores/{store}/lookup` | current lookup object |
 | `POST /orgs/{org}/stores/{store}/objects` | fetch objects by identifier and version; one audit event each |
+| `POST /orgs/{org}/stores/{store}/offline-reads` | report reads from a device's offline copy; one audit event each |
 | `POST /orgs/{org}/stores/{store}/commits` | commit an index version with its objects |
 | `GET /orgs/{org}/stores/{store}/rotation?user={id}` | secrets the user could read or did read since their access ended, and whether each was rewritten since |
 | `GET /orgs/{org}/recovery` | every store's recovery wrappings, epoch chain, current index and current objects; admins only |
@@ -463,6 +464,14 @@ An organization admin or store admin opens a review for a store, naming reviewer
 
 ## Audit
 
+### Offline reads
+
+Every value a client shows normally comes from an object fetch, so every read reaches the audit log. An organization can trade that guarantee for reading without a network: with `offline_reads` set in `org.settings`, devices may keep an offline copy of the values they fetched. The setting lives in the membership log so that every client agrees on it and every auditor can see when it was on; `OrgLog::offline_read_periods` returns those periods from the times of the settings entries.
+
+A device reports the reads it made from its copy when it reconnects, through `POST /orgs/{org}/stores/{store}/offline-reads` with each read's identifier, version and time by the device's clock. The server records one `object.read.offline` event per read, with `read at <time>` as the detail. It refuses the whole report when a read lies in the future by more than the request skew, falls outside every period in which the log allowed offline reads, or names an object version the store never held. Any active device of the organization may report, including one that has since lost access to the store, because a report names only its own device.
+
+Reports are as complete as the devices that send them: a lost or compromised device reports nothing, and removing a member leaves the copies on their devices. The audit views therefore name every period in which offline reads were allowed (`pasejo audit log` on standard error, the console above the events), and the CLI and the console warn while the setting is on.
+
 ### Events
 
 The server records:
@@ -471,6 +480,7 @@ The server records:
 - log appends, proposals and co-signatures;
 - key, index and lookup fetches;
 - object fetches per identifier and version;
+- reads from offline copies, as far as devices report them;
 - commits per changed or deleted identifier;
 - audit queries and exports;
 - reviews;

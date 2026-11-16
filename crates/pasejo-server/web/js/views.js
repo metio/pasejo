@@ -414,6 +414,15 @@ function auditTab(t, model, handlers) {
           "div",
           {},
           h("p", { class: "ok" }, t("audit-verified", { events: audit.result.events.length, checkpoints: audit.result.checkpoints, cosignatures: audit.result.cosignatures })),
+          ...model.log.offlineReadPeriods().map((period) =>
+            h(
+              "p",
+              { class: "notice" },
+              period.until === null
+                ? t("audit-offline-reads-open", { from: t.date(period.from) })
+                : t("audit-offline-reads-closed", { from: t.date(period.from), until: t.date(period.until) }),
+            ),
+          ),
           audit.result.events.length === 0
             ? h("p", {}, t("audit-empty"))
             : table(
@@ -455,6 +464,7 @@ export function organization(t, model, handlers) {
     h("p", {}, button(`← ${t("orgs-title")}`, handlers.back, { class: "link" })),
     h("h2", {}, model.log.state.name),
     model.log.state.settings.device_approval === "automatic" ? h("p", { class: "notice error" }, t("org-automatic-approval")) : null,
+    model.log.state.settings.offline_reads ? h("p", { class: "notice error" }, t("org-offline-reads")) : null,
     sectionError(t, model.usersError),
     tabs(t, model.tab, handlers.selectTab),
     notice(model),

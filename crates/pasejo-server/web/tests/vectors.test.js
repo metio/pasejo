@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { b64, unb64 } from "../js/encoding.js";
 import { parseEnvelope, Context, sign } from "../js/envelope.js";
-import { OrgLog, entitled, entryJson, parseEntry } from "../js/log.js";
+import { OrgLog, entitled, entryJson, parseEntry, settingsJson } from "../js/log.js";
 import { dataCommitment, derive, namesCommitment, padme } from "../js/crypto.js";
 import { fingerprint, orgFingerprint, recoveryId, parseRecord } from "../js/device.js";
 import { importPrivate } from "../js/hpke.js";
@@ -28,7 +28,7 @@ function summary(state) {
   return {
     org: state.org,
     name: state.name,
-    settings: state.settings,
+    settings: settingsJson(state.settings),
     members: sortedObject([...state.members]),
     devices: sortedObject(
       [...state.devices].map(([id, device]) => [

@@ -20,7 +20,7 @@ use pasejo_client::session::Poll;
 use pasejo_client::store::{Changes, Kind};
 use pasejo_client::{Client, Clock, DeviceIdentity};
 use pasejo_protocol::Id;
-use pasejo_protocol::api::{Action, Decision, ErrorCode};
+use pasejo_protocol::api::{Action, Decision, ErrorCode, OfflineRead};
 use pasejo_protocol::device::DeviceKind;
 use pasejo_protocol::log::{
     Approval, Body, OrgLog, Principal, RoleChange, Settings, StoreRoleChange,
@@ -1317,4 +1317,138 @@ async fn a_recovery_export_with_a_withheld_object_is_detected() {
         matches!(withheld, pasejo_client::Error::Verification(_)),
         "{withheld}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn offline_reads_are_recorded_only_while_the_log_allows_them() {
+    let harness = Harness::start().await;
+    let alice = signed_in(&harness, "alice").await;
+    let org = Id::random();
+    let mut log = sync(|| alice.client.create_org(org, "Acme", Settings::default())).unwrap();
+    let (ring, snapshot) = sync(|| alice.client.create_store(&mut log, "production")).unwrap();
+    let mut changes = Changes::default();
+    changes.secrets.insert("api".into(), Some("token".into()));
+    let snapshot = sync(|| alice.client.commit(&log, &ring, &snapshot, &changes)).unwrap();
+    let entry = snapshot.plain.secrets["api"].clone();
+    let read = |time| OfflineRead {
+        id: entry.id,
+        version: entry.version,
+        time,
+    };
+    let before = harness.now();
+    let error = sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[read(before)])
+    })
+    .unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::Forbidden), "{error}");
+
+    harness.advance(1_000);
+    let allowed = Settings {
+        offline_reads: true,
+        ..Settings::default()
+    };
+    sync(|| {
+        alice
+            .client
+            .append_fresh(&mut log, Body::OrgSettings { settings: allowed })
+    })
+    .unwrap();
+    harness.advance(1_000);
+    let during = harness.now();
+    // A read before the setting allowed offline reads stays refused.
+    let error = sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[read(during), read(before)])
+    })
+    .unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::Forbidden), "{error}");
+    let error = sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[read(during + 120_000)])
+    })
+    .unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::BadRequest), "{error}");
+    let missing = OfflineRead {
+        version: entry.version + 1,
+        ..read(during)
+    };
+    let error = sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[missing])
+    })
+    .unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::NotFound), "{error}");
+    let error = sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, Id::random(), &[read(during)])
+    })
+    .unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::UnknownStore), "{error}");
+    let reported = |events: &[pasejo_protocol::checkpoint::AuditEvent]| {
+        events
+            .iter()
+            .filter(|event| event.action == "object.read.offline")
+            .count()
+    };
+    let events = sync(|| alice.client.audit_events(org, 0)).unwrap();
+    assert_eq!(reported(&events), 0, "refused reports record no read");
+
+    sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[read(during)])
+    })
+    .unwrap();
+
+    // Reads from the allowed period are still accepted after it ends.
+    harness.advance(1_000);
+    sync(|| {
+        alice.client.append_fresh(
+            &mut log,
+            Body::OrgSettings {
+                settings: Settings::default(),
+            },
+        )
+    })
+    .unwrap();
+    harness.advance(1_000);
+    sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[read(during + 500)])
+    })
+    .unwrap();
+    let error = sync(|| {
+        alice
+            .client
+            .report_offline_reads(&log, ring.store, &[read(harness.now())])
+    })
+    .unwrap_err();
+    assert_eq!(error.code(), Some(ErrorCode::Forbidden), "{error}");
+    assert_eq!(log.offline_read_periods().len(), 1);
+
+    let events = sync(|| alice.client.audit_events(org, 0)).unwrap();
+    let offline: Vec<_> = events
+        .iter()
+        .filter(|event| event.action == "object.read.offline")
+        .collect();
+    assert_eq!(offline.len(), 2);
+    assert_eq!(offline[0].store, Some(ring.store));
+    assert_eq!(offline[0].object, Some(entry.id));
+    assert_eq!(offline[0].outcome, "ok");
+    assert!(
+        offline[0]
+            .detail
+            .as_deref()
+            .is_some_and(|detail| detail.starts_with("read at ")),
+        "{:?}",
+        offline[0].detail
+    );
+    assert_eq!(offline[0].actor_device, Some(alice.client.device.id));
 }

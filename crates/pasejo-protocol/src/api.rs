@@ -295,6 +295,21 @@ pub struct ObjectRef {
     pub version: u64,
 }
 
+/// Reads a device made from its offline copy while the organization allowed
+/// offline reads, reported when it reconnects.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OfflineReadsRequest {
+    pub reads: Vec<OfflineRead>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OfflineRead {
+    pub id: Id,
+    pub version: u64,
+    /// When the device read the value, by its own clock.
+    pub time: Millis,
+}
+
 /// Objects to fetch.
 ///
 /// A machine that serves several tenants, such as the Kubernetes bridge,

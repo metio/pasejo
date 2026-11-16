@@ -33,6 +33,11 @@ pub struct Settings {
     pub device_approval: Approval,
     pub two_admin: bool,
     pub auto_join: bool,
+    /// Whether devices may keep an offline copy of secret values. A read
+    /// from that copy reaches the audit log only when the device reports
+    /// it after reconnecting.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub offline_reads: bool,
 }
 
 /// Organization roles.
@@ -581,6 +586,38 @@ impl OrgLog {
             .iter()
             .position(|candidate| candidate == hash)
             .map(|index| index as u64)
+    }
+
+    /// The periods in which the organization allowed offline reads, from
+    /// the time of the entry that allowed them to the time of the entry that
+    /// stopped them; the last period is open while they are still allowed.
+    #[must_use]
+    pub fn offline_read_periods(&self) -> Vec<(Millis, Option<Millis>)> {
+        let mut periods: Vec<(Millis, Option<Millis>)> = Vec::new();
+        for envelope in &self.entries {
+            let Ok(entry) = envelope.open::<Entry>() else {
+                continue;
+            };
+            let (Body::Genesis { settings, .. } | Body::OrgSettings { settings }) = entry.body
+            else {
+                continue;
+            };
+            match periods.last_mut() {
+                Some((_, end @ None)) if !settings.offline_reads => *end = Some(entry.time),
+                Some((_, None)) => {}
+                _ if settings.offline_reads => periods.push((entry.time, None)),
+                _ => {}
+            }
+        }
+        periods
+    }
+
+    /// Whether the organization allowed offline reads at `time`.
+    #[must_use]
+    pub fn offline_reads_allowed_at(&self, time: Millis) -> bool {
+        self.offline_read_periods()
+            .iter()
+            .any(|(from, until)| *from <= time && until.is_none_or(|until| time < until))
     }
 
     /// The state after entry `seq`.

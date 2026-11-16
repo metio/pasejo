@@ -72,6 +72,10 @@ pub fn router(state: AppState) -> Router {
         .route("/orgs/{org}/stores/{store}/lookup", get(stores::lookup))
         .route("/orgs/{org}/stores/{store}/objects", post(stores::objects))
         .route(
+            "/orgs/{org}/stores/{store}/offline-reads",
+            post(stores::offline_reads),
+        )
+        .route(
             "/orgs/{org}/stores/{store}/commits",
             post(stores::commit).layer(DefaultBodyLimit::max(limits.commit_body_bytes)),
         )

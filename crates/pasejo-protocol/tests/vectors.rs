@@ -783,6 +783,7 @@ fn two_admin_scenario() -> Value {
         device_approval: Approval::Automatic,
         two_admin: true,
         auto_join: true,
+        offline_reads: false,
     };
     s.refused(
         "enabling two-admin alone",
@@ -1302,6 +1303,7 @@ fn geneses() -> Value {
                     device_approval: Approval::Automatic,
                     two_admin: true,
                     auto_join: true,
+                    offline_reads: false,
                 },
             ),
         ),

@@ -122,6 +122,7 @@ function settings(value) {
     device_approval: oneOf(settingsObject.device_approval, ["manual", "automatic"]),
     two_admin: bool(settingsObject.two_admin),
     auto_join: bool(settingsObject.auto_join),
+    offline_reads: settingsObject.offline_reads === undefined ? false : bool(settingsObject.offline_reads),
   };
 }
 
@@ -217,10 +218,24 @@ function recordJson(device) {
   };
 }
 
+/**
+ * The JSON object of settings in the wire form, which leaves out
+ * `offline_reads` while it is false.
+ */
+export function settingsJson(settings) {
+  const json = { device_approval: settings.device_approval, two_admin: settings.two_admin, auto_join: settings.auto_join };
+  if (settings.offline_reads) {
+    json.offline_reads = true;
+  }
+  return json;
+}
+
 function bodyJson(kind, body) {
   switch (kind) {
     case "org.genesis":
-      return { name: body.name, founder: body.founder, device: recordJson(body.device), settings: body.settings };
+      return { name: body.name, founder: body.founder, device: recordJson(body.device), settings: settingsJson(body.settings) };
+    case "org.settings":
+      return { settings: settingsJson(body.settings) };
     case "device.add":
       return { device: recordJson(body.device) };
     case "store.grant": {
@@ -729,6 +744,29 @@ export class OrgLog {
 
   get genesisHash() {
     return this.#hashes[0];
+  }
+
+  /**
+   * The periods in which the organization allowed offline reads, from the
+   * time of the entry that allowed them to the time of the entry that stopped
+   * them; `until` is null while they are still allowed.
+   */
+  offlineReadPeriods() {
+    const periods = [];
+    for (const entry of this.#parsed) {
+      if (entry.kind !== "org.genesis" && entry.kind !== "org.settings") {
+        continue;
+      }
+      const allowed = entry.body.settings.offline_reads;
+      const last = periods.at(-1);
+      const open = last !== undefined && last.until === null;
+      if (allowed && !open) {
+        periods.push({ from: entry.time, until: null });
+      } else if (!allowed && open) {
+        last.until = entry.time;
+      }
+    }
+    return periods;
   }
 
   /** The sequence number of the entry with hash `hash`, or undefined. */

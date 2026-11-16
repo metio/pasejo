@@ -469,6 +469,7 @@ fn settings(configuration: &Configuration, args: &OrgSettingsArgs) -> Result<()>
             }),
         two_admin: args.two_admin.unwrap_or(current.two_admin),
         auto_join: args.auto_join.unwrap_or(current.auto_join),
+        offline_reads: args.offline_reads.unwrap_or(current.offline_reads),
     };
     if settings == current {
         i18n::remote_settings_unchanged();
@@ -478,6 +479,9 @@ fn settings(configuration: &Configuration, args: &OrgSettingsArgs) -> Result<()>
         && current.device_approval != Approval::Automatic
     {
         i18n::remote_automatic_approval_warning();
+    }
+    if settings.offline_reads && !current.offline_reads {
+        i18n::remote_offline_reads_warning();
     }
     context.change(Body::OrgSettings { settings })
 }

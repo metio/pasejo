@@ -10,8 +10,8 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use pasejo_protocol::api::{
     ChainLink, Commit, Committed, EpochUpload, ErrorCode, IndexResponse, Keys, LookupResponse,
-    ObjectsRequest, ObjectsResponse, RecoveryExport, RecoveryStore, Rotation, RotationItem,
-    StoreSummary, Stores, Wrapping, WrappingUpload, WrappingsUpload,
+    ObjectsRequest, ObjectsResponse, OfflineReadsRequest, RecoveryExport, RecoveryStore, Rotation,
+    RotationItem, StoreSummary, Stores, Wrapping, WrappingUpload, WrappingsUpload,
 };
 use pasejo_protocol::encoding::Bytes;
 use pasejo_protocol::envelope::Envelope;
@@ -633,6 +633,64 @@ pub async fn objects(
         });
     }
     Ok(Json(ObjectsResponse { objects }))
+}
+
+/// `POST /v1/orgs/{org}/stores/{store}/offline-reads`: records the reads a
+/// device made from its offline copy.
+///
+/// Every read must fall in a period in
+/// which the membership log allowed offline reads; the time is the device's
+/// own and the server cannot check it further. Any active device may report,
+/// including one that has since lost access to the store, because a report
+/// only ever names its own device.
+pub async fn offline_reads(
+    State(state): State<AppState>,
+    Path((org, store)): Path<(String, String)>,
+    authed: Authed,
+) -> ApiResult<StatusCode> {
+    let (org, store) = (parse_id(&org)?, parse_id(&store)?);
+    let access = OrgAccess::load(&state, &authed, org).await?;
+    access.device()?;
+    let request: OfflineReadsRequest = authed.json()?;
+    if request.reads.len() > 10_000 {
+        return Err(ApiError::bad_request("too many reads in one request"));
+    }
+    store_row(&state, org, store).await?;
+    let latest = state.now() + pasejo_protocol::request::MAX_SKEW_MILLIS;
+    for read in &request.reads {
+        if read.time > latest {
+            return Err(ApiError::bad_request("a reported read lies in the future"));
+        }
+        if !access.log.offline_reads_allowed_at(read.time) {
+            return Err(ApiError::forbidden(
+                "the organization did not allow offline reads at that time",
+            ));
+        }
+        sqlx::query(
+            state
+                .db
+                .sql("SELECT 1 FROM objects WHERE store = $1 AND id = $2 AND version = $3"),
+        )
+        .bind(store.to_string())
+        .bind(read.id.to_string())
+        .bind(to_i64(read.version))
+        .fetch_optional(state.db.pool())
+        .await?
+        .ok_or_else(|| ApiError::not_found("no such object version"))?;
+    }
+    for read in request.reads {
+        audit::record(
+            &state,
+            Some(&authed.ctx),
+            Event::ok("object.read.offline")
+                .org(org)
+                .store(store)
+                .object(read.id, read.version)
+                .detail(format!("read at {}", crate::time::rfc3339(read.time))),
+        )
+        .await?;
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Checks a commit against the log and the stored store, before anything

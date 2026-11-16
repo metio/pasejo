@@ -1757,6 +1757,7 @@ fn settings_survive_replay() {
             device_approval: Approval::Automatic,
             two_admin: false,
             auto_join: true,
+            offline_reads: false,
         },
     );
     org.store(&founder);
@@ -1777,4 +1778,69 @@ fn entries_round_trip_through_json_with_their_kind() {
     assert_eq!(json["kind"], "org.genesis");
     assert_eq!(json["body"]["name"], "Example");
     assert_eq!(entry.body.kind(), "org.genesis");
+}
+
+#[test]
+fn offline_read_periods_follow_the_settings_entries() {
+    let founder = founder();
+    let allowed = Settings {
+        offline_reads: true,
+        ..Settings::default()
+    };
+    let mut org = Org::with_settings(&founder, allowed);
+    assert_eq!(org.log.offline_read_periods(), [(1_000, None)]);
+    org.append(
+        &founder,
+        Body::OrgSettings {
+            settings: Settings {
+                auto_join: true,
+                ..allowed
+            },
+        },
+    );
+    assert_eq!(org.log.offline_read_periods(), [(1_000, None)]);
+    org.append(
+        &founder,
+        Body::OrgSettings {
+            settings: Settings::default(),
+        },
+    );
+    org.store(&founder);
+    org.append(&founder, Body::OrgSettings { settings: allowed });
+    assert_eq!(
+        org.log.offline_read_periods(),
+        [(1_000, Some(1_020)), (1_040, None)]
+    );
+    assert!(org.log.offline_reads_allowed_at(1_000));
+    assert!(org.log.offline_reads_allowed_at(1_019));
+    assert!(!org.log.offline_reads_allowed_at(1_020));
+    assert!(!org.log.offline_reads_allowed_at(999));
+    assert!(org.log.offline_reads_allowed_at(u64::MAX));
+    let replayed = OrgLog::replay(org.log.entries().to_vec()).unwrap();
+    assert!(replayed.state().settings.offline_reads);
+}
+
+#[test]
+fn offline_reads_are_omitted_from_settings_until_allowed() {
+    let json = serde_json::to_value(Settings::default()).unwrap();
+    assert_eq!(json.get("offline_reads"), None);
+    let parsed: Settings = serde_json::from_value(json).unwrap();
+    assert!(!parsed.offline_reads);
+    let allowed = Settings {
+        offline_reads: true,
+        ..Settings::default()
+    };
+    assert_eq!(
+        serde_json::to_value(allowed).unwrap()["offline_reads"],
+        true
+    );
+}
+
+#[test]
+fn a_log_that_never_allowed_offline_reads_has_no_periods() {
+    let founder = founder();
+    let mut org = Org::new(&founder);
+    org.store(&founder);
+    assert_eq!(org.log.offline_read_periods(), []);
+    assert!(!org.log.offline_reads_allowed_at(1_010));
 }

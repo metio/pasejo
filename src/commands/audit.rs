@@ -73,6 +73,14 @@ fn log(configuration: &Configuration, args: &AuditLogArgs) -> Result<()> {
         .client
         .audit_events(context.id(), args.since)
         .localized()?;
+    for (from, until) in context.log.offline_read_periods() {
+        match until {
+            Some(until) => {
+                i18n::remote_audit_offline_reads_closed(&rfc3339(from), &rfc3339(until));
+            }
+            None => i18n::remote_audit_offline_reads_open(&rfc3339(from)),
+        }
+    }
     for event in events
         .iter()
         .filter(|event| store.is_none() || event.store == store)

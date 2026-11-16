@@ -20,7 +20,7 @@ Options:
 
 ```
 
-`audit log` prints one event per line: sequence number, time in UTC, the person who acted, the action, its outcome, the store and a detail. `--store NAME` limits the output to one registered remote store, and `--since SEQ` to events after a sequence number. Reading the trail is itself recorded.
+`audit log` prints one event per line: sequence number, time in UTC, the person who acted, the action, its outcome, the store and a detail. `--store NAME` limits the output to one registered remote store, and `--since SEQ` to events after a sequence number. Reading the trail is itself recorded. When the organization allows or allowed offline reads, `audit log` first names each period on standard error: reads from devices' offline copies in those periods appear only as `object.read.offline` events the devices reported.
 
 `audit verify` recomputes the hash chain of the events and checks every checkpoint's signature with the server's checkpoint key, which pasejo pinned at the first sign-in. Organization devices co-sign checkpoints through `pasejo org actions --run`, and every co-signature must verify under the key the membership log records for its device. pasejo remembers the last verified event and checks only newer ones the next time. A server that drops, reorders or rewrites events fails verification.
 

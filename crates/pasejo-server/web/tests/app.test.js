@@ -236,6 +236,15 @@ describe("the organization", () => {
     assert.ok(text(view()).includes("compromised server or identity provider"));
   });
 
+  test("warns while the organization allows offline reads", async () => {
+    const { app, view } = await opened();
+    assert.ok(!text(view()).includes("allows offline reads"));
+    app.model.log.state.settings = { ...app.model.log.state.settings, offline_reads: true };
+    app.set({});
+    assert.ok(text(view()).includes("This organization allows offline reads"));
+    assert.ok(text(view()).includes("a lost or compromised device reports nothing"));
+  });
+
   test("marks this browser among the devices and shows fingerprints", async () => {
     const { app, view, device } = await opened();
     await click(view(), "Devices");
@@ -383,6 +392,21 @@ describe("the audit log", () => {
     await click(view(), "Load and verify");
     assert.match(text(view()), new RegExp(`Verified ${vectors.audit.events.length} events`));
     assert.ok(text(view()).includes("object.read"));
+  });
+
+  test("names the periods in which offline reads went unrecorded", async () => {
+    const { app, view } = await opened({ events: vectors.audit.events });
+    await click(view(), "Audit log");
+    await click(view(), "Load and verify");
+    assert.ok(!text(view()).includes("Offline reads"));
+    app.model.log.offlineReadPeriods = () => [
+      { from: 1_700_000_000_000, until: 1_700_086_400_000 },
+      { from: 1_710_000_000_000, until: null },
+    ];
+    app.set({});
+    const body = text(view());
+    assert.match(body, /Offline reads were allowed from .+ until .+\. Reads from offline copies in that time/);
+    assert.match(body, /Offline reads have been allowed since .+\. Reads from offline copies appear here only/);
   });
 
   test("shows nothing of a tampered chain", async () => {

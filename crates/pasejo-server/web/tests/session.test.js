@@ -178,6 +178,26 @@ describe("the membership log", () => {
     await assert.rejects(appendFresh(api, after, device, "member.role", { user: READER, role: "member" }), { code: "conflict" });
   });
 
+  test("settings entries open and close the periods of offline reads", async () => {
+    const server = await fakeServer();
+    const device = await browserDevice();
+    const api = await signedApi(server, device);
+    let log = await fetchLog(api, ORG);
+    assert.equal(log.state.settings.offline_reads, false);
+    assert.deepEqual(log.offlineReadPeriods(), []);
+    const settings = { ...log.state.settings, offline_reads: true };
+    ({ log } = await append(api, log, device, "org.settings", { settings }));
+    const opened = log.parsed.at(-1).time;
+    assert.equal(log.state.settings.offline_reads, true);
+    assert.equal(server.state.log.state.settings.offline_reads, true);
+    assert.deepEqual(log.offlineReadPeriods(), [{ from: opened, until: null }]);
+    ({ log } = await append(api, log, device, "org.settings", { settings: { ...settings, auto_join: true } }));
+    assert.deepEqual(log.offlineReadPeriods(), [{ from: opened, until: null }]);
+    ({ log } = await append(api, log, device, "org.settings", { settings: { ...settings, offline_reads: false } }));
+    assert.deepEqual(log.offlineReadPeriods(), [{ from: opened, until: log.parsed.at(-1).time }]);
+    assert.equal(server.state.log.offlineReadPeriods().length, 1);
+  });
+
   test("an entry needing a second admin becomes a proposal that another admin co-signs", async () => {
     const server = await fakeServer();
     const device = await browserDevice();

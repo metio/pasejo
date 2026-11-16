@@ -11,6 +11,8 @@ Options:
           Whether role, setting and recovery changes need a second admin [possible values: true, false]
       --auto-join <AUTO_JOIN>
           Whether users signing in through the identity provider join automatically [possible values: true, false]
+      --offline-reads <OFFLINE_READS>
+          Whether devices may keep an offline copy of secret values, whose reads reach the audit log only when the device reports them [possible values: true, false]
   -o, --org <ORG>
           Name or identifier of the organization. Defaults to the only registered organization
   -v, --verbose...
@@ -35,6 +37,8 @@ Options:
           Whether role, setting and recovery changes need a second admin [possible values: true, false]
       --auto-join <AUTO_JOIN>
           Whether users signing in through the identity provider join automatically [possible values: true, false]
+      --offline-reads <OFFLINE_READS>
+          Whether devices may keep an offline copy of secret values, whose reads reach the audit log only when the device reports them [possible values: true, false]
   -o, --org <ORG>
           Name or identifier of the organization. Defaults to the only registered organization
   -v, --verbose...
@@ -59,6 +63,8 @@ Options:
           Whether role, setting and recovery changes need a second admin [possible values: true, false]
       --auto-join <AUTO_JOIN>
           Whether users signing in through the identity provider join automatically [possible values: true, false]
+      --offline-reads <OFFLINE_READS>
+          Whether devices may keep an offline copy of secret values, whose reads reach the audit log only when the device reports them [possible values: true, false]
   -o, --org <ORG>
           Name or identifier of the organization. Defaults to the only registered organization
   -v, --verbose...

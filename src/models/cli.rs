@@ -383,6 +383,11 @@ pub struct OrgSettingsArgs {
     #[arg(long)]
     pub auto_join: Option<bool>,
 
+    /// Whether devices may keep an offline copy of secret values, whose
+    /// reads reach the audit log only when the device reports them
+    #[arg(long)]
+    pub offline_reads: Option<bool>,
+
     #[command(flatten)]
     pub org_selection: OrgSelectionArgs,
 }

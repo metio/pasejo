@@ -1476,6 +1476,24 @@ fl_log!(
 );
 fl_log!(
     warn,
+    remote_offline_reads_warning,
+    "remote-offline-reads-warning"
+);
+fl_log!(
+    warn,
+    remote_audit_offline_reads_open,
+    "remote-audit-offline-reads-open",
+    from
+);
+fl_log!(
+    warn,
+    remote_audit_offline_reads_closed,
+    "remote-audit-offline-reads-closed",
+    from,
+    until
+);
+fl_log!(
+    warn,
     remote_device_approved_automatically,
     "remote-device-approved-automatically",
     label

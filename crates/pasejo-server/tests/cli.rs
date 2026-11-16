@@ -852,6 +852,58 @@ async fn automatic_approval_warns_when_turned_on_and_for_every_device_it_approve
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn allowing_offline_reads_warns_and_the_audit_log_names_the_periods() {
+    let harness = Harness::start().await;
+    let (alice, _, _) = founder(&harness).await;
+    let notice = "Reads from offline copies";
+    let before = alice.ok(&["audit", "log"]);
+    assert!(!before.all().contains(notice), "{}", before.all());
+
+    let warning = "a lost or compromised device reports nothing";
+    let allowed = alice
+        .ok(&["org", "settings", "--offline-reads", "true"])
+        .all();
+    assert!(allowed.contains(warning), "{allowed}");
+    let open = alice.ok(&["audit", "log"]);
+    assert!(
+        open.stderr
+            .contains("Offline reads have been allowed since "),
+        "{}",
+        open.all()
+    );
+    assert!(
+        !open.stdout.contains(notice),
+        "the notice stays off the table"
+    );
+
+    harness.advance(1_000);
+    alice.ok(&["org", "settings", "--offline-reads", "false"]);
+    let closed = alice.ok(&["audit", "log"]).stderr;
+    assert!(
+        closed.contains("Offline reads were allowed from "),
+        "{closed}"
+    );
+    assert!(!closed.contains("have been allowed since"), "{closed}");
+
+    let german = sync(|| {
+        Run::from(
+            &alice
+                .command(&["audit", "log"])
+                .env("LANG", "de")
+                .env("LC_ALL", "de")
+                .output()
+                .unwrap(),
+        )
+    });
+    assert!(german.success, "{}", german.all());
+    assert!(
+        german.stderr.contains("Offline-Lesezugriffe waren von "),
+        "{}",
+        german.all()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_file_store_migrates_to_the_server() {
     let harness = Harness::start().await;
     let alice = Installation::new(&harness);

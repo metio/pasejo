@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use pasejo_protocol::api::{
     ChainLink, Commit, Committed, EpochUpload, ErrorCode, IndexResponse, LookupResponse, ObjectRef,
-    ObjectsRequest, ObjectsResponse, Rotation, StoreSummary, Stores, WrappingUpload,
-    WrappingsUpload,
+    ObjectsRequest, ObjectsResponse, OfflineRead, OfflineReadsRequest, Rotation, StoreSummary,
+    Stores, WrappingUpload, WrappingsUpload,
 };
 use pasejo_protocol::crypto::{EpochKeys, data_commitment, names_commitment, seal_chain};
 use pasejo_protocol::device::{DeviceKind, recovery_id};
@@ -464,6 +464,29 @@ impl Client {
                 "the lookup object does not match the index",
             )),
         }
+    }
+
+    /// Reports reads this device made from its offline copy of `store`,
+    /// for the audit log. The server refuses reads outside the periods in
+    /// which the organization allowed offline reads
+    /// ([`OrgLog::offline_read_periods`]).
+    ///
+    /// # Errors
+    ///
+    /// Fails when the server refuses the report.
+    pub fn report_offline_reads(
+        &self,
+        log: &OrgLog,
+        store: Id,
+        reads: &[OfflineRead],
+    ) -> Result<()> {
+        self.call_empty(
+            "POST",
+            &Self::store_path(log, store, "offline-reads"),
+            Some(&OfflineReadsRequest {
+                reads: reads.to_vec(),
+            }),
+        )
     }
 
     /// Fetches and decrypts the named entries of `snapshot`.
