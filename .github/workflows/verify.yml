@@ -84,7 +84,7 @@ jobs:
           key: server-cargo-${{ hashFiles('**/Cargo.lock') }}
       # Node from the @lint group runs the console's tests and its end-to-end
       # test in tests/console.rs, which fails without Node because CI is set.
-      - uses: metio/ci/breto@00adafd0fe1924f57325d9dd264d5d731fb099ad # 2026.11.4082509
+      - uses: metio/ci/breto@ee1344847682b2c1a1c5b5413da59be084662645 # 2026.11.16053738
         with:
           registries: github:metio/toolchains
       - name: Test the console
@@ -203,7 +203,7 @@ jobs:
           path: web-extension
           persist-credentials: false
       # The extension's .breto.edn names the node version its suite runs on.
-      - uses: metio/ci/breto@00adafd0fe1924f57325d9dd264d5d731fb099ad # 2026.11.4082509
+      - uses: metio/ci/breto@ee1344847682b2c1a1c5b5413da59be084662645 # 2026.11.16053738
         with:
           project: web-extension
           registries: github:metio/toolchains
