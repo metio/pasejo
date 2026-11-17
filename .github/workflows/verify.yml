@@ -177,7 +177,9 @@ jobs:
   # The extension's own CI runs the suite against the released host.
   web-extension-e2e:
     name: Web extension e2e
-    runs-on: ubuntu-latest
+    # The Playwright release the extension pins installs Chromium only on
+    # the Ubuntu versions it knows.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Checkout
