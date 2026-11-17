@@ -25,3 +25,8 @@ paths = ['''^tests/fixtures/passphrase-protected-ed25519$''']
 description = "Placeholder password the browser protocol tests expect in a reveal reply; it protects no real data"
 regexTarget = "line"
 regexes = ['''"password": ?"hunter2"''']
+
+[[allowlists]]
+description = "RFC 6238's published SHA-1 test secret, used by the one-time password tests"
+regexTarget = "line"
+regexes = ['''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''']
