@@ -90,11 +90,11 @@ impl Client {
             &TokenClaim {
                 purpose: purpose.to_owned(),
                 value,
-                signing_key: Fixed(self.device.signing_key.verifying_key().to_bytes()),
+                signing_key: Fixed(self.device.signer.verifying_key()),
                 time: self.now(),
             },
             self.device.id,
-            &self.device.signing_key,
+            &*self.device.signer,
         )?)
     }
 
@@ -109,7 +109,7 @@ impl Client {
             "POST",
             "/v1/auth/device",
             Some(&DeviceAuthorizationRequest {
-                signing_key: Fixed(self.device.signing_key.verifying_key().to_bytes()),
+                signing_key: Fixed(self.device.signer.verifying_key()),
                 label: self.device.label.clone(),
             }),
         )

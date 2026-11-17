@@ -60,7 +60,7 @@ async fn admin(harness: &Harness) -> Admin {
     let identity = age::x25519::Identity::generate();
     let device = DeviceIdentity {
         id: Id::random(),
-        signing_key: SigningKey::generate(&mut OsRng),
+        signer: std::sync::Arc::new(SigningKey::generate(&mut OsRng)),
         kind: DeviceKind::Age,
         recipient: identity.to_public().to_string(),
         label: "laptop".into(),

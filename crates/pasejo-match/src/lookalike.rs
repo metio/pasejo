@@ -7,6 +7,8 @@ use std::collections::BTreeSet;
 /// character for one edit to mean anything.
 const MIN_EDIT_LABEL_LEN: usize = 4;
 
+/// The stored registrable domains that could be mistaken for the queried one.
+///
 /// Returns the registrable domains among `stored_hosts` that differ from the
 /// registrable domain of `query_host` but could be mistaken for it, sorted
 /// and without duplicates. Hosts are expected in the canonical form the

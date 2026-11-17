@@ -46,6 +46,10 @@ pub enum Error {
     Invalid(&'static str),
     #[error("age: {0}")]
     Age(String),
+    /// The device key could not sign, for example because a key in secure
+    /// hardware needs the person to authenticate first.
+    #[error("signing failed: {0}")]
+    Signing(String),
 }
 
 impl From<serde_json::Error> for Error {

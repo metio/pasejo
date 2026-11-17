@@ -5,7 +5,7 @@
 //! encrypted secret so they travel with the store and cannot be changed by
 //! anyone without the store's identities.
 
-use crate::exporters::parser;
+use crate::parser;
 
 /// Field that limits which matches release the secret to a browser.
 pub const FILL_FIELD: &str = "pasejo-fill";
@@ -47,6 +47,7 @@ impl Policy {
     /// [`parser::fields`]. Keys compare case-insensitively, and when a field
     /// repeats, the strictest value wins. Any `pasejo-confirm` value
     /// requests confirmation, since `always` is the only one defined.
+    #[must_use]
     pub fn from_secret(secret: &str) -> Self {
         let mut policy = Self::default();
         for (key, value) in parser::fields(secret) {

@@ -132,7 +132,7 @@ impl Remote {
         let files = DeviceFiles::new(id)?;
         let device = DeviceIdentity {
             id,
-            signing_key: files.signing_key()?,
+            signer: std::sync::Arc::new(files.signing_key()?),
             kind: DeviceKind::Age,
             recipient: server.recipient.clone(),
             label: server.label.clone(),

@@ -182,10 +182,10 @@ pub enum ErrorKind {
 
 #[cfg(test)]
 mod tests {
+    use pasejo_match::matcher::MatchKind;
     use serde_json::Value;
 
     use super::*;
-    use crate::browser::matcher::MatchKind;
     use crate::cli::constants::{default_uri_keys, default_username_keys};
 
     fn sample_match() -> Match {

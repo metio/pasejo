@@ -5,7 +5,7 @@
 //! Verifiers check the exact bytes they received before parsing them, so no
 //! canonical JSON form is needed.
 
-use ed25519_dalek::{Signature as DalekSignature, Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{Signature as DalekSignature, Signer as _, SigningKey, VerifyingKey};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +53,33 @@ impl Context {
     }
 }
 
+/// A device key that signs the messages of [`Context::message`].
+///
+/// In-memory Ed25519 keys implement it, and so can keys kept in secure
+/// hardware, which sign inside the hardware and may refuse, for example until
+/// the person authenticates.
+pub trait Signer: Send + Sync {
+    /// The Ed25519 public key.
+    fn verifying_key(&self) -> [u8; 32];
+
+    /// Signs `message`, which is at most 64 bytes long.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the key cannot sign now.
+    fn sign_message(&self, message: &[u8]) -> Result<[u8; 64], Error>;
+}
+
+impl Signer for SigningKey {
+    fn verifying_key(&self) -> [u8; 32] {
+        Self::verifying_key(self).to_bytes()
+    }
+
+    fn sign_message(&self, message: &[u8]) -> Result<[u8; 64], Error> {
+        Ok(self.sign(message).to_bytes())
+    }
+}
+
 /// One signature of an envelope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
@@ -72,19 +99,39 @@ impl Envelope {
     /// # Errors
     ///
     /// Fails only if the payload cannot be serialized.
-    pub fn seal<T: Serialize>(
+    pub fn seal<T: Serialize, S: Signer + ?Sized>(
         context: Context,
         payload: &T,
         device: Id,
-        key: &SigningKey,
+        key: &S,
     ) -> Result<Self, Error> {
         let bytes = serde_json::to_vec(payload)?;
         let mut envelope = Self {
             payload: Bytes(bytes),
             signatures: Vec::new(),
         };
-        envelope.add_signature(context, device, key);
+        envelope.try_add_signature(context, device, key)?;
         Ok(envelope)
+    }
+
+    /// Adds a signature by `device` over the existing payload bytes with a
+    /// key that may refuse.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the key cannot sign.
+    pub fn try_add_signature<S: Signer + ?Sized>(
+        &mut self,
+        context: Context,
+        device: Id,
+        key: &S,
+    ) -> Result<(), Error> {
+        let signature = try_sign(context, &self.payload.0, key)?;
+        self.signatures.push(Signature {
+            device,
+            signature: Fixed(signature),
+        });
+        Ok(())
     }
 
     /// Adds a signature by `device` over the existing payload bytes.
@@ -154,6 +201,19 @@ pub fn verify(
 #[must_use]
 pub fn sign(context: Context, payload: &[u8], key: &SigningKey) -> [u8; 64] {
     key.sign(&context.message(payload)).to_bytes()
+}
+
+/// Signs `payload` for `context` with a key that may refuse.
+///
+/// # Errors
+///
+/// Fails when the key cannot sign.
+pub fn try_sign<S: Signer + ?Sized>(
+    context: Context,
+    payload: &[u8],
+    key: &S,
+) -> Result<[u8; 64], Error> {
+    key.sign_message(&context.message(payload))
 }
 
 /// A session exchange: a device proves possession of its signing key when

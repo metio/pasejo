@@ -45,6 +45,7 @@ inquire = { version = "0.9.4" }
 notify-rust = { version = "4.17.0" }
 otp-std = { version = "0.2.3", features = ["auth", "sha2", "unsafe-length"] }
 pasejo-client = { path = "crates/pasejo-client", version = "=1.0.0" }
+pasejo-match = { path = "crates/pasejo-match", version = "=1.0.0" }
 pasejo-protocol = { path = "crates/pasejo-protocol", version = "=1.0.0" }
 passwords = { version = "3.1.16" }
 pinentry = { version = "0.8.0" }

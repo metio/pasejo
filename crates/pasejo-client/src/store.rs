@@ -29,7 +29,7 @@ use crate::transport::Client;
 
 /// The browser policy fields the lookup object carries beside the lookup
 /// keys.
-pub const POLICY_KEYS: [&str; 2] = ["pasejo-fill", "pasejo-confirm"];
+pub const POLICY_KEYS: [&str; 3] = ["pasejo-fill", "pasejo-confirm", "android-cert"];
 
 /// A verified, decrypted index version; version 0 is the empty store
 /// before its first commit.
@@ -609,7 +609,7 @@ impl Client {
         };
         let draft = draft(log, ring, snapshot, lookup, changes, &values, self.now())?;
         let commit = Commit {
-            index: sign_index(&draft.payload, self.device.id, &self.device.signing_key)?,
+            index: sign_index(&draft.payload, self.device.id, &*self.device.signer)?,
             lookup: draft.lookup.clone().map(Bytes),
             objects: draft.objects,
         };

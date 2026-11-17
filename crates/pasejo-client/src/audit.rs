@@ -10,7 +10,7 @@ use pasejo_protocol::Id;
 use pasejo_protocol::api::{AuditPage, CheckpointEntry, Checkpoints, Cosign};
 use pasejo_protocol::checkpoint::{AuditEvent, CheckpointPayload, verify_chain};
 use pasejo_protocol::encoding::{Fixed, Hash};
-use pasejo_protocol::envelope::{Context, Signature, sign};
+use pasejo_protocol::envelope::{Context, Signature, try_sign};
 use pasejo_protocol::log::OrgLog;
 
 use crate::error::{Error, Result};
@@ -191,11 +191,11 @@ impl Client {
     pub fn cosign_checkpoint(&self, org: Id, entry: &CheckpointEntry) -> Result<()> {
         let signature = Signature {
             device: self.device.id,
-            signature: Fixed(sign(
+            signature: Fixed(try_sign(
                 Context::Checkpoint,
                 &entry.checkpoint.payload.0,
-                &self.device.signing_key,
-            )),
+                &*self.device.signer,
+            )?),
         };
         self.call_empty(
             "POST",

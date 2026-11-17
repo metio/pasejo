@@ -67,11 +67,37 @@ pub fn prove(
         &message(method, path_and_query, timestamp, &nonce, body, token),
         key,
     );
+    proof(token, timestamp, nonce, &signature)
+}
+
+/// Signs a request with a key that may refuse.
+///
+/// # Errors
+///
+/// Fails when the key cannot sign.
+pub fn try_prove<S: crate::envelope::Signer + ?Sized>(
+    method: &str,
+    path_and_query: &str,
+    timestamp: Millis,
+    body: &[u8],
+    token: &str,
+    key: &S,
+) -> Result<Proof, Error> {
+    let nonce = b64(&random::<16>());
+    let signature = crate::envelope::try_sign(
+        Context::Request,
+        &message(method, path_and_query, timestamp, &nonce, body, token),
+        key,
+    )?;
+    Ok(proof(token, timestamp, nonce, &signature))
+}
+
+fn proof(token: &str, timestamp: Millis, nonce: String, signature: &[u8; 64]) -> Proof {
     Proof {
         authorization: format!("{AUTHORIZATION_SCHEME} {token}"),
         timestamp: timestamp.to_string(),
         nonce,
-        proof: b64(&signature),
+        proof: b64(signature),
     }
 }
 

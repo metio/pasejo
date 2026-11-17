@@ -158,7 +158,7 @@ impl BitwardenItem {
         uri_keys: &[String],
     ) -> Self {
         let parsed = parse_secret(secret, username_keys, uri_keys);
-        let (username, uris, fields) = parsed.extract_fields(username_keys, uri_keys);
+        let (username, uris, fields) = extract_fields(&parsed, username_keys, uri_keys);
         Self {
             id: Uuid::now_v7().to_string(),
             folder_id: None,
@@ -178,41 +178,39 @@ impl BitwardenItem {
     }
 }
 
-impl ParsedSecret {
-    fn extract_fields(
-        &self,
-        username_keys: &[String],
-        uri_keys: &[String],
-    ) -> (String, Vec<BitwardenUri>, Vec<BitwardenField>) {
-        let mut username: Option<(&String, &String)> = None;
-        let mut uris: Vec<BitwardenUri> = vec![];
-        let mut fields: Vec<BitwardenField> = vec![];
-        for (key, value) in &self.fields {
-            if username_keys.contains(key) {
-                if let Some((displaced_key, displaced_value)) = username.replace((key, value)) {
-                    fields.push(BitwardenField {
-                        name: displaced_key.clone(),
-                        value: displaced_value.clone(),
-                        field_type: TEXT_FIELD_TYPE,
-                    });
-                }
-            } else if uri_keys.contains(key) {
-                uris.push(BitwardenUri {
-                    uri_match: None,
-                    uri: value.clone(),
-                });
-            } else {
+fn extract_fields(
+    parsed: &ParsedSecret,
+    username_keys: &[String],
+    uri_keys: &[String],
+) -> (String, Vec<BitwardenUri>, Vec<BitwardenField>) {
+    let mut username: Option<(&String, &String)> = None;
+    let mut uris: Vec<BitwardenUri> = vec![];
+    let mut fields: Vec<BitwardenField> = vec![];
+    for (key, value) in &parsed.fields {
+        if username_keys.contains(key) {
+            if let Some((displaced_key, displaced_value)) = username.replace((key, value)) {
                 fields.push(BitwardenField {
-                    name: key.clone(),
-                    value: value.clone(),
+                    name: displaced_key.clone(),
+                    value: displaced_value.clone(),
                     field_type: TEXT_FIELD_TYPE,
                 });
             }
+        } else if uri_keys.contains(key) {
+            uris.push(BitwardenUri {
+                uri_match: None,
+                uri: value.clone(),
+            });
+        } else {
+            fields.push(BitwardenField {
+                name: key.clone(),
+                value: value.clone(),
+                field_type: TEXT_FIELD_TYPE,
+            });
         }
-
-        let username = username.map_or_default(|(_, value)| value.clone());
-        (username, uris, fields)
     }
+
+    let username = username.map_or_default(|(_, value)| value.clone());
+    (username, uris, fields)
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

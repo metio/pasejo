@@ -67,7 +67,7 @@ impl Device {
     pub fn identity(&self, label: &str) -> DeviceIdentity {
         DeviceIdentity {
             id: self.id,
-            signing_key: self.signing_key.clone(),
+            signer: std::sync::Arc::new(self.signing_key.clone()),
             kind: DeviceKind::Age,
             recipient: self.recipient(),
             label: label.to_owned(),

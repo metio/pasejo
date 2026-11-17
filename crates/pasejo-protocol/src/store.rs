@@ -6,7 +6,6 @@
 
 use std::collections::BTreeMap;
 
-use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -276,7 +275,11 @@ pub struct SealedObject {
 /// # Errors
 ///
 /// Fails only if the payload cannot be serialized.
-pub fn sign_index(payload: &IndexPayload, device: Id, key: &SigningKey) -> Result<Envelope, Error> {
+pub fn sign_index<S: crate::envelope::Signer + ?Sized>(
+    payload: &IndexPayload,
+    device: Id,
+    key: &S,
+) -> Result<Envelope, Error> {
     Envelope::seal(Context::Index, payload, device, key)
 }
 
@@ -323,6 +326,7 @@ pub fn check_chain(
 
 #[cfg(test)]
 mod tests {
+    use ed25519_dalek::SigningKey;
     use rand_core::OsRng;
 
     use super::*;

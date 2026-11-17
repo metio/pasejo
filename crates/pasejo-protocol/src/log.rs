@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 use crate::device::{DeviceKind, DeviceRecord, recovery_id, validate_recipient};
@@ -1111,7 +1111,10 @@ pub fn next_entry(log: &OrgLog, author: Id, time: Millis, body: Body) -> Entry {
 /// # Errors
 ///
 /// Fails only if the entry cannot be serialized.
-pub fn seal_entry(entry: &Entry, key: &SigningKey) -> Result<Envelope, Error> {
+pub fn seal_entry<S: crate::envelope::Signer + ?Sized>(
+    entry: &Entry,
+    key: &S,
+) -> Result<Envelope, Error> {
     Envelope::seal(Context::LogEntry, entry, entry.author, key)
 }
 
@@ -1120,13 +1123,13 @@ pub fn seal_entry(entry: &Entry, key: &SigningKey) -> Result<Envelope, Error> {
 /// # Errors
 ///
 /// Fails only if the entry cannot be serialized.
-pub fn genesis(
+pub fn genesis<S: crate::envelope::Signer + ?Sized>(
     org: Id,
     name: &str,
     device: DeviceRecord,
     settings: Settings,
     time: Millis,
-    key: &SigningKey,
+    key: &S,
 ) -> Result<Envelope, Error> {
     let entry = Entry {
         org,

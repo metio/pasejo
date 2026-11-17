@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: The pasejo Authors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "pasejo-mobile"
+description = "The Rust core of the pasejo apps, exported to Kotlin and Swift through UniFFI"
+version.workspace = true
+authors = ["Sebastian Hoß <seb@xn--ho-hia.de>"]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+age = { version = "0.12.0", default-features = false }
+age-core = { version = "0.12.0" }
+base64 = { version = "0.22.1" }
+bech32 = { version = "0.11.1" }
+chacha20poly1305 = { version = "0.10.1" }
+ed25519-dalek = { version = "2.2.0" }
+hkdf = { version = "0.12.4" }
+otp-std = { version = "0.2.3", features = ["sha2", "unsafe-length"] }
+pasejo-client = { path = "../pasejo-client" }
+pasejo-match = { path = "../pasejo-match" }
+pasejo-protocol = { path = "../pasejo-protocol" }
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.150" }
+sha2 = { version = "0.10.9" }
+thiserror = { version = "2.0.17" }
+uniffi = { version = "0.32.2" }
+ureq = { version = "3.3.0" }
+x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
+zeroize = { version = "1.8.2" }

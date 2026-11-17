@@ -7,11 +7,11 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use ed25519_dalek::SigningKey;
 use pasejo_protocol::api::ErrorBody;
 use pasejo_protocol::device::{DeviceKind, DeviceRecord};
 use pasejo_protocol::encoding::Fixed;
-use pasejo_protocol::request::{NONCE_HEADER, PROOF_HEADER, TIMESTAMP_HEADER, prove};
+use pasejo_protocol::envelope::Signer;
+use pasejo_protocol::request::{NONCE_HEADER, PROOF_HEADER, TIMESTAMP_HEADER, try_prove};
 use pasejo_protocol::{Id, Millis};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -38,7 +38,9 @@ pub fn system_clock() -> Clock {
 /// The keys and description of this installation.
 pub struct DeviceIdentity {
     pub id: Id,
-    pub signing_key: SigningKey,
+    /// Signs with the device key, which may live outside this process,
+    /// for example in a phone's secure hardware.
+    pub signer: Arc<dyn Signer>,
     pub kind: DeviceKind,
     /// The age recipient (or HPKE public key) wrappings go to.
     pub recipient: String,
@@ -54,7 +56,7 @@ impl DeviceIdentity {
             user,
             kind: self.kind,
             recipient: self.recipient.clone(),
-            signing_key: Fixed(self.signing_key.verifying_key().to_bytes()),
+            signing_key: Fixed(self.signer.verifying_key()),
             label: self.label.clone(),
         }
     }
@@ -65,7 +67,7 @@ impl DeviceIdentity {
         pasejo_protocol::device::fingerprint(
             self.kind,
             &self.recipient,
-            &self.signing_key.verifying_key().to_bytes(),
+            &self.signer.verifying_key(),
         )
     }
 }
@@ -101,15 +103,40 @@ pub struct Client {
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl Client {
-    /// A client for the server at `base_url`.
+    /// A client for the server at `base_url` that trusts the certificate
+    /// authorities bundled with this library.
     #[must_use]
     pub fn new(base_url: &str, device: DeviceIdentity, clock: Clock, timeout: Duration) -> Self {
-        let agent = ureq::Agent::config_builder()
+        Self::with_roots(base_url, device, clock, timeout, &[])
+    }
+
+    /// A client that trusts exactly the DER-encoded certificate
+    /// authorities `roots`, such as the ones a phone trusts, or the bundled
+    /// ones when `roots` is empty.
+    #[must_use]
+    pub fn with_roots(
+        base_url: &str,
+        device: DeviceIdentity,
+        clock: Clock,
+        timeout: Duration,
+        roots: &[Vec<u8>],
+    ) -> Self {
+        let mut config = ureq::Agent::config_builder()
             .timeout_global(Some(timeout))
             .http_status_as_error(false)
-            .max_redirects(0)
-            .build()
-            .into();
+            .max_redirects(0);
+        if !roots.is_empty() {
+            let roots = roots
+                .iter()
+                .map(|der| ureq::tls::Certificate::from_der(der).to_owned())
+                .collect();
+            config = config.tls_config(
+                ureq::tls::TlsConfig::builder()
+                    .root_certs(ureq::tls::RootCerts::Specific(Arc::new(roots)))
+                    .build(),
+            );
+        }
+        let agent = config.build().into();
         Self {
             base: base_url.trim_end_matches('/').to_owned(),
             agent,
@@ -163,14 +190,14 @@ impl Client {
         let mut headers: Vec<(&str, String)> = Vec::new();
         if authenticated {
             let session = self.session.as_ref().ok_or(Error::NoSession)?;
-            let proof = prove(
+            let proof = try_prove(
                 method,
                 path,
                 self.now(),
                 body.as_deref().unwrap_or_default(),
                 &session.token,
-                &self.device.signing_key,
-            );
+                &*self.device.signer,
+            )?;
             headers.push(("authorization", proof.authorization));
             headers.push((TIMESTAMP_HEADER, proof.timestamp));
             headers.push((NONCE_HEADER, proof.nonce));

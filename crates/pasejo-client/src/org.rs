@@ -11,7 +11,7 @@ use pasejo_protocol::api::{
     ScimTokenInfo, ScimTokens, UserSummary, Users,
 };
 use pasejo_protocol::encoding::{Fixed, Hash};
-use pasejo_protocol::envelope::{Context, Signature, sign};
+use pasejo_protocol::envelope::{Context, Signature, try_sign};
 use pasejo_protocol::log::{Body, Entry, OrgLog, Settings, genesis, next_entry, seal_entry};
 
 use crate::error::{Error, Result};
@@ -32,7 +32,7 @@ impl Client {
             self.device.record(user),
             settings,
             self.now(),
-            &self.device.signing_key,
+            &*self.device.signer,
         )?;
         let _: OrgSummary = self.call(
             "POST",
@@ -103,7 +103,7 @@ impl Client {
     /// Fails when the log rejects the entry locally, or the server refuses
     /// it, for instance because another entry came first.
     pub fn append(&self, log: &mut OrgLog, body: Body) -> Result<Appended> {
-        let envelope = seal_entry(&self.entry(log, body), &self.device.signing_key)?;
+        let envelope = seal_entry(&self.entry(log, body), &*self.device.signer)?;
         let mut trial = log.clone();
         trial.append(envelope.clone()).map_err(Error::refused)?;
         let org = log.state().org;
@@ -139,7 +139,7 @@ impl Client {
     ///
     /// Fails when the entry needs no second admin or the server refuses.
     pub fn propose(&self, log: &OrgLog, body: Body) -> Result<Proposal> {
-        let envelope = seal_entry(&self.entry(log, body), &self.device.signing_key)?;
+        let envelope = seal_entry(&self.entry(log, body), &*self.device.signer)?;
         let org = log.state().org;
         self.call(
             "POST",
@@ -175,11 +175,11 @@ impl Client {
         let org = log.state().org;
         let signature = Signature {
             device: self.device.id,
-            signature: Fixed(sign(
+            signature: Fixed(try_sign(
                 Context::LogEntry,
                 &proposal.entry.payload.0,
-                &self.device.signing_key,
-            )),
+                &*self.device.signer,
+            )?),
         };
         let appended: Appended = self.call(
             "POST",

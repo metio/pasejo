@@ -4,6 +4,8 @@
 //! An organization log with one store and two epochs, built locally for
 //! unit tests.
 
+use std::sync::Arc;
+
 use ed25519_dalek::SigningKey;
 use pasejo_protocol::Id;
 use pasejo_protocol::api::{ChainLink, Keys, Wrapping};
@@ -32,7 +34,7 @@ impl Fixture {
         let identity = age::x25519::Identity::generate();
         let device = DeviceIdentity {
             id: Id::random(),
-            signing_key: SigningKey::generate(&mut OsRng),
+            signer: Arc::new(SigningKey::generate(&mut OsRng)),
             kind: DeviceKind::Age,
             recipient: identity.to_public().to_string(),
             label: "test".into(),
@@ -43,7 +45,7 @@ impl Fixture {
             device.record(Id::random()),
             Settings::default(),
             TIME,
-            &device.signing_key,
+            &*device.signer,
         )
         .unwrap();
         let mut fixture = Self {
@@ -65,7 +67,7 @@ impl Fixture {
     pub fn append(&mut self, body: Body) {
         let entry = next_entry(&self.log, self.device.id, TIME, body);
         self.log
-            .append(seal_entry(&entry, &self.device.signing_key).unwrap())
+            .append(seal_entry(&entry, &*self.device.signer).unwrap())
             .unwrap();
     }
 

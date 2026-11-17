@@ -57,7 +57,7 @@ fn unsigned(harness: &Harness, label: &str) -> Device {
     let identity = age::x25519::Identity::generate();
     let device = DeviceIdentity {
         id: Id::random(),
-        signing_key: SigningKey::generate(&mut OsRng),
+        signer: std::sync::Arc::new(SigningKey::generate(&mut OsRng)),
         kind: DeviceKind::Age,
         recipient: identity.to_public().to_string(),
         label: label.into(),
@@ -762,7 +762,7 @@ async fn the_audit_trail_verifies_and_detects_tampering() {
         assert!(rounds < 10, "co-signing does not converge");
     }
     let checkpoints = sync(|| alice.client.checkpoints(org, 0)).unwrap();
-    let alice_key = alice.client.device.signing_key.verifying_key().to_bytes();
+    let alice_key = alice.client.device.signer.verifying_key();
     for entry in &checkpoints {
         assert_eq!(
             entry.checkpoint.cosignatures.len(),
