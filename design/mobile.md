@@ -5,7 +5,7 @@ SPDX-License-Identifier: 0BSD
 
 # pasejo mobile design
 
-Status: draft, 2026-11-16; phase 1 implemented and phase 2 partly implemented, 2026-11-17. This document proposes Android and iOS apps for pasejo. The server pieces (the app sign-in flow and offline-read reports), the Rust core (`pasejo-match`, `pasejo-mobile` and the signer trait) and the read-only Android app without offline reads are implemented; [Phases](#phases) lists what remains. Platform facts name the documentation or source they were read from on 2026-11-16; those marked unverified need checking before an implementation relies on them.
+Status: draft, 2026-11-16; phases 1 and 2 implemented, 2026-11-17. This document proposes Android and iOS apps for pasejo. The server pieces (the app sign-in flow and offline-read reports), the Rust core (`pasejo-match`, `pasejo-mobile` and the signer trait) and the read-only Android app are implemented; [Phases](#phases) lists what remains. Platform facts name the documentation or source they were read from on 2026-11-16; those marked unverified need checking before an implementation relies on them.
 
 ## Summary
 
@@ -208,7 +208,7 @@ Key attestation can prove that the device keys live in the trusted execution env
 Before a fill, the app turns the requesting app into domains it has checked itself:
 
 - **Browsers.** The app keeps a list of browsers by package name and signing certificate fingerprint. For a listed browser it trusts `ViewNode.getWebDomain()`; for any other app it ignores the reported web domain, as the `AutofillService` documentation requires.
-- **Apps with a statement file.** For a requesting package, the app collects candidate domains: the registrable domains spelled by the package name's labels (`com.example.mail` gives `example.com`) and, not implemented yet, the hosts of `androidapp://` entries in the store's lookup fields. It fetches `https://<domain>/.well-known/assetlinks.json` without redirects, requires `application/json`, follows at most ten includes, and accepts the domain when a statement with relation `delegate_permission/common.get_login_creds` or `delegate_permission/common.handle_all_urls` names the package and the SHA-256 fingerprint of one of its signing certificates. Results are cached for a day. A statement names an exact host; subdomains do not match.
+- **Apps with a statement file.** For a requesting package, the app collects candidate domains: the registrable domains spelled by the package name's labels (`com.example.mail` gives `example.com`) and the hosts of the other URL fields of secrets whose URL field names `androidapp://<package>`, at most eight per query. It fetches `https://<domain>/.well-known/assetlinks.json` without redirects, requires `application/json`, follows at most ten includes, and accepts the domain when a statement with relation `delegate_permission/common.get_login_creds` or `delegate_permission/common.handle_all_urls` names the package and the SHA-256 fingerprint of one of its signing certificates. Results are cached for a day. A statement names an exact host; subdomains do not match.
 - **Apps without a statement file.** A secret whose URL field names `androidapp://<package>` matches that package once the secret also carries an `android-cert` field with the certificate fingerprint. The lookup object carries `android-cert` with the fill policies, so a query can match on it. Writing the field on the first fill, after showing the package and its certificate, needs writing and comes with phase 3.
 
 The requesting package comes from `AssistStructure.getActivityComponent()`, and its certificates from `PackageManager.getPackageInfo(package, GET_SIGNING_CERTIFICATES)`: the current signers (`SigningInfo.getApkContentsSigners()`), not certificates the app rotated away from. The browser list is Google's allowlist of privileged browsers for Credential Manager (`gpm-passkeys-privileged-apps/apps.json`), embedded in the app. A Credential Manager provider receives the package and its signing information from the framework in `CallingAppInfo`. Whether an autofill service targeting API 30 or later sees the requesting package without a `<queries>` declaration or `QUERY_ALL_PACKAGES` is unverified. Sources: "Statement list syntax" and "Relation strings" on developers.google.com/digital-asset-links; `AutofillService`, `AssistStructure`, `SigningInfo` and `CallingAppInfo` on developer.android.com.
@@ -254,11 +254,11 @@ An organization can allow offline reads with `pasejo org settings --offline-read
 
 While the verified log allows offline reads, the app:
 
-1. Adds each value it fetched from the server to an offline copy, one record per object version, encrypted under a key-store key that needs authentication like the age identity. A value enters the copy only after an audited fetch, so the first read of each version is always recorded.
-2. Answers reveals and fills from the copy when the server is unreachable, and appends each such read (object identifier, version, time) to an encrypted local journal.
-3. Reports the journal with `report_offline_reads` when it reconnects, and drops journal entries once the server accepts them.
+1. Adds each value it fetched from the server to an offline copy, one record per object, age-encrypted to the device's own recipient and kept in the device state, which is itself encrypted at rest. Opening the copy therefore needs the age identity, with the same authentication as opening the stores. A value enters the copy only after an audited fetch, so the first read of each version is always recorded.
+2. Answers reveals and fills from the copy when the server is unreachable, and appends each such read (object identifier, version, time) to an encrypted local journal. Autofill queries match against the copy without a journal entry; like an online query they return names, usernames and URLs but no password.
+3. Reports the journal with `report_offline_reads` on the next online unlock or sign-out. Entries the server accepts or refuses (a read outside the periods the log allowed, or of a store the device lost) are dropped; entries that could not be sent stay.
 
-The app deletes the copy when the log turns `offline_reads` off, when its device loses access to a store, and when the person signs out. It learns of the first two only from a log it fetched, so a phone that stays offline keeps its copy and its unreported journal; a lost or compromised phone reports nothing. The warnings in the CLI and the console say so.
+The app deletes the copy when the log turns `offline_reads` off, when its device is removed, when an online unlock no longer opens a store, and when the person signs out. It learns of the first two only from a log it fetched, so a phone that stays offline keeps its copy and its unreported journal; a lost or compromised phone reports nothing. The warnings in the CLI and the console say so.
 
 ## Writing
 
@@ -271,7 +271,7 @@ A file store is one age-encrypted file synced by hooks. The apps can open such a
 ## Phases
 
 1. **Core.** Signing behind a trait in `pasejo-client`; `pasejo-match` extracted with the CLI's tests passing unchanged; `pasejo-mobile` with UniFFI bindings and tests that drive it against the real server, as `crates/pasejo-server/tests/client.rs` does for the client. The app sign-in flow and offline-read reports are already in the server.
-2. **Android, read-only.** Sign-in, enrollment in both key tiers, managed configuration, store and name lists, reveal and copy with clipboard clearing, TOTP, the autofill service with app associations, offline reads. Implemented except offline reads, candidate domains from `androidapp://` entries, and localization beyond English.
+2. **Android, read-only.** Sign-in, enrollment in both key tiers, managed configuration, store and name lists, reveal and copy with clipboard clearing, TOTP, the autofill service with app associations, offline reads. Implemented, in the CLI's eight languages; the security-level checks and biometric prompts are untested on hardware.
 3. **Android, writing.** Secret editing, device approval, pending actions and the Credential Manager provider.
 4. **iOS.** The same scope on the same core.
 5. **File stores.** Read-only import.
@@ -280,7 +280,7 @@ A file store is one age-encrypted file synced by hooks. The apps can open such a
 
 - `pasejo-mobile` is tested in Rust against the in-process server harness, including the tampering cases the client suite already has (withheld and swapped objects, a rolled-back index, keys without commitments).
 - The app sign-in flow and offline-read reports are tested in the server's suites, against the real router and through `pasejo-client`.
-- The bindings are exercised from Kotlin and Swift unit tests against a server the test runner starts. The Android app's JVM tests exercise the bindings against the core built for the host, without a server; the server-backed flows are covered in Rust by `crates/pasejo-server/tests/mobile.rs`.
+- The bindings are exercised from Kotlin and Swift unit tests against a server the test runner starts. The Android app's JVM tests exercise the bindings against the core built for the host and against a `pasejo-server` they start, for the steps that need no identity provider (server pinning, the sign-in start, refused codes); the flows behind a sign-in, offline reads and candidate domains are covered in Rust by `crates/pasejo-server/tests/mobile.rs`.
 - Android autofill is tested with instrumented tests against a test app with login fields, including a test app whose statement file the test server serves and one signed with another certificate; iOS with UI tests against a test app.
 - Managed configuration is tested with a test DPC that sets restrictions through `setApplicationRestrictions`, as owner of a work profile on an emulator.
 - The key tiers are tested on emulators for the round trip and on hardware for the security level checks and biometric prompts, which emulators do not reproduce faithfully: at least one device per tier, a Pixel on GrapheneOS, and a device that upgraded to Android 13 on an older vendor image.

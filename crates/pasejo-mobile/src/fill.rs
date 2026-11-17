@@ -55,6 +55,78 @@ pub struct FillMatch {
 pub struct QueryResult {
     pub matches: Vec<FillMatch>,
     pub lookalikes: Vec<String>,
+    /// The request with the domains verified during the query added, which
+    /// a fill of one of the matches passes on.
+    pub request: FillRequest,
+}
+
+/// Checks whether a domain lets the requesting app receive its
+/// credentials, as its statement file says; implemented by the app over a
+/// cache of [`crate::verify_app_domain`].
+#[uniffi::export(with_foreign)]
+pub trait DomainVerifier: Send + Sync {
+    fn verified(&self, domain: String) -> bool;
+}
+
+/// How many candidate domains a query verifies at most, so a store cannot
+/// make one fill fetch many statement files.
+const MAX_CANDIDATES: usize = 8;
+
+/// The hosts of the other URL fields of every secret that names `app`
+/// through an `androidapp://` URL: domains whose statement file may name
+/// the app, so the app can match their entries without a pinned
+/// certificate.
+pub fn app_candidates(
+    texts: &BTreeMap<String, String>,
+    settings: &StoreSettings,
+    app: &AppRequest,
+) -> Vec<String> {
+    let url = format!("{ANDROID_APP_SCHEME}{}", app.package);
+    let mut found = Vec::new();
+    for text in texts.values() {
+        let secret = format!("*\n{text}");
+        let urls: Vec<&str> = fields(&secret)
+            .filter(|(key, _)| settings.uri_keys.iter().any(|uri| uri == key))
+            .map(|(_, value)| value.trim())
+            .collect();
+        if !urls.contains(&url.as_str()) {
+            continue;
+        }
+        found.extend(
+            urls.iter()
+                .filter(|value| !value.starts_with(ANDROID_APP_SCHEME))
+                .filter_map(|value| matcher::extract_host(value)),
+        );
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// `request` with the candidate domains `verifier` accepts added, at most
+/// [`MAX_CANDIDATES`] of them checked.
+pub fn with_candidates(
+    mut request: FillRequest,
+    candidates: Vec<String>,
+    verifier: Option<&dyn DomainVerifier>,
+) -> FillRequest {
+    let Some(verifier) = verifier else {
+        return request;
+    };
+    if request.app.is_none() {
+        return request;
+    }
+    let fresh: Vec<String> = candidates
+        .into_iter()
+        .filter(|domain| !request.domains.contains(domain))
+        .take(MAX_CANDIDATES)
+        .collect();
+    for domain in fresh {
+        if verifier.verified(domain.clone()) {
+            request.domains.push(domain);
+        }
+    }
+    request
 }
 
 /// The credential a fill releases.
@@ -471,6 +543,93 @@ mod tests {
                 || None
             )
             .is_none()
+        );
+    }
+
+    struct Accepting(Vec<&'static str>, std::sync::Mutex<Vec<String>>);
+
+    impl DomainVerifier for Accepting {
+        fn verified(&self, domain: String) -> bool {
+            let accepted = self.0.contains(&domain.as_str());
+            self.1.lock().unwrap().push(domain);
+            accepted
+        }
+    }
+
+    #[test]
+    fn secrets_naming_an_app_offer_their_other_hosts_as_candidates() {
+        let lookup = texts(&[
+            (
+                "mail",
+                "url: androidapp://com.example.mail\nurl: https://login.mail.example.org/sign-in",
+            ),
+            (
+                "other",
+                "url: androidapp://com.other\nurl: https://other.example",
+            ),
+            ("web", "url: https://unrelated.example"),
+        ]);
+        let request = app("com.example.mail", CERT);
+        assert_eq!(
+            app_candidates(
+                &lookup,
+                &StoreSettings::default(),
+                request.app.as_ref().unwrap()
+            ),
+            ["login.mail.example.org"]
+        );
+    }
+
+    #[test]
+    fn only_verified_candidates_join_the_request() {
+        let verifier = Accepting(vec!["good.example"], std::sync::Mutex::default());
+        let request = with_candidates(
+            app("com.example.mail", CERT),
+            vec!["good.example".into(), "bad.example".into()],
+            Some(&verifier),
+        );
+        assert_eq!(request.domains, ["good.example"]);
+        assert_eq!(*verifier.1.lock().unwrap(), ["good.example", "bad.example"]);
+        let web_request = with_candidates(
+            web("example.com"),
+            vec!["good.example".into()],
+            Some(&verifier),
+        );
+        assert_eq!(web_request.domains, ["example.com"]);
+        assert_eq!(
+            with_candidates(
+                app("com.example.mail", CERT),
+                vec!["good.example".into()],
+                None
+            )
+            .domains,
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_query_verifies_a_bounded_number_of_candidates() {
+        let verifier = Accepting(vec![], std::sync::Mutex::default());
+        let candidates = (0..20).map(|i| format!("d{i}.example")).collect();
+        with_candidates(app("com.example.mail", CERT), candidates, Some(&verifier));
+        assert_eq!(verifier.1.lock().unwrap().len(), MAX_CANDIDATES);
+    }
+
+    #[test]
+    fn a_verified_candidate_matches_the_secret_naming_the_app() {
+        let lookup = texts(&[(
+            "mail",
+            "user: alice\nurl: androidapp://com.example.mail\nurl: https://login.mail.example.org",
+        )]);
+        let settings = StoreSettings::default();
+        let request = app("com.example.mail", "00".repeat(32).as_str());
+        assert!(matches(&lookup, "s", "Work", &settings, &request).is_empty());
+        let verifier = Accepting(vec!["login.mail.example.org"], std::sync::Mutex::default());
+        let candidates = app_candidates(&lookup, &settings, request.app.as_ref().unwrap());
+        let request = with_candidates(request, candidates, Some(&verifier));
+        assert_eq!(
+            names(&matches(&lookup, "s", "Work", &settings, &request)),
+            ["mail"]
         );
     }
 

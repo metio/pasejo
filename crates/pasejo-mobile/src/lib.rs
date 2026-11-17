@@ -14,11 +14,15 @@ mod error;
 mod fill;
 mod keys;
 mod links;
+mod offline;
 mod otp;
 
 pub use device::{Device, Enrollment, OrgInfo, ServerInfo, StoreView};
 pub use error::MobileError;
-pub use fill::{AppRequest, FillCredential, FillMatch, FillRequest, QueryResult, package_domains};
+pub use fill::{
+    AppRequest, DomainVerifier, FillCredential, FillMatch, FillRequest, QueryResult,
+    package_domains,
+};
 pub use keys::{
     AgreementIdentity, DeviceSigner, KeyAgreement, SignerAdapter, generate_secret, recipient,
     software_agreement, software_signer,

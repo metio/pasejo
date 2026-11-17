@@ -6,7 +6,10 @@
 //! The device keeps the verified membership log, the session and the index
 //! pins in [`Device::state`], which the app stores encrypted. Store keys are
 //! opened by [`Device::unlock`] and live only in memory until
-//! [`Device::lock`]; secret values are fetched per read and never kept.
+//! [`Device::lock`]. Secret values are fetched per read; while the
+//! organization allows offline reads, each fetched value is also sealed to
+//! the device into an offline copy, which [`Device::unlock`] opens when the
+//! server cannot be reached and whose reads are reported on reconnection.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -17,19 +20,20 @@ use pasejo_client::session::AppLogin;
 use pasejo_client::store::{Kind, Snapshot};
 use pasejo_client::transport::system_clock;
 use pasejo_client::{Client, DeviceIdentity, Session};
-use pasejo_protocol::api::{EnrollmentStatus, ErrorCode};
+use pasejo_protocol::api::{EnrollmentStatus, ErrorCode, OfflineRead};
 use pasejo_protocol::device::DeviceKind;
 use pasejo_protocol::encoding::{Hash, b64};
 use pasejo_protocol::envelope::{Envelope, Signer};
 use pasejo_protocol::log::OrgLog;
-use pasejo_protocol::store::{ObjectPlain, Pin};
+use pasejo_protocol::store::{ObjectPlain, Pin, StoreSettings};
 use pasejo_protocol::{Id, Millis};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use crate::error::MobileError;
-use crate::fill::{self, FillCredential, FillRequest, QueryResult};
+use crate::fill::{self, DomainVerifier, FillCredential, FillRequest, QueryResult};
 use crate::keys::{AgreementIdentity, DeviceSigner, KeyAgreement, SignerAdapter, recipient};
+use crate::offline::{self, Record};
 use crate::otp::{TotpCode, totp_at};
 
 const STATE_VERSION: u32 = 1;
@@ -90,6 +94,13 @@ struct State {
     session: Option<StoredSession>,
     log: Vec<Envelope>,
     pins: BTreeMap<Id, Pin>,
+    /// Values sealed to this device while the organization allows offline
+    /// reads.
+    #[serde(default)]
+    offline: Vec<Record>,
+    /// Reads from the offline copy the server has not accepted yet.
+    #[serde(default)]
+    journal: BTreeMap<Id, Vec<OfflineRead>>,
 }
 
 impl Drop for State {
@@ -105,12 +116,23 @@ struct Opened {
     snapshot: Snapshot,
 }
 
+/// The lookup texts of one store, with what matching needs around them.
+struct Source {
+    store: Id,
+    label: String,
+    settings: StoreSettings,
+    texts: BTreeMap<String, String>,
+}
+
 struct Inner {
     client: Client,
     state: State,
     login: Option<AppLogin>,
     log: Option<OrgLog>,
     stores: BTreeMap<Id, Opened>,
+    /// The opened offline copy, used instead of `stores` while the server
+    /// cannot be reached.
+    offline: Option<BTreeMap<Id, offline::Store>>,
 }
 
 /// A pasejo app installation.
@@ -143,6 +165,29 @@ fn parse_id(text: &str) -> Result<Id, MobileError> {
     text.trim()
         .parse()
         .map_err(|_| MobileError::invalid("not an identifier"))
+}
+
+/// The matches best first, and look-alikes only when nothing matched.
+fn query_result(
+    mut matches: Vec<fill::FillMatch>,
+    mut lookalikes: Vec<String>,
+    request: FillRequest,
+) -> QueryResult {
+    matches.sort_by(|a, b| {
+        b.score
+            .total_cmp(&a.score)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    if !matches.is_empty() {
+        lookalikes.clear();
+    }
+    lookalikes.sort();
+    lookalikes.dedup();
+    QueryResult {
+        matches,
+        lookalikes,
+        request,
+    }
 }
 
 fn now_seconds() -> u64 {
@@ -211,6 +256,7 @@ impl Inner {
 
     fn forget(&mut self) {
         self.stores.clear();
+        self.offline = None;
         self.login = None;
     }
 
@@ -241,6 +287,10 @@ impl Inner {
         self.state.log = log.entries().to_vec();
         if log.state().active_device(self.state.device).is_none() {
             self.stores.clear();
+            self.state.offline.clear();
+        }
+        if !log.state().settings.offline_reads {
+            self.state.offline.clear();
         }
         Ok(self.log.insert(log))
     }
@@ -289,17 +339,204 @@ impl Inner {
         values.remove(&key).ok_or(MobileError::NotFound)
     }
 
-    fn views(&self) -> Vec<StoreView> {
-        let mut views: Vec<StoreView> = self
+    /// Whether the cached log, verified against the pinned genesis, lets
+    /// this device read the offline copy it holds.
+    fn offline_allowed(&self) -> bool {
+        let Ok((_, genesis)) = self.org() else {
+            return false;
+        };
+        !self.state.offline.is_empty()
+            && OrgLog::replay(self.state.log.clone())
+                .ok()
+                .filter(|log| log.genesis_hash() == genesis)
+                .is_some_and(|log| {
+                    log.state().settings.offline_reads
+                        && log.state().active_device(self.state.device).is_some()
+                })
+    }
+
+    /// Adds a value fetched from the server to the offline copy while the
+    /// organization allows offline reads.
+    fn remember(
+        &mut self,
+        store: Id,
+        kind: Kind,
+        name: &str,
+        object: &ObjectPlain,
+    ) -> Result<(), MobileError> {
+        let allowed = self
+            .log
+            .as_ref()
+            .is_some_and(|log| log.state().settings.offline_reads);
+        if !allowed {
+            return Ok(());
+        }
+        let plain = &self
             .stores
-            .iter()
-            .map(|(id, opened)| StoreView {
-                id: id.to_string(),
+            .get(&store)
+            .ok_or(MobileError::NotFound)?
+            .snapshot
+            .plain;
+        let entry = match kind {
+            Kind::Secret => plain.secrets.get(name),
+            Kind::Otp => plain.otp.get(name),
+        }
+        .ok_or(MobileError::NotFound)?;
+        let record = offline::seal(
+            &self.state.recipient,
+            store,
+            entry.id,
+            entry.version,
+            &offline::Plain {
+                label: plain.label.clone(),
+                settings: plain.settings.clone(),
+                name: name.to_owned(),
+                object: object.clone(),
+            },
+        )?;
+        offline::upsert(&mut self.state.offline, record);
+        Ok(())
+    }
+
+    /// Reads one value from the server, or from the opened offline copy,
+    /// journaling the read for the audit log.
+    fn read(&mut self, store: Id, kind: Kind, name: &str) -> Result<ObjectPlain, MobileError> {
+        if let Some(stores) = &self.offline {
+            let copy = stores.get(&store).ok_or(MobileError::NotFound)?;
+            let (id, version, object) = match kind {
+                Kind::Secret => copy.secrets.get(name).map(|entry| {
+                    let secret = entry.value.to_string();
+                    (entry.id, entry.version, ObjectPlain::Secret { secret })
+                }),
+                Kind::Otp => copy.otp.get(name).map(|entry| {
+                    let otp = entry.value.clone();
+                    (entry.id, entry.version, ObjectPlain::Otp { otp })
+                }),
+            }
+            .ok_or(MobileError::NotFound)?;
+            let time = self.client.now();
+            self.state
+                .journal
+                .entry(store)
+                .or_default()
+                .push(OfflineRead { id, version, time });
+            return Ok(object);
+        }
+        self.known_log()?;
+        let object = self.object(store, kind, name)?;
+        self.remember(store, kind, name, &object)?;
+        Ok(object)
+    }
+
+    /// The label and settings of an opened store, and whether it holds a
+    /// one-time password named `name`.
+    fn store_meta(
+        &self,
+        store: Id,
+        name: &str,
+    ) -> Result<(String, StoreSettings, bool), MobileError> {
+        if let Some(stores) = &self.offline {
+            let copy = stores.get(&store).ok_or(MobileError::NotFound)?;
+            return Ok((
+                copy.label.clone(),
+                copy.settings.clone(),
+                copy.otp.contains_key(name),
+            ));
+        }
+        let plain = &self
+            .stores
+            .get(&store)
+            .ok_or(MobileError::NotFound)?
+            .snapshot
+            .plain;
+        Ok((
+            plain.label.clone(),
+            plain.settings.clone(),
+            plain.otp.contains_key(name),
+        ))
+    }
+
+    /// The lookup texts of every opened store: from the server, where it
+    /// records one lookup per store, or from the offline copy, where
+    /// matching reads the text below each secret's password line as the
+    /// lookup object holds it.
+    fn lookups(&mut self) -> Result<Vec<Source>, MobileError> {
+        if let Some(stores) = &self.offline {
+            return Ok(stores
+                .iter()
+                .map(|(store, copy)| Source {
+                    store: *store,
+                    label: copy.label.clone(),
+                    settings: copy.settings.clone(),
+                    texts: copy
+                        .secrets
+                        .iter()
+                        .map(|(name, entry)| {
+                            let below = entry.value.split_once('\n').map_or("", |(_, rest)| rest);
+                            (name.clone(), below.to_owned())
+                        })
+                        .collect(),
+                })
+                .collect());
+        }
+        if self.stores.is_empty() {
+            return Err(MobileError::Locked);
+        }
+        let stores: Vec<Id> = self.stores.keys().copied().collect();
+        let mut sources = Vec::new();
+        for store in stores {
+            self.fresh(store)?;
+            let log = self.log.as_ref().ok_or(MobileError::Locked)?;
+            let opened = self.stores.get(&store).ok_or(MobileError::NotFound)?;
+            let lookup = self.client.lookup(log, &opened.ring, &opened.snapshot)?;
+            sources.push(Source {
+                store,
                 label: opened.snapshot.plain.label.clone(),
-                secrets: opened.snapshot.plain.secrets.keys().cloned().collect(),
-                otp: opened.snapshot.plain.otp.keys().cloned().collect(),
-            })
-            .collect();
+                settings: opened.snapshot.plain.settings.clone(),
+                texts: lookup.secrets.clone(),
+            });
+        }
+        Ok(sources)
+    }
+
+    /// Reports the journaled offline reads. Reads the server refuses, such
+    /// as reads outside the periods the log allowed or of a store this
+    /// device lost, are dropped; reads that could not be sent stay.
+    fn report_journal(&mut self, log: &OrgLog) {
+        for (store, reads) in std::mem::take(&mut self.state.journal) {
+            if let Err(pasejo_client::Error::Transport(_)) =
+                self.client.report_offline_reads(log, store, &reads)
+            {
+                self.state.journal.insert(store, reads);
+            }
+        }
+    }
+
+    fn views(&self) -> Vec<StoreView> {
+        let mut views: Vec<StoreView> = self.offline.as_ref().map_or_else(
+            || {
+                self.stores
+                    .iter()
+                    .map(|(id, opened)| StoreView {
+                        id: id.to_string(),
+                        label: opened.snapshot.plain.label.clone(),
+                        secrets: opened.snapshot.plain.secrets.keys().cloned().collect(),
+                        otp: opened.snapshot.plain.otp.keys().cloned().collect(),
+                    })
+                    .collect()
+            },
+            |stores| {
+                stores
+                    .iter()
+                    .map(|(id, copy)| StoreView {
+                        id: id.to_string(),
+                        label: copy.label.clone(),
+                        secrets: copy.secrets.keys().cloned().collect(),
+                        otp: copy.otp.keys().cloned().collect(),
+                    })
+                    .collect()
+            },
+        );
         views.sort_by(|a, b| a.label.cmp(&b.label).then_with(|| a.id.cmp(&b.id)));
         views
     }
@@ -345,6 +582,8 @@ impl Device {
             session: None,
             log: Vec::new(),
             pins: BTreeMap::new(),
+            offline: Vec::new(),
+            journal: BTreeMap::new(),
         };
         Ok(Arc::new(Self {
             inner: Mutex::new(Inner {
@@ -353,6 +592,7 @@ impl Device {
                 login: None,
                 log: None,
                 stores: BTreeMap::new(),
+                offline: None,
             }),
         }))
     }
@@ -387,6 +627,7 @@ impl Device {
                 login: None,
                 log: None,
                 stores: BTreeMap::new(),
+                offline: None,
             }),
         }))
     }
@@ -500,6 +741,12 @@ impl Device {
     /// locally either way.
     pub fn sign_out(&self) -> Result<(), MobileError> {
         let mut inner = self.lock_inner();
+        if !inner.state.journal.is_empty()
+            && let Ok(log) = inner.fetch_log().cloned()
+        {
+            inner.report_journal(&log);
+        }
+        inner.state.offline.clear();
         inner.forget();
         let session = inner.state.session.take();
         let result = if session.is_some() {
@@ -601,7 +848,22 @@ impl Device {
         let identity = Arc::new(AgreementIdentity::new(identity)?);
         let identities: Vec<Box<dyn age::Identity>> = vec![Box::new(Shared(Arc::clone(&identity)))];
         let mut inner = self.lock_inner();
-        let log = inner.fetch_log()?.clone();
+        inner.offline = None;
+        let log = match inner.fetch_log().cloned() {
+            Ok(log) => log,
+            Err(MobileError::Network { reason }) => {
+                if !inner.offline_allowed() {
+                    return Err(MobileError::Network { reason });
+                }
+                let stores = offline::view(&Shared(Arc::clone(&identity)), &inner.state.offline)
+                    .map_err(|error| identity.take_failure().unwrap_or(error))?;
+                inner.stores.clear();
+                inner.offline = Some(stores);
+                return Ok(inner.views());
+            }
+            Err(error) => return Err(error),
+        };
+        inner.report_journal(&log);
         if log.state().active_device(inner.state.device).is_none() {
             return Err(MobileError::invalid(
                 "the organization has not approved this device",
@@ -626,17 +888,32 @@ impl Device {
             opened.insert(*store, Opened { ring, snapshot });
         }
         inner.stores = opened;
+        let kept: Vec<Id> = inner.stores.keys().copied().collect();
+        inner
+            .state
+            .offline
+            .retain(|record| kept.contains(&record.store));
         Ok(inner.views())
     }
 
     /// Drops every opened store key.
     pub fn lock(&self) {
-        self.lock_inner().stores.clear();
+        let mut inner = self.lock_inner();
+        inner.stores.clear();
+        inner.offline = None;
     }
 
     #[must_use]
     pub fn unlocked(&self) -> bool {
-        !self.lock_inner().stores.is_empty()
+        let inner = self.lock_inner();
+        !inner.stores.is_empty() || inner.offline.is_some()
+    }
+
+    /// Whether the stores are open from the offline copy because the
+    /// server could not be reached.
+    #[must_use]
+    pub fn offline(&self) -> bool {
+        self.lock_inner().offline.is_some()
     }
 
     /// The opened stores, without contacting the server.
@@ -654,8 +931,7 @@ impl Device {
     pub fn reveal(&self, store: String, name: String) -> Result<String, MobileError> {
         let store = parse_id(&store)?;
         let mut inner = self.lock_inner();
-        inner.known_log()?;
-        match &inner.object(store, Kind::Secret, &name)? {
+        match &inner.read(store, Kind::Secret, &name)? {
             ObjectPlain::Secret { secret } => Ok(secret.clone()),
             ObjectPlain::Otp { .. } => Err(MobileError::verification("the object is not a secret")),
         }
@@ -670,8 +946,7 @@ impl Device {
     pub fn totp(&self, store: String, name: String) -> Result<TotpCode, MobileError> {
         let store = parse_id(&store)?;
         let mut inner = self.lock_inner();
-        inner.known_log()?;
-        match &inner.object(store, Kind::Otp, &name)? {
+        match &inner.read(store, Kind::Otp, &name)? {
             ObjectPlain::Otp { otp } => totp_at(otp, now_seconds()),
             ObjectPlain::Secret { .. } => Err(MobileError::verification(
                 "the object is not a one-time password",
@@ -680,51 +955,48 @@ impl Device {
     }
 
     /// The secrets of every opened store that match `request`, without
-    /// secret material. The server records one lookup per store.
+    /// secret material. The server records one lookup per store. For an
+    /// app, the hosts of secrets naming it through `androidapp://` join the
+    /// request when `verifier` accepts them; the result carries the request
+    /// a fill passes on.
     ///
     /// # Errors
     ///
     /// Fails while locked and when a lookup object does not verify.
-    pub fn query(&self, request: FillRequest) -> Result<QueryResult, MobileError> {
+    pub fn query(
+        &self,
+        request: FillRequest,
+        verifier: Option<Arc<dyn DomainVerifier>>,
+    ) -> Result<QueryResult, MobileError> {
         let mut inner = self.lock_inner();
-        if inner.stores.is_empty() {
-            return Err(MobileError::Locked);
-        }
-        let stores: Vec<Id> = inner.stores.keys().copied().collect();
+        let mut sources = inner.lookups()?;
+        let candidates = request.app.as_ref().map_or_else(Vec::new, |app| {
+            let mut all: Vec<String> = sources
+                .iter()
+                .flat_map(|source| fill::app_candidates(&source.texts, &source.settings, app))
+                .collect();
+            all.sort();
+            all.dedup();
+            all
+        });
+        let request = fill::with_candidates(request, candidates, verifier.as_deref());
         let mut matches = Vec::new();
         let mut lookalikes = Vec::new();
-        for store in stores {
-            inner.fresh(store)?;
-            let log = inner.log.as_ref().ok_or(MobileError::Locked)?;
-            let opened = inner.stores.get(&store).ok_or(MobileError::NotFound)?;
-            let lookup = inner.client.lookup(log, &opened.ring, &opened.snapshot)?;
-            let plain = &opened.snapshot.plain;
+        for source in &mut sources {
             let found = fill::matches(
-                &lookup.secrets,
-                &store.to_string(),
-                &plain.label,
-                &plain.settings,
+                &source.texts,
+                &source.store.to_string(),
+                &source.label,
+                &source.settings,
                 &request,
             );
             if found.is_empty() {
-                lookalikes.extend(fill::lookalikes(&lookup.secrets, &plain.settings, &request));
+                lookalikes.extend(fill::lookalikes(&source.texts, &source.settings, &request));
             }
             matches.extend(found);
+            source.texts.values_mut().for_each(Zeroize::zeroize);
         }
-        matches.sort_by(|a, b| {
-            b.score
-                .total_cmp(&a.score)
-                .then_with(|| a.name.cmp(&b.name))
-        });
-        if !matches.is_empty() {
-            lookalikes.clear();
-        }
-        lookalikes.sort();
-        lookalikes.dedup();
-        Ok(QueryResult {
-            matches,
-            lookalikes,
-        })
+        Ok(query_result(matches, lookalikes, request))
     }
 
     /// The credential of one secret, released only when the secret still
@@ -743,20 +1015,16 @@ impl Device {
     ) -> Result<FillCredential, MobileError> {
         let store = parse_id(&store)?;
         let mut inner = self.lock_inner();
-        inner.known_log()?;
-        let ObjectPlain::Secret { secret } = &inner.object(store, Kind::Secret, &name)? else {
+        let ObjectPlain::Secret { secret } = &inner.read(store, Kind::Secret, &name)? else {
             return Err(MobileError::verification("the object is not a secret"));
         };
-        let opened = inner.stores.get(&store).ok_or(MobileError::NotFound)?;
-        let label = opened.snapshot.plain.label.clone();
-        let settings = opened.snapshot.plain.settings.clone();
-        let has_otp = opened.snapshot.plain.otp.contains_key(&name);
+        let (label, settings, has_otp) = inner.store_meta(store, &name)?;
         let secret = zeroize::Zeroizing::new(secret.clone());
         let totp = || {
             if !has_otp {
                 return None;
             }
-            match &inner.object(store, Kind::Otp, &name).ok()? {
+            match &inner.read(store, Kind::Otp, &name).ok()? {
                 ObjectPlain::Otp { otp } => totp_at(otp, now_seconds()).ok().map(|code| code.code),
                 ObjectPlain::Secret { .. } => None,
             }
@@ -874,7 +1142,10 @@ mod tests {
             domains: vec!["example.com".into()],
             app: None,
         };
-        assert_eq!(created.query(request).err(), Some(MobileError::Locked));
+        assert_eq!(
+            created.query(request, None).err(),
+            Some(MobileError::Locked)
+        );
         assert!(created.stores().is_empty());
     }
 

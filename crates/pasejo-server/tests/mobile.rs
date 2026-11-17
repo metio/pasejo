@@ -19,8 +19,8 @@ use pasejo_client::store::Changes;
 use pasejo_client::transport::Clock;
 use pasejo_client::{Client, DeviceIdentity};
 use pasejo_mobile::{
-    AppRequest, Device, DeviceSigner, FillRequest, KeyAgreement, MobileError, generate_secret,
-    software_agreement, software_signer,
+    AppRequest, Device, DeviceSigner, DomainVerifier, FillRequest, KeyAgreement, MobileError,
+    generate_secret, software_agreement, software_signer,
 };
 use pasejo_protocol::Id;
 use pasejo_protocol::device::DeviceKind;
@@ -170,6 +170,10 @@ async fn world() -> World {
         )),
     );
     changes.secrets.insert(
+        "webmail".into(),
+        Some("webpw\nurl: androidapp://com.example.webmail\nurl: https://login.webmail.net\nuser: carol".into()),
+    );
+    changes.secrets.insert(
         "hidden".into(),
         Some("nope\nurl: https://example.com\npasejo-fill: never".into()),
     );
@@ -272,7 +276,10 @@ async fn a_phone_signs_in_enrolls_and_reads_its_stores() {
     assert_eq!(stores.len(), 1);
     assert_eq!(stores[0].id, w.store.to_string());
     assert_eq!(stores[0].label, "Work");
-    assert_eq!(stores[0].secrets, ["example", "hidden", "login", "mail"]);
+    assert_eq!(
+        stores[0].secrets,
+        ["example", "hidden", "login", "mail", "webmail"]
+    );
     assert_eq!(stores[0].otp, ["example"]);
     assert!(phone.unlocked());
     assert_eq!(phone.stores(), stores);
@@ -305,7 +312,7 @@ async fn autofill_queries_without_reading_values_and_fills_one_match() {
     sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
     let reads = audited(&w, "object.read");
 
-    let result = sync(|| phone.query(web("example.com"))).unwrap();
+    let result = sync(|| phone.query(web("example.com"), None)).unwrap();
     let names: Vec<&str> = result.matches.iter().map(|m| m.name.as_str()).collect();
     assert_eq!(names, ["example", "login"]);
     assert!(result.matches[0].exact && !result.matches[1].exact);
@@ -343,7 +350,7 @@ async fn autofill_queries_without_reading_values_and_fills_one_match() {
         );
     }
 
-    let lookalike = sync(|| phone.query(web("examp1e.com"))).unwrap();
+    let lookalike = sync(|| phone.query(web("examp1e.com"), None)).unwrap();
     assert!(lookalike.matches.is_empty());
     assert_eq!(lookalike.lookalikes, ["example.com"]);
 }
@@ -353,7 +360,7 @@ async fn apps_fill_only_with_their_pinned_certificate() {
     let w = world().await;
     let phone = &w.phone.device;
     sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
-    let result = sync(|| phone.query(app("com.example.mail", CERT))).unwrap();
+    let result = sync(|| phone.query(app("com.example.mail", CERT), None)).unwrap();
     let names: Vec<&str> = result.matches.iter().map(|m| m.name.as_str()).collect();
     assert_eq!(names, ["mail"]);
     let credential = sync(|| {
@@ -371,7 +378,7 @@ async fn apps_fill_only_with_their_pinned_certificate() {
 
     let forged = "AB".repeat(32);
     assert!(
-        sync(|| phone.query(app("com.example.mail", &forged)))
+        sync(|| phone.query(app("com.example.mail", &forged), None))
             .unwrap()
             .matches
             .is_empty()
@@ -571,7 +578,7 @@ async fn a_replaced_lookup_object_is_refused() {
         .execute(w.harness.state.db.pool())
         .await
         .unwrap();
-    let error = sync(|| phone.query(web("example.com"))).unwrap_err();
+    let error = sync(|| phone.query(web("example.com"), None)).unwrap_err();
     assert!(matches!(error, MobileError::Verification { .. }), "{error}");
 }
 
@@ -658,4 +665,203 @@ async fn organizations_that_allow_offline_reads_say_so() {
     })
     .unwrap();
     assert!(sync(|| w.phone.device.refresh()).unwrap().offline_reads);
+}
+
+fn set_offline_reads(w: &mut World, offline_reads: bool) {
+    let mut settings = w.log.state().settings;
+    settings.offline_reads = offline_reads;
+    sync(|| {
+        w.alice
+            .client
+            .append_fresh(&mut w.log, Body::OrgSettings { settings })
+    })
+    .unwrap();
+}
+
+/// A copy of `device` whose server URL points at a closed port, as a phone
+/// without network sees its server.
+fn without_network(device: &Device, signer: &Arc<dyn DeviceSigner>) -> Arc<Device> {
+    with_server(device, signer, "http://127.0.0.1:9")
+}
+
+fn with_server(device: &Device, signer: &Arc<dyn DeviceSigner>, server: &str) -> Arc<Device> {
+    let mut state: serde_json::Value = serde_json::from_str(&device.state()).unwrap();
+    state["server"] = server.into();
+    Device::restore(state.to_string(), Arc::clone(signer), vec![]).unwrap()
+}
+
+fn journal_len(device: &Device) -> usize {
+    let state: serde_json::Value = serde_json::from_str(&device.state()).unwrap();
+    state["journal"].as_object().map_or(0, |stores| {
+        stores
+            .values()
+            .map(|reads| reads.as_array().unwrap().len())
+            .sum()
+    })
+}
+
+fn records(device: &Device) -> usize {
+    let state: serde_json::Value = serde_json::from_str(&device.state()).unwrap();
+    state["offline"].as_array().map_or(0, Vec::len)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn values_read_while_offline_reads_are_allowed_open_without_network_and_are_reported() {
+    let mut w = world().await;
+    set_offline_reads(&mut w, true);
+    let phone = &w.phone.device;
+    let store = w.store.to_string();
+    sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    sync(|| phone.reveal(store.clone(), "example".into())).unwrap();
+    sync(|| phone.totp(store.clone(), "example".into())).unwrap();
+    sync(|| phone.reveal(store.clone(), "login".into())).unwrap();
+    assert_eq!(records(phone), 3);
+    assert!(!phone.state().contains("hunter2"));
+
+    let away = without_network(phone, &w.phone.signer);
+    let stores = sync(|| away.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    assert!(away.offline());
+    assert_eq!(stores.len(), 1);
+    assert_eq!(stores[0].label, "Work");
+    assert_eq!(stores[0].secrets, ["example", "login"]);
+    assert_eq!(stores[0].otp, ["example"]);
+    assert_eq!(
+        sync(|| away.reveal(store.clone(), "example".into())).unwrap(),
+        "hunter2\nurl: https://example.com\nuser: alice"
+    );
+    assert_eq!(
+        sync(|| away.reveal(store.clone(), "mail".into())).err(),
+        Some(MobileError::NotFound)
+    );
+    let found = sync(|| away.query(web("example.com"), None)).unwrap();
+    assert_eq!(found.matches[0].name, "example");
+    let credential =
+        sync(|| away.fill(web("example.com"), store.clone(), "example".into())).unwrap();
+    assert_eq!(credential.password, "hunter2");
+    assert_eq!(credential.totp.unwrap().len(), 6);
+    assert_eq!(journal_len(&away), 3);
+    assert_eq!(audited(&w, "object.read"), 3);
+    assert_eq!(audited(&w, "object.read.offline"), 0);
+
+    let back = with_server(&away, &w.phone.signer, &w.harness.url);
+    sync(|| back.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    assert!(!back.offline());
+    assert_eq!(journal_len(&back), 0);
+    assert_eq!(audited(&w, "object.read.offline"), 3);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn nothing_is_kept_while_offline_reads_are_not_allowed() {
+    let w = world().await;
+    let phone = &w.phone.device;
+    sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    sync(|| phone.reveal(w.store.to_string(), "example".into())).unwrap();
+    assert_eq!(records(phone), 0);
+    let away = without_network(phone, &w.phone.signer);
+    assert!(matches!(
+        sync(|| away.unlock(Arc::clone(&w.phone.agreement))),
+        Err(MobileError::Network { .. })
+    ));
+    assert!(!away.unlocked());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_copy_is_deleted_once_the_log_disallows_offline_reads() {
+    let mut w = world().await;
+    set_offline_reads(&mut w, true);
+    let phone = Arc::clone(&w.phone.device);
+    sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    sync(|| phone.reveal(w.store.to_string(), "example".into())).unwrap();
+    assert_eq!(records(&phone), 1);
+    set_offline_reads(&mut w, false);
+    sync(|| phone.refresh()).unwrap();
+    assert_eq!(records(&phone), 0);
+    let away = without_network(&phone, &w.phone.signer);
+    assert!(sync(|| away.unlock(Arc::clone(&w.phone.agreement))).is_err());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn another_identity_cannot_open_the_copy() {
+    let mut w = world().await;
+    set_offline_reads(&mut w, true);
+    let phone = &w.phone.device;
+    sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    sync(|| phone.reveal(w.store.to_string(), "example".into())).unwrap();
+    let away = without_network(phone, &w.phone.signer);
+    let stranger = software_agreement(generate_secret()).unwrap();
+    assert!(sync(|| away.unlock(stranger)).is_err());
+    assert!(!away.unlocked());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn signing_out_reports_and_deletes_the_copy() {
+    let mut w = world().await;
+    set_offline_reads(&mut w, true);
+    let phone = &w.phone.device;
+    sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    sync(|| phone.reveal(w.store.to_string(), "example".into())).unwrap();
+    let away = without_network(phone, &w.phone.signer);
+    sync(|| away.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    sync(|| away.reveal(w.store.to_string(), "example".into())).unwrap();
+    let back = with_server(&away, &w.phone.signer, &w.harness.url);
+    sync(|| back.sign_out()).unwrap();
+    assert_eq!(records(&back), 0);
+    assert_eq!(journal_len(&back), 0);
+    assert_eq!(audited(&w, "object.read.offline"), 1);
+}
+
+struct Statements(Vec<&'static str>);
+
+impl DomainVerifier for Statements {
+    fn verified(&self, domain: String) -> bool {
+        self.0.contains(&domain.as_str())
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_app_matches_hosts_whose_statement_file_names_it() {
+    let w = world().await;
+    let phone = &w.phone.device;
+    sync(|| phone.unlock(Arc::clone(&w.phone.agreement))).unwrap();
+    let request = app("com.example.webmail", &"00".repeat(32));
+
+    let unverified = sync(|| phone.query(request.clone(), None)).unwrap();
+    assert!(unverified.matches.is_empty());
+    let refused =
+        sync(|| phone.query(request.clone(), Some(Arc::new(Statements(vec![]))))).unwrap();
+    assert!(refused.matches.is_empty());
+
+    let verified = sync(|| {
+        phone.query(
+            request.clone(),
+            Some(Arc::new(Statements(vec!["login.webmail.net"]))),
+        )
+    })
+    .unwrap();
+    assert_eq!(verified.matches.len(), 1);
+    assert_eq!(verified.matches[0].name, "webmail");
+    assert_eq!(verified.request.domains, ["login.webmail.net"]);
+    let credential = sync(|| {
+        phone.fill(
+            verified.request.clone(),
+            w.store.to_string(),
+            "webmail".into(),
+        )
+    })
+    .unwrap();
+    assert_eq!(credential.password, "webpw");
+    assert_eq!(credential.username, "carol");
+    assert_eq!(
+        sync(|| phone.fill(request, w.store.to_string(), "webmail".into())).err(),
+        Some(MobileError::NotFound)
+    );
+
+    let other = sync(|| {
+        phone.query(
+            app("com.example.other", &"00".repeat(32)),
+            Some(Arc::new(Statements(vec!["login.webmail.net"]))),
+        )
+    })
+    .unwrap();
+    assert!(other.matches.is_empty());
 }
