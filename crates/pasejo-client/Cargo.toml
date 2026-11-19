@@ -17,7 +17,7 @@ categories = ["api-bindings"]
 age = { version = "0.12.0", default-features = false, features = ["plugin", "ssh"] }
 ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
 pasejo-protocol = { path = "../pasejo-protocol", version = "=1.0.0" }
-rand_core = { version = "0.6.4", features = ["getrandom"] }
+rand_core = { version = "0.10.0", features = ["getrandom"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.150" }
 thiserror = { version = "2.0.17" }
