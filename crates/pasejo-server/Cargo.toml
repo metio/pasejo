@@ -14,23 +14,23 @@ publish = false
 
 [dependencies]
 anyhow = { version = "1.0.100" }
-argon2 = { version = "0.5.3" }
+argon2 = { version = "0.6.0" }
 axum = { version = "0.8.4" }
-axum-server = { version = "0.7.2", features = ["tls-rustls"] }
-base64 = { version = "0.22.1" }
+axum-server = { version = "0.9.0", features = ["tls-rustls"] }
+base64 = { version = "0.23.0" }
 clap = { version = "4.6.1", features = ["derive", "env"] }
 ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
-hkdf = { version = "0.12.4" }
-hmac = { version = "0.12.1" }
+hkdf = { version = "0.13.0" }
+hmac = { version = "0.13.0" }
 jsonwebtoken = { version = "9.3.1" }
 pasejo-protocol = { path = "../pasejo-protocol", default-features = false }
-reqwest = { version = "0.12.23", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.13.0", default-features = false, features = ["json", "rustls-tls"] }
 rust-embed = { version = "8.7", features = ["debug-embed", "include-exclude"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.150" }
-sha1 = { version = "0.10.6" }
-sha2 = { version = "0.10.9" }
-sqlx = { version = "0.8.6", default-features = false, features = ["any", "sqlite", "postgres", "runtime-tokio", "tls-rustls"] }
+sha1 = { version = "0.11.0" }
+sha2 = { version = "0.11.0" }
+sqlx = { version = "0.9.0", default-features = false, features = ["any", "sqlite", "postgres", "runtime-tokio", "tls-rustls"] }
 thiserror = { version = "2.0.17" }
 tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync", "fs"] }
 toml = { version = "1.1.0" }
@@ -46,5 +46,5 @@ pasejo-bridge = { path = "../pasejo-bridge" }
 pasejo-client = { path = "../pasejo-client" }
 pasejo-mobile = { path = "../pasejo-mobile" }
 pasejo-protocol = { path = "../pasejo-protocol" }
-rand_core = { version = "0.6.4", features = ["getrandom"] }
+rand_core = { version = "0.10.0", features = ["getrandom"] }
 tempfile = { version = "3.23.0" }
