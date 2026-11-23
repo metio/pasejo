@@ -29,7 +29,7 @@ age-core = { version = "0.12.0" }
 base64 = { version = "0.22.1" }
 bech32 = { version = "0.11.1" }
 chacha20poly1305 = { version = "0.10.1" }
-ed25519-dalek = { version = "2.2.0" }
+ed25519-dalek = { version = "3.0.0" }
 hkdf = { version = "0.12.4" }
 otp-std = { version = "0.2.3", features = ["sha2", "unsafe-length"] }
 pasejo-client = { path = "../pasejo-client" }
@@ -42,5 +42,5 @@ sha2 = { version = "0.10.9" }
 thiserror = { version = "2.0.17" }
 uniffi = { version = "0.32.2" }
 ureq = { version = "3.3.0" }
-x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
+x25519-dalek = { version = "3.0.0", features = ["static_secrets"] }
 zeroize = { version = "1.8.2" }
