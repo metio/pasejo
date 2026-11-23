@@ -5,7 +5,7 @@
 #   podman build --file crates/pasejo-server/Containerfile --tag pasejo-server .
 # The builder runs on the build machine's platform and cross-compiles to the
 # target platform, so a multi-platform build needs no emulation.
-FROM --platform=$BUILDPLATFORM docker.io/library/rust:1.100.0-trixie@sha256:e19840879045c951c905d0eaa9887f3439c62000e429963371b376bac8d38c31 AS build
+FROM --platform=$BUILDPLATFORM docker.io/library/rust:1.100.0-trixie@sha256:223cc32ddca8f3ee90c436dbc94b6b5f052ea7f9653c5201e9612f08ad7d21b8 AS build
 ARG TARGETARCH
 ARG VERSION=development
 WORKDIR /src
@@ -17,7 +17,7 @@ RUN dev/build-static.sh pasejo-server "${TARGETARCH}" /pasejo-server "${VERSION}
 FROM scratch AS binary
 COPY --from=build /pasejo-server /pasejo-server
 
-FROM gcr.io/distroless/static:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
+FROM gcr.io/distroless/static:nonroot@sha256:8ce6dd87e9823c5b48dcfb2c8604714ccb351ce59607327bcc4957448da279b5
 LABEL org.opencontainers.image.title="pasejo-server" \
       org.opencontainers.image.description="Server that syncs pasejo remote stores, manages organizations and audits access" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
