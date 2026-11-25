@@ -19,7 +19,7 @@ axum = { version = "0.8.4" }
 axum-server = { version = "0.7.2", features = ["tls-rustls"] }
 base64 = { version = "0.22.1" }
 clap = { version = "4.6.1", features = ["derive", "env"] }
-ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+ed25519-dalek = { version = "3.0.0", features = ["rand_core"] }
 hkdf = { version = "0.12.4" }
 hmac = { version = "0.12.1" }
 jsonwebtoken = { version = "9.3.1" }
@@ -41,7 +41,7 @@ zeroize = { version = "1.8.2" }
 
 [dev-dependencies]
 age = { version = "0.12.0", default-features = false }
-ed25519-dalek = { version = "2.2.0", features = ["rand_core", "pkcs8"] }
+ed25519-dalek = { version = "3.0.0", features = ["rand_core", "pkcs8"] }
 pasejo-bridge = { path = "../pasejo-bridge" }
 pasejo-client = { path = "../pasejo-client" }
 pasejo-mobile = { path = "../pasejo-mobile" }
