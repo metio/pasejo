@@ -147,12 +147,24 @@ impl Client {
         store: Id,
         identities: &[Box<dyn age::Identity>],
     ) -> Result<KeyRing> {
+        let keys = self.wrapped_keys(log, store)?;
+        KeyRing::open(log, store, self.device.id, &keys, identities)
+    }
+
+    /// Fetches this device's wrapped keys of `store` without opening them,
+    /// for callers that open several stores' keys back to back with
+    /// [`KeyRing::open`].
+    ///
+    /// # Errors
+    ///
+    /// Fails for devices other than age devices, and when the server
+    /// refuses.
+    pub fn wrapped_keys(&self, log: &OrgLog, store: Id) -> Result<Keys> {
         if self.device.kind != DeviceKind::Age {
             return Err(Error::Unavailable("only age devices open keys here".into()));
         }
         let org = log.state().org;
-        let keys: Keys = self.get(&format!("/v1/orgs/{org}/stores/{store}/keys"))?;
-        KeyRing::open(log, store, self.device.id, &keys, identities)
+        self.get(&format!("/v1/orgs/{org}/stores/{store}/keys"))
     }
 }
 

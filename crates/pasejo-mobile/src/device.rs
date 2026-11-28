@@ -28,7 +28,7 @@ use pasejo_protocol::log::OrgLog;
 use pasejo_protocol::store::{ObjectPlain, Pin, StoreSettings};
 use pasejo_protocol::{Id, Millis};
 use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::error::MobileError;
 use crate::fill::{self, DomainVerifier, FillCredential, FillRequest, QueryResult};
@@ -101,12 +101,26 @@ struct State {
     /// Reads from the offline copy the server has not accepted yet.
     #[serde(default)]
     journal: BTreeMap<Id, Vec<OfflineRead>>,
+    /// The sign-in in progress. It is kept with the state because the
+    /// system may end the app while the browser is in front.
+    #[serde(default)]
+    login: Option<PendingLogin>,
+}
+
+/// An app sign-in in progress, as [`AppLogin`] without its URL.
+#[derive(Serialize, Deserialize)]
+struct PendingLogin {
+    verifier: String,
+    state: String,
 }
 
 impl Drop for State {
     fn drop(&mut self) {
         if let Some(session) = &mut self.session {
             session.token.zeroize();
+        }
+        if let Some(login) = &mut self.login {
+            login.verifier.zeroize();
         }
     }
 }
@@ -127,7 +141,6 @@ struct Source {
 struct Inner {
     client: Client,
     state: State,
-    login: Option<AppLogin>,
     log: Option<OrgLog>,
     stores: BTreeMap<Id, Opened>,
     /// The opened offline copy, used instead of `stores` while the server
@@ -257,7 +270,7 @@ impl Inner {
     fn forget(&mut self) {
         self.stores.clear();
         self.offline = None;
-        self.login = None;
+        self.state.login = None;
     }
 
     /// Converts a client error, and drops the session and every opened key
@@ -581,12 +594,12 @@ impl Device {
             pins: BTreeMap::new(),
             offline: Vec::new(),
             journal: BTreeMap::new(),
+            login: None,
         };
         Ok(Arc::new(Self {
             inner: Mutex::new(Inner {
                 client: client_for(&state, Arc::new(signer), &trust_anchors),
                 state,
-                login: None,
                 log: None,
                 stores: BTreeMap::new(),
                 offline: None,
@@ -621,7 +634,6 @@ impl Device {
             inner: Mutex::new(Inner {
                 client: client_for(&state, Arc::new(signer), &trust_anchors),
                 state,
-                login: None,
                 log: None,
                 stores: BTreeMap::new(),
                 offline: None,
@@ -693,14 +705,17 @@ impl Device {
     }
 
     /// Starts a sign-in through the system browser and returns the URL to
-    /// open. The browser returns to `redirect_uri`.
+    /// open. The browser returns to `redirect_uri`. The sign-in is part of
+    /// [`Device::state`], which the app saves before opening the URL.
     #[must_use]
     pub fn start_sign_in(&self, redirect_uri: String) -> String {
         let mut inner = self.lock_inner();
         let login = inner.client.start_app_login(&redirect_uri);
-        let url = login.url.clone();
-        inner.login = Some(login);
-        url
+        inner.state.login = Some(PendingLogin {
+            verifier: login.verifier.to_string(),
+            state: login.state.clone(),
+        });
+        login.url
     }
 
     /// Finishes the sign-in with the redirect the browser returned to.
@@ -711,11 +726,22 @@ impl Device {
     /// sign-in, and when the server refuses the code.
     pub fn finish_sign_in(&self, redirect: String) -> Result<(), MobileError> {
         let mut inner = self.lock_inner();
-        let login = inner
-            .login
-            .take()
-            .ok_or_else(|| MobileError::invalid("no sign-in is in progress"))?;
+        let login = {
+            let pending = inner
+                .state
+                .login
+                .as_ref()
+                .ok_or_else(|| MobileError::invalid("no sign-in is in progress"))?;
+            AppLogin {
+                url: String::new(),
+                verifier: Zeroizing::new(pending.verifier.clone()),
+                state: pending.state.clone(),
+            }
+        };
+        // The sign-in stays pending until it succeeds, so a redirect of
+        // another sign-in, or one another app sent, does not end it.
         let session = inner.client.finish_app_login(&login, &redirect)?;
+        inner.state.login = None;
         inner.remember_session(&session);
         Ok(())
     }
@@ -867,23 +893,39 @@ impl Device {
                 "the organization has not approved this device",
             ));
         }
-        let mut opened = BTreeMap::new();
+        // A hardware-backed identity accepts agreements only for a short
+        // window after the person authenticated, so every wrapping is
+        // fetched first and opened back to back before any index fetch.
+        let mut wrapped = Vec::new();
         for (store, state) in &log.state().stores {
             if state.deleted {
                 continue;
             }
-            let ring = match inner.client.keys(&log, *store, &identities) {
-                Ok(ring) => ring,
-                Err(pasejo_client::Error::Unavailable(_)) => continue,
-                Err(error) => return Err(identity.take_failure().unwrap_or_else(|| error.into())),
-            };
-            let snapshot = inner
-                .client
-                .index(&log, &ring, inner.state.pins.get(store).copied())?;
-            if let Some(pin) = snapshot.pin() {
-                inner.state.pins.insert(*store, pin);
+            match inner.client.wrapped_keys(&log, *store) {
+                Ok(keys) => wrapped.push((*store, keys)),
+                Err(pasejo_client::Error::Unavailable(_)) => {}
+                Err(error) => return Err(error.into()),
             }
-            opened.insert(*store, Opened { ring, snapshot });
+        }
+        let device = inner.state.device;
+        let mut rings = Vec::new();
+        for (store, keys) in &wrapped {
+            match KeyRing::open(&log, *store, device, keys, &identities) {
+                Ok(ring) => rings.push((*store, ring)),
+                Err(pasejo_client::Error::Unavailable(_)) => {}
+                Err(error) => return Err(identity.take_failure().unwrap_or_else(|| error.into())),
+            }
+        }
+        let mut opened = BTreeMap::new();
+        for (store, ring) in rings {
+            let snapshot =
+                inner
+                    .client
+                    .index(&log, &ring, inner.state.pins.get(&store).copied())?;
+            if let Some(pin) = snapshot.pin() {
+                inner.state.pins.insert(store, pin);
+            }
+            opened.insert(store, Opened { ring, snapshot });
         }
         inner.stores = opened;
         let kept: Vec<Id> = inner.stores.keys().copied().collect();

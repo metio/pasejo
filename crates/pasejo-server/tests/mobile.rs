@@ -431,6 +431,53 @@ async fn signing_out_ends_the_session_on_the_server() {
     );
 }
 
+/// A hardware-backed identity accepts agreements only for a short window
+/// after the person authenticated, so unlocking opens every store's keys
+/// before it fetches any index: in the server's audit trail, each keys read
+/// of the phone comes before its first index read.
+#[tokio::test(flavor = "multi_thread")]
+async fn unlocking_opens_every_stores_keys_before_fetching_indexes() {
+    let harness = Harness::start().await;
+    let alice = laptop(&harness, "alice").await;
+    let org = Id::random();
+    let mut log = sync(|| alice.client.create_org(org, "Acme", Settings::default())).unwrap();
+    for label in ["Work", "Home", "Club"] {
+        sync(|| alice.client.create_store(&mut log, label)).unwrap();
+    }
+    let phone = phone(&harness);
+    sync(|| phone.device.connect(None)).unwrap();
+    sign_in(&harness, &phone, "alice").await;
+    let genesis = log.genesis_hash().to_string();
+    sync(|| phone.device.join(org.to_string(), genesis)).unwrap();
+    approve(&alice, &mut log, &phone);
+
+    let stores = sync(|| phone.device.unlock(Arc::clone(&phone.agreement))).unwrap();
+    assert_eq!(stores.len(), 3);
+    let device = phone.device.device_id();
+    let reads: Vec<String> = sync(|| alice.client.audit_events(org, 0))
+        .unwrap()
+        .into_iter()
+        .filter(|event| event.actor_device.map(|id| id.to_string()) == Some(device.clone()))
+        .map(|event| event.action)
+        .filter(|action| action == "keys.read" || action == "index.read")
+        .collect();
+    let first_index = reads
+        .iter()
+        .position(|action| action == "index.read")
+        .unwrap();
+    assert_eq!(
+        reads.iter().filter(|action| *action == "keys.read").count(),
+        3,
+        "{reads:?}"
+    );
+    assert!(
+        reads[first_index..]
+            .iter()
+            .all(|action| action == "index.read"),
+        "{reads:?}"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn another_identity_cannot_unlock() {
     let w = world().await;
@@ -524,6 +571,35 @@ async fn a_changed_checkpoint_key_is_refused() {
     // Once pinned, a different managed key does not replace the pin.
     assert!(sync(|| phone.device.connect(Some(b64(&[1; 32])))).is_err());
     assert_eq!(sync(|| phone.device.connect(None)).unwrap(), info);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_sign_in_survives_the_app_being_ended_while_the_browser_is_open() {
+    let harness = Harness::start().await;
+    let phone = phone(&harness);
+    let url = phone.device.start_sign_in(REDIRECT.into());
+    let state = phone.device.state();
+    drop(phone.device);
+    let restored = Device::restore(state, Arc::clone(&phone.signer), vec![]).unwrap();
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let redirect = harness.follow_to_callback(&url).await.location().unwrap();
+    sync(|| restored.finish_sign_in(redirect)).unwrap();
+    assert!(restored.signed_in());
+    assert!(!restored.state().contains("verifier"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_foreign_redirect_leaves_the_sign_in_pending() {
+    let harness = Harness::start().await;
+    let phone = phone(&harness);
+    let url = phone.device.start_sign_in(REDIRECT.into());
+    let foreign = format!("{REDIRECT}?code=forged&state=forged");
+    let error = sync(|| phone.device.finish_sign_in(foreign)).unwrap_err();
+    assert!(matches!(error, MobileError::Verification { .. }), "{error}");
+    harness.idp.set_user("alice", "alice@example.com", "Alice");
+    let redirect = harness.follow_to_callback(&url).await.location().unwrap();
+    sync(|| phone.device.finish_sign_in(redirect)).unwrap();
+    assert!(phone.device.signed_in());
 }
 
 #[tokio::test(flavor = "multi_thread")]
