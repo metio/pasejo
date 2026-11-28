@@ -132,7 +132,7 @@ struct Inner {
     stores: BTreeMap<Id, Opened>,
     /// The opened offline copy, used instead of `stores` while the server
     /// cannot be reached.
-    offline: Option<BTreeMap<Id, offline::Store>>,
+    offline: Option<offline::Opened>,
 }
 
 /// A pasejo app installation.
@@ -401,19 +401,14 @@ impl Inner {
     /// Reads one value from the server, or from the opened offline copy,
     /// journaling the read for the audit log.
     fn read(&mut self, store: Id, kind: Kind, name: &str) -> Result<ObjectPlain, MobileError> {
-        if let Some(stores) = &self.offline {
-            let copy = stores.get(&store).ok_or(MobileError::NotFound)?;
-            let (id, version, object) = match kind {
-                Kind::Secret => copy.secrets.get(name).map(|entry| {
-                    let secret = entry.value.to_string();
-                    (entry.id, entry.version, ObjectPlain::Secret { secret })
-                }),
-                Kind::Otp => copy.otp.get(name).map(|entry| {
-                    let otp = entry.value.clone();
-                    (entry.id, entry.version, ObjectPlain::Otp { otp })
-                }),
+        if let Some(opened) = &self.offline {
+            let copy = opened.stores.get(&store).ok_or(MobileError::NotFound)?;
+            let entry = match kind {
+                Kind::Secret => copy.secrets.get(name),
+                Kind::Otp => copy.otp.get(name),
             }
             .ok_or(MobileError::NotFound)?;
+            let (id, version, object) = (entry.id, entry.version, opened.value(entry)?);
             let time = self.client.now();
             self.state
                 .journal
@@ -435,8 +430,8 @@ impl Inner {
         store: Id,
         name: &str,
     ) -> Result<(String, StoreSettings, bool), MobileError> {
-        if let Some(stores) = &self.offline {
-            let copy = stores.get(&store).ok_or(MobileError::NotFound)?;
+        if let Some(opened) = &self.offline {
+            let copy = opened.stores.get(&store).ok_or(MobileError::NotFound)?;
             return Ok((
                 copy.label.clone(),
                 copy.settings.clone(),
@@ -461,23 +456,24 @@ impl Inner {
     /// matching reads the text below each secret's password line as the
     /// lookup object holds it.
     fn lookups(&mut self) -> Result<Vec<Source>, MobileError> {
-        if let Some(stores) = &self.offline {
-            return Ok(stores
-                .iter()
-                .map(|(store, copy)| Source {
+        if let Some(opened) = &self.offline {
+            let mut sources = Vec::new();
+            for (store, copy) in &opened.stores {
+                let mut texts = BTreeMap::new();
+                for (name, entry) in &copy.secrets {
+                    if let ObjectPlain::Secret { secret } = &opened.value(entry)? {
+                        let below = secret.split_once('\n').map_or("", |(_, rest)| rest);
+                        texts.insert(name.clone(), below.to_owned());
+                    }
+                }
+                sources.push(Source {
                     store: *store,
                     label: copy.label.clone(),
                     settings: copy.settings.clone(),
-                    texts: copy
-                        .secrets
-                        .iter()
-                        .map(|(name, entry)| {
-                            let below = entry.value.split_once('\n').map_or("", |(_, rest)| rest);
-                            (name.clone(), below.to_owned())
-                        })
-                        .collect(),
-                })
-                .collect());
+                    texts,
+                });
+            }
+            return Ok(sources);
         }
         if self.stores.is_empty() {
             return Err(MobileError::Locked);
@@ -525,8 +521,9 @@ impl Inner {
                     })
                     .collect()
             },
-            |stores| {
-                stores
+            |opened| {
+                opened
+                    .stores
                     .iter()
                     .map(|(id, copy)| StoreView {
                         id: id.to_string(),
@@ -855,8 +852,9 @@ impl Device {
                 if !inner.offline_allowed() {
                     return Err(MobileError::Network { reason });
                 }
-                let stores = offline::view(&Shared(Arc::clone(&identity)), &inner.state.offline)
-                    .map_err(|error| identity.take_failure().unwrap_or(error))?;
+                let stores =
+                    offline::Opened::open(&Shared(Arc::clone(&identity)), &inner.state.offline)
+                        .map_err(|error| identity.take_failure().unwrap_or(error))?;
                 inner.stores.clear();
                 inner.offline = Some(stores);
                 return Ok(inner.views());
