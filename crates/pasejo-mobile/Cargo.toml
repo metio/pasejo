@@ -26,19 +26,19 @@ bindgen = ["uniffi/cli"]
 [dependencies]
 age = { version = "0.12.0", default-features = false }
 age-core = { version = "0.12.0" }
-base64 = { version = "0.22.1" }
-bech32 = { version = "0.11.1" }
-chacha20poly1305 = { version = "0.10.1" }
+base64 = { version = "0.23.0" }
+bech32 = { version = "0.12.0" }
+chacha20poly1305 = { version = "0.11.0" }
 ed25519-dalek = { version = "2.2.0" }
-hkdf = { version = "0.12.4" }
+hkdf = { version = "0.13.0" }
 otp-std = { version = "0.2.3", features = ["sha2", "unsafe-length"] }
 pasejo-client = { path = "../pasejo-client" }
 pasejo-match = { path = "../pasejo-match" }
 pasejo-protocol = { path = "../pasejo-protocol" }
-rand_core = { version = "0.6.4", features = ["getrandom"] }
+rand_core = { version = "0.10.0", features = ["getrandom"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.150" }
-sha2 = { version = "0.10.9" }
+sha2 = { version = "0.11.0" }
 thiserror = { version = "2.0.17" }
 uniffi = { version = "0.32.2" }
 ureq = { version = "3.3.0" }
