@@ -16,7 +16,8 @@ const RELATIONS: [&str; 2] = [
     "delegate_permission/common.get_login_creds",
     "delegate_permission/common.handle_all_urls",
 ];
-const MAX_FETCHES: usize = 10;
+/// Included statement files followed beyond the first one.
+const MAX_INCLUDES: usize = 10;
 const MAX_BYTES: u64 = 256 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -124,7 +125,7 @@ pub fn verify_statements_at(
     let mut pending = vec![url];
     let mut fetched = 0;
     while let Some(next) = pending.pop() {
-        if fetched == MAX_FETCHES {
+        if fetched > MAX_INCLUDES {
             return Err(MobileError::invalid("too many included statement files"));
         }
         fetched += 1;
@@ -330,7 +331,7 @@ pub mod tests {
     }
 
     #[test]
-    fn includes_are_followed_up_to_ten_files() {
+    fn includes_are_followed_up_to_a_loop_or_another_origin() {
         let files = Files::start();
         files.serve(
             "/root",
@@ -359,6 +360,35 @@ pub mod tests {
             r#"[{"include":"https://example.com/x"}]"#,
         );
         assert!(verify(&files, "/https", "com.example.mail", CERT).is_err());
+    }
+
+    /// Serves a chain of `includes` included files ending in a statement.
+    fn chain(files: &Files, prefix: &str, includes: usize) {
+        for step in 0..includes {
+            let next = files.url(&format!("/{prefix}{}", step + 1));
+            files.serve(
+                &format!("/{prefix}{step}"),
+                200,
+                "application/json",
+                &format!(r#"[{{"include":"{next}"}}]"#),
+            );
+        }
+        let leaf = statement(RELATIONS[0], "com.example.mail", CERT);
+        files.serve(
+            &format!("/{prefix}{includes}"),
+            200,
+            "application/json",
+            &leaf,
+        );
+    }
+
+    #[test]
+    fn ten_includes_are_followed_and_an_eleventh_is_refused() {
+        let files = Files::start();
+        chain(&files, "ten", 10);
+        assert_eq!(verify(&files, "/ten0", "com.example.mail", CERT), Ok(true));
+        chain(&files, "eleven", 11);
+        assert!(verify(&files, "/eleven0", "com.example.mail", CERT).is_err());
     }
 
     #[test]

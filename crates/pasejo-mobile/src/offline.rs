@@ -6,6 +6,13 @@
 //! device's own age recipient, so opening the copy needs the same
 //! authentication as opening the stores, and the copy holds only values
 //! whose first read the server recorded.
+//!
+//! Opening the copy for an unlock period reseals every value to a key that
+//! exists only in memory for that period, as the online key ring holds
+//! store keys: memory holds keys and sealed values, and a value is in the
+//! clear only while one read uses it. The device's own identity cannot do
+//! that job, because a hardware identity agrees only within seconds of an
+//! authentication.
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -13,7 +20,7 @@ use std::str::FromStr;
 
 use pasejo_protocol::Id;
 use pasejo_protocol::encoding::b64;
-use pasejo_protocol::store::{ObjectPlain, OtpParams, StoreSettings};
+use pasejo_protocol::store::{ObjectPlain, StoreSettings};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
@@ -38,20 +45,69 @@ pub struct Plain {
     pub object: ObjectPlain,
 }
 
-/// A value of the opened copy, with the identifier and version a read
-/// report names.
-pub struct Entry<T> {
+/// A value of the opened copy, still sealed, with the identifier and
+/// version a read report names.
+pub struct Entry {
     pub id: Id,
     pub version: u64,
-    pub value: T,
+    sealed: Record,
 }
 
-/// One store of the opened copy.
+/// One store of the opened copy: names and settings, values sealed.
 pub struct Store {
     pub label: String,
     pub settings: StoreSettings,
-    pub secrets: BTreeMap<String, Entry<Zeroizing<String>>>,
-    pub otp: BTreeMap<String, Entry<OtpParams>>,
+    pub secrets: BTreeMap<String, Entry>,
+    pub otp: BTreeMap<String, Entry>,
+}
+
+/// The copy opened for one unlock period.
+pub struct Opened {
+    key: age::x25519::Identity,
+    pub stores: BTreeMap<Id, Store>,
+}
+
+impl Opened {
+    /// Opens every record with `identity` and reseals it to a fresh key; a
+    /// later record of the same name replaces an earlier one.
+    ///
+    /// # Errors
+    ///
+    /// Fails when any record does not open.
+    pub fn open(identity: &dyn age::Identity, records: &[Record]) -> Result<Self, MobileError> {
+        let key = age::x25519::Identity::generate();
+        let recipient = key.to_public().to_string();
+        let mut stores: BTreeMap<Id, Store> = BTreeMap::new();
+        for record in records {
+            let plain = open(identity, record)?;
+            let sealed = seal(&recipient, record.store, record.id, record.version, &plain)?;
+            let store = stores.entry(record.store).or_insert_with(|| Store {
+                label: plain.label.clone(),
+                settings: plain.settings.clone(),
+                secrets: BTreeMap::new(),
+                otp: BTreeMap::new(),
+            });
+            let entry = Entry {
+                id: record.id,
+                version: record.version,
+                sealed,
+            };
+            match &plain.object {
+                ObjectPlain::Secret { .. } => store.secrets.insert(plain.name.clone(), entry),
+                ObjectPlain::Otp { .. } => store.otp.insert(plain.name.clone(), entry),
+            };
+        }
+        Ok(Self { key, stores })
+    }
+
+    /// The value of one entry, in the clear for the caller's use only.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the entry does not open with this period's key.
+    pub fn value(&self, entry: &Entry) -> Result<ObjectPlain, MobileError> {
+        open(&self.key, &entry.sealed).map(|plain| plain.object)
+    }
 }
 
 /// Seals `plain` to the age `recipient`.
@@ -112,51 +168,6 @@ pub fn open(identity: &dyn age::Identity, record: &Record) -> Result<Plain, Mobi
         .map_err(|_| MobileError::verification("an offline record is malformed"))
 }
 
-/// Opens every record into stores of names and values; a later record of
-/// the same name replaces an earlier one.
-///
-/// # Errors
-///
-/// Fails when any record does not open.
-pub fn view(
-    identity: &dyn age::Identity,
-    records: &[Record],
-) -> Result<BTreeMap<Id, Store>, MobileError> {
-    let mut stores: BTreeMap<Id, Store> = BTreeMap::new();
-    for record in records {
-        let plain = open(identity, record)?;
-        let store = stores.entry(record.store).or_insert_with(|| Store {
-            label: plain.label.clone(),
-            settings: plain.settings.clone(),
-            secrets: BTreeMap::new(),
-            otp: BTreeMap::new(),
-        });
-        match &plain.object {
-            ObjectPlain::Secret { secret } => {
-                store.secrets.insert(
-                    plain.name.clone(),
-                    Entry {
-                        id: record.id,
-                        version: record.version,
-                        value: Zeroizing::new(secret.clone()),
-                    },
-                );
-            }
-            ObjectPlain::Otp { otp } => {
-                store.otp.insert(
-                    plain.name.clone(),
-                    Entry {
-                        id: record.id,
-                        version: record.version,
-                        value: otp.clone(),
-                    },
-                );
-            }
-        }
-    }
-    Ok(stores)
-}
-
 /// Adds `record`, replacing an older version of the same object.
 pub fn upsert(records: &mut Vec<Record>, record: Record) {
     records.retain(|existing| !(existing.store == record.store && existing.id == record.id));
@@ -166,6 +177,8 @@ pub fn upsert(records: &mut Vec<Record>, record: Record) {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
+
+    use pasejo_protocol::store::OtpParams;
 
     use super::*;
 
@@ -269,14 +282,74 @@ mod tests {
             )
             .unwrap(),
         ];
-        let stores = view(&identity, &records).unwrap();
+        let opened = Opened::open(&identity, &records).unwrap();
+        let stores = &opened.stores;
         assert_eq!(stores.len(), 2);
         assert_eq!(stores[&work].label, "Work");
-        assert_eq!(stores[&work].secrets["mail"].value.as_str(), "a");
+        assert!(matches!(
+            opened.value(&stores[&work].secrets["mail"]).unwrap(),
+            ObjectPlain::Secret { ref secret } if secret == "a"
+        ));
         assert_eq!(stores[&work].secrets["mail"].id, mail);
-        assert_eq!(stores[&work].otp["mail"].value.digits, 6);
+        assert!(matches!(
+            opened.value(&stores[&work].otp["mail"]).unwrap(),
+            ObjectPlain::Otp { ref otp } if otp.digits == 6
+        ));
         assert_eq!(stores[&home].label, "Home");
         assert_eq!(stores[&home].secrets["bank"].version, 2);
+    }
+
+    #[test]
+    fn the_opened_copy_holds_values_sealed_to_a_key_of_its_own() {
+        let (identity, recipient) = identity();
+        let store = Id::random();
+        let records = vec![
+            seal(
+                &recipient,
+                store,
+                Id::random(),
+                1,
+                &secret("mail", "hunter2-offline"),
+            )
+            .unwrap(),
+        ];
+        let opened = Opened::open(&identity, &records).unwrap();
+        let entry = &opened.stores[&store].secrets["mail"];
+        assert_ne!(entry.sealed.sealed, records[0].sealed);
+        assert!(open(&identity, &entry.sealed).is_err());
+        let bytes = pasejo_protocol::encoding::unb64(&entry.sealed.sealed).unwrap();
+        assert!(!bytes.windows(15).any(|window| window == b"hunter2-offline"));
+        assert!(matches!(
+            opened.value(entry).unwrap(),
+            ObjectPlain::Secret { ref secret } if secret == "hunter2-offline"
+        ));
+    }
+
+    #[test]
+    fn each_opening_uses_another_key() {
+        let (identity, recipient) = identity();
+        let store = Id::random();
+        let records = vec![seal(&recipient, store, Id::random(), 1, &secret("mail", "a")).unwrap()];
+        let first = Opened::open(&identity, &records).unwrap();
+        let second = Opened::open(&identity, &records).unwrap();
+        assert!(first.value(&second.stores[&store].secrets["mail"]).is_err());
+    }
+
+    #[test]
+    fn a_copy_another_identity_sealed_does_not_open() {
+        let (_, recipient) = identity();
+        let (other, _) = identity();
+        let records = vec![
+            seal(
+                &recipient,
+                Id::random(),
+                Id::random(),
+                1,
+                &secret("mail", "a"),
+            )
+            .unwrap(),
+        ];
+        assert!(Opened::open(&other, &records).is_err());
     }
 
     #[test]
